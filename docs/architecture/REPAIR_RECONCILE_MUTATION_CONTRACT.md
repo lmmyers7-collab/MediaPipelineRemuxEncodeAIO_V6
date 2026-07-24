@@ -23,7 +23,7 @@ The WebView may display these boundaries from `/api/contract`, but it must not i
   - `POST /api/completed/repair-sidecar-metadata`
   - `POST /api/pending-publish/repair-manifest`
   - `POST /api/pending-publish/reconcile-orphan-payloads`
-- Completed apply routes back up and atomically rewrite selected manifest/sidecar state. Pending manifest repair can back up and atomically rewrite selected backend-validated manifest-normalization candidates; orphan-payload reconcile can create the missing payload-adjacent manifest only from a complete backend-derived `pending_push_manifest.v1` proposal and otherwise blocks.
+- Completed apply routes back up and atomically rewrite selected manifest/sidecar state. Pending manifest repair can back up and atomically rewrite selected backend-validated manifest-normalization candidates; orphan-payload reconcile can create the missing payload-adjacent manifest only from a complete backend-derived `pending_push_manifest.v1` proposal whose output and sidecar size/SHA-256 proofs match the exact parked bytes during dry-run and again at apply, and otherwise blocks.
 - `GET /api/publish-reconciliation` remains read-only evidence. It correlates Completed, Pending Publish, and durable drain-summary proof; it does not repair or publish.
 - Pending Publish WebView selected-row manifest repair and orphan-payload reconcile controls plus Completed selected-row manifest/sidecar repair controls post only `scope`, `row_key`, `limit`, `reason`, `dry_run_fingerprint`, and `confirm_apply=true`; they do not send client paths, patches, sidecar JSON, raw manifests, drain/publish requests, move/delete requests, or source-media actions.
 
@@ -76,8 +76,8 @@ The required apply result fields are:
 |---|---|---|---|---|
 | Completed manifest reconciliation | `completed.reconcile_manifest` | Completed / Maintenance | Manifest write | Must not mark media complete without output/sidecar evidence or touch source/output/scratch files |
 | Completed sidecar metadata repair | `completed.repair_sidecar_metadata` | Completed / Rename | Sidecar JSON write | Must not rewrite arbitrary frontend-provided JSON paths, rename media, or override route/audio/subtitle policy |
-| Pending Publish manifest repair | `pending_publish.repair_manifest` | Pending Publish | Pending manifest write | Only backend-validated manifest-normalization candidates may write; must not move parked payloads, drain/publish, delete orphan payloads, or trust frontend paths |
-| Orphan pending payload reconciliation | `pending_publish.reconcile_orphan_payloads` | Pending Publish | Pending orphan manifest write | Dry-run must list missing `pending_push_manifest.v1` evidence for ordinary orphan rows and may produce a candidate only from a complete backend-derived manifest proposal; apply creates only the missing payload-adjacent manifest and must not move/delete payloads, overwrite output, publish ambiguous proof, or run from WebView-only logic |
+| Pending Publish manifest repair | `pending_publish.repair_manifest` | Pending Publish | Pending manifest write | Only backend-validated manifest-normalization candidates whose output and sidecar SHA-256 proofs match current parked bytes may write; must not move parked payloads, drain/publish, delete orphan payloads, or trust frontend paths |
+| Orphan pending payload reconciliation | `pending_publish.reconcile_orphan_payloads` | Pending Publish | Pending orphan manifest write | Dry-run must list missing `pending_push_manifest.v1` evidence for ordinary orphan rows and may produce a candidate only from a complete backend-derived manifest proposal with byte-matching SHA-256 proof; apply revalidates the proof, creates only the missing payload-adjacent manifest, and must not move/delete payloads, overwrite output, publish ambiguous proof, or run from WebView-only logic |
 
 ---
 

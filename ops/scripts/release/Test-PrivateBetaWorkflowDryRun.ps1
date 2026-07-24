@@ -144,6 +144,34 @@ Add-Check 'tauri_root' (Test-Path -LiteralPath $tauriRoot -PathType Container) `
     'Tauri app root must exist for cargo check.'
 
 $tempConfigPath = Join-Path ([System.IO.Path]::GetTempPath()) ("mediapipeline-tauri-{0}-workflow-dry-run.conf.json" -f $Channel)
+$tempResourceRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("mediapipeline-tauri-resource-fixture-" + [guid]::NewGuid().ToString('N'))
+$requiredResourcePaths = @(
+    'pyproject.toml',
+    'apps\desktop\webview\static\index.html',
+    'apps\desktop\runtime\Python\python.exe',
+    'src\mediapipeline\desktop\local_api_main.py',
+    'ops\pipeline\entrypoints\MediaPipeline.ps1',
+    'ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe',
+    'ops\pipeline\tools\ffmpeg\bin\ffmpeg.exe',
+    'ops\pipeline\tools\ffmpeg\bin\ffprobe.exe',
+    'ops\pipeline\tools\MKVToolNix\mkvmerge.exe',
+    'ops\pipeline\tools\PgsToSrt\PgsToSrt.exe',
+    'ops\scripts\dev\setup.bat',
+    'ops\release\metadata\VERSION'
+)
+foreach ($relativePath in $requiredResourcePaths) {
+    $fixturePath = Join-Path $tempResourceRoot $relativePath
+    New-Item -ItemType Directory -Path (Split-Path -Parent $fixturePath) -Force | Out-Null
+    Set-Content -LiteralPath $fixturePath -Value "dry-run fixture: $relativePath" -Encoding UTF8
+}
+$fixtureManifest = [ordered]@{
+    schema_version = 'mediapipeline_release_manifest.v1'
+    integrity = [ordered]@{
+        algorithm = 'sha256'
+        files = @($requiredResourcePaths | ForEach-Object { [ordered]@{ path = $_ } })
+    }
+}
+$fixtureManifest | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $tempResourceRoot 'release_manifest.json') -Encoding UTF8
 if (Test-Path -LiteralPath $preflightScript -PathType Leaf) {
     $preflightArgs = @(
         '-NoProfile',
@@ -162,11 +190,16 @@ if (Test-Path -LiteralPath $preflightScript -PathType Leaf) {
         $ReleaseTag,
         '-ConfigOutputPath',
         $tempConfigPath,
+        '-ResourceRoot',
+        $tempResourceRoot,
         '-AsJson'
     )
     $preflightExit = Invoke-CapturedCommand -Name 'private_beta_preflight' -FilePath (Resolve-PowerShellHost) -Arguments $preflightArgs
     Add-Check 'preflight:passed' ($preflightExit -eq 0) `
         'Private beta preflight must pass with local dry-run placeholder release inputs.'
+}
+if (Test-Path -LiteralPath $tempResourceRoot) {
+    Remove-Item -LiteralPath $tempResourceRoot -Recurse -Force
 }
 
 if ($SkipPythonTests) {

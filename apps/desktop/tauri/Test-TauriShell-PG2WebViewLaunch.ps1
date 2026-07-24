@@ -14,6 +14,10 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 
+$scriptRoot = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
+$repoRoot = [IO.Path]::GetFullPath((Join-Path $scriptRoot '..\..\..'))
+. (Join-Path $repoRoot 'ops\scripts\smoke\tauri_harness_process_ownership.ps1')
+
 function Assert-ExplicitPgRuntimeEvidencePath {
     param(
         [AllowEmptyString()]
@@ -79,14 +83,6 @@ function Resolve-VsDevCmd {
     return ''
 }
 
-function Get-LocalApiBackendProcesses {
-    Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
-        Where-Object {
-            [string]$_.Name -match '^python(\d+(\.\d+)*)?\.exe$' -and
-            [string]$_.CommandLine -match 'mediapipeline.desktop\.local_api_main'
-        }
-}
-
 function Get-TauriShellProcesses {
     Get-Process -Name 'mediapipeline-tauri-shell' -ErrorAction SilentlyContinue
 }
@@ -99,33 +95,6 @@ function Stop-ProcessTree {
     } catch {
         try { $Process.Kill() } catch { }
     }
-}
-
-function Stop-ProcessIdTree {
-    param([int]$ProcessId)
-
-    $proc = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
-    if (-not $proc) { return }
-    Stop-ProcessTree -Process $proc
-}
-
-function Wait-ProcessIdsGone {
-    param(
-        [int[]]$ProcessIds,
-        [int]$TimeoutSeconds,
-        [string]$Label
-    )
-
-    $ids = @($ProcessIds | Where-Object { $_ -gt 0 } | Select-Object -Unique)
-    if ($ids.Count -eq 0) { return @() }
-    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
-    do {
-        $remaining = @($ids | Where-Object { Get-Process -Id $_ -ErrorAction SilentlyContinue })
-        if ($remaining.Count -eq 0) { return @() }
-        Start-Sleep -Milliseconds 500
-    } while ((Get-Date) -lt $deadline)
-    Write-Host "$Label still running after ${TimeoutSeconds}s: $($remaining -join ', ')" -ForegroundColor Yellow
-    return $remaining
 }
 
 function Get-LogTail {
@@ -300,7 +269,6 @@ if (-not (Test-Path -LiteralPath $resolvedSource -PathType Leaf)) {
 }
 $ActiveJobsDir = Assert-ExplicitPgRuntimeEvidencePath -Path $ActiveJobsDir -ParameterName 'ActiveJobsDir'
 
-$scriptRoot = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
 $shellRoot = [System.IO.Path]::GetFullPath($scriptRoot)
 $node = Resolve-ToolPath node
 $npm = Resolve-ToolPath npm
@@ -317,8 +285,6 @@ foreach ($tool in @(
     }
 }
 
-$baselineBackendIds = @(Get-LocalApiBackendProcesses | ForEach-Object { [int]$_.ProcessId })
-$baselineShellIds = @(Get-TauriShellProcesses | ForEach-Object { [int]$_.Id })
 $logRoot = Join-Path ([System.IO.Path]::GetTempPath()) 'mediapipeline-tauri-shell-pg2-webview-launch'
 New-Item -ItemType Directory -Path $logRoot -Force | Out-Null
 $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
@@ -351,18 +317,26 @@ $env:MEDIA_PIPELINE_TAURI_TEST_AUTOLAUNCH_MODE = $previousMode
 $env:MEDIA_PIPELINE_TAURI_TEST_AUTOLAUNCH_SCHEDULE_OVERRIDE = $previousSchedule
 $env:MEDIA_PIPELINE_TAURI_TEST_TOKEN_CAPTURE_FILE = $previousTokenCapture
 
+$launcherIdentity = $null
+$ownedBackendIdentities = @()
+$ownedShellIdentities = @()
 $newBackendIds = @()
 $newShellIds = @()
 $windowProcess = $null
 $visibleWindowProcess = $null
 try {
+    $launcherIdentity = Get-TauriHarnessProcessIdentity -ProcessId $devProcess.Id
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     while ((Get-Date) -lt $deadline) {
         if ($devProcess.HasExited) {
             throw "Tauri dev process exited before the window appeared. Exit=$($devProcess.ExitCode). stderr=$(Get-LogTail -Path $stderrLog)"
         }
-        $shellProcesses = @(Get-TauriShellProcesses | Where-Object { $baselineShellIds -notcontains [int]$_.Id })
-        $newShellIds = @($shellProcesses | ForEach-Object { [int]$_.Id })
+        $processSnapshot = @(Get-TauriHarnessProcessSnapshot)
+        $ownedShellIdentities = @(Get-TauriHarnessOwnedShellIdentities -RootIdentity $launcherIdentity -ProcessSnapshot $processSnapshot)
+        $ownedBackendIdentities = @(Get-TauriHarnessOwnedBackendIdentities -RootIdentity $launcherIdentity -ProcessSnapshot $processSnapshot)
+        $newShellIds = @($ownedShellIdentities | ForEach-Object { [int]$_.ProcessId })
+        $newBackendIds = @($ownedBackendIdentities | ForEach-Object { [int]$_.ProcessId })
+        $shellProcesses = @(Get-TauriShellProcesses | Where-Object { $newShellIds -contains [int]$_.Id })
         $visibleWindowProcess = $shellProcesses |
             Where-Object { $_.MainWindowTitle -eq $WindowTitle } |
             Select-Object -First 1
@@ -372,8 +346,6 @@ try {
         if (-not $windowProcess) {
             $windowProcess = $shellProcesses | Select-Object -First 1
         }
-        $backendProcesses = @(Get-LocalApiBackendProcesses)
-        $newBackendIds = @($backendProcesses | Where-Object { $baselineBackendIds -notcontains [int]$_.ProcessId } | ForEach-Object { [int]$_.ProcessId })
         if ($visibleWindowProcess -and $windowProcess -and $newBackendIds.Count -gt 0) { break }
         Start-Sleep -Milliseconds 500
     }
@@ -382,10 +354,13 @@ try {
         throw "Tauri window '$WindowTitle' was not detected within $TimeoutSeconds seconds. stdout_tail=$(Get-LogTail -Path $stdoutLog) stderr_tail=$(Get-LogTail -Path $stderrLog)"
     }
     if (-not $windowProcess) {
-        throw "New Tauri shell process was not detected within $TimeoutSeconds seconds."
+        throw "A Tauri shell in launcher PID $($launcherIdentity.ProcessId)'s exact process tree was not detected within $TimeoutSeconds seconds."
     }
     if ($newBackendIds.Count -eq 0) {
-        throw "New Python local API backend process was not detected within $TimeoutSeconds seconds."
+        throw "A Python local API backend in launcher PID $($launcherIdentity.ProcessId)'s exact process tree was not detected within $TimeoutSeconds seconds."
+    }
+    if ($ownedBackendIdentities.Count -ne 1) {
+        throw "Expected exactly one launcher-owned Local API backend; found $($ownedBackendIdentities.Count): $($newBackendIds -join ', ')."
     }
 
     $backendPid = [int]$newBackendIds[0]
@@ -422,10 +397,10 @@ try {
         throw "Tauri dev process did not exit within $CloseTimeoutSeconds seconds after close. stdout_tail=$(Get-LogTail -Path $stdoutLog) stderr_tail=$(Get-LogTail -Path $stderrLog)"
     }
 
-    $remainingShellIds = @(Wait-ProcessIdsGone -ProcessIds $newShellIds -TimeoutSeconds $CloseTimeoutSeconds -Label 'Tauri shell process(es)')
-    $remainingBackendIds = @(Wait-ProcessIdsGone -ProcessIds $newBackendIds -TimeoutSeconds $CloseTimeoutSeconds -Label 'Backend process(es)')
-    if ($remainingShellIds.Count -gt 0 -or $remainingBackendIds.Count -gt 0) {
-        throw "PG-2 WebView launch cleanup left processes running. shell=$($remainingShellIds -join ', ') backend=$($remainingBackendIds -join ', ')"
+    $remainingShellIdentities = @(Wait-TauriHarnessProcessIdentitiesGone -Identities $ownedShellIdentities -TimeoutSeconds $CloseTimeoutSeconds -Label 'Tauri shell process(es)')
+    $remainingBackendIdentities = @(Wait-TauriHarnessProcessIdentitiesGone -Identities $ownedBackendIdentities -TimeoutSeconds $CloseTimeoutSeconds -Label 'Backend process(es)')
+    if ($remainingShellIdentities.Count -gt 0 -or $remainingBackendIdentities.Count -gt 0) {
+        throw "PG-2 WebView launch cleanup left processes running. shell=$(@($remainingShellIdentities.ProcessId) -join ', ') backend=$(@($remainingBackendIdentities.ProcessId) -join ', ')"
     }
 
     [ordered]@{
@@ -453,13 +428,17 @@ try {
     $env:MEDIA_PIPELINE_TAURI_TEST_AUTOLAUNCH_SINGLE_FILE = $previousSource
     $env:MEDIA_PIPELINE_TAURI_TEST_AUTOLAUNCH_MODE = $previousMode
     $env:MEDIA_PIPELINE_TAURI_TEST_AUTOLAUNCH_SCHEDULE_OVERRIDE = $previousSchedule
+    foreach ($backendIdentity in $ownedBackendIdentities) {
+        if (Test-TauriHarnessProcessIdentityCurrent -Identity $backendIdentity) {
+            Stop-TauriHarnessOwnedProcessTree -Identity $backendIdentity -Label 'launcher-owned backend' | Out-Null
+        }
+    }
+    foreach ($shellIdentity in $ownedShellIdentities) {
+        if (Test-TauriHarnessProcessIdentityCurrent -Identity $shellIdentity) {
+            Stop-TauriHarnessOwnedProcessTree -Identity $shellIdentity -Label 'launcher-owned Tauri shell' | Out-Null
+        }
+    }
     if ($devProcess -and -not $devProcess.HasExited) {
         Stop-ProcessTree -Process $devProcess
-    }
-    foreach ($shellPid in $newShellIds) {
-        Stop-ProcessIdTree -ProcessId $shellPid
-    }
-    foreach ($backendPid in $newBackendIds) {
-        Stop-ProcessIdTree -ProcessId $backendPid
     }
 }

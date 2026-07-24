@@ -752,6 +752,44 @@ function Build-QueuePlanSnapshotRows {
             $runtimeCheckCodes = @()
             $runtimeCheckNotes = @()
         }
+        if (-not $blocked) {
+            $routePlanRoute = if ($rp -and $rp.PSObject.Properties['Route']) { ([string]$rp.Route).Trim().ToLowerInvariant() } else { '' }
+            $routePlanDisplay = if ($rp -and $rp.PSObject.Properties['DisplayRoute']) { [string]$rp.DisplayRoute } else { '' }
+            $routePlanReason = if ($rp -and $rp.PSObject.Properties['Reason']) { [string]$rp.Reason } else { '' }
+            $routePlanReasonCode = if ($rp -and $rp.PSObject.Properties['ReasonCode']) { [string]$rp.ReasonCode } else { '' }
+            $routePlanComplete = (
+                $routePlanRoute -in @('encode','remux') -and
+                -not [string]::IsNullOrWhiteSpace($routePlanDisplay) -and
+                -not [string]::IsNullOrWhiteSpace($routePlanReason) -and
+                -not [string]::IsNullOrWhiteSpace($routePlanReasonCode)
+            )
+            if (-not $routePlanComplete) {
+                $routeFailureDetail = if ([string]::IsNullOrWhiteSpace([string]$routeReason)) {
+                    'backend route resolver returned incomplete or noncanonical route evidence'
+                } else {
+                    [string]$routeReason
+                }
+                $blocked = if ($routeFailureDetail -like 'route preview failed:*') {
+                    $routeFailureDetail
+                } else {
+                    "route preview failed: $routeFailureDetail"
+                }
+                $blockedCode = 'route_preview_failed'
+                $route = $null
+                $routeReason = $blocked
+                $routeReasonCode = $blockedCode
+                $routeDecisionTrace = @()
+                $routeEstimatedBitrateMbps = 0.0
+                $routeSizeThresholdGb = 0.0
+                $routeBitrateThresholdMbps = 0.0
+                $routeThresholdMode = ''
+                $routeSizeOverThreshold = $false
+                $routeBitrateOverThreshold = $false
+                $runtimeChecksDeferred = $false
+                $runtimeCheckCodes = @()
+                $runtimeCheckNotes = @()
+            }
+        }
         $runQueueIndex = 0
         if (-not $blocked) {
             $runnableRowCount++

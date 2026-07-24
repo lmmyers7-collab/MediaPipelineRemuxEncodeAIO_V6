@@ -105,6 +105,7 @@ class LocalApiHandlerPolicyTests(unittest.TestCase):
         self.assertEqual(retryable_payload["code"], "snapshot_busy")
         self.assertTrue(retryable_payload["retryable"])
         self.assertEqual(retryable_payload["status"], 503)
+        self.assertIs(retryable_error.mutation_performed, False)
         self.assertEqual(route_exception_status(retryable_error), 503)
         self.assertEqual(route_exception_status(RuntimeError("failed")), 500)
         self.assertEqual(

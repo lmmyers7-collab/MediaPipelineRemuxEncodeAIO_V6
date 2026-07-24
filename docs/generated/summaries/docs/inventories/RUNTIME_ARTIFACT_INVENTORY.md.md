@@ -6,9 +6,9 @@ file_type: Markdown
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-20
+last_modified: 2026-07-23
 last_reviewed: 2026-06-02
-sha256: 0a523807bcc91711be08b483896a1860dd2ab8ce5d26fea565b3cf8d1c96c830
+sha256: 17a6d4067bd4eb8e99423d2dcdaf7f4a80d60253ba30963c60b98cf420c757f8
 ---
 # `docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md`
 

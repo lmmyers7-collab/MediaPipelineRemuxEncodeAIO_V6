@@ -7,21 +7,21 @@
   "violations": [],
   "summary": {
     "scripts": 287,
-    "controls": 520,
-    "route_usages": 117,
+    "controls": 522,
+    "route_usages": 119,
     "dynamic_api_posts": 8,
-    "route_contracts": 172,
-    "high_risk_route_usages": 52,
+    "route_contracts": 174,
+    "high_risk_route_usages": 53,
     "unclassified_high_risk_controls": 0,
     "controls_by_classification": {
       "backend-contract-dynamic-route": 4,
-      "backend-owned-route": 180,
+      "backend-owned-route": 181,
       "disabled-future-network-control": 6,
       "local-copy": 2,
       "local-display-state": 76,
       "local-form-staging": 3,
       "local-guided-setup": 8,
-      "local-launch-intent-staging": 7,
+      "local-launch-intent-staging": 8,
       "local-navigation": 36,
       "local-network-staging": 1,
       "local-or-read-only": 64,
@@ -1662,6 +1662,17 @@
       "route": "",
       "data_attrs": {
         "data-pipeline-mode-preset": "once"
+      }
+    },
+    {
+      "page": "launch",
+      "tag": "button",
+      "id": "",
+      "text": "Priority Export",
+      "classification": "local-launch-intent-staging",
+      "route": "",
+      "data_attrs": {
+        "data-pipeline-scope-preset": "priority_export"
       }
     },
     {
@@ -3352,6 +3363,15 @@
       "text": "✕ Clear All",
       "classification": "backend-owned-route",
       "route": "/api/queue/priority",
+      "data_attrs": {}
+    },
+    {
+      "page": "queue",
+      "tag": "button",
+      "id": "queue-priority-export-btn",
+      "text": "Prepare Priority Run",
+      "classification": "backend-owned-route",
+      "route": "/api/queue/priority-export",
       "data_attrs": {}
     },
     {
@@ -5777,7 +5797,7 @@
       "normalized_route": "/api/diagnostics/encoder-capabilities/refresh",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.preflight.js",
-      "line": 665,
+      "line": 590,
       "script_owner": "Launch",
       "allowed_owners": [
         "Diagnostics",
@@ -6033,7 +6053,7 @@
       "normalized_route": "/api/maintenance/archive-state-journals",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launch/commandOrchestration.js",
-      "line": 511,
+      "line": 514,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -6351,7 +6371,7 @@
       "normalized_route": "/api/pipeline/start",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launch/commandOrchestration.js",
-      "line": 352,
+      "line": 355,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -6367,7 +6387,7 @@
       "normalized_route": "/api/pipeline/start",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launch/commandOrchestration.js",
-      "line": 439,
+      "line": 442,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -6609,6 +6629,36 @@
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queue/priority.js",
       "line": 203,
+      "script_owner": "Queue",
+      "allowed_owners": [
+        "Queue"
+      ],
+      "contract_effect": "queue-state-write",
+      "high_risk_effect": true,
+      "contract_found": true,
+      "owner_ok": true
+    },
+    {
+      "route": "/api/queue/priority-export",
+      "normalized_route": "/api/queue/priority-export",
+      "method": "GET",
+      "file": "apps/desktop/webview/static/assets/launch/scopeControls.js",
+      "line": 75,
+      "script_owner": "Launch",
+      "allowed_owners": [
+        "Launch"
+      ],
+      "contract_effect": "none",
+      "high_risk_effect": false,
+      "contract_found": true,
+      "owner_ok": true
+    },
+    {
+      "route": "/api/queue/priority-export",
+      "normalized_route": "/api/queue/priority-export",
+      "method": "POST",
+      "file": "apps/desktop/webview/static/assets/queue/priority.js",
+      "line": 216,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -7015,7 +7065,7 @@
       "normalized_route": "/api/settings/preview-patch",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settings/view/commands.js",
-      "line": 296,
+      "line": 319,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -7032,7 +7082,7 @@
       "normalized_route": "/api/settings/preview-patch",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settings/view/commands.js",
-      "line": 444,
+      "line": 468,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -7083,7 +7133,7 @@
       "normalized_route": "/api/settings/save-patch",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settings/view/commands.js",
-      "line": 560,
+      "line": 584,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -7284,13 +7334,13 @@
     },
     {
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 722,
+      "line": 724,
       "allowed": true,
       "reason": "late-bound mediaPipelineApi namespace forwarder"
     },
     {
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 819,
+      "line": 821,
       "allowed": true,
       "reason": "late-bound mediaPipelineApi namespace forwarder"
     }
@@ -7659,6 +7709,16 @@
     {
       "method": "GET",
       "path": "/api/queue/priority",
+      "effect": "none",
+      "owner": "",
+      "requires_confirmation": null,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/queue/priority-export",
       "effect": "none",
       "owner": "",
       "requires_confirmation": null,
@@ -8702,6 +8762,8 @@
       "network_lifecycle": false,
       "request_keys": [
         "mode",
+        "priority_export_id",
+        "queue_scope",
         "schedule_override",
         "show_config",
         "show_console",
@@ -8871,6 +8933,16 @@
     },
     {
       "method": "POST",
+      "path": "/api/queue/priority-export",
+      "effect": "queue-state-write",
+      "owner": "",
+      "requires_confirmation": null,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": []
+    },
+    {
+      "method": "POST",
       "path": "/api/queue/scan",
       "effect": "process-dry-run",
       "owner": "",
@@ -8953,25 +9025,7 @@
       "requires_confirmation": null,
       "frontend_exposed": null,
       "network_lifecycle": false,
-      "request_keys": [
-        "case_id",
-        "confirm_append",
-        "expected_clean_folder",
-        "expected_episode",
-        "expected_episode_title",
-        "expected_movie_title",
-        "expected_name",
-        "expected_season",
-        "expected_show",
-        "expected_year",
-        "kind",
-        "notes",
-        "season_number",
-        "source_file",
-        "source_folder",
-        "status",
-        "template_preset"
-      ]
+      "request_keys": []
     },
     {
       "method": "POST",

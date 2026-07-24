@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-07-11
+last_modified: 2026-07-22
 last_reviewed: 2026-07-11
-sha256: 7ac0e1db234697acc66c577c034b76288f00dab30b7f114eb1bf34f95824435c
+sha256: e73e76213e380ff4a7712452bf957de0199441dd5251022d5fa9e6275a37dc15
 ---
 # `src/mediapipeline/desktop/network/registry_recovery.py`
 

@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-20
+last_modified: 2026-07-22
 last_reviewed: 2026-06-24
-sha256: adb63c535a40c5e5e9401e5adacf4ba3ed867902899358358ad2799f40528838
+sha256: eea20bb9d7f2158b278f39d64c4f47264345a893cb1e304a74ce2f5bd458943d
 ---
 # `tests/python/desktop/application_facade_test_support.py`
 

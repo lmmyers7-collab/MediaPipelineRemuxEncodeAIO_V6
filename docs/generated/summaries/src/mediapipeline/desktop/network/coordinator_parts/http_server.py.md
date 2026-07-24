@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-07-12
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: 2c4580c5a17fff4cba1261f3104f30b21c24cb7f1aab873ddb83355b24a6a459
+sha256: 8b7383b3c680a9247de6c6f3bec1d77ec8e0a184abb4b530694a00764bf9fb99
 ---
 # `src/mediapipeline/desktop/network/coordinator_parts/http_server.py`
 

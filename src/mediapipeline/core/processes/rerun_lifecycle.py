@@ -841,8 +841,11 @@ def reconcile_local_rerun_enrollments(
         "replayed_count": 0,
         "items": [],
     }
+    candidate_scan: dict[str, Any] = {}
     with _RERUN_ENROLLMENT_TRANSITION_LOCK:
-        for enrollment_path, enrollment in rerun_enrollment_candidates(resolved, limit=limit):
+        candidates = rerun_enrollment_candidates(resolved, limit=limit, scan_health=candidate_scan)
+        summary["candidate_scan"] = candidate_scan
+        for enrollment_path, enrollment in candidates:
             enrollment_state = _semantic_lifecycle_state(enrollment)
             if enrollment_state in _TERMINAL_ENROLLMENT_STATES:
                 continue

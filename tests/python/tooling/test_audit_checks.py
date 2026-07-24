@@ -63,6 +63,7 @@ class AuditCheckManifestTests(unittest.TestCase):
                 "run-monitor-schema",
                 "stage-schema",
                 "risky-file-registry",
+                "tracked-office-documents",
                 "architecture-guardrails-staged",
                 "dependency-boundaries-max-internal-1",
                 "naming-lint-staged",
@@ -82,6 +83,7 @@ class AuditCheckManifestTests(unittest.TestCase):
         self.assertIn("legacy-reliability-inventory", check_ids)
         self.assertIn("python-typing", check_ids)
         self.assertIn("python-lint", check_ids)
+        self.assertIn("tracked-office-documents", check_ids)
         self.assertNotIn("naming-lint-staged", check_ids)
         self.assertNotIn("change-packet-staged-coverage", check_ids)
 
@@ -96,6 +98,7 @@ class AuditCheckManifestTests(unittest.TestCase):
         self.assertIn("god-file-guard", check_ids)
         self.assertIn("marketecture-guard", check_ids)
         self.assertIn("legacy-reliability-inventory", check_ids)
+        self.assertIn("tracked-office-documents", check_ids)
 
     def test_release_suite_marks_source_tree_only_checks_for_package_downshift(self) -> None:
         manifest = audit_checks.suite_to_dict("release-self-test")
@@ -104,6 +107,7 @@ class AuditCheckManifestTests(unittest.TestCase):
         self.assertTrue(checks["summary-freshness"]["source_tree_only"])
         self.assertTrue(checks["active-doc-references"]["source_tree_only"])
         self.assertTrue(checks["legacy-reliability-inventory"]["source_tree_only"])
+        self.assertTrue(checks["tracked-office-documents"]["source_tree_only"])
         self.assertFalse(checks["config-schema"]["source_tree_only"])
         self.assertFalse(checks["run-monitor-schema"]["source_tree_only"])
         self.assertFalse(checks["dependency-boundaries-max-internal-1"]["source_tree_only"])

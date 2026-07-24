@@ -149,7 +149,7 @@ def extract_write_host_literals(text: str) -> list[str]:
 
 def extract_invocation(text: str) -> tuple[str, str, str, list[str]]:
     browser_match = re.search(
-        r"Invoke-WebViewBrowserSmokeUnittest\b.*?-Module\s+['\"]([^'\"]+)['\"]",
+        r"Invoke-WebView(?:Browser|Direct)SmokeUnittest\b.*?-Module\s+['\"]([^'\"]+)['\"]",
         text,
         re.DOTALL,
     )
@@ -215,7 +215,10 @@ def parse_wrapper(repo_root: Path, path: Path) -> dict[str, Any]:
         "python_module": python_module,
         "test_selector": test_selector,
         "test_selectors": test_selectors,
-        "uses_shared_browser_support": "Invoke-WebViewBrowserSmokeUnittest" in text,
+        "uses_shared_browser_support": any(
+            invocation in text
+            for invocation in ("Invoke-WebViewBrowserSmokeUnittest", "Invoke-WebViewDirectSmokeUnittest")
+        ),
     }
 
 

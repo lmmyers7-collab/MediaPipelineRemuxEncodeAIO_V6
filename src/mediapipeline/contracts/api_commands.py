@@ -329,16 +329,29 @@ class RenameUndoCommandPayload(StrictApiCommandPayload):
 
 
 class RenameFilterCaseCommandPayload(StrictApiCommandPayload):
-    case_id: Any = None
-    source_folder: Any = None
-    source_file: Any = None
-    expected_name: Any = None
-    expected_show: Any = None
-    expected_clean_folder: Any = None
-    expected_season: Any = None
-    season_number: Any = None
-    status: Any = None
-    notes: Any = None
+    case_id: StrictStr | None = None
+    kind: Literal["tv_auto", "movie_auto"] | None = None
+    source_folder: StrictStr | None = None
+    source_file: StrictStr | None = None
+    expected_name: StrictStr | None = None
+    expected_show: StrictStr | None = None
+    expected_clean_folder: StrictStr | None = None
+    expected_season: StrictInt | None = None
+    expected_episode: StrictInt | None = None
+    expected_episode_end: StrictInt | None = None
+    expected_episode_title: StrictStr | None = None
+    expected_movie_title: StrictStr | None = None
+    expected_year: StrictStr | None = None
+    season_number: StrictInt | None = None
+    template_preset: StrictStr | None = None
+    status: Literal["active", "pending"] | None = None
+    notes: StrictStr | None = None
+    movie_filter_options: dict[StrictStr, StrictBool] | None = None
+    movie_filter_terms: dict[StrictStr, list[StrictStr]] | None = None
+    remove_terms: list[StrictStr] | None = None
+    tv_filter_options: dict[StrictStr, StrictBool] | None = None
+    tv_filter_terms: dict[StrictStr, list[StrictStr]] | None = None
+    tv_remove_terms: list[StrictStr] | None = None
     confirm_append: StrictBool | None = None
 
 

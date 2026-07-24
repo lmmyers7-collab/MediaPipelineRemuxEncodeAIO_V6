@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 import sys
 import unittest
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 
 from mediapipeline.tools.paths import find_repo_root
@@ -14,6 +14,8 @@ from mediapipeline.desktop.api.contract import LOCAL_API_ROUTE_CONTRACT
 
 
 REPO_ROOT = find_repo_root(Path(__file__))
+ROUTE_ROW_PATTERN = re.compile(r"^\|\s*`(GET|POST) (/api/[^`]+)`\s*\|")
+ROUTE_COUNT_HEADING_PATTERN = re.compile(r"^(#{2,3})\s+.+?\((?:[^)]*?\u2014\s*)?(\d+) routes\)\s*$")
 
 
 def _contract_route_keys() -> set[tuple[str, str]]:
@@ -34,12 +36,36 @@ def _contract_effect_routes() -> dict[str, set[tuple[str, str]]]:
     return dict(grouped)
 
 
+def _route_rows_from_markdown(path: Path) -> list[tuple[str, str]]:
+    return [
+        (match.group(1).upper(), match.group(2))
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if (match := ROUTE_ROW_PATTERN.match(line))
+    ]
+
+
 def _route_keys_from_markdown(path: Path) -> set[tuple[str, str]]:
-    text = path.read_text(encoding="utf-8")
-    return {
-        (method.upper(), route)
-        for method, route in re.findall(r"^\|\s*`(GET|POST) (/api/[^`]+)`\s*\|", text, flags=re.MULTILINE)
-    }
+    return set(_route_rows_from_markdown(path))
+
+
+def _route_count_sections(path: Path) -> list[tuple[int, int, int]]:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    sections: list[tuple[int, int, int]] = []
+    for index, line in enumerate(lines):
+        heading = ROUTE_COUNT_HEADING_PATTERN.match(line)
+        if not heading:
+            continue
+        level = len(heading.group(1))
+        declared = int(heading.group(2))
+        actual = 0
+        for candidate in lines[index + 1 :]:
+            next_heading = re.match(r"^(#{1,6})\s+", candidate)
+            if next_heading and len(next_heading.group(1)) <= level:
+                break
+            if ROUTE_ROW_PATTERN.match(candidate):
+                actual += 1
+        sections.append((index + 1, declared, actual))
+    return sections
 
 
 def _api_inventory_route_effects(path: Path) -> dict[tuple[str, str], str]:
@@ -119,9 +145,18 @@ class ApiRouteInventoryTests(unittest.TestCase):
 
     def test_api_route_inventory_documents_each_contract_route_once(self) -> None:
         inventory = REPO_ROOT / "docs" / "inventories" / "API_ROUTE_INVENTORY.md"
-        route_effects = _api_inventory_route_effects(inventory)
+        route_rows = _route_rows_from_markdown(inventory)
+        duplicates = {route: count for route, count in Counter(route_rows).items() if count > 1}
 
-        self.assertEqual(len(route_effects), len(LOCAL_API_ROUTE_CONTRACT))
+        self.assertEqual(duplicates, {})
+        self.assertEqual(set(route_rows), _contract_route_keys())
+
+    def test_api_route_inventory_heading_counts_match_route_rows(self) -> None:
+        inventory = REPO_ROOT / "docs" / "inventories" / "API_ROUTE_INVENTORY.md"
+
+        for line_number, declared, actual in _route_count_sections(inventory):
+            with self.subTest(line=line_number):
+                self.assertEqual(declared, actual)
 
     def test_api_route_inventory_effects_match_local_api_contract(self) -> None:
         inventory = REPO_ROOT / "docs" / "inventories" / "API_ROUTE_INVENTORY.md"

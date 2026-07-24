@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: validation
-last_modified: 2026-07-20
+last_modified: 2026-07-24
 last_reviewed: 2026-07-20
-sha256: f0ccc1ee65c3d26dcbbf89bd337cd96664d58305c1ffa1b912d6ba0209ea7a84
+sha256: 0c84790d9402c8c5624544db5b2f1cb98313826982ee06c8053e439cb307c08f
 ---
 # `src/mediapipeline/core/validation/state_json.py`
 

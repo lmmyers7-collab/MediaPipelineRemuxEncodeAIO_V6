@@ -19,14 +19,11 @@ from mediapipeline.core.queue.freshness import (
     normalize_queue_snapshot_freshness_seconds,
 )
 from mediapipeline.core.queue.priority_markers import (
-    apply_priority_marker as apply_priority_marker_to_path,
-    format_priority_leaf_name as format_priority_leaf_name_for_marker,
     get_source_priority_info as get_source_priority_info_for_path,
     path_is_unc,
     remove_priority_markers_from_name,
     safe_mtime,
     starts_with_priority_marker,
-    touch_priority_target as touch_priority_target_path,
 )
 from mediapipeline.core.queue.priority_export import PriorityQueueExportStore
 from mediapipeline.core.queue.snapshot import (
@@ -252,7 +249,12 @@ class QueueServiceMixin:
         thread = active.get("thread") if isinstance(active, dict) else None
         if isinstance(thread, threading.Thread) and thread.is_alive():
             active_id = str(active.get("scan_id") or "")
-            if active_id and str(status.get("scan_id") or "") == active_id:
+            active_phase = str(active.get("phase") or "")
+            if (
+                active_id
+                and str(status.get("scan_id") or "") == active_id
+                and active_phase != "curation_deferred"
+            ):
                 status = dict(status)
                 status["running"] = True
                 status["status"] = "running"
@@ -279,6 +281,55 @@ class QueueServiceMixin:
         scan_id = str(active.get("scan_id") or "").strip()
         scan_text = f" {scan_id}" if scan_id else ""
         return f"{action} blocked because queue source scan{scan_text} is still running."
+
+    def normal_run_once_queue_scan_block_message(
+        self,
+        action: str,
+        *,
+        preempt: bool = False,
+    ) -> str:
+        """Atomically allow or preempt pre-curation scans for normal Run Once."""
+        lock = self._queue_scan_lock()
+        with lock:
+            active = getattr(self, "_queue_source_scan_active", None)
+            thread = active.get("thread") if isinstance(active, dict) else None
+            if not isinstance(thread, threading.Thread) or not thread.is_alive():
+                return ""
+            phase = str(active.get("phase") or "").strip().casefold()
+            if phase in {"starting", "inventory", "preempt_requested", "curation_deferred"}:
+                if preempt and phase != "curation_deferred":
+                    preempt_event = active.get("preempt_event")
+                    if not isinstance(preempt_event, threading.Event):
+                        return self.queue_source_scan_active_block_message(action)
+                    preempt_event.set()
+                    active["phase"] = "preempt_requested"
+                return ""
+            return self.queue_source_scan_active_block_message(action)
+
+    def _queue_source_scan_enter_inventory(self, scan_id: str) -> None:
+        lock = self._queue_scan_lock()
+        with lock:
+            active = getattr(self, "_queue_source_scan_active", None)
+            if not isinstance(active, dict) or str(active.get("scan_id") or "") != scan_id:
+                return
+            if str(active.get("phase") or "") == "starting":
+                active["phase"] = "inventory"
+
+    def _queue_source_scan_claim_curation(self, scan_id: str) -> bool:
+        """Atomically choose curation or a Run Once preemption request."""
+        lock = self._queue_scan_lock()
+        with lock:
+            active = getattr(self, "_queue_source_scan_active", None)
+            if not isinstance(active, dict) or str(active.get("scan_id") or "") != scan_id:
+                return False
+            preempt_event = active.get("preempt_event")
+            if not isinstance(preempt_event, threading.Event):
+                return False
+            if preempt_event.is_set():
+                active["phase"] = "curation_deferred"
+                return False
+            active["phase"] = "curating"
+            return True
 
     def start_queue_source_scan(self, resolved: ResolvedPaths, request: dict[str, Any]) -> dict[str, Any]:
         status_path = queue_scan_status_path(resolved)
@@ -353,7 +404,12 @@ class QueueServiceMixin:
                 name=f"queue-source-scan-{scan_id}",
                 daemon=False,
             )
-            self._queue_source_scan_active = {"scan_id": scan_id, "thread": thread}
+            self._queue_source_scan_active = {
+                "scan_id": scan_id,
+                "thread": thread,
+                "phase": "starting",
+                "preempt_event": threading.Event(),
+            }
             thread.start()
 
         return {
@@ -380,6 +436,7 @@ class QueueServiceMixin:
         warnings: list[str] = []
         try:
             if mode != "curate_only":
+                self._queue_source_scan_enter_inventory(scan_id)
                 inventory_started = utc_now_iso()
                 self._write_queue_scan_status(
                     resolved,
@@ -421,6 +478,35 @@ class QueueServiceMixin:
                         updated_at_utc=completed_at,
                         completed_at_utc=completed_at,
                         message=f"Source inventory completed with {inventory_count} candidate file(s).",
+                        status_path=status_path,
+                        inventory_path=inventory_path,
+                        queue_snapshot_path=snapshot_path,
+                        inventory_count=inventory_count,
+                        curated_row_count=0,
+                        warnings=warnings,
+                    ),
+                )
+                return
+
+            if not self._queue_source_scan_claim_curation(scan_id):
+                deferred_at = utc_now_iso()
+                self._write_queue_scan_status(
+                    resolved,
+                    queue_scan_status_payload(
+                        scan_id=scan_id,
+                        status="deferred",
+                        phase="curation_deferred",
+                        mode=mode,
+                        force=force,
+                        scope=scope,
+                        requested_at_utc=requested_at,
+                        started_at_utc=requested_at,
+                        updated_at_utc=deferred_at,
+                        completed_at_utc=deferred_at,
+                        message=(
+                            "Queue curation deferred because normal Run Once accepted "
+                            "the existing validated dry-run snapshot."
+                        ),
                         status_path=status_path,
                         inventory_path=inventory_path,
                         queue_snapshot_path=snapshot_path,
@@ -545,12 +631,3 @@ class QueueServiceMixin:
 
     def _safe_mtime(self, path: Path, cache: dict[Path, float] | None = None) -> float:
         return safe_mtime(path, cache)
-
-    def format_priority_leaf_name(self, marker: str, leaf: str, markers: list[str]) -> str:
-        return format_priority_leaf_name_for_marker(marker, leaf, markers)
-
-    def apply_priority_marker(self, target_path: Path, markers: list[str], marker: str, remove_only: bool = False) -> Path:
-        return apply_priority_marker_to_path(target_path, markers, marker, remove_only=remove_only)
-
-    def touch_priority_target(self, target_path: Path) -> None:
-        touch_priority_target_path(target_path)

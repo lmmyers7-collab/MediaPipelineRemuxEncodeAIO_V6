@@ -77,6 +77,22 @@ def _required_list_field(payload: Mapping[str, Any], key: str) -> list[Any]:
     return list_field(payload, key)
 
 
+def _required_sha256_fields(
+    payload: Mapping[str, Any],
+    *,
+    hash_key: str = "output_sha256",
+    algorithm_key: str = "output_hash_algorithm",
+    label: str = "output",
+) -> tuple[str, str]:
+    digest = _required_text_field(payload, hash_key)
+    algorithm = _required_text_field(payload, algorithm_key)
+    if len(digest) != 64 or any(char not in "0123456789abcdefABCDEF" for char in digest):
+        raise ContractError(f"{label} {hash_key} must be a 64-character hexadecimal SHA-256 value")
+    if algorithm != "SHA256":
+        raise ContractError(f"{label} {algorithm_key} must be SHA256")
+    return digest, algorithm
+
+
 @dataclass(frozen=True)
 class PendingPushManifest:
     schema_version: str
@@ -138,18 +154,18 @@ class PendingPushManifest:
         manifest_state = _required_text_field(data, "manifest_state")
         if manifest_state not in PENDING_PUSH_MANIFEST_STATES:
             raise ContractError(f"manifest_state must be a known pending-publish state; got {manifest_state}")
-        for field_name in PENDING_PUSH_MANIFEST_REQUIRED_ARRAY_FIELDS:
-            _required_list_field(data, field_name)
+        required_arrays = {
+            field_name: _required_list_field(data, field_name)
+            for field_name in PENDING_PUSH_MANIFEST_REQUIRED_ARRAY_FIELDS
+        }
         output_size = _required_int_field(data, "output_size")
-        output_sha256 = text_field(data, "output_sha256").strip()
-        output_hash_algorithm = text_field(data, "output_hash_algorithm").strip()
-        if output_sha256:
-            if len(output_sha256) != 64 or any(char not in "0123456789abcdefABCDEF" for char in output_sha256):
-                raise ContractError("output_sha256 must be a 64-character hexadecimal SHA-256 value")
-            if output_hash_algorithm != "SHA256":
-                raise ContractError("output_hash_algorithm must be SHA256 when output_sha256 is present")
-        elif output_hash_algorithm:
-            raise ContractError("output_hash_algorithm requires output_sha256")
+        output_sha256, output_hash_algorithm = _required_sha256_fields(data)
+        for index, sidecar in enumerate(required_arrays["sidecar_files"]):
+            sidecar_data = require_mapping(sidecar, f"sidecar_files[{index}]")
+            _required_text_field(sidecar_data, "local_file")
+            _required_text_field(sidecar_data, "server_out")
+            _required_int_field(sidecar_data, "output_size")
+            _required_sha256_fields(sidecar_data, label=f"sidecar_files[{index}]")
         return cls(
             schema_version=schema_version,
             parked_at=text_field(data, "parked_at"),
@@ -184,14 +200,14 @@ class PendingPushManifest:
             replacement_prior_final_size=max(0, int_field(data, "replacement_prior_final_size")),
             replacement_prior_final_sha256=text_field(data, "replacement_prior_final_sha256").strip(),
             replacement_transaction_id=text_field(data, "replacement_transaction_id"),
-            sidecar_files=_required_list_field(data, "sidecar_files"),
-            tx3g_srt_tracks=_required_list_field(data, "tx3g_srt_tracks"),
-            tx3g_srt_failures=_required_list_field(data, "tx3g_srt_failures"),
-            bdpgs_srt_failures=_required_list_field(data, "bdpgs_srt_failures"),
-            vobsub_srt_failures=_required_list_field(data, "vobsub_srt_failures"),
-            tx3g_embedded_srt_tracks=_required_list_field(data, "tx3g_embedded_srt_tracks"),
-            bdpgs_embedded_srt_tracks=_required_list_field(data, "bdpgs_embedded_srt_tracks"),
-            vobsub_embedded_srt_tracks=_required_list_field(data, "vobsub_embedded_srt_tracks"),
+            sidecar_files=required_arrays["sidecar_files"],
+            tx3g_srt_tracks=required_arrays["tx3g_srt_tracks"],
+            tx3g_srt_failures=required_arrays["tx3g_srt_failures"],
+            bdpgs_srt_failures=required_arrays["bdpgs_srt_failures"],
+            vobsub_srt_failures=required_arrays["vobsub_srt_failures"],
+            tx3g_embedded_srt_tracks=required_arrays["tx3g_embedded_srt_tracks"],
+            bdpgs_embedded_srt_tracks=required_arrays["bdpgs_embedded_srt_tracks"],
+            vobsub_embedded_srt_tracks=required_arrays["vobsub_embedded_srt_tracks"],
             tx3g_srt_conversion_enabled=bool_field(data, "tx3g_srt_conversion_enabled"),
             tx3g_external_srt_sidecars_enabled=bool_field(data, "tx3g_external_srt_sidecars_enabled"),
             drop_tx3g_after_conversion=bool_field(data, "drop_tx3g_after_conversion"),

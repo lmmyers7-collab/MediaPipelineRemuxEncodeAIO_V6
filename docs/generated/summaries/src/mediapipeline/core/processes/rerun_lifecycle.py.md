@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-07-14
+last_modified: 2026-07-23
 last_reviewed: 2026-07-14
-sha256: 2ec44e058b6eed60bd56975b79709ddfae6bfb3b5fccfd1b922ea1e39d707c85
+sha256: 0d2c6a796d787ab67804d94ad9ce42c4bb8ae8599d6dcc5a4f9eb099758f57cc
 ---
 # `src/mediapipeline/core/processes/rerun_lifecycle.py`
 

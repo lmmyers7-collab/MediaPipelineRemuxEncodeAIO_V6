@@ -56,16 +56,51 @@ def request_abort_reclaimed_job(
     post_callback: Callable[[str, Callable[[], None]], None],
     log: Any,
     diagnostic_preview: Callable[[object], str],
-) -> None:
-    """Schedule an app-side abort for a coordinator-reclaimed worker job."""
+) -> bool:
+    """Dispatch and verify abort containment for a reclaimed worker job."""
+    job_id = str(getattr(job, "job_id", "") or "")
+    scheduled = False
     try:
+        scheduled_abort = getattr(app, "_worker_abort_current_job", None)
+        if not callable(scheduled_abort):
+            raise RuntimeError("app has no scheduled worker abort callback")
         post_callback(
             "worker-abort-current-job",
-            app._worker_abort_current_job,
+            scheduled_abort,
         )
+        scheduled = True
     except Exception as exc:
         log.error(
             "Failed to schedule abort for reclaimed job %s: %s",
-            job.job_id,
+            job_id,
             diagnostic_preview(exc),
         )
+        direct_abort = getattr(app, "abort_current_worker_job", None)
+        if not callable(direct_abort):
+            log.error("No backend-owned direct abort was available for reclaimed job %s.", job_id)
+            return False
+        try:
+            direct_abort("network worker reclaimed fail-closed fallback")
+        except Exception as direct_exc:
+            log.error(
+                "Backend-owned direct abort failed for reclaimed job %s: %s",
+                job_id,
+                diagnostic_preview(direct_exc),
+            )
+            return False
+
+    wait_for_exit = getattr(app, "wait_for_active_process_exit", None)
+    if not callable(wait_for_exit):
+        return scheduled or callable(getattr(app, "abort_current_worker_job", None))
+    try:
+        contained = bool(wait_for_exit(timeout_seconds=5.0))
+    except Exception as exc:
+        log.error(
+            "Could not verify process exit after abort for reclaimed job %s: %s",
+            job_id,
+            diagnostic_preview(exc),
+        )
+        return False
+    if not contained:
+        log.error("Process exit is not yet proven for reclaimed job %s; abort will be retried.", job_id)
+    return contained

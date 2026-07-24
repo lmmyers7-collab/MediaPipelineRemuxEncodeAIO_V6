@@ -10,6 +10,10 @@ from __future__ import annotations
 import http.server
 import json
 import logging
+import socket
+import threading
+import time
+from dataclasses import dataclass
 from typing import Any, Protocol
 
 from ..auth import AUTH_FAILURE_CLOCK_SKEW
@@ -22,6 +26,12 @@ _log = logging.getLogger("mediapipeline.desktop.network.coordinator")
 # Bump on any wire-format change (new required fields, renamed endpoints,
 # changed response shapes). Workers may treat a missing field as 0.
 _COORDINATOR_PROTOCOL_VERSION = 2
+
+
+@dataclass
+class _ActiveRequest:
+    thread: threading.Thread | None = None
+    authenticated: bool = False
 
 
 class _CoordinatorDispatcherProtocol(Protocol):
@@ -77,9 +87,130 @@ class _CoordServer(http.server.ThreadingHTTPServer):
     - ``dispatcher``: back-reference to the owning dispatcher.
     """
 
-    # Claim/done/log handlers update coordinator state; let shutdown wait for their cleanup.
-    daemon_threads = False
+    # Pre-authentication readers must never keep process shutdown alive. The
+    # server explicitly joins authenticated handlers for a bounded interval.
+    daemon_threads = True
+    block_on_close = False
     allow_reuse_address = True
+    MAX_CONCURRENT_HANDLERS = 32
+    AUTHENTICATED_CLEANUP_TIMEOUT_SECONDS = 5.0
+
+    def __init__(
+        self,
+        server_address: tuple[str, int],
+        request_handler_class: type[http.server.BaseHTTPRequestHandler],
+        bind_and_activate: bool = True,
+    ) -> None:
+        self._handler_slots = threading.BoundedSemaphore(self.MAX_CONCURRENT_HANDLERS)
+        self._active_requests: dict[socket.socket, _ActiveRequest] = {}
+        self._active_requests_lock = threading.Lock()
+        self._closing = False
+        self._capacity_warning_logged = False
+        super().__init__(server_address, request_handler_class, bind_and_activate)
+
+    def process_request(
+        self,
+        request: socket.socket,
+        client_address: tuple[str, int],
+    ) -> None:
+        """Start one bounded handler thread or close an excess connection."""
+        if not self._handler_slots.acquire(blocking=False):
+            with self._active_requests_lock:
+                if not self._capacity_warning_logged:
+                    _log.warning(
+                        "Coordinator HTTP handler capacity reached (%d); rejecting excess connections.",
+                        self.MAX_CONCURRENT_HANDLERS,
+                    )
+                    self._capacity_warning_logged = True
+            self._close_rejected_request(request)
+            return
+
+        with self._active_requests_lock:
+            if self._closing:
+                self._handler_slots.release()
+                self._close_rejected_request(request)
+                return
+            state = _ActiveRequest()
+            self._active_requests[request] = state
+
+        try:
+            thread = threading.Thread(
+                target=self.process_request_thread,
+                args=(request, client_address),
+                daemon=True,
+            )
+            with self._active_requests_lock:
+                state.thread = thread
+            thread.start()
+        except BaseException:
+            self._finish_active_request(request)
+            self._close_rejected_request(request)
+            raise
+
+    def process_request_thread(
+        self,
+        request: socket.socket,
+        client_address: tuple[str, int],
+    ) -> None:
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._finish_active_request(request)
+
+    def server_close(self) -> None:
+        """Abandon pre-auth reads and boundedly join authenticated cleanup."""
+        with self._active_requests_lock:
+            self._closing = True
+            active_requests = tuple(self._active_requests.items())
+        authenticated_threads: list[threading.Thread] = []
+        for request, state in active_requests:
+            if state.authenticated:
+                if state.thread is not None and state.thread is not threading.current_thread():
+                    authenticated_threads.append(state.thread)
+                continue
+            try:
+                request.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+        super().server_close()
+
+        deadline = time.monotonic() + self.AUTHENTICATED_CLEANUP_TIMEOUT_SECONDS
+        for thread in authenticated_threads:
+            thread.join(timeout=max(0.0, deadline - time.monotonic()))
+        unfinished = [thread.name for thread in authenticated_threads if thread.is_alive()]
+        if unfinished:
+            _log.warning(
+                "Coordinator HTTP shutdown left %d authenticated handler(s) running after %.1f seconds: %s",
+                len(unfinished),
+                self.AUTHENTICATED_CLEANUP_TIMEOUT_SECONDS,
+                ", ".join(unfinished),
+            )
+
+    def _mark_request_authenticated(self, request: socket.socket) -> bool:
+        with self._active_requests_lock:
+            state = self._active_requests.get(request)
+            if self._closing or state is None:
+                return False
+            state.authenticated = True
+            return True
+
+    def _finish_active_request(self, request: socket.socket) -> None:
+        with self._active_requests_lock:
+            if self._active_requests.pop(request, None) is None:
+                return
+            self._capacity_warning_logged = False
+        self._handler_slots.release()
+
+    def _close_rejected_request(self, request: socket.socket) -> None:
+        try:
+            request.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
+        self.shutdown_request(request)
+
+    def _active_request_count(self) -> int:
+        with self._active_requests_lock:
+            return len(self._active_requests)
 
     # Set by the dispatcher after server creation.
     dispatcher: _CoordinatorDispatcherProtocol
@@ -95,6 +226,11 @@ class _CoordHandler(http.server.BaseHTTPRequestHandler):
     # cover for cluster log entries with embedded stack traces; reject
     # anything larger with 413 instead of allocating arbitrary RAM.
     MAX_BODY_BYTES = MAX_COORDINATOR_BODY_BYTES
+    REQUEST_IO_TIMEOUT_SECONDS = 15.0
+
+    def setup(self) -> None:
+        super().setup()
+        self.connection.settimeout(self.REQUEST_IO_TIMEOUT_SECONDS)
 
     # Silence the default access log - coordinator handles its own logging.
     def log_message(self, fmt, *args) -> None:  # noqa: ANN001
@@ -135,19 +271,27 @@ class _CoordHandler(http.server.BaseHTTPRequestHandler):
                 path_with_query=path_with_query,
                 body=body,
             )
-            self._auth_failure_reason = str(getattr(result, "reason", "") or "auth_failed")  # type: ignore[attr-defined]
-            return bool(getattr(result, "ok", False))
-        ok = self._disp._validate_request_auth(
-            dict(self.headers),
-            method=method,
-            path_with_query=path_with_query,
-            body=body,
-        )
-        self._auth_failure_reason = "" if ok else "auth_failed"  # type: ignore[attr-defined]
+            ok = bool(getattr(result, "ok", False))
+            reason = str(getattr(result, "reason", "") or "auth_failed")
+            self._auth_failure_reason = "" if ok else reason  # type: ignore[attr-defined]
+        else:
+            ok = self._disp._validate_request_auth(
+                dict(self.headers),
+                method=method,
+                path_with_query=path_with_query,
+                body=body,
+            )
+            self._auth_failure_reason = "" if ok else "auth_failed"  # type: ignore[attr-defined]
+        if ok and not self.server._mark_request_authenticated(self.connection):
+            self._auth_failure_reason = "server_shutting_down"
+            self.close_connection = True
+            return False
         return ok
 
     def _unauthorized_payload(self) -> dict[str, Any]:
         reason = str(getattr(self, "_auth_failure_reason", "") or "auth_failed")
+        if reason == "server_shutting_down":
+            return {"error": reason, "safe_next_action": "Retry after the coordinator restarts."}
         payload: dict[str, Any] = {"error": "unauthorized", "reason": reason}
         if reason == AUTH_FAILURE_CLOCK_SKEW:
             payload["safe_next_action"] = "Synchronize coordinator and worker clocks, then retry."
@@ -197,7 +341,7 @@ class _CoordHandler(http.server.BaseHTTPRequestHandler):
         if decision.length <= 0:
             return b""
         try:
-            return self.rfile.read(decision.length)
+            body = self.rfile.read(decision.length)
         except Exception as exc:
             _log.warning(
                 "Failed to read coordinator request body after Content-Length %d; request handler will stop: %s",
@@ -205,6 +349,37 @@ class _CoordHandler(http.server.BaseHTTPRequestHandler):
                 exc,
             )
             return None
+        if len(body) != decision.length:
+            _log.warning(
+                "Incomplete coordinator request body: expected %d bytes but received %d; request handler will stop.",
+                decision.length,
+                len(body),
+            )
+            return None
+        return body
+
+    def _reject_unsupported_transfer_encoding(self) -> bool:
+        raw_value = str(self.headers.get("Transfer-Encoding", "") or "").strip()
+        if not raw_value:
+            return False
+        self.close_connection = True
+        try:
+            body = json.dumps(
+                {"error": "unsupported Transfer-Encoding", "supported": "Content-Length"},
+                allow_nan=False,
+            ).encode("utf-8")
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.wfile.write(body)
+        except Exception as exc:
+            _log.warning(
+                "Failed to send unsupported Transfer-Encoding coordinator response; client may not receive 400: %s",
+                exc,
+            )
+        return True
 
     def do_OPTIONS(self) -> None:
         try:
@@ -244,7 +419,8 @@ class _CoordHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if not self._check_auth(method="GET", path_with_query=path_with_query):
-            self._send_json(self._unauthorized_payload(), 401)
+            status = 503 if self._auth_failure_reason == "server_shutting_down" else 401
+            self._send_json(self._unauthorized_payload(), status)
             return
 
         if path == "/api/claim":
@@ -261,6 +437,8 @@ class _CoordHandler(http.server.BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         path_with_query = self.path or "/"
         path = path_with_query.split("?")[0].rstrip("/") or "/"
+        if self._reject_unsupported_transfer_encoding():
+            return
         body = self._read_body()
         # _read_body returns None after it has already sent 400/413 for
         # malformed or oversized requests (N4/N5). Short-circuit so we
@@ -268,7 +446,8 @@ class _CoordHandler(http.server.BaseHTTPRequestHandler):
         if body is None:
             return
         if not self._check_auth(method="POST", path_with_query=path_with_query, body=body):
-            self._send_json(self._unauthorized_payload(), 401)
+            status = 503 if self._auth_failure_reason == "server_shutting_down" else 401
+            self._send_json(self._unauthorized_payload(), status)
             return
         if path == "/api/done":
             self._disp._http_done(self, body)

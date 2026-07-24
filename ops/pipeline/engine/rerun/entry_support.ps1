@@ -1007,7 +1007,9 @@ function Write-RerunJsonLineAppend {
     param(
         [Parameter(Mandatory)] [string]$Path,
         [Parameter(Mandatory)] $Payload,
-        [int]$Depth = 10
+        [int]$Depth = 10,
+        [string]$IdentityField = '',
+        [string]$IdentityValue = ''
     )
     $mutex = $null
     $acquired = $false
@@ -1015,8 +1017,27 @@ function Write-RerunJsonLineAppend {
         $dir = Split-Path -Parent $Path
         if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
         $mutex = [System.Threading.Mutex]::new($false, (Get-RerunJsonLineMutexName -Path $Path))
-        $acquired = $mutex.WaitOne(2000)
+        try {
+            $acquired = $mutex.WaitOne(2000)
+        } catch [System.Threading.AbandonedMutexException] {
+            # .NET transfers ownership to this thread when it reports an abandoned mutex.
+            $acquired = $true
+        }
         if (-not $acquired) { return $false }
+        if (
+            -not [string]::IsNullOrWhiteSpace($IdentityField) -and
+            -not [string]::IsNullOrWhiteSpace($IdentityValue) -and
+            (Test-Path -LiteralPath $Path -PathType Leaf)
+        ) {
+            foreach ($existingLine in @(Get-Content -LiteralPath $Path -ErrorAction Stop)) {
+                if ([string]::IsNullOrWhiteSpace([string]$existingLine)) { continue }
+                $existing = $existingLine | ConvertFrom-Json -ErrorAction Stop
+                $existingProperty = $existing.PSObject.Properties[$IdentityField]
+                if ($existingProperty -and [string]$existingProperty.Value -ceq $IdentityValue) {
+                    return $true
+                }
+            }
+        }
         $line = $Payload | ConvertTo-Json -Depth $Depth -Compress
         [System.IO.File]::AppendAllText($Path, $line + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
         return $true
@@ -1055,8 +1076,15 @@ function Add-RerunCompletedJobsManifestEntry {
         $loggedAt = Get-Date -Format 'o'
         $entry['logged_at'] = $loggedAt
         if (-not $entry.Contains('created_at')) { $entry['created_at'] = $loggedAt }
-        $entry['completed_manifest_source'] = 'csv_rerun_replace_final'
-        $written = [bool](Write-RerunJsonLineAppend -Path ([string]$script:RerunCompletedJobsManifest) -Payload $entry -Depth 12)
+        $destinationPolicy = [string]$entry['rerun_destination_policy']
+        $entry['completed_manifest_source'] = if ($destinationPolicy -eq 'publish_non_overlap') { 'csv_rerun_publish_non_overlap' } else { 'csv_rerun_replace_final' }
+        $transactionId = if ($entry.Contains('rerun_publication_transaction_id')) { [string]$entry['rerun_publication_transaction_id'] } else { '' }
+        $written = [bool](Write-RerunJsonLineAppend `
+            -Path ([string]$script:RerunCompletedJobsManifest) `
+            -Payload $entry `
+            -Depth 12 `
+            -IdentityField $(if ([string]::IsNullOrWhiteSpace($transactionId)) { '' } else { 'rerun_publication_transaction_id' }) `
+            -IdentityValue $transactionId)
         if (-not $written) {
             Write-RerunLog "Completed-jobs manifest append failed for $OutputPath : JSONL append lock unavailable or write failed" "WARN"
         }

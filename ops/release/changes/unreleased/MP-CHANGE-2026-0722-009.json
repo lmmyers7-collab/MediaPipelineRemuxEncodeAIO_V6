@@ -1,0 +1,57 @@
+{
+  "id": "MP-CHANGE-2026-0722-009",
+  "title": "Bind stale ActiveJobs cleanup to immutable process identity",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-22",
+  "date_completed": "2026-07-22",
+  "summary": "Prevent stale validate-only cleanup from terminating a reused PID when current process identity contradicts or cannot prove the recorded launch.",
+  "reason": "Remediate P1 AUDIT-FIND-W03-001. The current ActiveJobs identity reducer lets a matching working directory override a contradictory command line and records no immutable process creation time before authorizing tree termination.",
+  "affected_areas": [
+    "ActiveJobs",
+    "process lifecycle",
+    "close readiness",
+    "stale validate-only cleanup",
+    "process-tree termination"
+  ],
+  "behavior_before": "A reused PID with the recorded cwd but an unrelated inspectable command line is accepted as the stale launch and can have its process tree killed.",
+  "behavior_after": "New launch records carry process creation time; cleanup requires that immutable identity and rejects every inspectable cwd or command-line contradiction, while unverifiable identity remains blocking.",
+  "files_touched": [
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/src/mediapipeline/core/kernel/contracts/active_job.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/processes/active_jobs.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_contracts.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_service_process_active_jobs.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0722-009.json",
+    "src/mediapipeline/core/kernel/contracts/active_job.py",
+    "src/mediapipeline/core/processes/active_jobs.py",
+    "tests/python/desktop/test_contracts.py",
+    "tests/python/desktop/test_service_process_active_jobs.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_contracts.py: optional finite process_create_time contract round-trip.",
+    "tests/python/desktop/test_service_process_active_jobs.py: launch-time capture, same-cwd/contradictory-command rejection, creation-time mismatch, missing immutable identity fail-closed, pre-termination PID-reuse recheck, and verified matching cleanup."
+  ],
+  "manual_validation": [
+    "Current-byte reproduction confirmed: active_job_pid_matches_record returned true when cwd matched and cmdline contradicted, and the fake cleanup executed the kill path.",
+    "Focused ActiveJobs and contract regression - passed: 47 tests.",
+    "Broader spawn/readiness/close-readiness/process lifecycle regression - passed: 69 tests.",
+    "Rerun projection/lifecycle/status/close-readiness consumers - passed: 95 tests.",
+    "Risky-file queue/process control gate - passed: 68 tests.",
+    "Disposable real child process probe - passed: fresh creation-time identity matched, altered creation time was rejected, and only the disposable child was terminated.",
+    "Focused Ruff, py_compile, and mypy for both changed source files - passed.",
+    "Generated-context guardrail set - passed: 33 tests.",
+    "Project index, feature map, lifecycle map, architecture guardrails, and naming lint checks - passed.",
+    "ai_guardrail postflight - batch-local checks passed; only separate finding-backed AUDIT-FIND-COV-001, AUDIT-FIND-DEP-001, and AUDIT-FIND-W12-ACTIVE-001 remain, with 0 god-file errors.",
+    "git diff --check - passed (line-ending warnings only).",
+    "validate_changes --require-worktree-coverage - passed before completion: 1124 packets valid."
+  ],
+  "rollback_plan": "Revert the optional ActiveJobs creation-time field, launch capture, strict identity reducer, and regressions; retain this packet as incomplete evidence if rollback occurs.",
+  "related_changes": [
+    "AUDIT-FIND-W03-001"
+  ],
+  "notes": "Finding disposition before remediation: confirmed against current source and immutable audit evidence. Invariant: destructive stale-process cleanup must require a non-contradictory immutable launch identity; ambiguous inspection remains fail-closed and operator-visible. Required validation: ActiveJobs contract/identity/cleanup tests, process lifecycle and close-readiness tests, a disposable real child process identity probe, architecture/generated checks, and strict packet coverage. Representative real-media validation is not required because validate-only cleanup does not process media. Repository-wide typing and lint were also attempted and remain red only in unrelated untouched files: state_json.py/settings_patch_facade.py typing and test_application_facade_rename.py/test_service_rename_planner.py Ruff B023. Focused checks for every batch-touched Python file pass."
+}

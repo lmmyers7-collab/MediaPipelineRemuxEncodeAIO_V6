@@ -57,4 +57,4 @@ Validation: targeted WebView static checks and affected browser smoke
 
 ## Secondary evidence
 
-Counts only (request explicitly when needed): test=75, documentation=1, generated=2, change_evidence=0, archive=0, runtime_artifact=0.
+Counts only (request explicitly when needed): test=76, documentation=1, generated=2, change_evidence=0, archive=0, runtime_artifact=0.

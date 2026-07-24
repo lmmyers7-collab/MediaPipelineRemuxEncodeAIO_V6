@@ -6,16 +6,16 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-20
+last_modified: 2026-07-23
 last_reviewed: 2026-06-23
-sha256: 6d46908484fd827cfec83755cdd36679aaf9d3439b9dd70541522a1787c56092
+sha256: 52d0d757b97b4efff98922ccd2863f3d009e64c41d9087a483d0123c84161969
 ---
 # `tests/python/desktop/test_settings_store.py`
 
 **Purpose:** Python implementation for test settings store; exposes SettingsStoreTests.
 
 **Public symbols:** `SettingsStoreTests`
-**In-repo imports:** `mediapipeline.core.config.load`, `mediapipeline.core.config.settings_patch_policy`, `mediapipeline.core.config.settings_store`, `mediapipeline.core.kernel.config_locations`, `mediapipeline.desktop.models`, `mediapipeline.tools.paths`
+**In-repo imports:** `mediapipeline.core.config.authority_lock`, `mediapipeline.core.config.file_io`, `mediapipeline.core.config.load`, `mediapipeline.core.config.settings_patch_policy`, `mediapipeline.core.config.settings_store`, `mediapipeline.core.kernel.config_locations`, `mediapipeline.desktop.models`, `mediapipeline.tools.paths`
 **State/config identifiers:** `MediaPipeline_config.psd1`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths tests/python/desktop/test_settings_store.py`._

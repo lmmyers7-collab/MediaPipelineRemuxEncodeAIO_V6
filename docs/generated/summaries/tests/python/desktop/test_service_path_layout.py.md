@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-11
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: 1a6b802ad21fa0462665d189d80a06dca5c9981e12042afe95aa2bd5746f994e
+sha256: 6a3be643d15e149ba07a245c2f3557897f6933c2f5d7742026d7c9d587c55d64
 ---
 # `tests/python/desktop/test_service_path_layout.py`
 

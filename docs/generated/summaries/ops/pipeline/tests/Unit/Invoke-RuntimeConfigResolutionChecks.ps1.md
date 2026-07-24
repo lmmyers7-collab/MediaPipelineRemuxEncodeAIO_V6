@@ -6,9 +6,9 @@ file_type: PowerShell
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-10
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: 2f2747554e693798871b8beccc1b1a41c8d2a5966e76e4dbeef877f8b4353b0d
+sha256: f025658dab89638e46faae31c5a6465d31203011c35cf37e17333ecd2f93408a
 ---
 # `ops/pipeline/tests/Unit/Invoke-RuntimeConfigResolutionChecks.ps1`
 

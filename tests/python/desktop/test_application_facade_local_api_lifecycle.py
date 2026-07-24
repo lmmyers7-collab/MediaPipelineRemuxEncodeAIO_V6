@@ -640,7 +640,7 @@ class LocalApiLifecycleTests(LocalApiHttpTestMixin, unittest.TestCase):
         logger.addHandler(handler)
         logger.setLevel(logging.ERROR)
         try:
-            Harness()._request_backend_shutdown_after_response()
+            scheduled, scheduling_error = Harness()._request_backend_shutdown_after_response()
             self.assertTrue(callback_event.wait(1.0))
             self.assertTrue(log_event.wait(1.0))
         finally:
@@ -648,13 +648,29 @@ class LocalApiLifecycleTests(LocalApiHttpTestMixin, unittest.TestCase):
             logger.setLevel(old_level)
 
         combined = "\n".join(record.getMessage() for record in records)
+        self.assertTrue(scheduled)
+        self.assertEqual(scheduling_error, "")
         self.assertIn("local API backend shutdown callback failed", combined)
         self.assertTrue(any(record.exc_info for record in records))
 
-    def test_local_api_shutdown_logs_timer_start_failures(self) -> None:
+    def test_local_api_shutdown_timer_faults_return_truthful_retryable_failures(self) -> None:
         logger_name = "test.local_api.shutdown_timer"
 
-        class BrokenTimer:
+        class SafeReadiness:
+            def to_mapping(self) -> dict[str, object]:
+                return {
+                    "schema_version": "desktop_close_readiness.v1",
+                    "safe_to_close": True,
+                    "state": "completed",
+                    "active_work": False,
+                    "reason": "No active work.",
+                }
+
+        class SafeFacade:
+            def get_close_readiness(self, _resolved: object, _snapshot: object) -> SafeReadiness:
+                return SafeReadiness()
+
+        class BrokenStartTimer:
             daemon = False
 
             def __init__(self, *_args, **_kwargs) -> None:
@@ -664,17 +680,109 @@ class LocalApiLifecycleTests(LocalApiHttpTestMixin, unittest.TestCase):
                 raise RuntimeError("timer unavailable")
 
         class Harness(LocalApiProcessCommandPayloadMixin):
-            facade = object()
+            facade = SafeFacade()
             logger = logging.getLogger(logger_name)
             shutdown_request = lambda self: None
 
-        with (
-            patch("mediapipeline.core.api.commands_process.threading.Timer", BrokenTimer),
-            self.assertLogs(logger_name, level="ERROR") as logs,
-        ):
-            Harness()._request_backend_shutdown_after_response()
+            def _resolved(self) -> object:
+                return object()
 
-        self.assertIn("local API backend shutdown timer start failed", "\n".join(logs.output))
+            def _snapshot(self) -> None:
+                return None
+
+        timer_faults = {
+            "constructor": RuntimeError("timer construction unavailable"),
+            "start": BrokenStartTimer,
+        }
+        for label, timer_fault in timer_faults.items():
+            with self.subTest(label=label):
+                timer_patch = (
+                    patch("mediapipeline.core.api.commands_process.threading.Timer", side_effect=timer_fault)
+                    if isinstance(timer_fault, Exception)
+                    else patch("mediapipeline.core.api.commands_process.threading.Timer", timer_fault)
+                )
+                with timer_patch, self.assertLogs(logger_name, level="ERROR") as logs:
+                    payload = Harness()._backend_shutdown_payload({})
+
+                self.assertFalse(payload["ok"])
+                self.assertEqual(payload["severity"], "error")
+                self.assertEqual(payload["refresh_hint"], "close-readiness")
+                self.assertFalse(payload["data"]["shutdown_scheduled"])
+                self.assertTrue(payload["data"]["backend_ownership_retained"])
+                self.assertTrue(payload["data"]["shutdown_retry_allowed"])
+                self.assertIn("timer", "\n".join(payload["errors"]).casefold())
+                self.assertIn("local API backend shutdown timer start failed", "\n".join(logs.output))
+
+    def test_local_api_shutdown_scheduling_failure_is_journaled_and_retry_succeeds(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+            shutdown_event = threading.Event()
+            snapshot = Snapshot(
+                resolved=resolved,
+                current_activity="Ready.",
+                status_summary="Idle",
+                log_tail="",
+                progress={"ProgressVersion": 2, "Status": "Idle", "CurrentStage": "complete"},
+                audit_progress=None,
+                latest_failure_report=None,
+                latest_failure_json=None,
+                latest_audit_csv=None,
+                latest_priority_csv=None,
+            )
+            service.find_related_pipeline_processes = lambda _resolved_arg: []  # type: ignore[method-assign]
+            service.read_progress = lambda _resolved_arg: {}  # type: ignore[method-assign]
+            service.is_progress_stale = lambda _progress: True  # type: ignore[method-assign]
+            service.read_audit_progress = lambda _resolved_arg: {}  # type: ignore[method-assign]
+            server = LocalApiServer(
+                facade,
+                token="test-token",
+                resolved_provider=lambda: resolved,
+                snapshot_provider=lambda: snapshot,
+                shutdown_request=shutdown_event.set,
+                command_journal_path=root / "RunLogs" / "local_api_command_history.json",
+            )
+            try:
+                server.start()
+                with (
+                    patch(
+                        "mediapipeline.core.api.commands_process.threading.Timer.start",
+                        side_effect=RuntimeError("timer start unavailable"),
+                    ),
+                    self.assertLogs("mediapipeline.desktop.api", level="ERROR"),
+                ):
+                    failure_status, failure = self._post_json(
+                        f"{server.url}/api/backend/shutdown",
+                        {"reason": "fault-injection"},
+                        token="test-token",
+                    )
+                journal_after_failure = server.command_journal.to_mapping(limit=10)
+                retry_status, retry = self._post_json(
+                    f"{server.url}/api/backend/shutdown",
+                    {"reason": "retry"},
+                    token="test-token",
+                )
+                self.assertTrue(shutdown_event.wait(0.5))
+            finally:
+                server.stop()
+
+        self.assertEqual(failure_status, 200)
+        self.assertFalse(failure["ok"])
+        self.assertFalse(failure["data"]["shutdown_scheduled"])
+        self.assertTrue(failure["data"]["backend_ownership_retained"])
+        failed_entries = [
+            entry
+            for entry in journal_after_failure["entries"]
+            if entry["command"] == "backend.shutdown" and entry["ok"] is False
+        ]
+        self.assertTrue(failed_entries)
+        self.assertTrue(any(entry["data"].get("shutdown_scheduled") is False for entry in failed_entries))
+        self.assertFalse(any(entry["data"].get("evidence_phase") == "completed" for entry in failed_entries))
+        self.assertEqual(retry_status, 200)
+        self.assertTrue(retry["ok"])
+        self.assertTrue(retry["data"]["shutdown_scheduled"])
 
 
 if __name__ == "__main__":

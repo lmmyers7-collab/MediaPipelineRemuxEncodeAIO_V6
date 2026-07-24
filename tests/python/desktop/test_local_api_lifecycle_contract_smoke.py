@@ -5,6 +5,7 @@ import sys
 import tempfile
 import threading
 import unittest
+import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -36,6 +37,8 @@ def _json_request(
     body: bytes | None = None
     if token:
         headers["Authorization"] = f"Bearer {token}"
+    if method == "POST":
+        headers["X-MediaPipeline-Command-ID"] = uuid.uuid4().hex
     if payload is not None:
         headers["Content-Type"] = "application/json"
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")

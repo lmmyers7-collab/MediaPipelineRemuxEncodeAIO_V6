@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: subtitles
 token_priority: high
 owner_domain: subtitles
-last_modified: 2026-07-02
+last_modified: 2026-07-22
 last_reviewed: 2026-06-04
-sha256: 410a391cfb4c4a160c89faba4155d82cd0526b06a00ff7f99807e117585afce4
+sha256: c77af676fe92adff41d71fa7d5605110e370d351e9591b9982cd94396fa1849a
 ---
 # `src/mediapipeline/pipeline/ass_to_srt_cli.py`
 

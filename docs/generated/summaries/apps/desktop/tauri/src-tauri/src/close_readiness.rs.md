@@ -6,9 +6,9 @@ file_type: Rust
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: shell
-last_modified: 2026-07-20
+last_modified: 2026-07-22
 last_reviewed: 2026-06-04
-sha256: 0aaa8451eed93e89f8f48b034a0d645dd44d5a9e559340845b3bcf1742a00cee
+sha256: febaa1e9d22754d7f95332e399b3f00afd1ea8f1ca39220ab7b457e2ff682142
 ---
 # `apps/desktop/tauri/src-tauri/src/close_readiness.rs`
 

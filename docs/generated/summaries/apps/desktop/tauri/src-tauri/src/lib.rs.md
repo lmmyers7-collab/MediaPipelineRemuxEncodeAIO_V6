@@ -6,9 +6,9 @@ file_type: Rust
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: shell
-last_modified: 2026-07-15
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: 0668c345585f3642c4fa854a008caa3aae5c29e766fac4dd3358366a2305d14e
+sha256: 03df2ef83ccba354d183a9b02e798d21e77ee3b20cb735063d55217d298a7cd3
 ---
 # `apps/desktop/tauri/src-tauri/src/lib.rs`
 

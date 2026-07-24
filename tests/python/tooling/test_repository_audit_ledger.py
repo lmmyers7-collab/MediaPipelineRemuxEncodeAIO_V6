@@ -10,6 +10,9 @@ from pathlib import Path
 from unittest import mock
 
 from mediapipeline.tools.dev.repository_audit_ledger import (
+    ACHIEVED_STATUSES,
+    ALLOWED_CATEGORIES,
+    CATEGORY_TERMINAL_STATUSES,
     LINE_REVIEW_CATEGORIES,
     SCHEMA_VERSION,
     atomic_write_text_set,
@@ -28,7 +31,10 @@ from mediapipeline.tools.dev.repository_audit_ledger import (
     git_blob_map,
     independent_review_completion_findings,
     jsonl_text,
+    load_risky_file_registry,
+    load_rows,
     load_review_fragments,
+    main,
     merge_error_ledgers,
     merge_finding_ledgers,
     merge_review_ledgers,
@@ -37,6 +43,7 @@ from mediapipeline.tools.dev.repository_audit_ledger import (
     review_fragment_findings,
     resolved_repository_path,
     resolved_regular_worktree_path,
+    registry_risk_tier,
     second_review_attestation_findings,
     sha256_file,
     strict_repository_relative_path,
@@ -261,30 +268,27 @@ class RepositoryAuditLedgerTests(unittest.TestCase):
         self.assertIn("review is not achieved (pending)", joined)
 
     def test_blocked_rows_never_satisfy_achieved_completion(self) -> None:
-        row = coverage_row(status="blocked_with_reason")
-        findings = validation_findings([row], expected_paths={"src/a.py"}, require_complete=True)
-        self.assertIn("review is blocked and does not satisfy achieved completion", "\n".join(findings))
-
-    def test_every_category_has_one_compatible_achieved_status(self) -> None:
-        cases = {
-            "first-party executable source": "line_reviewed_no_findings",
-            "first-party test or fixture": "line_reviewed_no_findings",
-            "behavior-defining configuration/schema/workflow": "line_reviewed_no_findings",
-            "active documentation": "line_reviewed_no_findings",
-            "generated artifact": "generated_verified",
-            "vendored/third-party source": "vendor_verified",
-            "bundled runtime/tool": "vendor_verified",
-            "binary/media/font/image/archive": "binary_inventoried",
-            "historical archived evidence": "archive_inventoried",
-            "metadata/packaging": "metadata_verified",
-        }
-        for index, (category, status) in enumerate(cases.items()):
+        for index, category in enumerate(sorted(ALLOWED_CATEGORIES)):
             with self.subTest(category=category):
-                path = f"case/{index}"
-                row = coverage_row(path=path, category=category, status=status)
-                self.assertEqual(validation_findings([row], expected_paths={path}, require_complete=True), [])
-                wrong = {**row, "review_status": "generated_verified" if status != "generated_verified" else "vendor_verified"}
-                self.assertIn("incompatible terminal status", "\n".join(validation_findings([wrong], expected_paths={path})))
+                path = f"blocked/{index}"
+                row = coverage_row(path=path, category=category, status="blocked_with_reason")
+                findings = validation_findings([row], expected_paths={path}, require_complete=True)
+                self.assertIn("review is blocked and does not satisfy achieved completion", "\n".join(findings))
+
+    def test_every_category_enforces_the_full_achieved_status_cross_product(self) -> None:
+        self.assertEqual(set(CATEGORY_TERMINAL_STATUSES), set(ALLOWED_CATEGORIES))
+        for category in sorted(ALLOWED_CATEGORIES):
+            for status in sorted(ACHIEVED_STATUSES):
+                with self.subTest(category=category, status=status):
+                    path = f"case/{category}/{status}"
+                    row = coverage_row(path=path, category=category, status=status)
+                    if status == "line_reviewed_with_findings":
+                        row["finding_ids"] = ["AUDIT-FIND-TEST-001"]
+                    findings = validation_findings([row], expected_paths={path}, require_complete=True)
+                    if status in CATEGORY_TERMINAL_STATUSES[category]:
+                        self.assertEqual(findings, [])
+                    else:
+                        self.assertIn("incompatible terminal status", "\n".join(findings))
 
     def test_achieved_review_rejects_inventory_defaults_and_unverified_obligations(self) -> None:
         row = coverage_row()
@@ -308,6 +312,71 @@ class RepositoryAuditLedgerTests(unittest.TestCase):
         self.assertIn("prior-audit coverage is not reconciled", joined)
         self.assertIn("verified obligations do not exactly satisfy", joined)
         self.assertIn("unindexed path lacks an explicit reconciliation rationale", joined)
+
+    def test_multi_flag_rows_require_every_distinct_verification_obligation(self) -> None:
+        cases = (
+            ("generated artifact", "generated_verified", {"generated": True, "binary": True}),
+            ("historical archived evidence", "archive_inventoried", {"archive": True, "binary": True}),
+            ("bundled runtime/tool", "vendor_verified", {"runtime": True, "binary": True}),
+        )
+        for index, (category, status, enabled_flags) in enumerate(cases):
+            with self.subTest(category=category):
+                path = f"multi-flag/{index}"
+                row = coverage_row(path=path, category=category, status=status)
+                row.update(enabled_flags)
+                obligations = verification_obligations_for(category, row)
+                row["verification_obligations"] = obligations
+                row["verified_obligations"] = obligations
+                self.assertEqual(validation_findings([row], expected_paths={path}, require_complete=True), [])
+                row["verified_obligations"] = obligations[:-1]
+                self.assertIn(
+                    "verified obligations do not exactly satisfy all applicable obligations",
+                    "\n".join(validation_findings([row], expected_paths={path}, require_complete=True)),
+                )
+
+    def test_strict_cli_reports_achieved_blocked_and_other_incomplete_counts(self) -> None:
+        rows = [
+            coverage_row(path="src/complete.py"),
+            coverage_row(path="src/pending.py", status="pending"),
+            coverage_row(path="src/blocked.py", status="blocked_with_reason"),
+        ]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir)
+            (output_dir / "COVERAGE_MATRIX.jsonl").write_text(jsonl_text(rows), encoding="utf-8")
+
+            def isolated_check(path: Path, *, require_complete: bool = False, root: Path) -> list[str]:
+                del root
+                loaded = load_rows(path / "COVERAGE_MATRIX.jsonl")
+                return validation_findings(
+                    loaded,
+                    expected_paths={str(row["path"]) for row in loaded},
+                    require_complete=require_complete,
+                )
+
+            with (
+                mock.patch(
+                    "mediapipeline.tools.dev.repository_audit_ledger.check_outputs",
+                    side_effect=isolated_check,
+                ),
+                mock.patch("builtins.print") as output,
+            ):
+                result = main(["--check", "--require-complete", "--output-dir", str(output_dir)])
+
+        self.assertEqual(result, 1)
+        printed = "\n".join(" ".join(str(value) for value in call.args) for call in output.call_args_list)
+        self.assertIn("Completion status counts: 1 achieved, 1 blocked, 1 other incomplete.", printed)
+        self.assertIn("src/blocked.py: review is blocked", printed)
+        self.assertIn("src/pending.py: review is not achieved (pending)", printed)
+
+    def test_every_high_or_critical_registry_glob_maps_to_high_risk_case_insensitively(self) -> None:
+        for entry in load_risky_file_registry():
+            if entry["risk_level"] not in {"high", "critical"}:
+                continue
+            for pattern in entry["path_globs"]:
+                candidate = pattern.replace("**", "nested").replace("*", "candidate")
+                with self.subTest(entry=entry["id"], pattern=pattern):
+                    self.assertEqual(registry_risk_tier(candidate), "high")
+                    self.assertEqual(registry_risk_tier(candidate.upper()), "high")
 
     def test_baseline_does_not_claim_semantic_review(self) -> None:
         row = {
@@ -883,7 +952,9 @@ class RepositoryAuditLedgerTests(unittest.TestCase):
             subprocess.run(["git", "add", "src/a.py"], cwd=root, check=True)
             subprocess.run(["git", "commit", "-qm", "fixture"], cwd=root, check=True)
             output_dir = root / "audit"
-            row = write_outputs(output_dir, root=root)[0]
+            cli_prefix = ["--root", str(root), "--output-dir", "audit"]
+            self.assertEqual(main([*cli_prefix, "--write"]), 0)
+            row = load_rows(output_dir / "COVERAGE_MATRIX.jsonl")[0]
             workers = output_dir / "workers"
             workers.mkdir(parents=True)
             fragment = {
@@ -906,10 +977,11 @@ class RepositoryAuditLedgerTests(unittest.TestCase):
             }
             fragment_path = workers / "worker-99-review.jsonl"
             fragment_path.write_text(jsonl_text([fragment]), encoding="utf-8")
-            merge_review_ledgers(output_dir, root=root)
-            merge_finding_ledgers(output_dir, root=root)
-            merge_error_ledgers(output_dir, root=root)
+            self.assertEqual(main([*cli_prefix, "--merge-reviews"]), 0)
+            self.assertEqual(main([*cli_prefix, "--merge-findings"]), 0)
+            self.assertEqual(main([*cli_prefix, "--merge-errors"]), 0)
             self.assertEqual(check_outputs(output_dir, root=root, require_complete=True), [])
+            self.assertEqual(main([*cli_prefix, "--check", "--require-complete"]), 0)
             (output_dir / "COVERAGE_MATRIX.csv").unlink()
             self.assertIn(
                 "COVERAGE_MATRIX.csv is missing or stale",
@@ -922,6 +994,12 @@ class RepositoryAuditLedgerTests(unittest.TestCase):
                 "not the deterministic merge of current review fragments",
                 "\n".join(check_outputs(output_dir, root=root, require_complete=True)),
             )
+            self.assertEqual(main([*cli_prefix, "--merge-reviews"]), 0)
+            with mock.patch("builtins.print") as output:
+                self.assertEqual(main([*cli_prefix, "--check", "--require-complete"]), 1)
+            printed = "\n".join(" ".join(str(value) for value in call.args) for call in output.call_args_list)
+            self.assertIn("Completion status counts: 0 achieved, 1 blocked, 0 other incomplete.", printed)
+            self.assertIn("src/a.py: review is blocked", printed)
 
     def test_independent_attestation_rejects_self_review_and_covers_p1_findings(self) -> None:
         row = coverage_row(risk_tier="high")
@@ -982,6 +1060,42 @@ class RepositoryAuditLedgerTests(unittest.TestCase):
             str(p1["id"]),
             "\n".join(independent_review_completion_findings([row], [unrelated], [independent])),
         )
+
+    def test_independent_attestation_rejects_stale_wrong_owner_duplicate_and_aliased_self_review(self) -> None:
+        row = coverage_row(risk_tier="high")
+        first_review = {
+            "path": row["path"],
+            "reviewer": "/root/first_reviewer",
+            "review_status": row["review_status"],
+            "finding_ids": [],
+        }
+        valid = second_review_attestation(row)
+        cases = (
+            (
+                [{**valid, "content_sha256": "stale-hash"}],
+                "independent attestation hash does not match current coverage content",
+            ),
+            (
+                [{**valid, "assigned_worker": "wrong-worker"}],
+                "independent attestation worker does not match coverage ownership",
+            ),
+            (
+                [valid, dict(valid)],
+                "duplicate independent-review attestation path",
+            ),
+            (
+                [{**valid, "reviewer": "/ROOT/FIRST_REVIEWER"}],
+                "first and independent reviewer identities are the same",
+            ),
+        )
+        for records, expected in cases:
+            with self.subTest(expected=expected):
+                findings = second_review_attestation_findings(
+                    records,
+                    baseline_rows={str(row["path"]): row},
+                    first_review_records=[first_review],
+                )
+                self.assertIn(expected, "\n".join(findings))
 
     def test_review_merge_derives_second_review_status_only_from_attestation(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

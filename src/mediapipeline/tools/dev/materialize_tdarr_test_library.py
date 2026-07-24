@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import os
 import re
 import shutil
+import stat
+import uuid
 from dataclasses import dataclass
 from datetime import datetime, UTC
 from pathlib import Path, PurePosixPath, PureWindowsPath
@@ -23,6 +26,9 @@ DEFAULT_TEMPLATE = REPO_ROOT / "ops" / "pipeline" / "config" / "MediaPipeline_co
 SENTINEL_NAME = ".tdarr-matrix-generator.json"
 MANIFEST_SCHEMA = "tdarr_matrix_materialized_library.v1"
 CONFIG_NAME = "MediaPipeline_config.tdarr-matrix.psd1"
+LIBRARY_ROOT_IDENTITY_SCHEMA = "mediapipeline_tdarr_matrix_root_identity.v1"
+LIBRARY_ROOT_PURPOSE = "mediapipeline_tdarr_matrix_test_library"
+LIBRARY_ROOT_PREFIX = "tdarrmatrix"
 
 BUCKET_SERIES = {
     "audio-only": "TDAudio",
@@ -231,25 +237,110 @@ def parse_views(value: str) -> tuple[str, ...]:
     return views
 
 
-def assert_allowed_library_root(library_root: Path, *, repo_root: Path) -> None:
+def path_has_link_component(path: Path) -> bool:
+    absolute = path.absolute()
+    current = Path(absolute.anchor)
+    for part in absolute.parts[1:]:
+        current /= part
+        if not current.exists() and not current.is_symlink():
+            continue
+        is_junction = bool(getattr(current, "is_junction", lambda: False)())
+        file_attributes = int(getattr(current.lstat(), "st_file_attributes", 0))
+        is_reparse_point = bool(file_attributes & int(getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)))
+        if current.is_symlink() or is_junction or is_reparse_point:
+            return True
+    return False
+
+
+def library_root_path_identity(library_root: Path) -> str:
+    normalized = os.path.normcase(str(library_root.resolve()))
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def library_root_identity_payload(library_root: Path) -> dict[str, str]:
+    return {
+        "schema_version": LIBRARY_ROOT_IDENTITY_SCHEMA,
+        "purpose": LIBRARY_ROOT_PURPOSE,
+        "library_root_sha256": library_root_path_identity(library_root),
+        "build_nonce": str(uuid.uuid4()),
+    }
+
+
+def validate_library_root_sentinel(library_root: Path) -> dict[str, object]:
+    sentinel_path = library_root / SENTINEL_NAME
+    try:
+        payload = json.loads(sentinel_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"Tdarr library sentinel is unreadable or malformed: {sentinel_path}") from exc
+    identity = payload.get("root_identity")
+    if not isinstance(identity, dict):
+        raise ValueError(f"Tdarr library sentinel has no root identity: {sentinel_path}")
+    expected = {
+        "schema_version": LIBRARY_ROOT_IDENTITY_SCHEMA,
+        "purpose": LIBRARY_ROOT_PURPOSE,
+        "library_root_sha256": library_root_path_identity(library_root),
+    }
+    for key, value in expected.items():
+        if identity.get(key) != value:
+            raise ValueError(f"Tdarr library sentinel {key} does not match this root: {sentinel_path}")
+    try:
+        nonce = uuid.UUID(str(identity.get("build_nonce", "")))
+    except ValueError as exc:
+        raise ValueError(f"Tdarr library sentinel build_nonce is invalid: {sentinel_path}") from exc
+    if nonce.int == 0:
+        raise ValueError(f"Tdarr library sentinel build_nonce is invalid: {sentinel_path}")
+    if payload.get("schema_version") != MANIFEST_SCHEMA:
+        raise ValueError(f"Tdarr library sentinel schema does not match: {sentinel_path}")
+    if Path(str(payload.get("library_root", ""))).resolve() != library_root.resolve():
+        raise ValueError(f"Tdarr library sentinel path does not match this root: {sentinel_path}")
+    return payload
+
+
+def assert_allowed_library_root(library_root: Path, *, repo_root: Path) -> Path:
+    original = library_root if library_root.is_absolute() else repo_root / library_root
+    if path_has_link_component(original):
+        raise ValueError(f"Library root must not contain a symlink or junction component: {original}")
+    resolved = original.resolve()
     allowed_root = (repo_root / "LocalBase" / "Scratch" / "TestLibraries").resolve()
     try:
-        library_root.resolve().relative_to(allowed_root)
+        relative = resolved.relative_to(allowed_root)
     except ValueError as exc:
         raise ValueError(f"Library root must be under {allowed_root}") from exc
+    if not relative.parts:
+        raise ValueError(f"Library root must be a tool-owned child of {allowed_root}, not the shared parent")
+    if len(relative.parts) != 1 or not relative.name.casefold().startswith(LIBRARY_ROOT_PREFIX):
+        raise ValueError(f"Library root must be a direct TdarrMatrix* child of {allowed_root}")
+    return resolved
 
 
-def prepare_library_root(library_root: Path, *, repo_root: Path, rebuild: bool) -> None:
-    assert_allowed_library_root(library_root, repo_root=repo_root)
+def prepare_library_root(library_root: Path, *, repo_root: Path, rebuild: bool) -> dict[str, object]:
+    library_root = assert_allowed_library_root(library_root, repo_root=repo_root)
     sentinel = library_root / SENTINEL_NAME
     existing_children = list(library_root.iterdir()) if library_root.exists() else []
     if existing_children and not rebuild:
         raise FileExistsError(f"{library_root} already has content; pass --rebuild to regenerate it.")
     if existing_children and rebuild and not sentinel.exists():
         raise FileExistsError(f"{library_root} has no {SENTINEL_NAME}; refusing destructive rebuild.")
+    quarantine_root: Path | None = None
     if existing_children and rebuild:
-        shutil.rmtree(library_root)
+        validate_library_root_sentinel(library_root)
+        suffix = f"{datetime.now(UTC):%Y%m%d_%H%M%S}.{uuid.uuid4().hex}"
+        quarantine_root = library_root.with_name(f"{library_root.name}.replaced.{suffix}")
+        if quarantine_root.exists():
+            raise FileExistsError(f"Tdarr library quarantine already exists: {quarantine_root}")
+        library_root.rename(quarantine_root)
     library_root.mkdir(parents=True, exist_ok=True)
+    return {"quarantine_root": quarantine_root}
+
+
+def restore_library_root_after_failure(library_root: Path, quarantine_root: Path) -> Path | None:
+    failed_root: Path | None = None
+    if library_root.exists():
+        suffix = f"{datetime.now(UTC):%Y%m%d_%H%M%S}.{uuid.uuid4().hex}"
+        failed_root = library_root.with_name(f"{library_root.name}.failed.{suffix}")
+        library_root.rename(failed_root)
+    quarantine_root.rename(library_root)
+    return failed_root
 
 
 def materialized_rows(
@@ -446,6 +537,8 @@ def write_sentinel(
         "link_mode": mode,
         "views": list(views),
         "materialized_count": materialized_count,
+        "library_root": str(library_root.resolve()),
+        "root_identity": library_root_identity_payload(library_root),
     }
     (library_root / SENTINEL_NAME).write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
@@ -488,47 +581,53 @@ def materialize(
         raise ValueError("mode must be hardlink or copy")
     repo_root = repo_root.resolve()
     inventory_path = resolve_repo_path(inventory_path, repo_root=repo_root)
-    library_root = resolve_repo_path(library_root, repo_root=repo_root)
+    library_root = assert_allowed_library_root(Path(library_root), repo_root=repo_root)
     template_path = resolve_repo_path(template_path, repo_root=repo_root)
     inventory_root = inventory_path.parent
 
     all_samples = load_inventory(inventory_path)
     samples, quarantined = partition_quarantined_samples(all_samples)
     rows = materialized_rows(samples, inventory_root=inventory_root, library_root=library_root, views=views)
-    prepare_library_root(library_root, repo_root=repo_root, rebuild=rebuild)
+    state = prepare_library_root(library_root, repo_root=repo_root, rebuild=rebuild)
+    quarantine_root = state.get("quarantine_root")
+    try:
+        for path in (
+            library_root / "output" / "Movies",
+            library_root / "output" / "TV",
+            library_root / "scratch",
+            library_root / "config",
+            library_root / "manifests",
+        ):
+            path.mkdir(parents=True, exist_ok=True)
+        for row in rows:
+            link_or_copy(row.source_path, row.generated_path, mode=mode)
 
-    for path in (
-        library_root / "output" / "Movies",
-        library_root / "output" / "TV",
-        library_root / "scratch",
-        library_root / "config",
-        library_root / "manifests",
-    ):
-        path.mkdir(parents=True, exist_ok=True)
-    for row in rows:
-        link_or_copy(row.source_path, row.generated_path, mode=mode)
-
-    write_manifest(library_root, rows, mode=mode)
-    config_path = write_config(template_path, library_root) if write_config_file else None
-    write_sentinel(
-        library_root,
-        inventory_path=inventory_path,
-        mode=mode,
-        views=views,
-        materialized_count=len(rows),
-    )
-    return {
-        "library_root": str(library_root),
-        "inventory_path": str(inventory_path),
-        "mode": mode,
-        "views": list(views),
-        "samples": len(all_samples),
-        "quarantined_samples": len(quarantined),
-        "materialized_files": len(rows),
-        "manifest_csv": str(library_root / "manifests" / "materialized_library.csv"),
-        "manifest_json": str(library_root / "manifests" / "materialized_library.json"),
-        "config_path": str(config_path) if config_path else "",
-    }
+        write_manifest(library_root, rows, mode=mode)
+        config_path = write_config(template_path, library_root) if write_config_file else None
+        write_sentinel(
+            library_root,
+            inventory_path=inventory_path,
+            mode=mode,
+            views=views,
+            materialized_count=len(rows),
+        )
+        return {
+            "library_root": str(library_root),
+            "inventory_path": str(inventory_path),
+            "mode": mode,
+            "views": list(views),
+            "samples": len(all_samples),
+            "quarantined_samples": len(quarantined),
+            "materialized_files": len(rows),
+            "manifest_csv": str(library_root / "manifests" / "materialized_library.csv"),
+            "manifest_json": str(library_root / "manifests" / "materialized_library.json"),
+            "config_path": str(config_path) if config_path else "",
+            "quarantine_root": str(quarantine_root) if isinstance(quarantine_root, Path) else "",
+        }
+    except Exception:
+        if isinstance(quarantine_root, Path) and quarantine_root.exists():
+            restore_library_root_after_failure(library_root, quarantine_root)
+        raise
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:

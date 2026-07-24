@@ -6,9 +6,9 @@ file_type: PowerShell
 pipeline_stage: publish
 token_priority: high
 owner_domain: publish
-last_modified: 2026-07-20
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: 9b46696f4bc3b47bb987d3b53d72c2cbd5ff7bd1a0f563e98303c77fdc88ea74
+sha256: 871e2b352f9422cd3bafe75660bc37b57aa2de8b3b7eb53dc60aa44c4549d373
 ---
 # `ops/pipeline/engine/publish/pending_repair.ps1`
 

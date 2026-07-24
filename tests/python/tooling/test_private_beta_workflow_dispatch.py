@@ -63,6 +63,7 @@ class PrivateBetaWorkflowDispatchTests(unittest.TestCase):
         self.assertIn("version=2026.6.4+001", args)
         self.assertIn("release_tag=app-v2026.6.4+001", args)
         self.assertIn("publish_release=false", args)
+        self.assertIn("allow_same_commit_rebuild=false", args)
         self.assertEqual(payload["commands"], [])
 
     def test_dispatch_dry_run_requires_explicit_publish_switch(self) -> None:
@@ -99,6 +100,62 @@ class PrivateBetaWorkflowDispatchTests(unittest.TestCase):
         self.assertTrue(payload["publish_release"])
         self.assertIn("publish_release=true", payload["gh_args"])
 
+    def test_dispatch_rejects_mismatched_version_and_tag(self) -> None:
+        result = subprocess.run(
+            [
+                _powershell(),
+                "-NoProfile",
+                "-NonInteractive",
+                "-File",
+                str(SCRIPT),
+                "-Repository",
+                "owner/repo",
+                "-Version",
+                "2026.6.4+001",
+                "-ReleaseTag",
+                "app-v2026.6.5+001",
+                "-DryRun",
+                "-AsJson",
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        payload = json.loads(result.stdout)
+        failed = {check["name"] for check in payload["checks"] if not check["ok"]}
+        self.assertIn("release_tag:version_identity", failed)
+
+    def test_dispatch_forwards_explicit_same_commit_rebuild_request(self) -> None:
+        result = subprocess.run(
+            [
+                _powershell(),
+                "-NoProfile",
+                "-NonInteractive",
+                "-File",
+                str(SCRIPT),
+                "-Repository",
+                "owner/repo",
+                "-Version",
+                "2026.6.4+001",
+                "-PublishRelease",
+                "-AllowSameCommitRebuild",
+                "-DryRun",
+                "-AsJson",
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+        payload = json.loads(result.stdout)
+        self.assertTrue(payload["allow_same_commit_rebuild"])
+        self.assertIn("allow_same_commit_rebuild=true", payload["gh_args"])
+
     def test_dispatch_script_invokes_setup_preflight_before_real_dispatch(self) -> None:
         text = SCRIPT.read_text(encoding="utf-8")
 
@@ -107,6 +164,7 @@ class PrivateBetaWorkflowDispatchTests(unittest.TestCase):
         self.assertIn("gh_workflow_dispatch", text)
         self.assertIn("gh_run_list_latest", text)
         self.assertIn("publish_release=false", text)
+        self.assertIn("allow_same_commit_rebuild={0}", text)
 
 
 if __name__ == "__main__":

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -60,6 +63,8 @@ def current_pending_manifest_payload(**overrides: object) -> dict[str, object]:
         "source_size": 42,
         "source_mtime_utc": "2026-05-06T11:59:00Z",
         "output_size": 42,
+        "output_sha256": "a" * 64,
+        "output_hash_algorithm": "SHA256",
         "publish_mode": "deferred",
         "sidecar_files": [],
         "tx3g_srt_tracks": [],
@@ -79,6 +84,36 @@ def current_pending_manifest_payload(**overrides: object) -> dict[str, object]:
     }
     payload.update(overrides)
     return payload
+
+
+def powershell_pending_current_contract(payload: dict[str, object]) -> dict[str, object]:
+    pwsh = PROJECT_ROOT / "ops" / "pipeline" / "runtime" / "PowerShell-7.6.0-win-x64" / "pwsh.exe"
+    module = PROJECT_ROOT / "ops" / "pipeline" / "engine" / "publish" / "pending_manifest_store.ps1"
+    with tempfile.TemporaryDirectory() as raw_root:
+        manifest_path = Path(raw_root) / "manifest.json"
+        manifest_path.write_text(json.dumps(payload), encoding="utf-8")
+        environment = os.environ.copy()
+        environment["MP_PENDING_PARITY_MODULE"] = str(module)
+        environment["MP_PENDING_PARITY_MANIFEST"] = str(manifest_path)
+        completed = subprocess.run(
+            [
+                str(pwsh),
+                "-NoProfile",
+                "-Command",
+                ". $env:MP_PENDING_PARITY_MODULE; $manifest = Get-Content -LiteralPath $env:MP_PENDING_PARITY_MANIFEST -Raw | ConvertFrom-Json; Test-PendingManifestCurrentContractFields -Manifest $manifest -ManifestPath $env:MP_PENDING_PARITY_MANIFEST | ConvertTo-Json -Compress",
+            ],
+            cwd=PROJECT_ROOT,
+            env=environment,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    if completed.returncode != 0:
+        raise AssertionError(
+            f"PowerShell pending contract failed\nSTDOUT:\n{completed.stdout}\nSTDERR:\n{completed.stderr}"
+        )
+    return json.loads(completed.stdout)
 
 
 class ContractTests(unittest.TestCase):
@@ -174,6 +209,7 @@ class ContractTests(unittest.TestCase):
             "mode": "once",
             "status": "failed_immediate",
             "pid": 1234,
+            "process_create_time": 1778083200.125,
             "app_pid": 4321,
             "command_line": "pwsh -File pipeline.ps1",
             "args": ["pwsh", "-File", "pipeline.ps1"],
@@ -192,7 +228,9 @@ class ContractTests(unittest.TestCase):
 
         self.assertEqual(record.job_kind, "pipeline")
         self.assertEqual(record.status, "failed_immediate")
+        self.assertEqual(record.process_create_time, 1778083200.125)
         self.assertEqual(record.return_code, 7)
+        self.assertEqual(record.to_mapping()["process_create_time"], 1778083200.125)
         self.assertEqual(record.to_mapping()["schema_version"], "desktop_active_job.v1")
 
     def test_control_flag_contract_accepts_pause_stop_rescan_shapes(self) -> None:
@@ -646,7 +684,15 @@ class ContractTests(unittest.TestCase):
 
     def test_pending_push_manifest_contract_accepts_current_manifest_shape(self) -> None:
         payload = current_pending_manifest_payload(
-            sidecar_files=[{"local_file": r"C:\Scratch\Pending\Movie.eng.srt"}],
+            sidecar_files=[
+                {
+                    "local_file": r"C:\Scratch\Pending\Movie.eng.srt",
+                    "server_out": r"\\server\Movies\Movie.eng.srt",
+                    "output_size": 12,
+                    "output_sha256": "b" * 64,
+                    "output_hash_algorithm": "SHA256",
+                }
+            ],
             tx3g_srt_tracks=[{"language": "eng"}],
             vobsub_srt_failures=[{"reason": "ocr unavailable"}],
             tx3g_embedded_srt_tracks=[{"language": "eng"}],
@@ -691,6 +737,8 @@ class ContractTests(unittest.TestCase):
             "source_identity_v2_algorithm",
             "source_path",
             "output_size",
+            "output_sha256",
+            "output_hash_algorithm",
             "sidecar_files",
             "tx3g_srt_tracks",
             "tx3g_srt_failures",
@@ -713,6 +761,16 @@ class ContractTests(unittest.TestCase):
             "source_path",
         ):
             self.assertEqual(schema["properties"][field].get("minLength"), 1)
+        self.assertEqual(
+            set(schema["properties"]["sidecar_files"]["items"]["required"]),
+            {
+                "local_file",
+                "server_out",
+                "output_size",
+                "output_sha256",
+                "output_hash_algorithm",
+            },
+        )
 
     def test_pending_push_manifest_contract_accepts_recovery_and_sidecar_retry_states(self) -> None:
         for state in ("parked_recovered", "retry_sidecar_backup_failed", "retry_sidecar_failed"):
@@ -842,6 +900,57 @@ class ContractTests(unittest.TestCase):
             with self.subTest(field=field):
                 with self.assertRaises(ContractError):
                     PendingPushManifest.from_mapping(payload)
+
+    def test_pending_push_manifest_requires_media_and_sidecar_sha256_proof(self) -> None:
+        for field in ("output_sha256", "output_hash_algorithm"):
+            payload = current_pending_manifest_payload()
+            payload.pop(field)
+            with self.subTest(field=field):
+                with self.assertRaises(ContractError):
+                    PendingPushManifest.from_mapping(payload)
+
+        for field in (
+            "local_file",
+            "server_out",
+            "output_size",
+            "output_sha256",
+            "output_hash_algorithm",
+        ):
+            sidecar = {
+                "local_file": r"C:\Scratch\Pending\Movie.eng.srt",
+                "server_out": r"\\server\Movies\Movie.eng.srt",
+                "output_size": 12,
+                "output_sha256": "b" * 64,
+                "output_hash_algorithm": "SHA256",
+            }
+            sidecar.pop(field)
+            with self.subTest(sidecar_field=field):
+                with self.assertRaises(ContractError):
+                    PendingPushManifest.from_mapping(
+                        current_pending_manifest_payload(sidecar_files=[sidecar])
+                    )
+
+    def test_python_and_powershell_current_manifest_hash_contracts_agree(self) -> None:
+        payload = current_pending_manifest_payload(
+            sidecar_files=[
+                {
+                    "local_file": r"C:\Scratch\Pending\Movie.eng.srt",
+                    "server_out": r"\\server\Movies\Movie.eng.srt",
+                    "output_size": 12,
+                    "output_sha256": "b" * 64,
+                    "output_hash_algorithm": "SHA256",
+                }
+            ]
+        )
+        PendingPushManifest.from_mapping(payload)
+        self.assertTrue(powershell_pending_current_contract(payload)["Ok"])
+
+        payload.pop("output_sha256")
+        with self.assertRaises(ContractError):
+            PendingPushManifest.from_mapping(payload)
+        powershell_result = powershell_pending_current_contract(payload)
+        self.assertFalse(powershell_result["Ok"])
+        self.assertEqual(powershell_result["ReasonCode"], "OUTPUT_HASH_MISSING")
 
     def test_progress_contract_rejects_invalid_percent(self) -> None:
         with self.assertRaises(ContractError):

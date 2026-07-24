@@ -380,11 +380,10 @@ async function refreshAllNow(options = {}) {
   renderLiveWorkHomeSummary(liveRunContext);
   const launchPanel = document.querySelector('[data-page-panel="launch"]');
   const launchVisible = Boolean(launchPanel && !launchPanel.hidden && launchPanel.getAttribute("aria-hidden") !== "true");
-  const launchAlertVisible = Boolean(document.querySelector(".launch-preflight-startup-alert"));
   const launchView = window.mediaPipelineLaunchView || {};
   if (
     typeof launchView.refreshLaunchBackendPreflight === "function"
-    && (!refreshOptions.automatic || launchVisible || launchAlertVisible)
+    && (!refreshOptions.automatic || launchVisible)
   ) {
     try {
       await launchView.refreshLaunchBackendPreflight();

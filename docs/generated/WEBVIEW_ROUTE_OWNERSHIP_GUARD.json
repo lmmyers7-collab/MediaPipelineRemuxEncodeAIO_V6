@@ -374,6 +374,13 @@
       ]
     },
     {
+      "route": "/api/queue/priority-export",
+      "files": [
+        "apps/desktop/webview/static/assets/launch/scopeControls.js",
+        "apps/desktop/webview/static/assets/queue/priority.js"
+      ]
+    },
+    {
       "route": "/api/queue/scan",
       "files": [
         "apps/desktop/webview/static/assets/queue/scan.js"

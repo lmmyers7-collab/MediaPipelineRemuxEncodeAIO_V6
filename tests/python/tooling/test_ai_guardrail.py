@@ -32,6 +32,7 @@ class AiGuardrailTests(unittest.TestCase):
                 self.assertIn("naming-lint", names)
                 self.assertIn("god-file-guard", names)
                 self.assertIn("risky-file-registry", names)
+                self.assertIn("tracked-office-documents", names)
 
     def test_status_parser_includes_rename_destination_and_untracked_paths(self) -> None:
         sample = "\n".join(

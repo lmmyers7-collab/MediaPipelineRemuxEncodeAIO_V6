@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-11
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: 9209599fe0b860a04512519f498b7e708d31c4bef5ca8778b24ecb9dbd026319
+sha256: d2a89a15ee8065d9db117b39555556658150393b9e3d1bfaa8923c1f10b88e0e
 ---
 # `tests/python/tooling/test_risky_file_registry.py`
 

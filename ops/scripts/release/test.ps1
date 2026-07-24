@@ -453,6 +453,7 @@ foreach ($suite in @(
 )) {
     Invoke-PythonUnittestDiscovery -Label $suite.Label -RelativePath $suite.Path -Required:([bool]$RequireTests)
 }
+Invoke-PythonPytestStyleTests -Required:([bool]$RequireTests)
 
 Write-Section 'Generated and Tooling Guards'
 # Some audit checks compare generated artifacts against the FULL source tree, and the Python lint gate

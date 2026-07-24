@@ -6,9 +6,9 @@ file_type: PowerShell
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-20
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: 9e1bdd14b6c61f8e332bd6abd18d5606494ee1dec51e65acc9834bfd7849d94d
+sha256: b81688062b0aab3ef19fb1b2e728163d0d784930881a3ebc541a917a6b4d9615
 ---
 # `ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1`
 

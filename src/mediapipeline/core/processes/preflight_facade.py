@@ -215,8 +215,18 @@ class ProcessFacadeMixin:
             "Start route will re-check the lock at submission time.",
         )
 
-    def _active_work_preflight_check(self, resolved: ResolvedPaths, action: str) -> dict[str, Any]:
-        block_message = self._active_work_block_message(resolved, action)
+    def _active_work_preflight_check(
+        self,
+        resolved: ResolvedPaths,
+        action: str,
+        *,
+        ignore_queue_source_scan: bool = False,
+    ) -> dict[str, Any]:
+        block_message = self._active_work_block_message(
+            resolved,
+            action,
+            ignore_queue_source_scan=ignore_queue_source_scan,
+        )
         if block_message:
             return _preflight_check(
                 "active_work",
@@ -310,49 +320,6 @@ class ProcessFacadeMixin:
         )
         freshness_seconds = normalize_queue_snapshot_freshness_seconds(raw_freshness)
         preview_age_detail: list[Any] = []
-        scan_blocker = getattr(self.service, "queue_source_scan_active_block_message", None)
-        if callable(scan_blocker):
-            try:
-                scan_message = str(scan_blocker("Run Once preflight") or "").strip()
-            except Exception as exc:
-                return _preflight_check(
-                    "normal_queue_scope",
-                    "Normal queue scope",
-                    "blocked",
-                    f"Queue scan state could not be verified: {exc}",
-                    "Refresh the Main Queue before starting Run Once.",
-                    detail=["queue_scan_state_unknown"],
-                )
-            if scan_message:
-                return _preflight_check(
-                    "normal_queue_scope",
-                    "Normal queue scope",
-                    "blocked",
-                    scan_message,
-                    "Wait for the queue scan to finish, then refresh preflight.",
-                    detail=["queue_scan_running"],
-                )
-
-        scan_status_reader = getattr(self.service, "read_queue_scan_status", None)
-        scan_status = scan_status_reader(resolved) if callable(scan_status_reader) else {}
-        if not isinstance(scan_status, Mapping) or str(scan_status.get("status") or "").casefold() != "completed":
-            return _preflight_check(
-                "normal_queue_scope",
-                "Normal queue scope",
-                "blocked",
-                "A completed backend Queue dry-run is required before Run Once.",
-                "Run Queue scan and wait for it to complete before launching.",
-                detail=["queue_scan_not_completed"],
-            )
-        if str(scan_status.get("mode") or "").casefold() == "inventory_only":
-            return _preflight_check(
-                "normal_queue_scope",
-                "Normal queue scope",
-                "blocked",
-                "The latest Queue scan contains inventory only, not an authoritative dry-run plan.",
-                "Run the full Queue scan before launching.",
-                detail=["queue_scan_inventory_only"],
-            )
 
         snapshot_path = resolved.queue_snapshot_path
         if snapshot_path is None or not snapshot_path.is_file():
@@ -435,19 +402,14 @@ class ProcessFacadeMixin:
                 "Run Queue scan before launching.",
                 detail=["queue_snapshot_origin_not_dry_run", *preview_age_detail],
             )
-        scan_request_id = str(scan_status.get("queue_preview_request_id") or "").strip()
-        if not snapshot_contract.queue_preview_request_id or snapshot_contract.queue_preview_request_id != scan_request_id:
-            return _preflight_check(
-                "normal_queue_scope",
-                "Normal queue scope",
-                "blocked",
-                "Queue snapshot request identity does not match the completed scan.",
-                "Run Queue scan again before launching.",
-                detail=["queue_snapshot_request_mismatch", *preview_age_detail],
-            )
         wall_now_provider = getattr(self.service, "queue_snapshot_freshness_wall_now", None)
         monotonic_provider = getattr(self.service, "queue_snapshot_freshness_monotonic_now", None)
         anchor_provider = getattr(self.service, "queue_snapshot_freshness_anchor", None)
+        # The validated dry-run snapshot is launch authority. Transient scan
+        # status and request identity are deliberately excluded from this
+        # advisory age calculation so a newer inventory scan cannot invalidate
+        # an otherwise current executable plan.
+        scan_status: Mapping[str, Any] = {}
         freshness = evaluate_queue_snapshot_freshness(
             snapshot_path,
             snapshot,
@@ -871,7 +833,16 @@ class ProcessFacadeMixin:
         )
         checks.extend(
             [
-                self._active_work_preflight_check(resolved, "Pipeline preflight"),
+                self._active_work_preflight_check(
+                    resolved,
+                    "Pipeline preflight",
+                    ignore_queue_source_scan=(
+                        str(normalized.get("actual_mode") or mode).casefold() == "once"
+                        and not bool(normalized["single_file"])
+                        and normalized["queue_scope"] == "backend_queue"
+                        and queue_scope_valid
+                    ),
+                ),
                 _preflight_check(
                     "service_start",
                     "Pipeline service",

@@ -10,6 +10,15 @@ Purpose: reference map of runtime files and folders created, read, or mutated by
 
 Runtime state lives under `LocalBase\State\`. `LocalBase` is a config key; its default is the bundle root, but operators may set it to a different path.
 
+Native shell evidence that must survive a backend stop is the narrow exception:
+it lives under the Windows app-local data root, not under `LocalBase\State`.
+
+## Native Shell Update Evidence
+
+| Artifact | Relative path | Owner | Produced by | Consumed by | Safe to delete manually | Diagnostics target key |
+|---|---|---|---|---|---|---|
+| Native updater lifecycle events | `<Tauri app-local data>\UpdateState\NativeUpdater\update-event-*.json` (the app-local root is resolved by Tauri for identifier `com.mediapipeline.remuxencodeaio`) | Tauri shell (Rust) | Productized-shell startup update check, signed download/verification, explicit install prompt, fresh close-readiness gate, safe-only backend shutdown, and installer handoff/recovery | Operator/support recovery review; never update-channel, close-readiness, backend, or install authority | Only with the app fully stopped and after retaining any evidence needed for update recovery. The shell keeps the newest 64 complete events and prunes older events after an atomic write. | N/A |
+
 ---
 
 ## Local Work and Output Staging
@@ -117,6 +126,7 @@ Legacy `DesktopApp\encode_speed_history.json` and `DesktopApp\MediaPipelineRemux
 | Pending publish root | `State\PendingServerPush\` | Pipeline (PS) | Deferred publish events | Desktop app, local API, WebView Pending Publish | No — backend drain reads these | `pending_publish` |
 | Pending publish manifests | `State\PendingServerPush\*.manifest.json` | Pipeline (PS) | Deferred publish, CSV rerun auto-review routing | Drain service, recovery dry-run | No — drain service owns lifecycle | `pending_publish` |
 | Parked output payloads | `State\PendingServerPush\*` beside matching `.manifest.json` files | Pipeline (PS) | Deferred publish | Drain service | No — use recovery-plan to assess before draining | `pending_publish` |
+| Pending destination lock sentinels | `State\PendingServerPush\.destination-locks\<canonical-destination-sha256>.lock` | Pipeline (PS) | First drain or stale-attempt recovery for a canonical final destination | Cross-process drain and recovery transaction guards | No — empty sentinels are deliberately retained so lock identity cannot split during release/reacquire races | N/A |
 | Drain summary | `State\Progress\pending_drain_summary.json` | Pipeline (PS) | Drain execution | WebView Pending Publish evidence | No during ongoing drain | `pending_publish` |
 
 ---
@@ -140,9 +150,11 @@ Legacy `DesktopApp\encode_speed_history.json` and `DesktopApp\MediaPipelineRemux
 | Audit rerun import CSV | `State\Rerun\ImportCsv\audit_rerun_export_*.csv` | Desktop app (Python) | Reports audit export for CSV rerun | Rerun UI recent CSV picker, `/api/rerun/preview`, `/api/rerun/start` | After reviewing and when no rerun uses it | N/A |
 | Scoped rerun CSV | `State\Rerun\ScopedCsv\rerun_scoped_*.csv`; `State\Rerun\ScopedCsv\rerun_continue_pending_*.csv` | Desktop app (Python) | `/api/rerun/start` when CSV preview scope excludes rows; `/api/rerun/continue` for stopped-after-current pending rows only | `Invoke-RerunCsv.ps1` launch input | After the corresponding rerun completes and evidence is retained | N/A |
 | CSV rerun control marker | `State\Rerun\Control\stop_after_current.json` | Desktop app (Python) | `/api/rerun/control` | `Invoke-RerunCsv.ps1` after each completed row/window chunk | Yes after the matching rerun has written terminal manifest evidence; stale markers are ignored by batch/path/start-time checks | N/A |
+| CSV rerun local enrollment | `State\Rerun\Local\<batch_id>.json` | Desktop app (Python) | Accepted local rerun launch and backend lifecycle transitions | Duplicate/recovery admission, startup reconciliation, rerun results | No while the correlated rerun or recovery evidence is active | N/A |
+| CSV rerun startup reconciliation summary | `State\Rerun\StartupReconciliation\latest.json` | Desktop app (Python) | Backend startup reconciliation | Rerun results and operator diagnostics | After all referenced enrollments are terminal and evidence retention permits | N/A |
 | CSV rerun manifests | `RerunManifests\*.json` and `RerunManifests\*.config.psd1` | Pipeline (PS) | `Invoke-RerunCsv.ps1` | Queue/Home manifest fallback, rerun result reconciliation, Pending Publish promotion | No during active rerun; retain as launch/result evidence | N/A |
 | CSV rerun workspace roots | Sibling of `LocalBase`: `<LocalBaseLeaf>_RerunWorkspace\RerunQueue\<batch>` and `<LocalBaseLeaf>_RerunWorkspace\RerunParked\<batch>` | Pipeline (PS) | `Invoke-RerunCsv.ps1` staging and parked output flows | Nested pipeline, rerun manifests, result reconciliation | No during active rerun; clean only after reviewing manifests and parked output state | N/A |
-| CSV rerun replaced-final hold | `State\Rerun\FinalReplaced\<batch>\*` | Pipeline (PS) | Confirmed CSV rerun final replacement | Rerun manifest evidence and operator recovery | No until the replacement manifest/sidecar and final output have been reviewed | N/A |
+| CSV rerun final-publication transaction and replaced-final hold | Durable transaction manifests and committed backups under `State\Rerun\FinalReplaced\<batch>\{PublicationTransactions,CommittedBackups}\`; hidden `*.mediapipeline-rerun-*.{stage,backup}` artifacts beside a final target exist only while its transaction is nonterminal | Pipeline (PS) | Confirmed CSV rerun replacement, clean auto-replacement, or non-overlap publication | Rerun restart recovery, row evidence, completed-job mirror, and operator recovery | No while nonterminal; after commit retain transaction/held-backup evidence per operator policy. Never delete a hidden stage/backup without transaction reconciliation. | N/A |
 | Priority CSV | Config-specified path | Pipeline (PS) | Audit run | Reports, Queue priority | After reviewing | `latest_priority_csv` |
 | Audit reports folder | Config-specified path | Pipeline (PS) | Audit run | Desktop app, Diagnostics | After reviewing | `audit_reports` |
 

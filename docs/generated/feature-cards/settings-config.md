@@ -73,4 +73,4 @@ Validation: targeted config/store/schema tests
 
 ## Secondary evidence
 
-Counts only (request explicitly when needed): test=19, documentation=8, generated=0, change_evidence=5, archive=0, runtime_artifact=0.
+Counts only (request explicitly when needed): test=20, documentation=8, generated=0, change_evidence=5, archive=0, runtime_artifact=0.

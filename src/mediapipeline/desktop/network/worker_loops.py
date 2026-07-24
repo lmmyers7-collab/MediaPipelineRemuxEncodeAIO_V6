@@ -185,9 +185,10 @@ class WorkerLoopMixin:
             self._maybe_refresh_library_auto_map()
 
             resp: dict[str, Any] | None = None
+            claim_http_context: tuple[str, str] | None = None
             try:
                 accessible_library_ids = self._accessible_library_ids()
-                resp = self._http_get(
+                resp, claim_http_context = self._http_get_for_claim(
                     "/api/claim",
                     {
                         "worker_id":   self._worker_id,
@@ -199,7 +200,11 @@ class WorkerLoopMixin:
                 self._last_claim_failure_text = ""
             except Exception as exc:
                 try:
-                    if resp is not None and self._release_malformed_claim_response(resp, str(exc)):
+                    if resp is not None and self._release_malformed_claim_response(
+                        resp,
+                        str(exc),
+                        http_context=claim_http_context,
+                    ):
                         self._wait_interruptible()
                         continue
                 except Exception as release_exc:
@@ -272,6 +277,8 @@ class WorkerLoopMixin:
                     job_id=claim.job_id,
                     source_path=original_path,
                 )
+                if claim_http_context is not None:
+                    self._register_claim_http_context(claim.job_id, claim_http_context)
                 self._release_unstartable_claim(claim, f"path map failed: {exc}")
                 self._wait_interruptible()
                 continue
@@ -318,6 +325,8 @@ class WorkerLoopMixin:
                     job_id=claim.job_id,
                     source_path=claim.source_path,
                 )
+                if claim_http_context is not None:
+                    self._register_claim_http_context(claim.job_id, claim_http_context)
                 self._release_unstartable_claim(claim, reason_preview)
                 self._wait_interruptible()
                 continue
@@ -340,10 +349,15 @@ class WorkerLoopMixin:
                     job_id=claim.job_id,
                     source_path=claim.source_path,
                 )
+                if claim_http_context is not None:
+                    self._register_claim_http_context(claim.job_id, claim_http_context)
                 self._release_unstartable_claim(claim, reason_preview)
                 self._wait_interruptible()
                 continue
 
+            if claim_http_context is None:
+                raise RuntimeError(f"Claim {job.job_id} did not retain its coordinator HTTP context")
+            self._register_claim_http_context(job.job_id, claim_http_context)
             with self._active_job_lock:
                 self._active_job = job
 
@@ -384,7 +398,8 @@ class WorkerLoopMixin:
                 progress = 0.0
 
             try:
-                resp = self._http_post(
+                resp = self._http_post_for_claim(
+                    job.job_id,
                     "/api/heartbeat",
                     HeartbeatRequest(
                         job_id           = job.job_id,
@@ -414,8 +429,11 @@ class WorkerLoopMixin:
                         source_path=str(job.record.source_path),
                     )
                     self._job_reclaimed = True
-                    self._request_abort_reclaimed_job(job)
-                    break
+                    abort_contained = self._request_abort_reclaimed_job(job)
+                    if abort_contained is not False:
+                        break
+                    self._notify_status("⚠ Abort containment not yet proven; retrying until the process exits")
+                    continue
                 self._last_heartbeat_failure_text = ""
                 self._reset_heartbeat_failure_state()
             except Exception as exc:
@@ -462,8 +480,11 @@ class WorkerLoopMixin:
                         source_path=str(job.record.source_path),
                     )
                     self._job_reclaimed = True
-                    self._request_abort_reclaimed_job(job)
-                    break
+                    abort_contained = self._request_abort_reclaimed_job(job)
+                    if abort_contained is not False:
+                        break
+                    self._notify_status("⚠ Abort containment not yet proven; retrying until the process exits")
+                    continue
 
     def _stop_heartbeat(self) -> None:
         """Signal the heartbeat thread to stop and wait for it."""

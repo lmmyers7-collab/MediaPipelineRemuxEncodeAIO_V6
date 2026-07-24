@@ -1,0 +1,49 @@
+{
+  "id": "MP-CHANGE-2026-0723-030",
+  "title": "Lock audit independent-attestation integrity regressions",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": "2026-07-23",
+  "summary": "Bind the current audit-ledger final-lock safeguards to the five remaining P1 integrity findings and add explicit adversarial coverage for stale, wrong-owner, duplicate, and case-aliased independent attestations.",
+  "reason": "Reconcile AUDIT-FIND-W11-HIR-001, W11-HIR-002, W11-HIR-004, W11-SR-001, and W11-SR-005. Current source already enforces path-local finding equality, central finding/error membership, unique stage-0 Git identity, deterministic review-fragment reconstruction, and distinct current-hash independent attestations, but the remediation queue lacked packet linkage and several negative attestation branches were only implicitly covered.",
+  "affected_areas": [
+    "generated-context",
+    "tests"
+  ],
+  "behavior_before": "The final-lock implementation was present, and existing tests covered phantom IDs, path-local finding mismatch, ambiguous index stages, changed fragments, missing independent evidence, and exact self-review. The remaining queue still treated the findings as unlinked, while stale-hash, wrong-worker, duplicate-path, and case-aliased self-review branches lacked one table-driven regression.",
+  "behavior_after": "The mandatory ledger suite explicitly rejects stale content hashes, wrong worker ownership, duplicate independent attestations for one path, and the same canonical reviewer under case variation. Together with existing tests, every finding in the cluster is bound to deterministic current review reconstruction and independent proof requirements.",
+  "files_touched": [
+    "docs/change_control/CHANGE_INDEX.md",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-030.json.md",
+    "docs/generated/summaries/tests/python/tooling/test_repository_audit_ledger.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-030.json",
+    "tests/python/tooling/test_repository_audit_ledger.py"
+  ],
+  "tests_added": [
+    "Case-aliased reuse of the first reviewer identity is rejected as self-review.",
+    "Duplicate independent attestations for one canonical path are rejected.",
+    "Independent attestation with a stale content hash is rejected.",
+    "Independent attestation with the wrong assigned worker is rejected."
+  ],
+  "manual_validation": [
+    "Focused repository-audit ledger suite passed: 38 tests and 139 subtests.",
+    "Generated project/feature checks, targeted diff hygiene, and strict worktree coverage passed with 1,172 packets.",
+    "Targeted Ruff validation passed for the ledger implementation and tests."
+  ],
+  "rollback_plan": "Revert the four-case adversarial test, its generated summary/maps, and this reconciliation packet together. Do not weaken or remove the underlying final-lock validators when rolling back packet evidence.",
+  "related_changes": [
+    "AUDIT-FIND-W11-HIR-001",
+    "AUDIT-FIND-W11-HIR-002",
+    "AUDIT-FIND-W11-HIR-004",
+    "AUDIT-FIND-W11-SR-001",
+    "AUDIT-FIND-W11-SR-005"
+  ],
+  "notes": "Audit tooling/tests only; no media or immutable audit-ledger artifacts are modified. HIR-001, HIR-002, and HIR-004 explicitly describe their current final-lock state as resolved behavior even though the central disposition remains confirmed. SR-001 and SR-005 are likewise enforced by current deterministic reconstruction and independent-attestation code; this packet records and extends the executable proof rather than duplicating implementation.\nRefresh audit-attestation reconciliation evidence."
+}

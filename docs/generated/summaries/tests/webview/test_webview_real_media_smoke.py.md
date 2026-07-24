@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-11
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: 9b3c19ae6bddd5601e18053aa5186e007ead085c2a7514224d3b14c9d667d5ff
+sha256: df8a29f8363c426bf980ac4f2c4d4f8dae299b636d42892312af6f934d1f6464
 ---
 # `tests/webview/test_webview_real_media_smoke.py`
 

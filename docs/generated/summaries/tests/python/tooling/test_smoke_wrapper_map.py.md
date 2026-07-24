@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-20
+last_modified: 2026-07-23
 last_reviewed: 2026-06-17
-sha256: c7520c3bab0212f6af43f66771ba8330588ca2b8d1e61c7c6af42ae21cca2703
+sha256: c7688c6bd1cc3c988cba9d560c9c7f654789e020973bfaa406fb09a2be75eb40
 ---
 # `tests/python/tooling/test_smoke_wrapper_map.py`
 

@@ -147,8 +147,15 @@ class RenamePlannerTests(unittest.TestCase):
 
             for preview_leaf, expected_error in cases:
                 with self.subTest(preview_leaf=preview_leaf):
-                    def fake_preview(paths, *, powershell_host=None, cleaning_policy=None, timeout_seconds=8):
-                        return {str(source).casefold(): preview_leaf}, ""
+                    def fake_preview(
+                        paths,
+                        *,
+                        powershell_host=None,
+                        cleaning_policy=None,
+                        timeout_seconds=8,
+                        _preview_leaf=preview_leaf,
+                    ):
+                        return {str(source).casefold(): _preview_leaf}, ""
 
                     self.service._load_pipeline_movie_name_previews = fake_preview  # type: ignore[method-assign]
                     plan = self.service.plan_rename_paths(

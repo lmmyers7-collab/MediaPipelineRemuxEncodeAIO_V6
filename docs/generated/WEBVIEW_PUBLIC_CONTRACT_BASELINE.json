@@ -2841,7 +2841,7 @@
       "toggle",
       "visibilitychange"
     ],
-    "top_level_declaration_count": 2966
+    "top_level_declaration_count": 2975
   },
   "scripts": [
     {
@@ -2895,188 +2895,233 @@
           "kind": "const"
         },
         {
-          "name": "GERUND_BY_VERB",
+          "name": "DURABLE_COMMAND_ROUTES",
           "line": 80,
           "kind": "const"
         },
         {
+          "name": "DURABLE_COMMAND_HEADER",
+          "line": 85,
+          "kind": "const"
+        },
+        {
+          "name": "durableCommandStates",
+          "line": 86,
+          "kind": "const"
+        },
+        {
+          "name": "GERUND_BY_VERB",
+          "line": 87,
+          "kind": "const"
+        },
+        {
           "name": "normalizeApiBase",
-          "line": 115,
+          "line": 122,
           "kind": "function"
         },
         {
           "name": "normalizeApiPath",
-          "line": 136,
+          "line": 143,
           "kind": "function"
         },
         {
           "name": "routeOnly",
-          "line": 149,
+          "line": 156,
           "kind": "function"
         },
         {
           "name": "endpointLabel",
-          "line": 155,
+          "line": 162,
           "kind": "function"
         },
         {
           "name": "humanizeSegment",
-          "line": 159,
-          "kind": "function"
-        },
-        {
-          "name": "gerundForAction",
           "line": 166,
           "kind": "function"
         },
         {
+          "name": "gerundForAction",
+          "line": 173,
+          "kind": "function"
+        },
+        {
           "name": "actionDescriptor",
-          "line": 174,
+          "line": 181,
           "kind": "function"
         },
         {
           "name": "routeResourceLabel",
-          "line": 182,
+          "line": 189,
           "kind": "function"
         },
         {
           "name": "genericPostAction",
-          "line": 195,
+          "line": 202,
           "kind": "function"
         },
         {
           "name": "requestAction",
-          "line": 210,
+          "line": 217,
           "kind": "function"
         },
         {
           "name": "bootstrapWithoutToken",
-          "line": 225,
-          "kind": "function"
-        },
-        {
-          "name": "scrubBootstrapSecrets",
           "line": 232,
           "kind": "function"
         },
         {
+          "name": "scrubBootstrapSecrets",
+          "line": 239,
+          "kind": "function"
+        },
+        {
           "name": "apiHeaders",
-          "line": 243,
+          "line": 250,
           "kind": "function"
         },
         {
           "name": "boundedText",
-          "line": 249,
+          "line": 256,
           "kind": "function"
         },
         {
           "name": "looksLikeStackTrace",
-          "line": 255,
+          "line": 262,
           "kind": "function"
         },
         {
           "name": "looksLikeRawSql",
-          "line": 259,
+          "line": 266,
           "kind": "function"
         },
         {
           "name": "looksLikeSensitivePayload",
-          "line": 263,
+          "line": 270,
           "kind": "function"
         },
         {
           "name": "redactSensitiveText",
-          "line": 267,
+          "line": 274,
           "kind": "function"
         },
         {
           "name": "sanitizeBackendDetail",
-          "line": 278,
+          "line": 285,
           "kind": "function"
         },
         {
           "name": "backendEnvelopeObject",
-          "line": 289,
+          "line": 296,
           "kind": "function"
         },
         {
           "name": "backendErrorCode",
-          "line": 295,
+          "line": 302,
           "kind": "function"
         },
         {
           "name": "backendDetail",
-          "line": 304,
+          "line": 311,
           "kind": "function"
         },
         {
           "name": "categoryForStatus",
-          "line": 320,
+          "line": 327,
           "kind": "function"
         },
         {
           "name": "nextStepForCategory",
-          "line": 337,
+          "line": 344,
           "kind": "function"
         },
         {
           "name": "categoryCodeText",
-          "line": 364,
+          "line": 371,
           "kind": "function"
         },
         {
           "name": "apiClientError",
-          "line": 368,
-          "kind": "function"
-        },
-        {
-          "name": "invalidJsonError",
           "line": 375,
           "kind": "function"
         },
         {
+          "name": "ambiguousCommandError",
+          "line": 382,
+          "kind": "function"
+        },
+        {
+          "name": "invalidJsonError",
+          "line": 401,
+          "kind": "function"
+        },
+        {
           "name": "httpError",
-          "line": 391,
+          "line": 418,
           "kind": "function"
         },
         {
           "name": "parseResponse",
-          "line": 425,
+          "line": 463,
           "kind": "function"
         },
         {
           "name": "timeoutValue",
-          "line": 441,
+          "line": 479,
           "kind": "function"
         },
         {
           "name": "fetchWithTimeout",
-          "line": 446,
+          "line": 484,
           "kind": "function"
         },
         {
           "name": "durationText",
-          "line": 466,
+          "line": 504,
           "kind": "function"
         },
         {
           "name": "requestFailure",
-          "line": 473,
+          "line": 511,
+          "kind": "function"
+        },
+        {
+          "name": "canonicalCommandValue",
+          "line": 549,
+          "kind": "function"
+        },
+        {
+          "name": "commandStateKey",
+          "line": 559,
+          "kind": "function"
+        },
+        {
+          "name": "newDurableCommandId",
+          "line": 563,
+          "kind": "function"
+        },
+        {
+          "name": "acquireDurableCommandState",
+          "line": 574,
+          "kind": "function"
+        },
+        {
+          "name": "finishDurableCommandState",
+          "line": 586,
           "kind": "function"
         },
         {
           "name": "apiRequest",
-          "line": 506,
+          "line": 595,
           "kind": "function"
         },
         {
           "name": "apiGet",
-          "line": 530,
+          "line": 631,
           "kind": "function"
         },
         {
           "name": "apiPost",
-          "line": 534,
+          "line": 635,
           "kind": "function"
         }
       ],
@@ -19778,9 +19823,7 @@
         "launch-backend-preflight-rows",
         "launch-backend-preflight-status"
       ],
-      "event_types": [
-        "click"
-      ]
+      "event_types": []
     },
     {
       "load_index": 254,
@@ -22710,12 +22753,12 @@
         },
         {
           "name": "refreshCurrentOutputStatus",
-          "line": 112,
+          "line": 114,
           "kind": "function"
         },
         {
           "name": "refreshAllNow",
-          "line": 116,
+          "line": 118,
           "kind": "function"
         }
       ],

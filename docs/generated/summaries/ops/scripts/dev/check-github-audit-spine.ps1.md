@@ -6,9 +6,9 @@ file_type: PowerShell
 pipeline_stage: observability
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-07-01
+last_modified: 2026-07-23
 last_reviewed: 2026-06-26
-sha256: 1cdc03c429f04ec466abd2ce94f0cd768469db3b8ad3a9888296ef787a28cc02
+sha256: e2ce8aee7dbb6319aea573df6a34b2e7387faf2444b42eea101df3de8f3eeefb
 ---
 # `ops/scripts/dev/check-github-audit-spine.ps1`
 

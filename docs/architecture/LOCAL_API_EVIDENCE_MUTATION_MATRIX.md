@@ -6,6 +6,39 @@ Total routes: 174 (56 read, 118 command). Source of truth remains `LOCAL_API_ROU
 
 ---
 
+## Strict Command Delivery Protocol
+
+Routes in `STRICT_DURABLE_COMMAND_ROUTES` require the caller-stable
+`X-MediaPipeline-Command-ID` header after authentication and payload validation.
+The backend hashes the canonical route plus validated JSON payload and atomically
+reserves that identity in the authoritative JSON command journal before dispatch.
+A matching active reservation returns `command_in_progress`; a matching durable
+terminal record replays its stored response without dispatch; reuse for another
+route or payload returns `command_id_payload_conflict`. Missing, invalid,
+conflicting, corrupt-journal, or unresolved identities fail before mutation.
+
+The backend-served bootstrap publishes the exact strict-route set as
+`durableCommandRoutes`. The shared WebView API client generates one secure ID per
+new intent, shares it across equivalent simultaneous delivery, releases it after
+a definitive terminal response or rejection, and retains it after transport
+loss, timeout, invalid JSON, `COMMAND_OUTCOME_UNKNOWN`,
+`command_outcome_indeterminate`, `command_evidence_unresolved`, or
+`command_in_progress`. An ambiguous outcome
+must be reconciled or retried with that same ID; the UI must not submit a new
+command blindly. Journal identity retention is bounded by the configured command
+history count and has no wall-clock expiry.
+
+Dispatch exceptions stay inside this state machine. `OperatorRouteError` is the
+only handler exception that explicitly proves mutation did not begin, so it is
+stored as a replayable `failed` terminal. Every other dispatch exception is
+stored as replayable `indeterminate` evidence with no claim that mutation was or
+was not performed. If terminal journaling fails, the accepted reservation remains
+the durable duplicate block and the response separately states whether a
+verified lifecycle fallback marker was persisted; marker absence is reported as
+`command_evidence_unresolved`, never as durable indeterminate success.
+
+---
+
 ## Read Routes (GET) - Evidence Only
 
 All GET routes are read-only. None touch media, launch pipeline work, write config, or change queue/manifest state. The exception is `GET /api/maintenance`, which runs bounded read-only tool probes and is marked `bounded-health-check`.
@@ -291,12 +324,12 @@ Writes and atomically reloads the live config PSD1 through backend-owned setting
 
 | Route | Mutation class | Frontend cannot own? | Key restriction |
 |---|---|---|---|
-| `POST /api/settings/save-patch` | `config-write` | Frontend cannot write PSD1 directly | Matching backend preview `review_confirmation` plus `confirm_save` required; backend validates, backs up, writes, and reloads |
+| `POST /api/settings/save-patch` | `config-write` | Frontend cannot write PSD1 directly or submit network authentication tokens | Matching backend preview `review_confirmation` plus `confirm_save` required; backend rejects coordinator/worker token keys, validates, backs up, writes, and reloads |
 | `POST /api/settings/import-psd1-preview` | `none` | Frontend cannot parse or import PSD1 directly | Backend builds a read-only PSD1 import preview; no config write |
 | `POST /api/settings/import-psd1` | `config-write` | Frontend cannot import PSD1 settings directly | `confirm_import` required; backend validates, backs up, imports, and reloads settings |
 | `POST /api/settings/preset-library/apply` | `config-write` | Frontend cannot convert or save PresetV2 policy directly | `confirm_apply` required; backend converts PresetV2 to a legacy settings patch and saves through the existing settings policy for future launches |
 | `POST /api/settings/wizard/save` | `config-write` | Frontend cannot write PSD1 directly | `confirm_save` required; backend uses normal settings save path |
-| `POST /api/network/worker/join-cluster` | `config-write` | Frontend cannot import worker URL/token/path-map directly | `confirm_import` required; backend decodes the secret-safe join blob, saves worker settings through the normal settings path, then runs read-only test-connection |
+| `POST /api/network/worker/join-cluster` | `config-write` | Frontend cannot import worker URL/token/path-map directly | `confirm_import` required; backend decodes the secret-safe join blob, uses its non-route internal credential capability to save worker settings, then runs read-only test-connection |
 
 ### secret-transfer (high risk, setup only)
 
@@ -304,7 +337,7 @@ Returns a secret-bearing setup blob without journaling the secret. It must not s
 
 | Route | Mutation class | Frontend cannot own? | Key restriction |
 |---|---|---|---|
-| `POST /api/network/coordinator/join-blob` | `secret-transfer` | Frontend cannot mint or log worker auth secrets directly | Requires `confirm_create`; token rotation additionally requires `confirm_rotate`; response rendering must stay token/blob safe |
+| `POST /api/network/coordinator/join-blob` | `secret-transfer` | Frontend cannot mint or log worker auth secrets directly | Requires `confirm_create`; token rotation additionally requires `confirm_rotate`; backend validates the complete exact-token blob before config/app-state/runtime mutation, persistence precedes live-token replacement, and response rendering must stay token/blob safe |
 
 ### filesystem-mutation (high risk)
 

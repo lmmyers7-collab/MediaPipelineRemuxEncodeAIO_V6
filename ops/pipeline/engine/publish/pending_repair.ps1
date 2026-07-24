@@ -227,36 +227,52 @@ function Repair-PendingStaleDrainAttempt {
         }
 
         $server = [string](Get-PendingObjectProperty -Object $Manifest -Name 'server_out')
-        $local = [string](Get-PendingObjectProperty -Object $Manifest -Name 'local_file')
-        $attemptId = [string](Get-PendingObjectProperty -Object $Manifest -Name 'drain_attempt_id')
-        if (Test-PendingDrainFinalProof -Manifest $Manifest) {
-            if (-not (Add-CompletedJobsManifestEntryFromSidecar -OutputPath $server)) {
-                $reason = 'Recovered final output is fully verified, but durable completion evidence could not be written.'
-                $updated = Update-PendingManifestReviewState -ManifestPath $ManifestFile.FullName -Manifest $Manifest -State 'review_completion_evidence_failed' -Reason $reason -AttemptId $attemptId
-                return [pscustomobject]@{ Status = 'review'; Reason = $reason; Manifest = $updated; Cleaned = $false }
+        $destinationLock = Enter-PendingPublishDestinationLock -ManifestPath $ManifestFile.FullName -ServerOut $server
+        if ($null -eq $destinationLock) {
+            return [pscustomobject]@{ Status = 'busy'; Reason = 'A live transaction holds the canonical destination lock, or the lock could not be opened.'; Manifest = $Manifest; Cleaned = $false }
+        }
+        try {
+            $Manifest = Read-PendingManifestFile -Path $ManifestFile.FullName
+            $lockedContract = Test-PendingManifestCurrentContractFields -Manifest $Manifest -ManifestPath $ManifestFile.FullName
+            $lockedDestination = Test-PendingManifestDestinationTrusted -Manifest $Manifest -ManifestPath $ManifestFile.FullName
+            $lockedServer = [string](Get-PendingObjectProperty -Object $Manifest -Name 'server_out')
+            if (-not $lockedContract.Ok -or -not $lockedDestination.Ok -or (Get-PendingPublishDestinationIdentity -ServerOut $lockedServer) -ne [string]$destinationLock.Identity) {
+                return [pscustomobject]@{ Status = 'blocked'; Reason = 'Pending manifest trust or destination identity changed while recovery locks were acquired.'; Manifest = $Manifest; Cleaned = $false }
             }
-            Update-PendingManifestDrainAttempt -ManifestPath $ManifestFile.FullName -Manifest $Manifest -AttemptId $attemptId -Status 'recovered_completed' | Out-Null
-            Remove-PendingDrainLocalArtifacts -Manifest $Manifest -LocalPath $local -ManifestPath $ManifestFile.FullName
-            return [pscustomobject]@{ Status = 'recovered_completed'; Reason = ''; Manifest = $Manifest; Cleaned = $true }
-        }
+            $server = $lockedServer
+            $local = [string](Get-PendingObjectProperty -Object $Manifest -Name 'local_file')
+            $attemptId = [string](Get-PendingObjectProperty -Object $Manifest -Name 'drain_attempt_id')
+            if (Test-PendingDrainFinalProof -Manifest $Manifest) {
+                if (-not (Add-CompletedJobsManifestEntryFromSidecar -OutputPath $server)) {
+                    $reason = 'Recovered final output is fully verified, but durable completion evidence could not be written.'
+                    $updated = Update-PendingManifestReviewState -ManifestPath $ManifestFile.FullName -Manifest $Manifest -State 'review_completion_evidence_failed' -Reason $reason -AttemptId $attemptId
+                    return [pscustomobject]@{ Status = 'review'; Reason = $reason; Manifest = $updated; Cleaned = $false }
+                }
+                Update-PendingManifestDrainAttempt -ManifestPath $ManifestFile.FullName -Manifest $Manifest -AttemptId $attemptId -Status 'recovered_completed' | Out-Null
+                Remove-PendingDrainLocalArtifacts -Manifest $Manifest -LocalPath $local -ManifestPath $ManifestFile.FullName
+                return [pscustomobject]@{ Status = 'recovered_completed'; Reason = ''; Manifest = $Manifest; Cleaned = $true }
+            }
 
-        $rollback = Restore-PendingStaleDrainArtifacts -Manifest $Manifest
-        if (-not $rollback.Ok) {
-            $updated = Update-PendingManifestReviewState -ManifestPath $ManifestFile.FullName -Manifest $Manifest -State 'review_ambiguous_drain' -Reason ([string]$rollback.Reason) -AttemptId $attemptId
-            Update-PendingManifestDrainAttempt -ManifestPath $ManifestFile.FullName -Manifest $updated -AttemptId $attemptId -Status 'review_required' -Error ([string]$rollback.Reason) | Out-Null
-            return [pscustomobject]@{ Status = 'review'; Reason = [string]$rollback.Reason; Manifest = $updated; Cleaned = $false }
-        }
+            $rollback = Restore-PendingStaleDrainArtifacts -Manifest $Manifest
+            if (-not $rollback.Ok) {
+                $updated = Update-PendingManifestReviewState -ManifestPath $ManifestFile.FullName -Manifest $Manifest -State 'review_ambiguous_drain' -Reason ([string]$rollback.Reason) -AttemptId $attemptId
+                Update-PendingManifestDrainAttempt -ManifestPath $ManifestFile.FullName -Manifest $updated -AttemptId $attemptId -Status 'review_required' -Error ([string]$rollback.Reason) | Out-Null
+                return [pscustomobject]@{ Status = 'review'; Reason = [string]$rollback.Reason; Manifest = $updated; Cleaned = $false }
+            }
 
-        $map = ConvertTo-PendingManifestMap $Manifest
-        $map['manifest_state'] = 'parked_recovered'
-        $map['transaction_phase'] = 'restart_recovered'
-        $map['transaction_phase_at'] = (Get-Date -Format 'o')
-        $map['review_required'] = $false
-        $map['review_reason'] = ''
-        Write-PendingManifestFile -Path $ManifestFile.FullName -Manifest $map | Out-Null
-        $updated = Read-PendingManifestFile -Path $ManifestFile.FullName
-        $updated = Update-PendingManifestDrainAttempt -ManifestPath $ManifestFile.FullName -Manifest $updated -AttemptId $attemptId -Status 'recovered_pending'
-        return [pscustomobject]@{ Status = 'recovered_pending'; Reason = ''; Manifest = $updated; Cleaned = $false }
+            $map = ConvertTo-PendingManifestMap $Manifest
+            $map['manifest_state'] = 'parked_recovered'
+            $map['transaction_phase'] = 'restart_recovered'
+            $map['transaction_phase_at'] = (Get-Date -Format 'o')
+            $map['review_required'] = $false
+            $map['review_reason'] = ''
+            Write-PendingManifestFile -Path $ManifestFile.FullName -Manifest $map | Out-Null
+            $updated = Read-PendingManifestFile -Path $ManifestFile.FullName
+            $updated = Update-PendingManifestDrainAttempt -ManifestPath $ManifestFile.FullName -Manifest $updated -AttemptId $attemptId -Status 'recovered_pending'
+            return [pscustomobject]@{ Status = 'recovered_pending'; Reason = ''; Manifest = $updated; Cleaned = $false }
+        } finally {
+            Exit-PendingPublishDestinationLock -Lock $destinationLock
+        }
     } finally {
         Exit-PendingPublishTransactionLock -Lock $lock
     }

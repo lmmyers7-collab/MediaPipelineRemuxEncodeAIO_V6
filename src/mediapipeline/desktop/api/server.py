@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import replace
 import http.server
+import json
 import logging
 import secrets
 import sys
@@ -14,7 +15,10 @@ from typing import Any
 from ..application import MediaPipelineApplicationFacade
 from ..models import ResolvedPaths, Snapshot
 from .command_journal import CommandJournal
-from mediapipeline.core.processes.lifecycle_lease import LifecycleLeaseStore
+from mediapipeline.core.processes.lifecycle_lease import (
+    LIFECYCLE_INDETERMINATE_SCHEMA_VERSION,
+    LifecycleLeaseStore,
+)
 from mediapipeline.core.api.command_handlers import LocalApiCommandHandlerMixin
 from .handler import build_local_api_handler_class
 from .http_helpers import (
@@ -223,27 +227,85 @@ class LocalApiServer(LocalApiReadPayloadMixin, LocalApiCommandHandlerMixin):
         request: dict[str, Any] | None = None,
         strict: bool = False,
     ) -> None:
+        self._refresh_command_journal_state_root()
+        self.command_journal.record(payload, request=request, strict=strict)
+
+    def _refresh_command_journal_state_root(self) -> None:
         try:
             resolved = self._resolved()
             self.command_journal.state_db_root = _journal_state_root(resolved)
         except Exception as exc:
             self.logger.warning("Could not refresh SQLite command journal state root: %s", exc)
-        self.command_journal.record(payload, request=request, strict=strict)
 
-    def _mark_command_evidence_indeterminate(self, *, command_id: str, route: str, reason: str) -> None:
-        """Durably block close/retry when post-mutation journal evidence fails."""
-        resolved = self._resolved()
-        if resolved is None or resolved.state_root is None:
-            self.logger.error("Critical command evidence is indeterminate but no lifecycle state root is available.")
-            return
+    def _reserve_strict_command(
+        self,
+        *,
+        command_id: str,
+        route: str,
+        request_fingerprint: str,
+        accepted_payload: dict[str, Any],
+        request: dict[str, Any],
+    ) -> dict[str, Any]:
+        self._refresh_command_journal_state_root()
+        return self.command_journal.reserve_strict_command(
+            command_id=command_id,
+            route=route,
+            request_fingerprint=request_fingerprint,
+            accepted_payload=accepted_payload,
+            request=request,
+        )
+
+    def _complete_strict_command(
+        self,
+        *,
+        command_id: str,
+        route: str,
+        request_fingerprint: str,
+        response_payload: dict[str, Any],
+        response_status: int,
+        request: dict[str, Any] | None = None,
+    ) -> None:
+        self._refresh_command_journal_state_root()
+        self.command_journal.complete_strict_command(
+            command_id=command_id,
+            route=route,
+            request_fingerprint=request_fingerprint,
+            response_payload=response_payload,
+            response_status=response_status,
+            request=request,
+        )
+
+    def _mark_command_evidence_indeterminate(self, *, command_id: str, route: str, reason: str) -> dict[str, Any]:
+        """Persist and verify the fallback marker used when strict terminal journaling fails."""
         try:
-            LifecycleLeaseStore(resolved.state_root).mark_indeterminate(
+            resolved = self._resolved()
+        except Exception as exc:
+            self.logger.exception("Could not resolve lifecycle state for critical command evidence: %s", exc)
+            return {"persisted": False, "status": "state_root_unresolved"}
+        state_root = _journal_state_root(resolved)
+        if state_root is None:
+            self.logger.error("Critical command evidence is indeterminate but no lifecycle state root is available.")
+            return {"persisted": False, "status": "state_root_unavailable"}
+        try:
+            store = LifecycleLeaseStore(state_root)
+            store.mark_indeterminate(
                 command_id=command_id,
                 route=route,
                 reason=reason,
             )
+            payload = json.loads(store.indeterminate_path.read_text(encoding="utf-8"))
+            persisted = (
+                isinstance(payload, dict)
+                and payload.get("schema_version") == LIFECYCLE_INDETERMINATE_SCHEMA_VERSION
+                and payload.get("command_id") == command_id
+                and payload.get("route") == route
+            )
+            if not persisted:
+                raise RuntimeError("persisted lifecycle marker did not match the strict command identity")
         except Exception as exc:
             self.logger.exception("Could not persist critical command indeterminate marker: %s", exc)
+            return {"persisted": False, "status": "marker_write_failed"}
+        return {"persisted": True, "status": "marker_persisted"}
 
     def _validate_api_payload(self, route: str, body: dict[str, Any]) -> dict[str, Any]:
         from mediapipeline.core.validation.boundary import validate_api_payload

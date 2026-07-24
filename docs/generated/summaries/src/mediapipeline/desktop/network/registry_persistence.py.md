@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-07-11
+last_modified: 2026-07-22
 last_reviewed: 2026-07-11
-sha256: fcb51582e70f46a90c5fb757cc71e16fb3d8191ab3c7c065865207493142b4c0
+sha256: 94576d65622f36782835ec96cf5bca51a508a1c397c15f82665e8f2694098dc3
 ---
 # `src/mediapipeline/desktop/network/registry_persistence.py`
 

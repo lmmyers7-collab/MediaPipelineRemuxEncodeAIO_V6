@@ -11,7 +11,6 @@ from mediapipeline.core.config.rollout import planner_comparison_from_decision_s
 from mediapipeline.core.config.settings_patch_policy import (
     _command_result,
     settings_patch_preview_result,
-    settings_review_digest,
     settings_save_authority_conflict_result,
     settings_save_busy_result,
     settings_save_config_blocked_result,
@@ -53,16 +52,26 @@ class SettingsPatchFacadeMixin:
             request: dict[str, Any],
             *,
             command: str,
+            allow_network_credentials: bool = False,
         ) -> dict[str, Any]: ...
 
     def preview_settings_patch(self, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
         """Preview explicit settings changes without writing PSD1 config."""
+        return self._preview_settings_patch(resolved, request, allow_network_credentials=False)
+
+    def _preview_settings_patch(
+        self,
+        resolved: ResolvedPaths,
+        request: dict[str, Any],
+        *,
+        allow_network_credentials: bool,
+    ) -> CommandResult:
         preview_resolved = resolved
         authority_digest = ""
-        authority_loader = getattr(self.service, "load_settings_authority", None)
-        if callable(authority_loader):
+        authority_reader = getattr(self.service, "read_settings_authority", None)
+        if callable(authority_reader):
             try:
-                authority = authority_loader(resolved.config_path, resolved.powershell_host)
+                authority = authority_reader(resolved.config_path, resolved.powershell_host)
             except Exception:
                 return _command_result(
                     command="settings.preview_patch",
@@ -83,7 +92,12 @@ class SettingsPatchFacadeMixin:
                 )
             preview_resolved = replace(resolved, config_data=dict(authority))
             authority_digest = settings_config_digest(authority)
-        patch = self._settings_patch_candidate(preview_resolved, request, command="settings.preview_patch")
+        patch = self._settings_patch_candidate(
+            preview_resolved,
+            request,
+            command="settings.preview_patch",
+            allow_network_credentials=allow_network_credentials,
+        )
         if patch["fatal_result"] is not None:
             return patch["fatal_result"]
         if authority_digest:
@@ -96,7 +110,36 @@ class SettingsPatchFacadeMixin:
         request: dict[str, Any],
     ) -> dict[str, Any]:
         """Return a save request bound to the current backend preview candidate."""
-        preview = self.preview_settings_patch(resolved, request)
+        return self._settings_patch_request_with_review_confirmation(
+            resolved,
+            request,
+            allow_network_credentials=False,
+        )
+
+    def _settings_patch_request_with_network_credentials(
+        self,
+        resolved: ResolvedPaths,
+        request: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Bind a network-owned credential update; never expose this through settings routes."""
+        return self._settings_patch_request_with_review_confirmation(
+            resolved,
+            request,
+            allow_network_credentials=True,
+        )
+
+    def _settings_patch_request_with_review_confirmation(
+        self,
+        resolved: ResolvedPaths,
+        request: dict[str, Any],
+        *,
+        allow_network_credentials: bool,
+    ) -> dict[str, Any]:
+        preview = self._preview_settings_patch(
+            resolved,
+            request,
+            allow_network_credentials=allow_network_credentials,
+        )
         data = preview.data if isinstance(preview.data, dict) else {}
         confirmed_request = dict(request)
         if isinstance(data.get("review_confirmation"), dict):
@@ -212,6 +255,23 @@ class SettingsPatchFacadeMixin:
 
     def save_settings_patch(self, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
         """Validate and save explicit settings changes to the active PSD1 config."""
+        return self._save_settings_patch(resolved, request, allow_network_credentials=False)
+
+    def _save_settings_patch_with_network_credentials(
+        self,
+        resolved: ResolvedPaths,
+        request: dict[str, Any],
+    ) -> CommandResult:
+        """Save a network-owned credential update; never expose this through settings routes."""
+        return self._save_settings_patch(resolved, request, allow_network_credentials=True)
+
+    def _save_settings_patch(
+        self,
+        resolved: ResolvedPaths,
+        request: dict[str, Any],
+        *,
+        allow_network_credentials: bool,
+    ) -> CommandResult:
         if request.get("confirm_save") is not True:
             return settings_save_confirmation_required_result()
         config_identity = dict(getattr(resolved, "config_identity", {}) or {})
@@ -225,7 +285,7 @@ class SettingsPatchFacadeMixin:
             return settings_save_busy_result(block_message)
         warnings: list[str] = []
         try:
-            authority_loader = getattr(self.service, "load_settings_authority", None)
+            authority_reader = getattr(self.service, "read_settings_authority", None)
             submitted_confirmation = request.get("review_confirmation")
             submitted_authority_digest = (
                 str(submitted_confirmation.get("authority_config_digest") or "")
@@ -234,8 +294,8 @@ class SettingsPatchFacadeMixin:
             )
             current_authority_digest = ""
             save_resolved = resolved
-            if callable(authority_loader) and submitted_authority_digest:
-                current_authority = authority_loader(resolved.config_path, resolved.powershell_host)
+            if callable(authority_reader) and isinstance(submitted_confirmation, dict):
+                current_authority = authority_reader(resolved.config_path, resolved.powershell_host)
                 if not isinstance(current_authority, dict):
                     return settings_save_review_confirmation_required_result(
                         submitted=submitted_confirmation,
@@ -253,7 +313,12 @@ class SettingsPatchFacadeMixin:
                         current_digest=current_authority_digest,
                         candidate_digest=submitted_candidate_digest,
                     )
-            patch = self._settings_patch_candidate(save_resolved, request, command="settings.save_patch")
+            patch = self._settings_patch_candidate(
+                save_resolved,
+                request,
+                command="settings.save_patch",
+                allow_network_credentials=allow_network_credentials,
+            )
             if submitted_authority_digest:
                 patch["authority_config_digest"] = submitted_authority_digest
             if patch["fatal_result"] is not None:
@@ -264,26 +329,25 @@ class SettingsPatchFacadeMixin:
             removed_keys = patch["removed_keys"]
             if errors:
                 return settings_save_validation_error_result(errors, warnings)
-            idempotent_replay = (
+            durable_replay_attempt = (
                 isinstance(submitted_confirmation, dict)
                 and bool(current_authority_digest)
                 and current_authority_digest != submitted_authority_digest
-                and current_authority_digest == str(submitted_confirmation.get("candidate_config_digest") or "")
                 and settings_config_digest(patch["merged"]) == current_authority_digest
-                and settings_review_digest(patch["request_evidence"])
-                == str(submitted_confirmation.get("request_digest") or "")
             )
+            idempotent_replay = durable_replay_attempt
             authority_saver = getattr(self.service, "save_settings_authority", None)
             if idempotent_replay:
-                if not callable(authority_saver):
-                    return settings_save_service_unavailable_result()
-                result = authority_saver(
-                    save_resolved,
-                    dict(patch["merged"]),
-                    expected_authority_digest=submitted_authority_digest,
+                assert isinstance(submitted_confirmation, dict)
+                review_confirmation_error = settings_save_review_confirmation_error(
+                    request,
+                    patch,
+                    durable_replay_digest=current_authority_digest,
                 )
+                if review_confirmation_error is not None:
+                    return review_confirmation_error
                 return settings_save_idempotent_replay_result(
-                    result,
+                    save_resolved.config_path,
                     patch,
                     submitted_confirmation,
                     warnings,

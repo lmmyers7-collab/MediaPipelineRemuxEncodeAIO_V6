@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-06-15
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: ccc651c46611db6a83f1c05b8a29b32155bdc4dadcce253467a286bd5cf5c52f
+sha256: 44838817f4a38657f8e1f20f923313a6730a603060e67e939eab0fd344abd4a0
 ---
 # `src/mediapipeline/desktop/network/coordinator_auth.py`
 

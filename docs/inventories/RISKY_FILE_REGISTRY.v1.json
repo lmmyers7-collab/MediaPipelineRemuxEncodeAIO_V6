@@ -42,7 +42,8 @@
       "id": "publish_and_pending_publish",
       "path_globs": [
         "src/mediapipeline/core/publish/**",
-        "ops/pipeline/engine/publish/**"
+        "ops/pipeline/engine/publish/**",
+        "ops/pipeline/engine/rerun/**"
       ],
       "risk_level": "critical",
       "risk_domains": [
@@ -56,6 +57,8 @@
         "tests.python.desktop.test_application_facade_pending_publish",
         "tests.python.desktop.test_service_pending_publish_manifest",
         "ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1",
+        "ops/pipeline/tests/Unit/Invoke-RerunAutoDestinationChecks.ps1",
+        "ops/pipeline/tests/Unit/Invoke-RerunPublicationTransactionChecks.ps1",
         "python -m mediapipeline.tools.dev.generate_lifecycle_map --check"
       ],
       "manual_gates": [

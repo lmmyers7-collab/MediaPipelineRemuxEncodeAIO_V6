@@ -11,6 +11,7 @@ from mediapipeline.tools.paths import find_repo_root
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.api.static_files import render_index
+from mediapipeline.desktop.api.handler_policy import STRICT_DURABLE_COMMAND_ROUTES
 from mediapipeline.desktop.api.static_files_policy import (
     STATIC_INDEX_BOOTSTRAP_PLACEHOLDER,
     defer_external_scripts,
@@ -71,10 +72,20 @@ class LocalApiStaticFilesPolicyTests(unittest.TestCase):
                 "token": "",
                 "appVersion": "v5-test",
                 "shellSurface": "webview",
+                "durableCommandRoutes": sorted(STRICT_DURABLE_COMMAND_ROUTES),
                 "tokenSource": "http-only-cookie",
             },
         )
-        self.assertEqual(disabled, {"apiBase": "", "token": "", "appVersion": "v5-test", "shellSurface": "tauri"})
+        self.assertEqual(
+            disabled,
+            {
+                "apiBase": "",
+                "token": "",
+                "appVersion": "v5-test",
+                "shellSurface": "tauri",
+                "durableCommandRoutes": sorted(STRICT_DURABLE_COMMAND_ROUTES),
+            },
+        )
         self.assertEqual(
             tauri,
             {
@@ -82,6 +93,7 @@ class LocalApiStaticFilesPolicyTests(unittest.TestCase):
                 "token": "",
                 "appVersion": "v5-test",
                 "shellSurface": "tauri",
+                "durableCommandRoutes": sorted(STRICT_DURABLE_COMMAND_ROUTES),
                 "tokenSource": "tauri-initialization-script",
             },
         )

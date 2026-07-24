@@ -22,6 +22,32 @@ function Assert-Equal {
     }
 }
 
+function Assert-LocalWorkerClaimStoreAdmissionBlocked {
+    param(
+        [Parameter(Mandatory)] [string] $ClaimStorePath,
+        [Parameter(Mandatory)] $Entry,
+        [Parameter(Mandatory)] [string] $RawJson,
+        [Parameter(Mandatory)] [string] $Label
+    )
+
+    [System.IO.File]::WriteAllText($ClaimStorePath, $RawJson, [System.Text.UTF8Encoding]::new($false))
+    $before = [System.IO.File]::ReadAllBytes($ClaimStorePath)
+    $caught = $null
+    try {
+        Invoke-MediaPipelineLocalWorkerClaim `
+            -ClaimStorePath $ClaimStorePath `
+            -Entry $Entry `
+            -SlotId 2 `
+            -OwnerRunId 'blocked-fixture' | Out-Null
+    } catch {
+        $caught = $_
+    }
+    Assert-True ($null -ne $caught) "$Label must block claim admission."
+    Assert-True ([string]$caught.Exception.Message -like 'Local-worker claim store untrusted:*') "$Label must expose the stable untrusted-store error."
+    $after = [System.IO.File]::ReadAllBytes($ClaimStorePath)
+    Assert-True ([System.Linq.Enumerable]::SequenceEqual[byte]($before, $after)) "$Label must preserve the existing claim-store bytes."
+}
+
 function Write-Log {
     param([string] $Message, [string] $Level = 'INFO')
     $null = $Message
@@ -118,6 +144,65 @@ try {
 
     $duplicate = Invoke-MediaPipelineLocalWorkerClaim -ClaimStorePath $script:LocalStateLayout.Paths.LocalWorkerClaims -Entry $entry -SlotId 2 -OwnerRunId $script:PipelineRunId -ResultPath $slot.ResultFile
     Assert-True ($null -eq $duplicate) 'Duplicate active claim for the same source must be rejected.'
+
+    $untrustedClaimStorePath = Join-Path $state 'untrusted_local_worker_claims.json'
+    $validUpdatedAt = (Get-Date).ToUniversalTime().ToString('o')
+    Assert-LocalWorkerClaimStoreAdmissionBlocked -ClaimStorePath $untrustedClaimStorePath -Entry $entry -RawJson '{' -Label 'Malformed JSON authority'
+    Assert-LocalWorkerClaimStoreAdmissionBlocked -ClaimStorePath $untrustedClaimStorePath -Entry $entry -RawJson '[]' -Label 'Array-root authority'
+    Assert-LocalWorkerClaimStoreAdmissionBlocked -ClaimStorePath $untrustedClaimStorePath -Entry $entry -RawJson ("{`"schema_version`":`"local_worker_claims.v2`",`"updated_at`":`"$validUpdatedAt`",`"claims`":[]}") -Label 'Unknown-schema authority'
+    Assert-LocalWorkerClaimStoreAdmissionBlocked -ClaimStorePath $untrustedClaimStorePath -Entry $entry -RawJson ("{`"schema_version`":`"local_worker_claims.v1`",`"updated_at`":`"$validUpdatedAt`",`"claims`":{}}") -Label 'Non-array claims authority'
+    Assert-LocalWorkerClaimStoreAdmissionBlocked -ClaimStorePath $untrustedClaimStorePath -Entry $entry -RawJson ("{`"schema_version`":`"local_worker_claims.v1`",`"updated_at`":`"$validUpdatedAt`",`"claims`":[{`"schema_version`":`"local_worker_claim.v1`",`"status`":`"running`"}]}") -Label 'Incomplete claim authority'
+
+    $validUntrustedStore = New-MediaPipelineLocalWorkerClaimStore
+    Write-MediaPipelineLocalWorkerClaimStore -ClaimStorePath $untrustedClaimStorePath -Store $validUntrustedStore
+    $lockedBytes = [System.IO.File]::ReadAllBytes($untrustedClaimStorePath)
+    $lockStream = [System.IO.File]::Open($untrustedClaimStorePath, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::None)
+    try {
+        $readFailure = $null
+        try {
+            Invoke-MediaPipelineLocalWorkerClaim -ClaimStorePath $untrustedClaimStorePath -Entry $entry -SlotId 2 -OwnerRunId 'blocked-read-fixture' | Out-Null
+        } catch {
+            $readFailure = $_
+        }
+        Assert-True ($null -ne $readFailure) 'Unreadable existing claim authority must block claim admission.'
+        Assert-True ([string]$readFailure.Exception.Message -like 'Local-worker claim store untrusted:*') 'Unreadable existing claim authority must expose the stable untrusted-store error.'
+    } finally {
+        $lockStream.Dispose()
+    }
+    Assert-True ([System.Linq.Enumerable]::SequenceEqual[byte]($lockedBytes, [System.IO.File]::ReadAllBytes($untrustedClaimStorePath))) 'Read failure must preserve existing claim-store bytes.'
+
+    $concurrentClaimStorePath = Join-Path $state 'concurrent_local_worker_claims.json'
+    $claimJob = {
+        param($RepositoryRoot, $StorePath, $SourcePath, $OwnerRunId, $MutexSuffix)
+        $ErrorActionPreference = 'Stop'
+        $env:MEDIA_PIPELINE_TEST_MUTEX_SUFFIX = $MutexSuffix
+        . (Join-Path $RepositoryRoot 'ops\pipeline\engine\queue\worker_mutex.ps1')
+        . (Join-Path $RepositoryRoot 'ops\pipeline\engine\queue\worker_progress.ps1')
+        . (Join-Path $RepositoryRoot 'ops\pipeline\engine\queue\worker_claim_store.ps1')
+        $script:LocalBase = Split-Path -Parent $StorePath
+        $jobEntry = [pscustomobject]@{
+            File = [pscustomobject]@{ FullName = $SourcePath; Name = [System.IO.Path]::GetFileName($SourcePath) }
+            SourcePath = $SourcePath; IsTV = $false; QueueIndex = 1; QueueTotal = 1
+            RunQueueIndex = 1; RunQueueTotal = 1; LocalWorkerPhase = 'movie'; QueuePhase = 'movie'
+            IsPriority = $false; RunMonitorJobId = "$OwnerRunId-item"
+        }
+        $claimed = Invoke-MediaPipelineLocalWorkerClaim -ClaimStorePath $StorePath -Entry $jobEntry -SlotId 1 -OwnerRunId $OwnerRunId
+        return [pscustomobject]@{ Claimed = ($null -ne $claimed); ClaimId = if ($claimed) { [string]$claimed.claim_id } else { '' } }
+    }
+    $claimJobs = @(
+        Start-Job -ScriptBlock $claimJob -ArgumentList $repoRoot, $concurrentClaimStorePath, $file.FullName, 'concurrent-one', $env:MEDIA_PIPELINE_TEST_MUTEX_SUFFIX
+        Start-Job -ScriptBlock $claimJob -ArgumentList $repoRoot, $concurrentClaimStorePath, $file.FullName, 'concurrent-two', $env:MEDIA_PIPELINE_TEST_MUTEX_SUFFIX
+    )
+    try {
+        Wait-Job -Job $claimJobs | Out-Null
+        $claimResults = @($claimJobs | ForEach-Object { Receive-Job -Job $_ } | Where-Object { $null -ne $_.PSObject.Properties['Claimed'] })
+    } finally {
+        $claimJobs | Remove-Job -Force -ErrorAction SilentlyContinue
+    }
+    Assert-Equal @($claimResults | Where-Object { [bool]$_.Claimed }).Count 1 'Concurrent same-source claim attempts must produce exactly one winner.'
+    Assert-Equal @($claimResults | Where-Object { -not [bool]$_.Claimed }).Count 1 'Concurrent same-source claim attempts must reject exactly one duplicate.'
+    $concurrentStore = Get-MediaPipelineLocalWorkerClaimStore -ClaimStorePath $concurrentClaimStorePath
+    Assert-Equal @($concurrentStore.claims).Count 1 'Concurrent same-source admission must persist exactly one claim.'
 
     Release-MediaPipelineLocalWorkerClaim -ClaimStorePath $script:LocalStateLayout.Paths.LocalWorkerClaims -ClaimId ([string]$claim.claim_id) -Status 'released' -Reason 'unit complete' | Out-Null
     $releasedStore = Get-MediaPipelineLocalWorkerClaimStore -ClaimStorePath $script:LocalStateLayout.Paths.LocalWorkerClaims

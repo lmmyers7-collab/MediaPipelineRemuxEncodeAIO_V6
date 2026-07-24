@@ -688,7 +688,7 @@ class RerunResultsTests(unittest.TestCase):
                             {"status": "completed", "source_path": str(root / "completed.mkv"), "verified_output_path": str(output), "final_output_path": str(final_output), "final_output_source": "csv_completed_output", "final_output_source_field": "plex_planned_path", "audit_issue_codes": "audio-policy"},
                             {"status": "review_workspace", "source_path": str(root / "review.mkv"), "verified_output_path": str(output), "reason": "operator review"},
                             {"status": "pending_publish", "source_path": str(root / "pending-publish.mkv"), "server_out": str(pending_final_output), "final_output_source": "csv_completed_output", "final_output_source_field": "plex_planned_path", "pending_publish_manifest_path": str(pending_manifest), "auto_destination_decision": "pending_publish_review"},
-                            {"status": "published_replace_final", "source_path": str(root / "returned.mkv"), "published_path": str(final_output), "final_output_source": "csv_completed_output", "final_output_source_field": "plex_planned_path", "replaced_final_hold_path": str(root / "Hold" / "Movie.mkv"), "completed_manifest_append": "appended"},
+                            {"status": "published_replace_final", "source_path": str(root / "returned.mkv"), "published_path": str(final_output), "final_output_source": "csv_completed_output", "final_output_source_field": "plex_planned_path", "replaced_final_hold_path": str(root / "Hold" / "Movie.mkv"), "completed_manifest_append": "appended", "publication_transaction_id": "rerun-state.row_9.attempt", "publication_transaction_manifest_path": str(root / "Hold" / "row_9.publication.json"), "publication_transaction_state": "committed"},
                             {"status": "skipped", "source_path": str(root / "skipped.mkv")},
                         ],
                     }
@@ -741,6 +741,16 @@ class RerunResultsTests(unittest.TestCase):
         self.assertEqual(by_name["returned.mkv"]["queue_status_label"], "Replaced / Returned")
         self.assertEqual(by_name["returned.mkv"]["destination_path"], str(final_output))
         self.assertEqual(by_name["returned.mkv"]["completed_manifest_append"], "appended")
+        self.assertEqual(by_name["returned.mkv"]["publication_transaction_id"], "rerun-state.row_9.attempt")
+        self.assertEqual(by_name["returned.mkv"]["publication_transaction_state"], "committed")
+        self.assertEqual(
+            by_name["returned.mkv"]["destination_state"]["publication_transaction_manifest_path"],
+            str(root / "Hold" / "row_9.publication.json"),
+        )
+        self.assertEqual(
+            by_name["returned.mkv"]["attempt_evidence"]["publication_transaction_id"],
+            "rerun-state.row_9.attempt",
+        )
         self.assertEqual(by_name["skipped.mkv"]["queue_status_label"], "Skipped")
         self.assertEqual(payload["counts"]["queue_status_counts"]["stopped"], 2)
         self.assertEqual(payload["counts"]["queue_status_counts"]["replaced_returned"], 1)

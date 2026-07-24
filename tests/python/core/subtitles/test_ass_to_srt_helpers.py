@@ -1,6 +1,9 @@
 import importlib
+import os
 import sys
 from pathlib import Path
+
+import pytest
 
 from mediapipeline.tools.paths import find_repo_root
 from types import SimpleNamespace
@@ -43,6 +46,102 @@ def test_import_ass_to_srt_keeps_cli_module_public_surface():
     assert callable(ass_to_srt.parse_args)
     assert callable(ass_to_srt.main)
     assert callable(ass_to_srt.merge_overlapping_cues)
+
+
+def _required_cli_args(input_path: Path, output_path: Path) -> list[str]:
+    return [str(input_path), "3", str(output_path)]
+
+
+def test_cli_rejects_source_as_srt_output(tmp_path: Path):
+    source = tmp_path / "source.mkv"
+    source.write_bytes(b"ORIGINAL-SOURCE-BYTES")
+
+    with pytest.raises(SystemExit) as exc_info:
+        ass_to_srt.parse_args(_required_cli_args(source, source))
+
+    assert exc_info.value.code == 2
+    assert source.read_bytes() == b"ORIGINAL-SOURCE-BYTES"
+
+
+@pytest.mark.parametrize("summary_alias", ["input", "output"])
+def test_cli_rejects_summary_aliases(tmp_path: Path, summary_alias: str):
+    source = tmp_path / "source.mkv"
+    output = tmp_path / "output.srt"
+    source.write_bytes(b"ORIGINAL-SOURCE-BYTES")
+    summary = source if summary_alias == "input" else output
+
+    with pytest.raises(SystemExit) as exc_info:
+        ass_to_srt.parse_args(
+            _required_cli_args(source, output) + ["--summary-json", str(summary)]
+        )
+
+    assert exc_info.value.code == 2
+    assert source.read_bytes() == b"ORIGINAL-SOURCE-BYTES"
+
+
+def test_atomic_write_text_does_not_clobber_existing_destination(tmp_path: Path):
+    destination = tmp_path / "existing.srt"
+    destination.write_text("existing evidence", encoding="utf-8")
+
+    with pytest.raises(FileExistsError):
+        ass_to_srt.atomic_write_text(str(destination), "replacement")
+
+    assert destination.read_text(encoding="utf-8") == "existing evidence"
+
+
+def test_cli_rejects_existing_output_before_extraction(tmp_path: Path):
+    source = tmp_path / "source.mkv"
+    output = tmp_path / "existing.srt"
+    source.write_bytes(b"ORIGINAL-SOURCE-BYTES")
+    output.write_text("existing evidence", encoding="utf-8")
+
+    with pytest.raises(SystemExit) as exc_info:
+        ass_to_srt.parse_args(_required_cli_args(source, output))
+
+    assert exc_info.value.code == 2
+    assert output.read_text(encoding="utf-8") == "existing evidence"
+
+
+def test_cli_rejects_existing_file_alias_via_hard_link(tmp_path: Path):
+    source = tmp_path / "source.mkv"
+    source.write_bytes(b"ORIGINAL-SOURCE-BYTES")
+    alias = tmp_path / "source-hardlink.mkv"
+    os.link(source, alias)
+
+    with pytest.raises(SystemExit) as exc_info:
+        ass_to_srt.parse_args(_required_cli_args(source, alias))
+
+    assert exc_info.value.code == 2
+    assert source.read_bytes() == b"ORIGINAL-SOURCE-BYTES"
+
+
+def test_cli_rejects_existing_file_alias_via_symlink(tmp_path: Path):
+    source = tmp_path / "source.mkv"
+    source.write_bytes(b"ORIGINAL-SOURCE-BYTES")
+    alias = tmp_path / "source-alias.mkv"
+    try:
+        alias.symlink_to(source)
+    except OSError as exc:
+        pytest.skip(f"symlink creation is unavailable: {exc}")
+
+    with pytest.raises(SystemExit) as exc_info:
+        ass_to_srt.parse_args(_required_cli_args(source, alias))
+
+    assert exc_info.value.code == 2
+    assert source.read_bytes() == b"ORIGINAL-SOURCE-BYTES"
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows path identity is case-insensitive")
+def test_cli_rejects_windows_case_variant_of_source(tmp_path: Path):
+    source = tmp_path / "MixedCaseSource.mkv"
+    source.write_bytes(b"ORIGINAL-SOURCE-BYTES")
+    case_variant = source.with_name(source.name.swapcase())
+
+    with pytest.raises(SystemExit) as exc_info:
+        ass_to_srt.parse_args(_required_cli_args(source, case_variant))
+
+    assert exc_info.value.code == 2
+    assert source.read_bytes() == b"ORIGINAL-SOURCE-BYTES"
 
 
 def test_text_cleanup_and_srt_rendering_preserve_exact_output_shape():

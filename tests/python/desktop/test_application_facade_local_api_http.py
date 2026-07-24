@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import csv
+import hashlib
 from datetime import datetime, timedelta
 import io
 import json
@@ -1277,6 +1278,8 @@ class LocalApiHttpTests(LocalApiHttpTestMixin, unittest.TestCase):
                         "source_path": str(source),
                         "source_size": 4096,
                         "output_size": parked_file.stat().st_size,
+                        "output_sha256": hashlib.sha256(parked_file.read_bytes()).hexdigest(),
+                        "output_hash_algorithm": "SHA256",
                         "publish_mode": "deferred",
                         "sidecar_files": [],
                         "tx3g_srt_tracks": [],

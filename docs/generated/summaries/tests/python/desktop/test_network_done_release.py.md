@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: network
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-05
+last_modified: 2026-07-22
 last_reviewed: 2026-06-04
-sha256: 523a49fe7d5310d7c7c14f1daf7b208697e5f1e6c074d060e475c04471c8a431
+sha256: e500232c18458bb0faee6cf8c430a1b2a7e6150d5d27362a098a8f6f287cce5d
 ---
 # `tests/python/desktop/test_network_done_release.py`
 

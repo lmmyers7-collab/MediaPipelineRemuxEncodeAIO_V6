@@ -19,10 +19,10 @@ Validation: targeted pending-publish tests, release gate, and real-media validat
 ### Python facade / domain service
 
 - `src/mediapipeline/core/publish/__init__.py` — publish authority; Publish-domain read models and adapters.
+- `src/mediapipeline/core/publish/content_proof.py` — publish authority; Python implementation for content proof; exposes ContentProof, ContentProofError, read_content_proof.
 - `src/mediapipeline/core/publish/file_io.py` — publish authority; Python implementation for file io; exposes read_json_file.
 - `src/mediapipeline/core/publish/pending_contracts.py` — publish authority; Python implementation for pending contracts; exposes int_value.
 - `src/mediapipeline/core/publish/pending_drain_confidence.py` — publish authority; Python implementation for pending drain confidence; exposes pending_publish_drain_confidence_payload.
-- `src/mediapipeline/core/publish/pending_facade.py` — publish authority; Python implementation for pending facade; exposes PendingPublishFacadeMixin.
 
 ### PowerShell execution
 

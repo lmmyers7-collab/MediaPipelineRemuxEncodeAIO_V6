@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import sys
 import tempfile
-import time
 import unittest
 from pathlib import Path
 
@@ -10,14 +9,12 @@ from mediapipeline.tools.paths import find_repo_root
 
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
-from mediapipeline.core.queue.service import QueueServiceMixin
 from mediapipeline.core.queue.priority_markers import (
-    apply_priority_marker,
-    format_priority_leaf_name,
     get_source_priority_info,
     path_is_unc,
-    priority_marker_destination,
+    remove_priority_markers_from_name,
     safe_mtime,
+    starts_with_priority_marker,
 )
 from mediapipeline.core.queue.priority_manifest import (
     PriorityManifestReadError,
@@ -27,50 +24,41 @@ from mediapipeline.core.queue.priority_manifest import (
     set_manifest_entries_bulk,
     set_manifest_entry,
 )
+from mediapipeline.core.queue.service import QueueServiceMixin
 
 
 class QueuePriorityHelperTests(unittest.TestCase):
-    def test_format_priority_leaf_name_removes_existing_markers(self) -> None:
-        self.assertEqual(format_priority_leaf_name("[NOW]", "! Movie", ["!", "[NOW]"]), "[NOW] Movie")
-        self.assertEqual(format_priority_leaf_name("!", "", ["!"]), "")
-
-    def test_priority_marker_destination_handles_files_and_folders(self) -> None:
+    def test_read_only_marker_parsing_and_ranking_do_not_mutate_source(self) -> None:
         with tempfile.TemporaryDirectory() as td:
-            root = Path(td)
-            media = root / "Movie.mkv"
-            folder = root / "Season 01"
-            media.write_text("x", encoding="utf-8")
+            folder = Path(td) / "! Season 01"
             folder.mkdir()
+            media = folder / "! Movie.mkv"
+            media.write_text("source-bytes", encoding="utf-8")
+            before = (media.name, media.stat().st_mtime_ns, media.read_bytes())
 
-            self.assertEqual(priority_marker_destination(media, ["!"], "!!").name, "!! Movie.mkv")
-            self.assertEqual(priority_marker_destination(root / "! Movie.mkv", ["!"], "!", remove_only=True).name, "Movie.mkv")
-            self.assertEqual(priority_marker_destination(folder, ["!"], "!").name, "! Season 01")
+            self.assertTrue(starts_with_priority_marker(media.name, ["!"]))
+            self.assertEqual(remove_priority_markers_from_name(media.name, ["!"]), "Movie.mkv")
+            is_priority, reasons, _rank = get_source_priority_info(media, ["!"])
 
-    def test_apply_priority_marker_renames_file_and_remove_only_restores_name(self) -> None:
-        with tempfile.TemporaryDirectory() as td:
-            media = Path(td) / "Movie.mkv"
-            media.write_text("x", encoding="utf-8")
-            before = media.stat().st_mtime
-            time.sleep(0.01)
+            self.assertTrue(is_priority)
+            self.assertEqual(reasons, ["file", "folder:! Season 01"])
+            self.assertEqual((media.name, media.stat().st_mtime_ns, media.read_bytes()), before)
 
-            renamed = apply_priority_marker(media, ["!"], "!")
-            restored = apply_priority_marker(renamed, ["!"], "!", remove_only=True)
+    def test_production_priority_surface_has_no_source_mutation_helpers(self) -> None:
+        repo_root = find_repo_root(Path(__file__))
+        helper_text = (repo_root / "src" / "mediapipeline" / "core" / "queue" / "priority_markers.py").read_text(
+            encoding="utf-8"
+        )
+        service_text = (repo_root / "src" / "mediapipeline" / "core" / "queue" / "service.py").read_text(
+            encoding="utf-8"
+        )
 
-            self.assertEqual(renamed.name, "! Movie.mkv")
-            self.assertEqual(restored.name, "Movie.mkv")
-            self.assertTrue(restored.exists())
-            self.assertGreaterEqual(renamed.stat().st_mtime if renamed.exists() else restored.stat().st_mtime, before)
-
-    def test_apply_priority_marker_rejects_collision(self) -> None:
-        with tempfile.TemporaryDirectory() as td:
-            root = Path(td)
-            media = root / "Movie.mkv"
-            collision = root / "! Movie.mkv"
-            media.write_text("x", encoding="utf-8")
-            collision.write_text("existing", encoding="utf-8")
-
-            with self.assertRaises(FileExistsError):
-                apply_priority_marker(media, ["!"], "!")
+        for forbidden in ("def apply_priority_marker", "def touch_priority_target", "os.utime", ".rename("):
+            self.assertNotIn(forbidden, helper_text)
+        for forbidden in ("def apply_priority_marker", "def touch_priority_target", "def format_priority_leaf_name"):
+            self.assertNotIn(forbidden, service_text)
+        self.assertFalse(hasattr(QueueServiceMixin, "apply_priority_marker"))
+        self.assertFalse(hasattr(QueueServiceMixin, "touch_priority_target"))
 
     def test_get_source_priority_info_collects_file_and_folder_reasons(self) -> None:
         with tempfile.TemporaryDirectory() as td:
@@ -103,6 +91,19 @@ class QueuePriorityHelperTests(unittest.TestCase):
             self.assertTrue(has_manifest_priority_entry(manifest, sibling))
             entries = read_priority_manifest(manifest_path)["entries"]
             self.assertEqual(entries[str(media).replace("\\", "/").lower()]["level"], "normal")
+
+    def test_manifest_priority_update_does_not_mutate_source_path_or_mtime(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            manifest_path = root / "priority_manifest.json"
+            media = root / "Movie.mkv"
+            media.write_bytes(b"source-bytes")
+            before = (media.name, media.stat().st_mtime_ns, media.read_bytes())
+
+            manifest = set_manifest_entry(manifest_path, media, "high", "operator priority")
+
+            self.assertEqual(get_manifest_level(manifest, media), "high")
+            self.assertEqual((media.name, media.stat().st_mtime_ns, media.read_bytes()), before)
 
     def test_manifest_normal_without_parent_removes_exact_entry(self) -> None:
         with tempfile.TemporaryDirectory() as td:

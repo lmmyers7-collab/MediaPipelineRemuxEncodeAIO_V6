@@ -1,0 +1,65 @@
+{
+  "id": "MP-CHANGE-2026-0723-002",
+  "title": "Fail closed on partial preset policy apply",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": "2026-07-23",
+  "summary": "Make PresetV2 apply disclose every unsupported policy difference and block before settings mutation when the legacy adapter cannot represent the reviewed preset.",
+  "reason": "Remediate P1 AUDIT-FIND-W02-008. PresetV2 validates eleven policy sections, but preset-library apply silently persists only the legacy adapter subset and reports success while unrelated prior audio, subtitle, verification, filter, guard, and publish settings remain active.",
+  "affected_areas": [
+    "PresetV2-to-config apply coverage",
+    "preset-library apply preview",
+    "confirmed preset apply mutation gate",
+    "settings policy review evidence"
+  ],
+  "behavior_before": "Preview and confirmed apply expose only the reduced legacy patch and do not disclose that most reviewed policy fields will be ignored.",
+  "behavior_after": "Preview projects the legacy patch over current config, compares every unrepresented policy leaf with the resulting effective PresetV2, reports exact desired/current/post-apply differences, and confirmed apply fails closed before settings save whenever the reviewed policy would remain incomplete.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-002.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/config/preset_library.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/config/preset_migration.py.md",
+    "docs/generated/summaries/tests/python/core/contract/test_preset_policy_contract.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_preset_library.py.md",
+    "src/mediapipeline/core/config/preset_library.py",
+    "src/mediapipeline/core/config/preset_migration.py",
+    "tests/python/core/contract/test_preset_policy_contract.py",
+    "tests/python/desktop/test_preset_library.py",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-002.json"
+  ],
+  "tests_added": [
+    "An exhaustive adapter coverage contract ties every emitted legacy config key to an explicit PresetV2 alias path and verifies current-effective presets have no unsupported differences.",
+    "Audio force-transcode, BDPGS conversion, and source-integrity fixtures prove preview reports exact unsupported paths and confirmed apply never calls settings save.",
+    "A current-effective policy fixture proves represented changes retain the existing confirmed settings-save path."
+  ],
+  "manual_validation": [
+    "Pre-fix focused pytest - expected red at collection because the explicit adapter coverage contract and unsupported-difference helper did not exist.",
+    "Focused preset policy and preset-library pytest - passed: 25 tests and 72 subtests.",
+    "Local API/settings/config regression pytest - passed: 163 tests and 139 subtests.",
+    "Settings facade/save/config-key policy pytest - passed: 89 tests.",
+    "WebView preset/settings static pytest - passed: 70 tests and 284 subtests.",
+    "Test-WebViewSettingsPatchEvidenceSmoke.ps1 - passed against generated temporary config; denied and confirmed save/reload evidence remained correct.",
+    "Test-WebViewBrowserSettingsFieldMatrixSmoke.ps1 - passed in Chrome with one browser test, zero skips, and temporary config/state only.",
+    "Ruff and compileall passed for all four changed Python source/test files.",
+    "Targeted mypy remains red on 113 pre-existing Pydantic alias-constructor errors in preset_migration.py; no error points to the new adapter coverage or difference helper.",
+    "Config-key registry passed with 206 keys across 166 PowerShell files.",
+    "Failure-code registry remains red on the same three pre-existing unrelated codes: OUTPUT_HASH_MISSING, SIDECAR_HASH_INVALID, and SIDECAR_SIZE_INVALID.",
+    "Targeted refresh_summaries wrote five current summaries; project index regenerated 2,479 typed records, dependency graph, feature map, and 15 feature cards.",
+    "Summary integrity, risky-file registry, lifecycle-map, feature-card, and AI-guardrail unit set - passed: 35 tests and 72 subtests.",
+    "Project-index, feature-map, risky-file registry, and architecture checks passed.",
+    "Global summary freshness reports only the same six pre-existing stale files outside this packet; all five touched summaries are current.",
+    "God-file guard passed with zero errors and 49 repository-wide warnings; the touched preset-policy contract test is 544 lines and warning-only, and the guard was not weakened.",
+    "validate_changes --require-worktree-coverage - passed with 1,144 valid packets before completion."
+  ],
+  "rollback_plan": "Revert the explicit adapter coverage contract, fail-closed preview/apply policy, focused tests, generated context, and packet metadata together; retain this packet as incomplete evidence if rollback occurs.",
+  "related_changes": [
+    "AUDIT-FIND-W02-008"
+  ],
+  "notes": "High-risk media-policy configuration boundary. The comparison evaluates the effective PresetV2 produced after overlaying the explicit legacy patch, so deterministic codec/height/guard derivations are accepted only when they really match the reviewed preset. This bounded batch does not add or change audio, subtitle, verification, filter, guard, or publish mappings; it blocks silent partial application until complete mappings receive their own representative real-media validation. Representative real media is not required because no new policy becomes effective."
+}

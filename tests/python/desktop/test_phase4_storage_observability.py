@@ -355,10 +355,19 @@ class Phase4StorageObservabilityTests(unittest.TestCase):
     def test_command_journal_sqlite_mirror_uses_redacted_bounded_summary(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
+            journal_path = root / "RunLogs" / "local_api_command_history.json"
             journal = CommandJournal(
-                path=root / "RunLogs" / "local_api_command_history.json",
+                path=journal_path,
                 state_db_root=root / "State",
             )
+            fake_secrets = {
+                "password": "fake-password-persist-045",
+                "token": "fake-token-persist-045",
+                "join_blob": "fake-join-blob-persist-045",
+                "secret": "fake-secret-persist-045",
+                "api_key": "fake-api-key-persist-045",
+                "authorization": "fake-authorization-persist-045",
+            }
             journal.record(
                 {
                     "schema_version": COMMAND_RESULT_SCHEMA_VERSION,
@@ -366,18 +375,31 @@ class Phase4StorageObservabilityTests(unittest.TestCase):
                     "ok": True,
                     "severity": "info",
                     "message": "started",
-                    "data": {"mode": "once", "secret_token": "hidden"},
+                    "data": {"mode": "once", "deep": [{"more": [{"credentials": fake_secrets}]}]},
                 },
-                request={"authorization": "Bearer hidden", "mode": "once"},
+                request={
+                    "authorization": "Bearer fake-request-authorization-persist-045",
+                    "mode": "once",
+                    "legacy": str(fake_secrets),
+                },
             )
 
             command = open_state_db(root / "State").list_recent_commands()[0]
+            json_text = journal_path.read_text(encoding="utf-8")
+            connection = sqlite3.connect(root / "State" / STATE_DB_FILENAME)
+            try:
+                sqlite_payload_text = connection.execute("SELECT payload_json FROM commands ORDER BY id DESC LIMIT 1").fetchone()[0]
+            finally:
+                connection.close()
 
         payload = command["payload"]
-        self.assertEqual(payload["data"]["secret_token"], "<redacted>")
+        self.assertEqual(payload["data"]["mode"], "once")
         self.assertEqual(payload["request"]["authorization"], "<redacted>")
         self.assertEqual(payload["request"]["mode"], "once")
-        self.assertNotIn("hidden", json.dumps(payload, sort_keys=True))
+        persisted_text = "\n".join((json_text, sqlite_payload_text, json.dumps(payload, sort_keys=True)))
+        for fake_secret in (*fake_secrets.values(), "fake-request-authorization-persist-045"):
+            self.assertNotIn(fake_secret, persisted_text)
+        self.assertIn("<redacted>", persisted_text)
 
     def test_local_api_command_journal_mirror_uses_latest_resolved_state_root(self) -> None:
         class DummyFacade:

@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-07-02
+last_modified: 2026-07-22
 last_reviewed: 2026-06-04
-sha256: f6ce6e3b58c71ef1e2b18abe7e6f333e22a5b57de446ab714af412d38e1144fa
+sha256: 5cd8703eb094389498edcd927fa9c28784375ed87c56867cb47b64d4b56f4932
 ---
 # `src/mediapipeline/desktop/api/command_journal.py`
 

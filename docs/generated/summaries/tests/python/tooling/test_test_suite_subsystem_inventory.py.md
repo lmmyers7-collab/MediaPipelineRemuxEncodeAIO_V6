@@ -8,7 +8,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-20
 last_reviewed: 2026-07-20
-sha256: b428298f85be6f1f0bdee359431b80b633a8690ff702de8dc01cc1f90774dd44
+sha256: 8e41784496153089b37a17f3ac96ecca5fd557c356753432ae3d7d4b4014e0d1
 ---
 # `tests/python/tooling/test_test_suite_subsystem_inventory.py`
 

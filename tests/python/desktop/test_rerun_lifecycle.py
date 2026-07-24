@@ -22,6 +22,7 @@ from mediapipeline.core.processes.rerun_lifecycle import (
     transition_rerun_enrollment,
 )
 from mediapipeline.core.processes.rerun_results import rerun_results_payload
+from mediapipeline.core.rerun.evidence import rerun_enrollment_candidates
 from tests.python.desktop.application_facade_test_support import _resolved
 
 
@@ -47,6 +48,111 @@ class RerunLifecycleTests(unittest.TestCase):
         )
         transition_rerun_enrollment(correlation.enrollment_path, "process_spawned", expected_states={"accepted"})
         return correlation
+
+    @staticmethod
+    def _resolved_with_enrollment_root(root: Path):
+        resolved = _resolved(root)
+        resolved.local_base = root / "LocalBase"
+        resolved.state_root = resolved.local_base / "State"
+        enrollment_root = resolved.state_root / "Rerun" / "Local"
+        enrollment_root.mkdir(parents=True)
+        return resolved, enrollment_root
+
+    def test_enrollment_candidates_preserve_siblings_and_use_deterministic_fallback_on_stat_error(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            resolved, enrollment_root = self._resolved_with_enrollment_root(Path(raw_root))
+            good_path = enrollment_root / "good.json"
+            fallback_path = enrollment_root / "fallback.json"
+            good_path.write_text(json.dumps({"batch_id": "good", "status": "complete"}), encoding="utf-8")
+            fallback_path.write_text(json.dumps({"batch_id": "fallback", "status": "complete"}), encoding="utf-8")
+            original_stat = Path.stat
+
+            def selective_stat(path: Path, *args: object, **kwargs: object):
+                if path == fallback_path:
+                    raise OSError("injected metadata failure")
+                return original_stat(path, *args, **kwargs)
+
+            scan_health: dict[str, object] = {}
+            with mock.patch.object(Path, "stat", selective_stat):
+                candidates = rerun_enrollment_candidates(resolved, scan_health=scan_health)
+            limited_health: dict[str, object] = {}
+            with mock.patch.object(Path, "stat", selective_stat):
+                limited = rerun_enrollment_candidates(resolved, limit=1, scan_health=limited_health)
+
+        self.assertEqual([path for path, _ in candidates], [good_path, fallback_path])
+        self.assertEqual([path for path, _ in limited], [good_path])
+        self.assertEqual(scan_health["candidate_count"], 2)
+        self.assertEqual(scan_health["metadata_error_count"], 1)
+        self.assertEqual(scan_health["error_count"], 1)
+        self.assertEqual(scan_health["fallback_count"], 1)
+        self.assertEqual(scan_health["skipped_count"], 0)
+        self.assertFalse(scan_health["complete"])
+        self.assertEqual(scan_health["recent_errors"][0]["path"], str(fallback_path))
+        self.assertTrue(scan_health["recent_errors"][0]["fallback_used"])
+        self.assertEqual(limited_health["candidate_count"], 1)
+        self.assertEqual(limited_health["metadata_error_count"], 1)
+
+    def test_enrollment_candidates_preserve_siblings_when_one_disappears_during_ordering(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            resolved, enrollment_root = self._resolved_with_enrollment_root(Path(raw_root))
+            good_path = enrollment_root / "good.json"
+            disappearing_path = enrollment_root / "disappearing.json"
+            good_path.write_text(json.dumps({"batch_id": "good", "status": "complete"}), encoding="utf-8")
+            disappearing_path.write_text(
+                json.dumps({"batch_id": "disappearing", "status": "complete"}),
+                encoding="utf-8",
+            )
+            original_stat = Path.stat
+
+            def disappearing_stat(path: Path, *args: object, **kwargs: object):
+                if path == disappearing_path:
+                    disappearing_path.unlink(missing_ok=True)
+                    raise FileNotFoundError("injected concurrent disappearance")
+                return original_stat(path, *args, **kwargs)
+
+            scan_health: dict[str, object] = {}
+            with mock.patch.object(Path, "stat", disappearing_stat):
+                candidates = rerun_enrollment_candidates(resolved, scan_health=scan_health)
+
+        self.assertEqual([path for path, _ in candidates], [good_path])
+        self.assertEqual(scan_health["candidate_count"], 1)
+        self.assertEqual(scan_health["metadata_error_count"], 1)
+        self.assertEqual(scan_health["error_count"], 1)
+        self.assertEqual(scan_health["skipped_count"], 1)
+        self.assertEqual(scan_health["recent_errors"][0]["reason_code"], "ENROLLMENT_METADATA_UNAVAILABLE")
+        self.assertFalse(scan_health["recent_errors"][0]["fallback_used"])
+
+    def test_startup_reconciliation_persists_candidate_scan_errors_without_hiding_valid_enrollment(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            correlation = self._enrollment(root)
+            resolved = _resolved(root)
+            resolved.local_base = root / "LocalBase"
+            resolved.state_root = resolved.local_base / "State"
+            resolved.active_jobs_path = resolved.state_root / "ActiveJobs"
+            disappearing_path = correlation.enrollment_path.parent / "disappearing.json"
+            disappearing_path.write_text(
+                json.dumps({"batch_id": "disappearing", "status": "complete"}),
+                encoding="utf-8",
+            )
+            original_stat = Path.stat
+
+            def disappearing_stat(path: Path, *args: object, **kwargs: object):
+                if path == disappearing_path:
+                    disappearing_path.unlink(missing_ok=True)
+                    raise FileNotFoundError("injected concurrent disappearance")
+                return original_stat(path, *args, **kwargs)
+
+            with mock.patch.object(Path, "stat", disappearing_stat):
+                summary = reconcile_local_rerun_enrollments(resolved, pid_is_alive=lambda _pid: None)
+            persisted = json.loads(Path(summary["summary_path"]).read_text(encoding="utf-8"))
+
+        self.assertEqual(summary["checked_count"], 1)
+        self.assertEqual(summary["candidate_scan"]["candidate_count"], 1)
+        self.assertEqual(summary["candidate_scan"]["metadata_error_count"], 1)
+        self.assertEqual(summary["candidate_scan"]["error_count"], 1)
+        self.assertEqual(summary["candidate_scan"]["skipped_count"], 1)
+        self.assertEqual(persisted["candidate_scan"], summary["candidate_scan"])
 
     def test_exit_finalizer_preserves_newer_enrollment_and_execution_manifest_states(self) -> None:
         preserved_states = ("waiting_for_source", "retry_scheduled", "retry_exhausted", "review", "completed")

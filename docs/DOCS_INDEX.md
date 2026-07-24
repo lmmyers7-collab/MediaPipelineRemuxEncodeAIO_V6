@@ -137,6 +137,7 @@ Other 2026-06 audit/review packs are historical evidence snapshots and should li
 
 ## Testing And Validation
 
+- `testing/CSV_RERUN_PIPELINE_LOG_PROOF_20260704.md`: sanitized UI evidence that active CSV-rerun stdout reaches Pipeline Log.
 - `testing/PERFORMANCE_BENCHMARK_RUNBOOK.md`: repeatable startup/static/module-graph baselines and optional audit-suite timing.
 - `testing/BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md`
 - `testing/BROWSER_SMOKE_FAILURE_TRIAGE_CHEATSHEET.md`
@@ -183,7 +184,8 @@ Run-specific worksheets may remain local or excluded from release packaging when
 
 ## UI Planning
 
-- `ui/`: UI reference and workflow material. Completed remediation trackers are archived.
+- `ui/README.md`: repository UI-reference and third-party document provenance policy.
+- `ui/`: other UI workflow material. Completed remediation trackers are archived.
 
 The old desktop overview and feature comparison docs remain in `archive/docs-housekeeping/2026-05-20-review/consolidated-after-extraction/`; recover only specific paragraphs into current canonical docs.
 

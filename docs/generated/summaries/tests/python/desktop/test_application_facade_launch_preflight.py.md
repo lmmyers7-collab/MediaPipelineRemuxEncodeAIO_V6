@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-20
+last_modified: 2026-07-23
 last_reviewed: 2026-07-20
-sha256: ccd3163c1aac0e457c749d6a6e7eb0357411f9fa3a0a43b6be1aaf2b60e8b629
+sha256: 50f07c052cc9e1be5b13144e3bb044583dbdaee450ad4e5ecca0c135b6374f8f
 ---
 # `tests/python/desktop/test_application_facade_launch_preflight.py`
 

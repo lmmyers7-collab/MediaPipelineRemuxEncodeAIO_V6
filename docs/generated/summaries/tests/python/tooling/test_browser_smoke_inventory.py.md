@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-20
+last_modified: 2026-07-22
 last_reviewed: 2026-07-20
-sha256: 7a4a2153a83fbe67f150147f7346193cc720fb0abca7aceb6650068f71d9b15a
+sha256: 796f01cc43aa8295c76d750d0872a21c5d77aceb716b4fa1954143a432db85c2
 ---
 # `tests/python/tooling/test_browser_smoke_inventory.py`
 

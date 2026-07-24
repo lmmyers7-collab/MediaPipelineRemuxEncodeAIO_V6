@@ -1,0 +1,55 @@
+{
+  "id": "MP-CHANGE-2026-0723-024",
+  "title": "Fail closed when risky-path Git enumeration fails",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": "2026-07-23",
+  "summary": "Distinguish a successfully empty risky-file diff from an unavailable Git query and return nonzero with actionable machine- and human-readable evidence.",
+  "reason": "Remediate P1 AUDIT-FIND-W11-016. --changed and --staged currently collapse missing Git, timeouts, invalid revisions, permission errors, and nonzero diff commands into an empty path set and report success.",
+  "affected_areas": [
+    "AI guardrails",
+    "change classification",
+    "release validation",
+    "risky-file registry",
+    "tests"
+  ],
+  "behavior_before": "changed_paths returns [] for both a successful empty diff and every Git execution failure; main then emits ok=true and exits zero when the registry schema is valid.",
+  "behavior_after": "Git enumeration has a bounded timeout and raises a dedicated failure for a missing executable, timeout, nonzero diff command, invalid revision, permission error, or other OS failure. --changed/--staged report enumeration status and path count in JSON, emit actionable stderr, and exit nonzero on failure; a successfully empty query remains an explicit success and trusted --paths does not invoke Git.",
+  "files_touched": [
+    "docs/change_control/CHANGE_INDEX.md",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-024.json.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/check_risky_file_registry.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_risky_file_registry.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-024.json",
+    "src/mediapipeline/tools/dev/check_risky_file_registry.py",
+    "tests/python/tooling/test_risky_file_registry.py"
+  ],
+  "tests_added": [
+    "Successful empty and nonempty Git diffs remain distinguishable and normalized.",
+    "Missing Git, timeout, exit 128/invalid revision, and permission failure all raise path-enumeration failure.",
+    "--changed --json emits ok=false, structured enumeration evidence, actionable stderr, and exit 1 when enumeration fails.",
+    "A successfully empty --changed query emits enumeration_ok=true and exit 0.",
+    "Explicit trusted --paths classifies without calling Git."
+  ],
+  "manual_validation": [
+    "Risky-file registry and adjacent AI guardrail slice passed: 13 tests and 6 subtests.",
+    "Targeted Ruff validation passed for the implementation and tests.",
+    "Real --changed --json enumeration passed with 335 paths and 174 risk matches.",
+    "Real --staged --json enumeration passed as an authoritative empty set with zero paths and matches.",
+    "Targeted summary freshness, project-index/dependency-graph, and feature-map check modes passed.",
+    "Canonical risky-file registry validation and git diff --check passed (line-ending warnings only).",
+    "Strict worktree coverage passed with 1166 valid change packets."
+  ],
+  "rollback_plan": "Revert the structured enumeration failure, CLI exit/output behavior, focused tests, generated summaries/maps, and this packet together. Document any Git-less caller that needs to migrate to explicit trusted --paths before rollback.",
+  "related_changes": [
+    "AUDIT-FIND-W11-016"
+  ],
+  "notes": "Validation-tooling change only. Explicit --paths behavior remains available for callers that already possess a trusted path set. No media or runtime state is touched."
+}

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from .api_commands import RenameFilterCaseCommandPayload
+
 LOCAL_API_MAINTENANCE_COMMAND_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
     {
         "method": "POST",
@@ -290,25 +292,7 @@ LOCAL_API_RENAME_COMMAND_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "path": "/api/rename/filter-cases",
         "auth_required": True,
         "effect": "test-fixture-write",
-        "request_keys": [
-            "case_id",
-            "kind",
-            "source_folder",
-            "source_file",
-            "expected_name",
-            "expected_show",
-            "expected_clean_folder",
-            "expected_season",
-            "expected_episode",
-            "expected_episode_title",
-            "expected_movie_title",
-            "expected_year",
-            "season_number",
-            "template_preset",
-            "status",
-            "notes",
-            "confirm_append",
-        ],
+        "request_keys": list(RenameFilterCaseCommandPayload.model_fields),
         "response_schema": "desktop_command_result.v1",
         "data_schema": "rename_bad_case_corpus_append.v1",
         "purpose": "Append a backend-validated bad rename regression case to tests/fixtures/rename/bad_rename_cases.jsonl after explicit confirmation. Supports tv_auto and movie_auto case payloads. This route writes only the test corpus and never previews, applies, renames, moves, deletes, or touches media files.",

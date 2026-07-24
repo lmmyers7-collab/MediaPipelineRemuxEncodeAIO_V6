@@ -55,6 +55,7 @@ def build_completion_done_request(
     retry_on_failure: bool | None = None,
     reason_code: str | None = None,
     reason: str | None = None,
+    worker_result_artifact: dict[str, Any] | None = None,
     worker_result_artifact_path: str | None = None,
 ) -> DoneRequest:
     if retry_on_failure is None:
@@ -101,5 +102,6 @@ def build_completion_done_request(
         coordinator_source_path=str(metadata.get("coordinator_source_path") or ""),
         worker_source_path=str(metadata.get("worker_source_path") or source_path),
         destination_policy_applied=bool(metadata.get("destination_policy_applied") is True),
+        worker_result_artifact=dict(worker_result_artifact or {}),
         worker_result_artifact_path=worker_result_artifact_path or "",
     )

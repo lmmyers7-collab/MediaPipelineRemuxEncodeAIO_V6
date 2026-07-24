@@ -16,10 +16,12 @@ from mediapipeline.core.config.preset_migration import (
     LABEL_ONLY_RENAME_POLICIES,
     LEGACY_COMPATIBILITY_KEY_STATUSES,
     MIGRATION_STATUS_VALUES,
+    PRESET_V2_LEGACY_APPLY_FIELD_MAP,
     PERSISTED_KEY_MIGRATION_STATUS,
     effective_decision_policy_from_legacy_or_preset,
     effective_decision_policy_from_preset_v2,
     legacy_config_patch_from_preset_v2,
+    preset_v2_legacy_apply_unsupported_differences,
     preset_v2_from_legacy_config,
 )
 from mediapipeline.core.config.encoding_capabilities import (
@@ -34,6 +36,7 @@ from mediapipeline.core.config.preset_policy import (
     preset_v2_validation_issues,
 )
 from mediapipeline.contracts.source_media import SourceMediaInfo, source_media_from_ffprobe
+from mediapipeline.contracts.config import Config
 from mediapipeline.core.decide.processing_decision import decision_policy_from_mapping
 from mediapipeline.core.decide.routing import build_processing_decision
 
@@ -480,6 +483,51 @@ class PresetPolicyContractTests(unittest.TestCase):
             "DirectCopyVideoCodecAllowlist",
         ):
             self.assertNotIn(alias, patch)
+
+    def test_preset_v2_legacy_apply_field_map_exhaustively_matches_adapter_patch(self) -> None:
+        preset = preset_v2_from_legacy_config(Config(), name="Adapter coverage")
+        dumped = preset.model_dump(mode="json", by_alias=True)
+        patch = legacy_config_patch_from_preset_v2(preset)
+
+        self.assertEqual(set(PRESET_V2_LEGACY_APPLY_FIELD_MAP.values()), set(patch))
+        for path in PRESET_V2_LEGACY_APPLY_FIELD_MAP:
+            with self.subTest(path=path):
+                value: object = dumped
+                for segment in path.split("."):
+                    self.assertIsInstance(value, dict)
+                    value = value[segment]  # type: ignore[index]
+
+    def test_preset_v2_legacy_apply_reports_every_unsupported_policy_difference(self) -> None:
+        current = Config()
+        desired = preset_v2_from_legacy_config(current, name="Unsupported policy review").model_dump(
+            mode="json",
+            by_alias=True,
+        )
+        desired["processingStrategy"] = "archive_quality"
+        desired["video"]["qualityTarget"] = 19
+        desired["audio"]["forceTranscode"] = True
+        desired["subtitles"]["convertBdpgsToSrt"] = not desired["subtitles"]["convertBdpgsToSrt"]
+        desired["verification"]["sourceIntegrityPreflightEnabled"] = not desired["verification"][
+            "sourceIntegrityPreflightEnabled"
+        ]
+
+        differences = preset_v2_legacy_apply_unsupported_differences(desired, current)
+
+        self.assertEqual(
+            [difference["path"] for difference in differences],
+            [
+                "audio.forceTranscode",
+                "subtitles.convertBdpgsToSrt",
+                "verification.sourceIntegrityPreflightEnabled",
+            ],
+        )
+        self.assertTrue(all(difference["desired"] != difference["current"] for difference in differences))
+
+    def test_preset_v2_legacy_apply_accepts_current_effective_unsupported_policy(self) -> None:
+        current = Config()
+        preset = preset_v2_from_legacy_config(current, name="Current effective policy")
+
+        self.assertEqual(preset_v2_legacy_apply_unsupported_differences(preset, current), [])
 
     def test_preset_v2_legacy_patch_validation_uses_current_config_contract(self) -> None:
         with self.assertRaises(ValidationError):

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 import sys
 import tomllib
 import unittest
@@ -152,6 +153,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertEqual(cargo["package"]["name"], "mediapipeline-tauri-shell")
         self.assertIn("tauri", cargo["dependencies"])
         self.assertIn("serde_json", cargo["dependencies"])
+        self.assertIn("sha2", cargo["dependencies"])
         self.assertIn("tauri-plugin-updater", cargo["dependencies"])
         self.assertIn("url", cargo["dependencies"])
         self.assertIn("windows-sys", cargo["dependencies"])
@@ -166,12 +168,19 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn('.arg("tauri")', source)
         self.assertIn("tauri_plugin_updater::Builder::new().build()", source)
         self.assertIn("MEDIAPIPELINE_PRODUCTIZED_APP", source)
+        self.assertIn('.arg("-I")', source)
+        self.assertIn('.env_remove("PYTHONPATH")', source)
+        self.assertIn('.env_remove("PYTHONHOME")', source)
+        self.assertIn('.env_remove("PYTHONUSERBASE")', source)
+        self.assertIn('BUNDLED_PYTHON_MANIFEST_PATH', source)
+        self.assertIn('mediapipeline_release_manifest.v1', source)
+        self.assertIn('cfg!(debug_assertions)', source)
         self.assertIn('.env("PYTHONDONTWRITEBYTECODE", "1")', source)
         self.assertIn('.arg("--emit-startup-progress")', source)
         self.assertIn("desktop_local_api_bootstrap.v1", source)
         self.assertIn("MEDIA_PIPELINE_TAURI_TEST_AUTOMATION", source)
         self.assertIn("pg2-webview-launch", source)
-        self.assertIn("pg2-sample-validation-append", source)
+        self.assertNotIn("pg2-sample-validation-append", source)
         self.assertIn("MEDIA_PIPELINE_TAURI_TEST_AUTOLAUNCH_SINGLE_FILE", source)
         self.assertIn('button.click();', source)
         self.assertIn("WebviewWindowBuilder", source)
@@ -179,6 +188,36 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertNotIn('.arg("ffmpeg")', source.casefold())
         self.assertNotIn("command::new(\"ffmpeg", source.casefold())
         self.assertNotIn("command::new('ffmpeg", source.casefold())
+
+    def test_productized_tauri_shell_executes_close_gated_native_updater_flow(self) -> None:
+        shell_source = (TAURI_SRC_ROOT / "lib.rs").read_text(encoding="utf-8")
+        updater_source = (TAURI_SRC_ROOT / "updater_controller.rs").read_text(encoding="utf-8")
+        dialog_source = (TAURI_SRC_ROOT / "dialogs.rs").read_text(encoding="utf-8")
+
+        self.assertIn("schedule_native_update_check(app.app_handle().clone())", shell_source)
+        self.assertIn("create_updater_artifacts", updater_source)
+        self.assertIn("UpdaterArtifactMode::Bool(enabled)", updater_source)
+        self.assertIn("updater.check().await", updater_source)
+        self.assertIn("update.download(", updater_source)
+        self.assertIn("confirm_update_download_dialog", updater_source)
+        self.assertIn("confirm_update_install_dialog", updater_source)
+        self.assertIn("fresh_close_readiness(&app)", updater_source)
+        self.assertIn("BackendShutdownMode::SafeOnly", updater_source)
+        self.assertNotIn("ConfirmedForceActiveWork", updater_source)
+        self.assertIn("update.install(bytes)", updater_source)
+        self.assertLess(updater_source.index("update.download("), updater_source.index("update.install(bytes)"))
+        self.assertLess(
+            updater_source.index("fresh_close_readiness(&app)"),
+            updater_source.index("shutdown_backend_state(&app, BackendShutdownMode::SafeOnly)"),
+        )
+        self.assertLess(
+            updater_source.index("shutdown_backend_state(&app, BackendShutdownMode::SafeOnly)"),
+            updater_source.index("update.install(bytes)"),
+        )
+        self.assertIn('"tauri_native_updater_event.v1"', updater_source)
+        self.assertIn('"UpdateState/NativeUpdater"', updater_source)
+        self.assertIn("const MAX_EVIDENCE_FILES: usize = 64", updater_source)
+        self.assertIn("MB_DEFBUTTON2", dialog_source)
 
     def test_tauri_shell_drains_backend_pipes_and_cleans_up_failed_bootstrap(self) -> None:
         source = _tauri_rust_source()
@@ -195,16 +234,45 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("Backend stdout closed before bootstrap payload was received", source)
         self.assertIn("const MAX_BOOTSTRAP_STDOUT_LINES: usize = 5", source)
         self.assertIn("const MAX_BOOTSTRAP_STDOUT_CHARS: usize = 500", source)
+        self.assertIn("const MAX_BACKEND_OUTPUT_LINE_BYTES: usize = 16 * 1024", source)
+        self.assertIn("const MAX_BACKEND_OUTPUT_LOG_CHARS: usize = 500", source)
+        self.assertIn("const MAX_BACKEND_OUTPUT_INITIAL_PREVIEWS: usize = 20", source)
+        self.assertIn("BACKEND_OUTPUT_LOG_SUMMARY_INTERVAL", source)
+        self.assertIn("read_bounded_physical_line", source)
+        self.assertIn("mpsc::sync_channel(BACKEND_BOOTSTRAP_CHANNEL_CAPACITY)", source)
+        self.assertIn("drop(rx)", source)
+        self.assertNotIn("reader.lines()", source)
         self.assertIn("push_bootstrap_stdout_context(&mut stdout_context, trimmed)", source)
         self.assertIn("fn bootstrap_error", source)
         self.assertIn("Recent stdout before bootstrap", source)
         self.assertIn("fn redact_bootstrap_stdout", source)
         self.assertIn("fn redact_json_string_field", source)
-        self.assertIn("let redacted_bootstrap_stdout = redact_bootstrap_stdout(trimmed)", source)
-        self.assertIn("bounded_text(&redacted_bootstrap_stdout, MAX_BOOTSTRAP_STDOUT_CHARS)", source)
-        self.assertIn("[mediapipeline-backend:stdout-before-bootstrap]", source)
+        self.assertIn("let redacted = redact_bootstrap_stdout(&line.text)", source)
+        self.assertIn("bounded_text(&redacted, MAX_BACKEND_OUTPUT_LOG_CHARS)", source)
         self.assertIn("[mediapipeline-backend:{stream_name}]", source)
-        self.assertIn("[mediapipeline-backend:stdout]", source)
+        self.assertIn('emit_backend_output_line("stdout-before-bootstrap"', source)
+        self.assertIn('emit_backend_output_line("stdout"', source)
+        self.assertIn("additional byte(s) discarded", source)
+        self.assertIn("suppressed {suppressed_lines} additional line(s)", source)
+
+    def test_tauri_shell_confines_token_bootstrap_to_exact_top_frame_origin(self) -> None:
+        source = _tauri_rust_source()
+        launch_script = (TAURI_ROOT / "Test-TauriShell-Launch.ps1").read_text(encoding="utf-8")
+
+        self.assertEqual(source.count(".on_navigation(move |candidate|"), 2)
+        self.assertIn("navigation_matches_webview_origin", source)
+        self.assertIn("normalized_webview_origin", source)
+        self.assertIn("window.top!==window", source)
+        self.assertIn("window.location.origin!==allowedOrigin", source)
+        self.assertIn("delete window.MEDIA_PIPELINE_TAURI_BOOTSTRAP", source)
+        self.assertIn("maybe_record_debug_navigation_denial", source)
+        self.assertIn("origin-confinement-probe", source)
+        self.assertIn("window.location.assign", source)
+        self.assertIn("window.location.replace", source)
+        self.assertIn("[switch]$OriginConfinementProbe", launch_script)
+        self.assertIn("mediapipeline_tauri_navigation_denial.v1", launch_script)
+        self.assertIn("main", launch_script)
+        self.assertIn("pipeline-log", launch_script)
 
     def test_tauri_shell_monitors_backend_lifecycle_after_window_open(self) -> None:
         source = _tauri_rust_source()
@@ -353,10 +421,10 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("validate_backend_web_ui(&bootstrap.url, &bootstrap.token)", source)
         self.assertIn("fn validate_backend_web_ui", source)
         self.assertIn('"GET", "/", token', source)
-        self.assertIn(
-            "tauri_bootstrap_initialization_script(backend.token(), backend.startup_warnings())",
-            source,
-        )
+        self.assertIn("tauri_bootstrap_initialization_script(", source)
+        self.assertIn("backend.token()", source)
+        self.assertIn("backend.startup_warnings()", source)
+        self.assertIn("&allowed_origin", source)
         self.assertIn(".initialization_script(initialization_script)", source)
         self.assertIn("window.MEDIA_PIPELINE_TAURI_BOOTSTRAP", source)
         self.assertIn("startupWarnings", source)
@@ -737,7 +805,10 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("response.len().saturating_add(count) > max_bytes", source)
         self.assertIn("Backend response exceeded {max_bytes} byte limit.", source)
         self.assertIn("Backend response was not UTF-8", source)
-        self.assertIn("read_backend_response_capped(&mut stream, MAX_BACKEND_RESPONSE_BYTES)", source)
+        self.assertIn("const BACKEND_REQUEST_TIMEOUT: Duration = Duration::from_secs(5)", source)
+        self.assertIn("fn read_backend_response_capped_until", source)
+        self.assertIn("remaining_backend_request_time(deadline)", source)
+        self.assertIn("MAX_BACKEND_RESPONSE_BYTES, deadline", source)
         self.assertIn("fn backend_response_body_preview", source)
         self.assertIn("body: {preview}", source)
         self.assertIn("backend_response_body_preview(&response, 500)", source)
@@ -1131,6 +1202,9 @@ class TauriShellScaffoldTests(unittest.TestCase):
 
     def test_tauri_launch_checker_detects_window_and_backend_cleanup(self) -> None:
         source = (TAURI_ROOT / "Test-TauriShell-Launch.ps1").read_text(encoding="utf-8")
+        ownership = (PROJECT_ROOT / "ops/scripts/smoke/tauri_harness_process_ownership.ps1").read_text(
+            encoding="utf-8"
+        )
 
         self.assertIn("MediaPipelineRemuxEncodeAIO", source)
         self.assertIn("[ValidateSet('Auto', 'Dev', 'Packaged')]", source)
@@ -1139,24 +1213,69 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("mediapipeline-tauri-shell.exe", source)
         self.assertIn("Launch mode: $launchMode", source)
         self.assertIn("No packaged Tauri executable was found", source)
-        self.assertIn("mediapipeline.desktop\\.local_api_main", source)
-        self.assertIn("[string]$_.Name -match '^python(\\d+(\\.\\d+)*)?\\.exe$'", source)
+        self.assertIn("ops\\scripts\\smoke\\tauri_harness_process_ownership.ps1", source)
+        self.assertIn("mediapipeline.desktop\\.local_api_main", ownership)
+        self.assertIn("[string]$_.Name -match '^python(\\d+(\\.\\d+)*)?\\.exe$'", ownership)
         self.assertIn("function Get-TauriShellProcesses", source)
         self.assertIn("function Get-LogTail", source)
-        self.assertIn("function Wait-ProcessIdsGone", source)
-        self.assertIn("$baselineShellIds", source)
+        self.assertIn("Get-TauriHarnessOwnedShellIdentities", source)
+        self.assertIn("Get-TauriHarnessOwnedBackendIdentities", source)
+        self.assertIn("Wait-TauriHarnessProcessIdentitiesGone", source)
+        self.assertIn("$ownedShellIdentities", source)
+        self.assertIn("$ownedBackendIdentities", source)
         self.assertIn("$newShellIds", source)
-        self.assertIn("$baselineBackendIds", source)
+        self.assertNotIn("$baselineShellIds", source)
+        self.assertNotIn("$baselineBackendIds", source)
         self.assertIn("CloseMainWindow", source)
         self.assertIn("Tauri window close request was not accepted", source)
         self.assertIn("Tauri shell process(es) still running after window close", source)
         self.assertIn("Backend process(es) still running", source)
         self.assertIn("stdout_tail=$(Get-LogTail -Path $stdoutLog)", source)
         self.assertIn("stderr_tail=$(Get-LogTail -Path $stderrLog)", source)
-        self.assertIn("Stop-ProcessIdTree -ProcessId $shellPid", source)
-        self.assertIn("Stop-ProcessIdTree -ProcessId $backendPid", source)
+        self.assertIn("Stop-TauriHarnessOwnedProcessTree -Identity $backendIdentity", source)
+        self.assertIn("Stop-TauriHarnessOwnedProcessTree -Identity $shellIdentity", source)
+        self.assertNotIn("function Stop-ProcessIdTree", source)
         self.assertIn("npm run dev", source)
         self.assertNotIn(r"release\metadata\mediapipeline-tauri-shell.exe", source)
+
+    def test_tauri_harness_cleanup_is_exact_identity_bound(self) -> None:
+        helper = (PROJECT_ROOT / "ops/scripts/smoke/tauri_harness_process_ownership.ps1").read_text(encoding="utf-8")
+        self.assertIn("CreationTimeUtcMs", helper)
+        self.assertIn("Get-TauriHarnessOwnedDescendants", helper)
+        self.assertIn("Test-TauriHarnessProcessIdentityCurrent", helper)
+        self.assertIn("Refusing to stop", helper)
+
+        for script_name in (
+            "Test-TauriShell-Launch.ps1",
+            "Test-TauriShell-PG1ActiveClose.ps1",
+            "Test-TauriShell-PG2WebViewLaunch.ps1",
+            "Test-TauriShell-WebViewUiAutomationProbe.ps1",
+        ):
+            source = (TAURI_ROOT / script_name).read_text(encoding="utf-8")
+            self.assertIn("ops\\scripts\\smoke\\tauri_harness_process_ownership.ps1", source, script_name)
+            self.assertIn("Get-TauriHarnessProcessIdentity -ProcessId $devProcess.Id", source, script_name)
+            self.assertIn("Get-TauriHarnessOwnedBackendIdentities", source, script_name)
+            self.assertIn("Stop-TauriHarnessOwnedProcessTree", source, script_name)
+            self.assertNotIn("$baselineBackendIds", source, script_name)
+            self.assertNotIn("Get-LocalApiBackendProcesses", source, script_name)
+            self.assertNotIn("Stop-ProcessIdTree", source, script_name)
+
+    def test_tauri_harness_process_ownership_adversarial_wrapper(self) -> None:
+        powershell = PROJECT_ROOT / "ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe"
+        script = PROJECT_ROOT / "ops/pipeline/tests/Unit/Invoke-TauriHarnessProcessOwnershipChecks.ps1"
+        self.assertTrue(powershell.is_file())
+        self.assertTrue(script.is_file())
+        completed = subprocess.run(
+            [str(powershell), "-NoProfile", "-File", str(script)],
+            cwd=PROJECT_ROOT,
+            text=True,
+            capture_output=True,
+            timeout=60,
+            check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        self.assertIn("concurrent process trees remain isolated", completed.stdout)
+        self.assertIn("creation-time mismatch fails closed", completed.stdout)
 
     def test_tauri_shell_prefers_bundle_relative_desktop_root_before_dev_manifest_root(self) -> None:
         source = _tauri_rust_source()
@@ -1437,9 +1556,10 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("launch pipeline commands", source)
         self.assertIn("publish, rename, save settings", source)
         self.assertIn("mutate queue state", source)
-        self.assertIn("apps\\desktop\\runtime\\Python\\python.exe", source)
-        self.assertIn("ops\\pipeline\\runtime\\Python\\python.exe", source)
-        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", source)
+        self.assertIn("webview_browser_smoke_common.ps1", source)
+        self.assertIn("Invoke-WebViewDirectSmokeUnittest", source)
+        self.assertIn("[switch]$AllowSkippedTests", source)
+        self.assertIn("fails when Node.js is missing or tests skip", source)
         self.assertNotIn("Remove-Item", source)
         self.assertNotIn("Start-Process", source)
 
@@ -1456,9 +1576,10 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("launch pipeline commands", source)
         self.assertIn("publish, rename, save settings", source)
         self.assertIn("mutate queue state", source)
-        self.assertIn("apps\\desktop\\runtime\\Python\\python.exe", source)
-        self.assertIn("ops\\pipeline\\runtime\\Python\\python.exe", source)
-        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", source)
+        self.assertIn("webview_browser_smoke_common.ps1", source)
+        self.assertIn("Invoke-WebViewDirectSmokeUnittest", source)
+        self.assertIn("[switch]$AllowSkippedTests", source)
+        self.assertIn("fails when Node.js is missing or tests skip", source)
         self.assertNotIn("Remove-Item", source)
         self.assertNotIn("Start-Process", source)
 
@@ -1490,9 +1611,10 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("write app state from frontend code", source)
         self.assertIn("start pipeline commands", source)
         self.assertIn("mutate queue state", source)
-        self.assertIn("apps\\desktop\\runtime\\Python\\python.exe", source)
-        self.assertIn("ops\\pipeline\\runtime\\Python\\python.exe", source)
-        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", source)
+        self.assertIn("webview_browser_smoke_common.ps1", source)
+        self.assertIn("Invoke-WebViewDirectSmokeUnittest", source)
+        self.assertIn("[switch]$AllowSkippedTests", source)
+        self.assertIn("fails when Node.js is missing or tests skip", source)
         self.assertNotIn("Remove-Item", source)
         self.assertNotIn("Start-Process", source)
 
@@ -1954,9 +2076,10 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("launch pipeline commands", source)
         self.assertIn("publish, rename files, save settings", source)
         self.assertIn("mutate queue state", source)
-        self.assertIn("apps\\desktop\\runtime\\Python\\python.exe", source)
-        self.assertIn("ops\\pipeline\\runtime\\Python\\python.exe", source)
-        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", source)
+        self.assertIn("webview_browser_smoke_common.ps1", source)
+        self.assertIn("Invoke-WebViewDirectSmokeUnittest", source)
+        self.assertIn("[switch]$AllowSkippedTests", source)
+        self.assertIn("fails when Node.js is missing or tests skip", source)
         self.assertNotIn("Remove-Item", source)
         self.assertNotIn("Start-Process", source)
         self.assertNotIn("/api/rename/apply", source)
@@ -2344,7 +2467,6 @@ class TauriShellScaffoldTests(unittest.TestCase):
         for script_name in (
             "Test-TauriShell-PG1ActiveClose.ps1",
             "Test-TauriShell-PG2WebViewLaunch.ps1",
-            "Test-TauriShell-PG2SampleValidationAppend.ps1",
         ):
             script = TAURI_ROOT / script_name
             self.assertTrue(script.exists(), script_name)
@@ -2360,7 +2482,6 @@ class TauriShellScaffoldTests(unittest.TestCase):
         script_parameters = {
             "Test-TauriShell-PG1ActiveClose.ps1": ("ActiveJobsDir",),
             "Test-TauriShell-PG2WebViewLaunch.ps1": ("ActiveJobsDir",),
-            "Test-TauriShell-PG2SampleValidationAppend.ps1": ("SampleValidationLog",),
         }
         removed_defaults = (
             "[string]$ActiveJobsDir = 'E:\\Videos\\Scratch\\State\\ActiveJobs'",
@@ -2416,7 +2537,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("ControlType]::Group", source)
         self.assertIn("ControlType]::ListItem", source)
         self.assertIn("Test-UiAutomationPrimaryNameMatch", source)
-        self.assertIn("$trackedProcessIds", source)
+        self.assertIn("$trackedProcessIdentities", source)
         self.assertIn("forcing the isolated probe tree to stop", source)
         self.assertNotIn(
             "$remainingShellIds = @(Wait-ProcessIdsGone",
@@ -2425,17 +2546,18 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertNotIn("/api/pipeline/start", source)
         self.assertNotIn("MEDIA_PIPELINE_TAURI_TEST_AUTOLAUNCH_SINGLE_FILE", source)
 
-    def test_tauri_pg2_sample_validation_append_harness_uses_webview_append(self) -> None:
+    def test_tauri_pg2_sample_validation_append_harness_fails_closed(self) -> None:
         script = TAURI_ROOT / "Test-TauriShell-PG2SampleValidationAppend.ps1"
         self.assertTrue(script.exists())
         source = script.read_text(encoding="utf-8")
 
-        self.assertIn("pg2-sample-validation-append", source)
-        self.assertIn("Wait-SampleValidationRecord", source)
-        self.assertIn("sample_validation_record_id", source)
-        self.assertIn("shellSurface", source)
+        self.assertIn("PG-2 automatic sample-validation append is disabled", source)
+        self.assertIn("/api/sample-validation/preview", source)
+        self.assertIn("operator", source)
         self.assertNotIn("/api/sample-validation/append", source)
         self.assertNotIn("/api/pipeline/start", source)
+        self.assertNotIn("exact-path", source)
+        self.assertNotIn("ffmpeg_log_checked", source)
 
 
 if __name__ == "__main__":

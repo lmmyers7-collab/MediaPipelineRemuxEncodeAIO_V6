@@ -524,7 +524,7 @@ class ApplicationFacadeRenameTests(unittest.TestCase):
                 ),
             ):
                 with self.subTest(label=label):
-                    service._load_synthetic_pipeline_name_preview = lambda **_kwargs: result  # type: ignore[method-assign]
+                    service._load_synthetic_pipeline_name_preview = lambda result=result, **_kwargs: result  # type: ignore[method-assign]
                     preview = facade.get_rename_clean_filename_preview(
                         request,
                         powershell_host="pwsh",

@@ -1,0 +1,66 @@
+{
+  "id": "MP-CHANGE-2026-0723-042",
+  "title": "Fail closed on reparse inspection errors",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": "2026-07-23",
+  "summary": "Remediate AUDIT-FIND-COORD-PATHS-001 by preserving reparse-point inspection failures as non-OK path-boundary evidence and adding focused fault-injection coverage.",
+  "reason": "The shared backend mutation guard currently collapses an OSError during component inspection into affirmative no-reparse evidence, allowing cleanup, repair, rename, retention, and related callers to proceed when path safety is unknown.",
+  "affected_areas": [
+    "Python core path mutation boundary",
+    "backend filesystem mutation callers",
+    "generated source summaries and change-control evidence",
+    "generated_context",
+    "path-layout regression tests",
+    "paths",
+    "tests"
+  ],
+  "behavior_before": "An OSError from lstat/reparse inspection returns false from the boolean helper; path_boundary_check reports OK and ensure_path_boundary_safe_for_mutation permits the mutation.",
+  "behavior_after": "An OSError while inspecting any existing root, intermediate, or leaf component returns a distinct REPARSE_INSPECTION_FAILED non-OK result with the affected component, and the mutation wrapper raises without mutating files.",
+  "files_touched": [
+    "docs/change_control/CHANGELOG.md",
+    "docs/change_control/CHANGE_INDEX.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/feature-cards/generated-context.md",
+    "docs/generated/summaries/docs/change_control/CHANGELOG.md.md",
+    "docs/generated/summaries/docs/change_control/CHANGE_INDEX.md.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-042.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/paths/layout.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_service_path_layout.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-042.json",
+    "src/mediapipeline/core/paths/layout.py",
+    "tests/python/desktop/test_service_path_layout.py"
+  ],
+  "tests_added": [
+    "Injected root, intermediate, and leaf lstat OSError boundary checks",
+    "Mutation-wrapper rejection when reparse status is unknown"
+  ],
+  "manual_validation": [
+    "validate_changes --require-worktree-coverage - passed, 1184 packets valid",
+    "Targeted path-layout, mutation-caller, junction, architecture, generated-context, and summary-integrity validation passed; known unrelated rerun fixture baselines isolated.",
+    "compileall plus architecture, risky-file registry, and naming checks - 29 passed, 4 subtests passed",
+    "failure-cleanup, rename apply/undo/stage, rerun-preview, subtitle QA caller set - 140 passed, 13 subtests passed",
+    "focused Windows junction node - 1 passed",
+    "focused path, resolution, pending-publish path, queue-source, and release set - 30 passed, 1 skipped, 3 subtests passed",
+    "generate_project_index --check and generate_feature_file_map --check - passed",
+    "python -m pytest tests/python/desktop/test_service_path_layout.py -q - 12 passed, 1 skipped, 3 subtests passed; the skip is the privilege-dependent symlink fixture",
+    "python -m ruff check src/mediapipeline/core/paths/layout.py tests/python/desktop/test_service_path_layout.py - passed",
+    "rerun-results suite excluding only the 3 known output_sha256 baseline nodes - 35 passed, 3 deselected, 14 subtests passed",
+    "subtitle conversion plus facade rename/failure/rerun caller set - 116 passed, 26 subtests passed, with 3 known unrelated output_sha256 rerun-promotion fixture failures",
+    "test_summary_integrity.py - 21 passed, 55 subtests passed",
+    "final project-index and feature-map --check modes - passed",
+    "final refresh_summaries --check reports only the 2 established unrelated test-suite-inventory stale summaries",
+    "active-document reference check reports only established unrelated DOC005 at docs/reviews/comprehensive-production-audit-2026-07-19/evidence/BASELINE.md:15",
+    "git diff --check for all Batch 042 paths - passed with line-ending warnings only"
+  ],
+  "rollback_plan": "Revert only this packet's path-layout implementation, focused tests, and generated artifacts. The prior behavior can be restored without migrating state because this change introduces no schema or persisted-data changes.",
+  "related_changes": [
+    "AUDIT-FIND-COORD-PATHS-001"
+  ],
+  "notes": "High-risk filesystem mutation guard. This batch does not delete, rename, overwrite, move, or transcode source media and does not alter scratch, pending-publish, FFmpeg, subtitle, or audio policy. Representative real media is not required by the audit validation rung. Python impact: behavior and focused tests under the existing paths domain; no new module or compatibility surface.\nFail closed when reparse inspection raises OSError.\nInject root, intermediate, and leaf inspection failures and assert mutation rejection.\nRegenerated after the path-boundary implementation and focused test changes.\nThe three output_sha256 failures are established unrelated dirty-worktree baselines; all other tests in that rerun-results module pass when only those exact nodes are deselected. Ruff format --check reports that both whole files would be reformatted; it is not selected by the audit validation rung, ruff check passes, and this bounded batch avoids unrelated formatting churn.\nRegenerated from the completed Batch 042 packet and current source catalog."
+}

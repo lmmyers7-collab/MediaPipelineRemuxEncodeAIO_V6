@@ -2391,6 +2391,7 @@ def check_outputs(
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, default=REPO_ROOT, help=argparse.SUPPRESS)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument("--write", action="store_true", help="Write or refresh the baseline and coverage matrices.")
@@ -2408,26 +2409,34 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
-    output_dir = args.output_dir if args.output_dir.is_absolute() else REPO_ROOT / args.output_dir
+    root = args.root.resolve()
+    output_dir = args.output_dir if args.output_dir.is_absolute() else root / args.output_dir
     if args.write:
-        rows = write_outputs(output_dir)
-        print(f"Wrote repository audit baseline with {len(rows)} coverage rows to {output_dir.relative_to(REPO_ROOT)}.")
+        rows = write_outputs(output_dir, root=root)
+        display_path = output_dir.relative_to(root) if output_dir.is_relative_to(root) else output_dir
+        print(f"Wrote repository audit baseline with {len(rows)} coverage rows to {display_path}.")
         return 0
     if args.merge_errors:
-        records = merge_error_ledgers(output_dir)
+        records = merge_error_ledgers(output_dir, root=root)
         print(f"Merged {len(records)} audit error records from worker fragments.")
         return 0
     if args.merge_reviews:
-        rows = merge_review_ledgers(output_dir)
+        rows = merge_review_ledgers(output_dir, root=root)
         achieved = sum(row["review_status"] in ACHIEVED_STATUSES for row in rows)
         blocked = sum(row["review_status"] == "blocked_with_reason" for row in rows)
         print(f"Merged review fragments into {len(rows)} coverage rows; {achieved} rows achieved and {blocked} blocked.")
         return 0
     if args.merge_findings:
-        records = merge_finding_ledgers(output_dir)
+        records = merge_finding_ledgers(output_dir, root=root)
         print(f"Merged {len(records)} exact-root-cause-deduplicated audit findings from worker fragments.")
         return 0
-    findings = check_outputs(output_dir, require_complete=args.require_complete)
+    findings = check_outputs(output_dir, require_complete=args.require_complete, root=root)
+    if args.require_complete:
+        rows = load_rows(output_dir / "COVERAGE_MATRIX.jsonl")
+        achieved = sum(row.get("review_status") in ACHIEVED_STATUSES for row in rows)
+        blocked = sum(row.get("review_status") == "blocked_with_reason" for row in rows)
+        incomplete = len(rows) - achieved - blocked
+        print(f"Completion status counts: {achieved} achieved, {blocked} blocked, {incomplete} other incomplete.")
     if findings:
         print("Repository audit coverage check failed:")
         for finding in findings:

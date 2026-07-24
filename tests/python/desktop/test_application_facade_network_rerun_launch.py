@@ -358,6 +358,7 @@ class ApplicationFacadeNetworkRerunLaunchTests(unittest.TestCase):
                     error_message="",
                     queue_terminal=False,
                     retry_on_failure=True,
+                    worker_result_artifact=json.loads(artifact_path.read_text(encoding="utf-8")),
                     worker_result_artifact_path=str(artifact_path),
                 ),
             )

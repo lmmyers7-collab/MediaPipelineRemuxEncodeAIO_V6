@@ -148,6 +148,8 @@ class ProcessGuardFacadeMixin:
         action: str,
         *,
         ignore_lifecycle_recovery_evidence: bool = False,
+        ignore_queue_source_scan: bool = False,
+        preempt_queue_source_scan: bool = False,
     ) -> str:
         if not ignore_lifecycle_recovery_evidence:
             recovery_reader = getattr(self, "get_recovery_status", None)
@@ -193,7 +195,39 @@ class ProcessGuardFacadeMixin:
         promotion_block = self._final_library_promotion_block_message(action)
         if promotion_block:
             return promotion_block
-        queue_scan_block = self._queue_source_scan_block_message(action)
+        if ignore_queue_source_scan and preempt_queue_source_scan:
+            # Defer the mutating preemption request until every other active-work
+            # guard has passed, so a launch rejected for another reason does not
+            # unnecessarily cancel scan curation.
+            queue_scan_block = ""
+        elif ignore_queue_source_scan:
+            coordination = getattr(
+                self.service,
+                "normal_run_once_queue_scan_block_message",
+                None,
+            )
+            if callable(coordination):
+                try:
+                    queue_scan_block = str(
+                        coordination(
+                            action,
+                            preempt=preempt_queue_source_scan,
+                        )
+                        or ""
+                    )
+                except Exception as exc:
+                    self._log_close_guard_exception(
+                        "Queue source scan Run Once coordination failed",
+                        exc,
+                    )
+                    queue_scan_block = (
+                        f"{action} blocked because queue source scan state "
+                        f"could not be coordinated safely: {exc}"
+                    )
+            else:
+                queue_scan_block = self._queue_source_scan_block_message(action)
+        else:
+            queue_scan_block = self._queue_source_scan_block_message(action)
         if queue_scan_block:
             return queue_scan_block
         local_rerun_block = self._local_csv_rerun_enrollment_block_message(resolved, action)
@@ -214,6 +248,27 @@ class ProcessGuardFacadeMixin:
             audit_block = self._audit_progress_block_message(resolved, action)
             if audit_block:
                 return audit_block
+        if ignore_queue_source_scan and preempt_queue_source_scan:
+            coordination = getattr(
+                self.service,
+                "normal_run_once_queue_scan_block_message",
+                None,
+            )
+            if not callable(coordination):
+                return self._queue_source_scan_block_message(action)
+            try:
+                queue_scan_block = str(coordination(action, preempt=True) or "")
+            except Exception as exc:
+                self._log_close_guard_exception(
+                    "Queue source scan Run Once coordination failed",
+                    exc,
+                )
+                return (
+                    f"{action} blocked because queue source scan state "
+                    f"could not be coordinated safely: {exc}"
+                )
+            if queue_scan_block:
+                return queue_scan_block
         return ""
 
     def _tdarr_matrix_background_block_message(self, resolved: ResolvedPaths, action: str) -> str:

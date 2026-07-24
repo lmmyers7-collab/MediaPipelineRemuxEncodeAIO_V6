@@ -212,7 +212,9 @@ mod tests {
         )
         .expect_err("a string boolean must fail closed");
 
-        assert!(error.to_string().contains("Close-readiness response was not JSON"));
+        assert!(error
+            .to_string()
+            .contains("Close-readiness response was not JSON"));
     }
 
     #[test]
@@ -222,6 +224,8 @@ mod tests {
         )
         .expect_err("missing safety authority must fail closed");
 
-        assert!(error.to_string().contains("Close-readiness response was not JSON"));
+        assert!(error
+            .to_string()
+            .contains("Close-readiness response was not JSON"));
     }
 }

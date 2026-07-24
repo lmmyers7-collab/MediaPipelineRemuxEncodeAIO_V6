@@ -24,6 +24,8 @@ $RequiredFiles = @(
     ".github/audit-labels.json",
     ".github/GITHUB_AUDIT_BOOTSTRAP.md",
     "ops/scripts/release/Initialize-CiPythonRuntime.ps1",
+    "ops/scripts/release/Publish-PrivateBetaGitHubRelease.ps1",
+    "ops/scripts/release/Publish-TauriUpdaterChannelPointer.ps1",
     "ops/scripts/dev/bootstrap-github-audit-spine.ps1"
 )
 
@@ -102,14 +104,28 @@ foreach ($Forbidden in @('${{ github.event_name }}" -eq', 'git fetch origin "${{
 }
 
 $PrivateBetaWorkflow = Get-Content -LiteralPath (Join-Path $RepoRoot ".github/workflows/private-beta-windows.yml") -Raw
-foreach ($Expected in @("actions: read", "contents: write", "Validate workflow inputs", "MEDIAPIPELINE_RELEASE_REPOSITORY", "Initialize-CiPythonRuntime.ps1")) {
+foreach ($Expected in @("actions: read", "contents: write", "Validate workflow inputs", "MEDIAPIPELINE_RELEASE_REPOSITORY", "Initialize-CiPythonRuntime.ps1", "Publish-PrivateBetaGitHubRelease.ps1", "Publish-TauriUpdaterChannelPointer.ps1", "Advance and verify updater channel pointer", 'private-beta-windows-${{ github.repository }}-${{ inputs.channel }}', "cancel-in-progress: false", "MEDIAPIPELINE_ALLOW_SAME_COMMIT_REBUILD", "validate-windows:", "sign-windows:", "private_beta_validation_handoff.v1", "Verify validation handoff before secret access", "SkipSecretPresence", "Build signed NSIS updater bundle with step-scoped credentials", "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c")) {
     if ($PrivateBetaWorkflow -notmatch [regex]::Escape($Expected)) {
         throw "Private beta workflow is missing expected hardening token: $Expected"
     }
 }
-foreach ($Forbidden in @('-Channel ''${{ inputs.channel }}''', '-Repository ''${{ github.repository }}''', '$tag = ''${{ inputs.release_tag }}''')) {
+
+$UpdaterPointerPublisher = Get-Content -LiteralPath (Join-Path $RepoRoot "ops/scripts/release/Publish-TauriUpdaterChannelPointer.ps1") -Raw
+foreach ($Expected in @('releases/download/$($script:pointerTag)', 'pointer_remote:prerelease', '--latest=false', 'pointer_endpoint:exact_content', 'channel_json:installer_release_identity')) {
+    if ($UpdaterPointerPublisher -notmatch [regex]::Escape($Expected)) {
+        throw "Updater channel pointer publisher is missing expected routing guard: $Expected"
+    }
+}
+foreach ($Forbidden in @('-Channel ''${{ inputs.channel }}''', '-Repository ''${{ github.repository }}''', '$tag = ''${{ inputs.release_tag }}''', 'gh release upload', '--clobber')) {
     if ($PrivateBetaWorkflow -match [regex]::Escape($Forbidden)) {
         throw "Private beta workflow still interpolates GitHub expressions inside a run block: $Forbidden"
+    }
+}
+
+$PrivateBetaPublisher = Get-Content -LiteralPath (Join-Path $RepoRoot "ops/scripts/release/Publish-PrivateBetaGitHubRelease.ps1") -Raw
+foreach ($Expected in @('release_tag:version_identity', 'remote:tag_matches_source', 'remote:target_identity', 'assets:immutable_default', 'ProtectedRebuildApproval', '--clobber')) {
+    if ($PrivateBetaPublisher -notmatch [regex]::Escape($Expected)) {
+        throw "Private beta publisher is missing expected provenance guard: $Expected"
     }
 }
 

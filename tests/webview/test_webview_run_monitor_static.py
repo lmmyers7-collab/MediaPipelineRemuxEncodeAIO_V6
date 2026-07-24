@@ -222,6 +222,27 @@ class WebViewRunMonitorStaticTests(unittest.TestCase):
             self.assertIn(required, styles)
         self.assertNotRegex(monitor_styles, r"(?m)^\s+color: var\(--grey-500\)")
 
+    def test_topbar_activity_exposes_backend_route_badge_styles(self) -> None:
+        topbar = (STATIC_ROOT / "assets" / "app" / "lifecycle" / "topbar.js").read_text(encoding="utf-8")
+        component_imports = (STATIC_ROOT / "assets" / "styles.components.css").read_text(encoding="utf-8")
+        styles = (STATIC_ROOT / "assets" / "styles" / "components" / "topbar-activity.css").read_text(encoding="utf-8")
+
+        for required in (
+            "topbarRouteCategory",
+            "currentWorkers.map((worker) => worker?.route)",
+            "activity-route-badge",
+            'badge.textContent = route === "remux" ? "REMUX" : "ENCODE"',
+        ):
+            self.assertIn(required, topbar)
+        self.assertIn('@import url("./styles/components/topbar-activity.css");', component_imports)
+        for required in (
+            '.activity-route-badge[data-route="remux"]',
+            "var(--semantic-success-bg)",
+            '.activity-route-badge[data-route="encode"]',
+            "var(--semantic-info-bg)",
+        ):
+            self.assertIn(required, styles)
+
     def test_manual_accessibility_script_covers_folded_clean_name_workflow(self) -> None:
         script = (REPO_ROOT / "docs" / "operator" / "WEBVIEW_MANUAL_OPERATOR_TEST_SCRIPT.md").read_text(
             encoding="utf-8"

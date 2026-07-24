@@ -15,6 +15,7 @@ COMMAND_EVIDENCE_LIST_LIMIT = 20
 COMMAND_EVIDENCE_TEXT_LIMIT = 500
 COMMAND_EVIDENCE_DEPTH_LIMIT = 4
 REDACTED_COMMAND_EVIDENCE_VALUE = "<redacted>"
+TRUNCATED_COMMAND_EVIDENCE_VALUE = "<truncated>"
 SENSITIVE_COMMAND_EVIDENCE_TERMS = (
     "api_key",
     "apikey",
@@ -54,7 +55,8 @@ def string_dict(value: Any, *, limit: int) -> dict[str, str]:
     for index, (key, item) in enumerate(value.items()):
         if index >= limit:
             break
-        result[scalar_text(key, limit=120)] = scalar_text(item, limit=500)
+        safe_key = scalar_text(key, limit=120)
+        result[safe_key] = REDACTED_COMMAND_EVIDENCE_VALUE if sensitive_command_evidence_key(safe_key) else scalar_text(item, limit=500)
     return result
 
 
@@ -72,18 +74,25 @@ def bounded_command_evidence(value: Any, *, depth: int = 0) -> Any:
         return value if math.isfinite(value) else scalar_text(value, limit=COMMAND_EVIDENCE_TEXT_LIMIT)
     if isinstance(value, str):
         return scalar_text(value, limit=COMMAND_EVIDENCE_TEXT_LIMIT)
-    if depth >= COMMAND_EVIDENCE_DEPTH_LIMIT:
-        return scalar_text(value, limit=COMMAND_EVIDENCE_TEXT_LIMIT)
     if isinstance(value, Mapping):
         result: dict[str, Any] = {}
         for index, (key, item) in enumerate(value.items()):
             if index >= COMMAND_EVIDENCE_DICT_LIMIT:
                 break
             safe_key = scalar_text(key, limit=120) or "unknown"
-            result[safe_key] = REDACTED_COMMAND_EVIDENCE_VALUE if sensitive_command_evidence_key(safe_key) else bounded_command_evidence(item, depth=depth + 1)
+            if sensitive_command_evidence_key(safe_key):
+                result[safe_key] = REDACTED_COMMAND_EVIDENCE_VALUE
+            elif depth >= COMMAND_EVIDENCE_DEPTH_LIMIT and isinstance(item, Mapping | tuple | list | set | frozenset):
+                result[safe_key] = TRUNCATED_COMMAND_EVIDENCE_VALUE
+            else:
+                result[safe_key] = bounded_command_evidence(item, depth=depth + 1)
         return result
     if isinstance(value, tuple | list):
+        if depth >= COMMAND_EVIDENCE_DEPTH_LIMIT:
+            return TRUNCATED_COMMAND_EVIDENCE_VALUE
         return [bounded_command_evidence(item, depth=depth + 1) for item in value[:COMMAND_EVIDENCE_LIST_LIMIT]]
+    if isinstance(value, set | frozenset):
+        return TRUNCATED_COMMAND_EVIDENCE_VALUE
     return scalar_text(value, limit=COMMAND_EVIDENCE_TEXT_LIMIT)
 
 

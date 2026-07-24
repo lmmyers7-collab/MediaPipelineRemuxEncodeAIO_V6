@@ -1,5 +1,7 @@
+mod python_runtime;
 mod web_ui;
 use super::*;
+use crate::http_helpers::request_backend_json_with_command_id;
 use std::{
     io::{Cursor, Read, Write},
     net::TcpListener,
@@ -82,7 +84,8 @@ fn bootstrap_stdout_context_redacts_token_like_values() {
 
 #[test]
 fn tauri_bootstrap_initialization_script_injects_token_without_index_assignment() {
-    let script = tauri_bootstrap_initialization_script("secret-token\"<", &[]);
+    let script =
+        tauri_bootstrap_initialization_script("secret-token\"<", &[], "http://127.0.0.1:8765");
 
     assert!(script.contains("window.MEDIA_PIPELINE_TAURI_BOOTSTRAP"));
     assert!(script.contains("Object.freeze"));
@@ -90,6 +93,11 @@ fn tauri_bootstrap_initialization_script_injects_token_without_index_assignment(
     assert!(script.contains("startupWarnings"));
     assert!(script.contains(r#"secret-token\"<"#));
     assert!(!script.contains("window.MEDIA_PIPELINE_BOOTSTRAP ="));
+    assert!(script.contains("window.top!==window"));
+    assert!(script.contains("window.location.origin!==allowedOrigin"));
+    assert!(script.contains("delete window.MEDIA_PIPELINE_TAURI_BOOTSTRAP"));
+    assert!(script.find("window.top!==window") < script.find("Object.freeze"));
+    assert!(script.find("window.location.origin!==allowedOrigin") < script.find("Object.freeze"));
 }
 
 #[test]
@@ -102,9 +110,11 @@ fn tauri_bootstrap_initialization_script_includes_bounded_startup_warnings() {
             )
         })
         .collect::<Vec<String>>();
-    let script = tauri_bootstrap_initialization_script("secret-token", &warnings);
+    let script =
+        tauri_bootstrap_initialization_script("secret-token", &warnings, "http://[::1]:8765");
 
     assert!(script.contains("Startup validation warning"));
+    assert!(script.contains(r#"http://[::1]:8765"#));
     assert!(script.contains("WebView asset drift"));
     assert!(script.contains("warning-0-"));
     assert!(script.contains(&format!("warning-{}-", MAX_STARTUP_VALIDATION_WARNINGS - 1)));
@@ -245,6 +255,39 @@ fn request_backend_json_success_sends_expected_request_without_frontend_bypass()
     assert!(request.contains("Content-Type: application/json\r\n"));
     assert!(request.contains("Content-Length: 7\r\n"));
     assert!(request.ends_with("\r\n\r\n{\"x\":1}"));
+}
+
+#[test]
+fn request_backend_json_with_command_id_sends_validated_identity_header() {
+    let (url, rx) = serve_once(
+        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{\"ok\":true}",
+    );
+
+    request_backend_json_with_command_id(
+        &url,
+        "POST",
+        "/api/backend/shutdown",
+        "secret-token",
+        "{}",
+        "tauri-shutdown-test-001",
+    )
+    .expect("strict backend request should succeed");
+    let request = rx
+        .recv_timeout(Duration::from_secs(2))
+        .expect("test backend should receive strict request");
+
+    assert!(request.contains("X-MediaPipeline-Command-ID: tauri-shutdown-test-001\r\n"));
+    let invalid = request_backend_json_with_command_id(
+        "http://127.0.0.1:1",
+        "POST",
+        "/api/backend/shutdown",
+        "secret-token",
+        "{}",
+        "bad id",
+    )
+    .expect_err("invalid command identity should fail before transport")
+    .to_string();
+    assert!(invalid.contains("Backend command ID is invalid"));
 }
 
 #[test]
@@ -766,21 +809,4 @@ fn lifecycle_reconciliation_safe_default_requires_a_json_boolean() {
     .expect_err("string safe default should fail exact semantic validation")
     .to_string();
     assert!(error.contains("Backend contract lifecycle reconciliation metadata drifted"));
-}
-
-#[cfg(debug_assertions)]
-#[test]
-fn debug_sample_validation_append_script_derives_label_from_source_path() {
-    let script = super::debug_webview::debug_sample_validation_append_script(
-        r"\\LAYNE-SERVER\Users\Layne\Videos\Encode\TV\Show\Show - S01E04.mkv",
-        r"\\LAYNE-SERVER\Users\Layne\Videos\outsource\TV\Show\Season 01\Show - S01E04.mkv",
-        "hold_review",
-        "subtitle-srt-generation",
-        "test note",
-    )
-    .expect("debug script should render");
-
-    assert!(script.contains("const sampleLabelFromPath"));
-    assert!(script.contains("sample_label: sampleLabelFromPath(sourceFile || outputPath)"));
-    assert!(!script.contains("Spy X Family - S01E10 - THE GREAT DODGEBALL PLAN.mkv"));
 }

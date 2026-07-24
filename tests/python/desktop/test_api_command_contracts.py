@@ -12,18 +12,24 @@ REPO_ROOT = find_repo_root(Path(__file__))
 sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
-from mediapipeline.contracts.api_commands import COMMAND_ROUTE_PAYLOAD_MODELS, validate_api_command_payload  # noqa: E402
+from mediapipeline.contracts.api_commands import (  # noqa: E402
+    COMMAND_ROUTE_PAYLOAD_MODELS,
+    RenameFilterCaseCommandPayload,
+    validate_api_command_payload,
+)
 from mediapipeline.contracts.api_routes_command_operations import (  # noqa: E402
     LOCAL_API_MAINTENANCE_COMMAND_ROUTE_CONTRACT as SHARED_MAINTENANCE_COMMAND_ROUTE_CONTRACT,
+    LOCAL_API_RENAME_COMMAND_ROUTE_CONTRACT as SHARED_RENAME_COMMAND_ROUTE_CONTRACT,
 )
 from mediapipeline.core.api.commands import COMMAND_ROUTE_METHODS  # noqa: E402
 from mediapipeline.core.validation.boundary import ValidationFailure, validate_api_payload  # noqa: E402
-from mediapipeline.desktop.api.command_journal_policy import bounded_command_evidence  # noqa: E402
+from mediapipeline.desktop.api.command_journal_policy import bounded_command_evidence, summarize_command_payload  # noqa: E402
 from mediapipeline.desktop.api.handler_policy import should_record_validation_failure_journal  # noqa: E402
 from mediapipeline.desktop.api.routes_command import POST_ROUTE_HANDLERS  # noqa: E402
 from mediapipeline.desktop.api.contract import LOCAL_API_ROUTE_CONTRACT  # noqa: E402
 from mediapipeline.desktop.api.contract_command_operations import (  # noqa: E402
     LOCAL_API_MAINTENANCE_COMMAND_ROUTE_CONTRACT as DESKTOP_MAINTENANCE_COMMAND_ROUTE_CONTRACT,
+    LOCAL_API_RENAME_COMMAND_ROUTE_CONTRACT as DESKTOP_RENAME_COMMAND_ROUTE_CONTRACT,
 )
 
 
@@ -38,6 +44,61 @@ def _source_media_payload() -> dict:
 
 
 class ApiCommandContractsTests(unittest.TestCase):
+    def test_rename_filter_case_route_contract_is_derived_from_strict_model(self) -> None:
+        expected_fields = list(RenameFilterCaseCommandPayload.model_fields)
+        for contract in (SHARED_RENAME_COMMAND_ROUTE_CONTRACT, DESKTOP_RENAME_COMMAND_ROUTE_CONTRACT):
+            route = next(item for item in contract if item["path"] == "/api/rename/filter-cases")
+            self.assertEqual(route["request_keys"], expected_fields)
+
+        movie_payload = {
+            "kind": "movie_auto",
+            "source_folder": "Movies",
+            "source_file": "Scary.Movie.2026.1080p.WEB-DL-GROUP.mkv",
+            "expected_name": "Scary Movie (2026).mkv",
+            "expected_movie_title": "Scary Movie",
+            "expected_year": "2026",
+            "template_preset": "movie_standard",
+            "movie_filter_options": {"video_source": True},
+            "movie_filter_terms": {"release_groups": ["GROUP"]},
+            "remove_terms": ["sample"],
+            "status": "pending",
+            "confirm_append": True,
+        }
+        tv_payload = {
+            "kind": "tv_auto",
+            "source_folder": "The Web S01 1080p WEB-DL-GROUP",
+            "source_file": "S01E01-Pilot.1080p.WEB-DL-GROUP.mkv",
+            "expected_name": "The Web - S01E01 - Pilot.mkv",
+            "expected_show": "The Web",
+            "expected_clean_folder": "The Web",
+            "expected_season": 1,
+            "expected_episode": 1,
+            "expected_episode_end": None,
+            "expected_episode_title": "Pilot",
+            "season_number": 1,
+            "template_preset": "tv_standard",
+            "tv_filter_options": {"video_source": True},
+            "tv_filter_terms": {"release_groups": ["GROUP"]},
+            "tv_remove_terms": ["sample"],
+            "status": "pending",
+            "notes": "backend-generated regression case",
+            "confirm_append": True,
+        }
+        for payload in (movie_payload, tv_payload):
+            with self.subTest(kind=payload["kind"]):
+                self.assertEqual(validate_api_payload("/api/rename/filter-cases", payload), payload)
+
+        invalid_payloads = (
+            {**movie_payload, "fixture_path": "client-owned"},
+            {**movie_payload, "confirm_append": "true"},
+            {**movie_payload, "movie_filter_options": {"video_source": "true"}},
+            {**tv_payload, "tv_filter_terms": {"release_groups": [1]}},
+        )
+        for payload in invalid_payloads:
+            with self.subTest(payload=payload):
+                with self.assertRaises(ValidationFailure):
+                    validate_api_payload("/api/rename/filter-cases", payload)
+
     def test_release_route_contracts_publish_builder_compatible_safe_defaults(self) -> None:
         for contract in (SHARED_MAINTENANCE_COMMAND_ROUTE_CONTRACT, DESKTOP_MAINTENANCE_COMMAND_ROUTE_CONTRACT):
             routes = {
@@ -938,6 +999,28 @@ class ApiCommandContractsTests(unittest.TestCase):
         self.assertEqual(evidence["nested"]["safe"], "visible")
         self.assertNotIn("secret-blob-value", json.dumps(evidence, sort_keys=True))
         self.assertNotIn("secret-nested-value", json.dumps(evidence, sort_keys=True))
+
+    def test_accepted_route_and_backend_result_deep_secrets_reach_redaction_boundary(self) -> None:
+        fake_request_secret = "fake-accepted-route-secret-045"
+        fake_result_secret = "fake-backend-result-secret-045"
+        request = validate_api_payload(
+            "/api/settings/reload",
+            {"extra": [{"one": [{"password": fake_request_secret}]}]},
+        )
+        summary = summarize_command_payload(
+            {
+                "schema_version": "desktop_command_result.v1",
+                "command": "settings.reload",
+                "ok": True,
+                "data": {"extra": [{"one": [{"token": fake_result_secret}]}]},
+            },
+            request=request,
+        )
+
+        serialized = json.dumps(summary, sort_keys=True)
+        self.assertNotIn(fake_request_secret, serialized)
+        self.assertNotIn(fake_result_secret, serialized)
+        self.assertIn("<redacted>", serialized)
 
     def test_backend_shutdown_force_cleanup_requires_strict_boolean(self) -> None:
         for value in ("true", "false", 1, 0):

@@ -69,6 +69,19 @@ function Get-WebViewBrowserSmokePrerequisites {
     }
 }
 
+function Get-WebViewDirectSmokePrerequisites {
+    param(
+        [AllowNull()]
+        [string]$PythonPath
+    )
+
+    $allPrerequisites = Get-WebViewBrowserSmokePrerequisites -PythonPath $PythonPath
+    return [ordered]@{
+        python = $allPrerequisites.python
+        node = $allPrerequisites.node
+    }
+}
+
 function Write-WebViewBrowserSmokeResult {
     param(
         [Parameter(Mandatory = $true)]
@@ -101,6 +114,8 @@ function Invoke-WebViewBrowserSmokeUnittest {
 
         [switch]$AllowSkippedTests,
 
+        [switch]$NodeOnly,
+
         [ValidateRange(1, 3600)]
         [int]$TimeoutSeconds = 600
     )
@@ -109,10 +124,14 @@ function Invoke-WebViewBrowserSmokeUnittest {
         $python = Resolve-WebViewBrowserSmokePython -ProjectRoot $ProjectRoot
     }
     catch {
-        $failedPrerequisites = Get-WebViewBrowserSmokePrerequisites -PythonPath $null
+        $failedPrerequisites = if ($NodeOnly) {
+            Get-WebViewDirectSmokePrerequisites -PythonPath $null
+        } else {
+            Get-WebViewBrowserSmokePrerequisites -PythonPath $null
+        }
         Write-WebViewBrowserSmokeResult -Result ([ordered]@{
             schema_version = 1
-            kind = 'webview_browser_smoke'
+            kind = if ($NodeOnly) { 'webview_smoke' } else { 'webview_browser_smoke' }
             module = $Module
             outcome = 'prerequisite_failed'
             wrapper_exit_code = 1
@@ -120,7 +139,7 @@ function Invoke-WebViewBrowserSmokeUnittest {
             tests_run = 0
             skipped_count = 0
             allow_skipped_tests = [bool]$AllowSkippedTests
-            reason_category = 'missing_browser_prerequisite'
+            reason_category = if ($NodeOnly) { 'missing_node_prerequisite' } else { 'missing_browser_prerequisite' }
             reason = [string]$_.Exception.Message
             missing_prerequisites = (Get-WebViewBrowserSmokeMissingPrerequisites -Prerequisites $failedPrerequisites)
             prerequisites = $failedPrerequisites
@@ -128,7 +147,11 @@ function Invoke-WebViewBrowserSmokeUnittest {
         Write-Error $_
         exit 1
     }
-    $prerequisites = Get-WebViewBrowserSmokePrerequisites -PythonPath $python
+    $prerequisites = if ($NodeOnly) {
+        Get-WebViewDirectSmokePrerequisites -PythonPath $python
+    } else {
+        Get-WebViewBrowserSmokePrerequisites -PythonPath $python
+    }
     $missingPrerequisites = Get-WebViewBrowserSmokeMissingPrerequisites -Prerequisites $prerequisites
     Write-Host "Python: $python"
 
@@ -221,8 +244,8 @@ function Invoke-WebViewBrowserSmokeUnittest {
         $reasonCategory = $null
         $reason = $null
         if ($missingPrerequisites.Count -gt 0) {
-            $reasonCategory = 'missing_browser_prerequisite'
-            $reason = 'Required browser smoke prerequisites were unavailable: ' + ($missingPrerequisites -join ', ')
+            $reasonCategory = if ($NodeOnly) { 'missing_node_prerequisite' } else { 'missing_browser_prerequisite' }
+            $reason = 'Required WebView smoke prerequisites were unavailable: ' + ($missingPrerequisites -join ', ')
         }
         elseif ($outcome -eq 'skipped_disallowed' -or $outcome -eq 'skipped_allowed') {
             $reasonCategory = 'test_reported_skip'
@@ -243,7 +266,7 @@ function Invoke-WebViewBrowserSmokeUnittest {
 
         Write-WebViewBrowserSmokeResult -Result ([ordered]@{
             schema_version = 1
-            kind = 'webview_browser_smoke'
+            kind = if ($NodeOnly) { 'webview_smoke' } else { 'webview_browser_smoke' }
             module = $Module
             outcome = $outcome
             wrapper_exit_code = $wrapperExitCode
@@ -267,7 +290,8 @@ function Invoke-WebViewBrowserSmokeUnittest {
             exit 1
         }
         if (-not $AllowSkippedTests -and $skippedCount -gt 0) {
-            Write-Error ("Browser smoke reported $skippedCount skipped test(s). Install Node.js and Chrome/Edge, or rerun with -AllowSkippedTests for local diagnostics.")
+            $installGuidance = if ($NodeOnly) { 'Install Node.js' } else { 'Install Node.js and Chrome/Edge' }
+            Write-Error ("WebView smoke reported $skippedCount skipped test(s). $installGuidance, or rerun with -AllowSkippedTests for local diagnostics.")
             exit 1
         }
     }
@@ -276,4 +300,26 @@ function Invoke-WebViewBrowserSmokeUnittest {
         $env:PYTHONDONTWRITEBYTECODE = $previousDontWriteBytecode
         Pop-Location
     }
+}
+
+function Invoke-WebViewDirectSmokeUnittest {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ProjectRoot,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Module,
+
+        [switch]$AllowSkippedTests,
+
+        [ValidateRange(1, 3600)]
+        [int]$TimeoutSeconds = 600
+    )
+
+    Invoke-WebViewBrowserSmokeUnittest `
+        -ProjectRoot $ProjectRoot `
+        -Module $Module `
+        -AllowSkippedTests:$AllowSkippedTests `
+        -NodeOnly `
+        -TimeoutSeconds $TimeoutSeconds
 }

@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-15
+last_modified: 2026-07-22
 last_reviewed: 2026-06-04
-sha256: a262c80be59207abc4fcda23488b5cdb732d4366fb3cced58fc6cd32b0333862
+sha256: 2652d6ea5be5b58c3355585cf0603b310274009719bfaca0cdfef41698546efc
 ---
 # `tests/python/desktop/test_service_process_active_jobs.py`
 

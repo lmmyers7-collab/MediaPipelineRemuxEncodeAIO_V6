@@ -6,15 +6,15 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-14
+last_modified: 2026-07-23
 last_reviewed: 2026-07-14
-sha256: 067c49d85334f704d406e578995da55c9d100605ef392baeb4980eff6fafda51
+sha256: 56d9af687c63712b89d7193d16292e49c46301c9f7c7d9753a653837058e599d
 ---
 # `tests/python/desktop/test_rerun_lifecycle.py`
 
 **Purpose:** Python implementation for test rerun lifecycle; exposes RerunLifecycleTests.
 
 **Public symbols:** `RerunLifecycleTests`
-**In-repo imports:** `mediapipeline.core.processes.rerun_lifecycle`, `mediapipeline.core.processes.rerun_results`
+**In-repo imports:** `mediapipeline.core.processes.rerun_lifecycle`, `mediapipeline.core.processes.rerun_results`, `mediapipeline.core.rerun.evidence`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths tests/python/desktop/test_rerun_lifecycle.py`._

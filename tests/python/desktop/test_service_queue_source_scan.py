@@ -85,6 +85,84 @@ class DummyQueueScanService(QueueServiceMixin):
 
 
 class QueueSourceScanTests(unittest.TestCase):
+    def test_run_once_preemption_wins_inventory_curation_race_without_starting_preview(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            service = DummyQueueScanService(root)
+            inventory_started = threading.Event()
+            release_inventory = threading.Event()
+
+            def blocking_inventory(_resolved: ResolvedPaths, *, scan_id: str) -> dict[str, object]:
+                inventory_started.set()
+                release_inventory.wait(timeout=3.0)
+                return {
+                    "schema_version": "desktop_queue_source_inventory.v1",
+                    "scan_id": scan_id,
+                    "row_count": 0,
+                    "warnings": [],
+                    "rows": [],
+                }
+
+            with patch(
+                "mediapipeline.core.queue.service.build_queue_source_inventory",
+                side_effect=blocking_inventory,
+            ):
+                result = service.start_queue_source_scan(
+                    resolved,
+                    {"mode": "inventory_then_curate", "force": True, "scope": "all"},
+                )
+                self.assertTrue(inventory_started.wait(timeout=2.0))
+                active = getattr(service, "_queue_source_scan_active", None)
+                thread = active.get("thread") if isinstance(active, dict) else None
+                try:
+                    block_message = service.normal_run_once_queue_scan_block_message(
+                        "Pipeline start",
+                        preempt=True,
+                    )
+                finally:
+                    release_inventory.set()
+                    if isinstance(thread, threading.Thread):
+                        thread.join(timeout=2.0)
+
+            status = service.read_queue_scan_status(resolved)
+            self.assertTrue(result["ok"])
+            self.assertEqual(block_message, "")
+            self.assertEqual(service.curate_force_refresh, [])
+            self.assertEqual(status["status"], "deferred")
+            self.assertEqual(status["phase"], "curation_deferred")
+            self.assertFalse(status["running"])
+            self.assertIn("existing validated dry-run snapshot", status["message"])
+
+    def test_run_once_preemption_loses_after_scan_atomically_enters_curation(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            service = DummyQueueScanService(root)
+            service.block_curate = True
+
+            result = service.start_queue_source_scan(
+                resolved,
+                {"mode": "inventory_then_curate", "force": True, "scope": "all"},
+            )
+            self.assertTrue(service.curate_started.wait(timeout=2.0))
+            active = getattr(service, "_queue_source_scan_active", None)
+            thread = active.get("thread") if isinstance(active, dict) else None
+            try:
+                block_message = service.normal_run_once_queue_scan_block_message(
+                    "Pipeline start",
+                    preempt=True,
+                )
+                self.assertIn("queue source scan", block_message)
+                self.assertEqual(active.get("phase"), "curating")
+            finally:
+                service.release_curate.set()
+                if isinstance(thread, threading.Thread):
+                    thread.join(timeout=2.0)
+
+            self.assertTrue(result["ok"])
+            self.assertEqual(service.curate_force_refresh, [True])
+
     def test_completed_scan_records_correlated_monotonic_anchor_and_next_scan_clears_it(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

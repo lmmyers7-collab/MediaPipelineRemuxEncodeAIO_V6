@@ -183,8 +183,6 @@ class QueueSnapshotLaunchPolicyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw_root:
             harness = QueueLaunchHarness(Path(raw_root))
             cases: list[tuple[str, callable, str]] = [
-                ("scan_incomplete", lambda: harness.write_snapshot(scan_status="running"), "queue_scan_not_completed"),
-                ("inventory_only", lambda: harness.write_snapshot(scan_mode="inventory_only"), "queue_scan_inventory_only"),
                 (
                     "scope_mismatch",
                     lambda: harness.write_snapshot(config_path=harness.root / "other.psd1"),
@@ -194,11 +192,6 @@ class QueueSnapshotLaunchPolicyTests(unittest.TestCase):
                     "wrong_origin",
                     lambda: harness.write_snapshot(origin="active_run"),
                     "queue_snapshot_origin_not_dry_run",
-                ),
-                (
-                    "request_mismatch",
-                    lambda: harness.write_snapshot(status_request_id="request-replacement"),
-                    "queue_snapshot_request_mismatch",
                 ),
                 (
                     "plan_fingerprint_missing",
@@ -235,6 +228,39 @@ class QueueSnapshotLaunchPolicyTests(unittest.TestCase):
             self.assertEqual(valid["status"], "ready")
             self.assertEqual(valid["queue_plan_fingerprint"], "plan-stable")
             self.assertEqual(len(valid["_accepted_run_rows"]), 1)
+
+    def test_scan_status_and_request_identity_are_not_launch_authority(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            harness = QueueLaunchHarness(Path(raw_root))
+            cases = (
+                {
+                    "scan_status": "running",
+                    "scan_mode": "inventory_then_curate",
+                    "status_request_id": "request-running-scan",
+                },
+                {
+                    "scan_status": "running",
+                    "scan_mode": "inventory_only",
+                    "status_request_id": "request-transient-inventory",
+                },
+                {
+                    "scan_status": "completed",
+                    "scan_mode": "inventory_only",
+                    "status_request_id": "request-completed-inventory",
+                },
+            )
+            for case in cases:
+                with self.subTest(**case):
+                    harness.write_snapshot(**case)
+                    harness.service.queue_source_scan_active_block_message = (  # type: ignore[method-assign]
+                        lambda _action: "Queue scan is running."
+                    )
+                    check = harness.check(retain_accepted_rows=True)
+                    self.assertEqual(check["status"], "ready")
+                    self.assertEqual(check["queue_plan_fingerprint"], "plan-stable")
+                    self.assertEqual(len(check["_accepted_run_rows"]), 1)
+                    self.assertNotIn("queue_scan", str(check["detail"]))
+                    self.assertNotIn("request_mismatch", str(check["detail"]))
 
     def test_queue_input_changes_name_the_exact_component_and_require_rescan(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -280,7 +306,7 @@ class QueueSnapshotLaunchPolicyTests(unittest.TestCase):
             self.assertEqual(check["status"], "blocked")
             self.assertRegex(str(check["action"]), r"(?i)(run|refresh).*(queue|scan)")
 
-    def test_start_revalidates_snapshot_replacement_inside_durable_launch_lease(self) -> None:
+    def test_start_revalidates_unsafe_snapshot_replacement_inside_durable_launch_lease(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             harness = QueueLaunchHarness(Path(raw_root))
             harness.write_snapshot()
@@ -292,8 +318,7 @@ class QueueSnapshotLaunchPolicyTests(unittest.TestCase):
                 assert harness.resolved.state_root is not None
                 lease_evidence.append(LifecycleLeaseStore(harness.resolved.state_root).status())
                 replacement = json.loads(harness.snapshot_path.read_text(encoding="utf-8"))
-                replacement["desktop_queue_preview_request_id"] = "request-replaced-during-launch"
-                replacement["queue_plan_fingerprint"] = "plan-replaced-during-launch"
+                replacement["queue_snapshot_origin"] = "active_run"
                 harness.snapshot_path.write_text(json.dumps(replacement), encoding="utf-8")
                 os.utime(harness.snapshot_path, (FIXED_NOW.timestamp(), FIXED_NOW.timestamp()))
                 return original_check(*args, **kwargs)
@@ -309,56 +334,157 @@ class QueueSnapshotLaunchPolicyTests(unittest.TestCase):
                 ).to_mapping()
 
         self.assertFalse(result["ok"])
-        self.assertIn("request identity", result["message"])
+        self.assertIn("not a backend dry-run", result["message"])
         self.assertEqual(len(lease_evidence), 1)
         self.assertEqual(lease_evidence[0]["status"], "active")
         self.assertEqual(lease_evidence[0]["lease"]["scope"], "Pipeline start")
         self.assertFalse(hasattr(harness.service, "started_pipeline"))
 
-    def test_scan_racing_run_once_blocks_at_the_backend_scan_barrier(self) -> None:
+    def test_scan_racing_run_once_preempts_inventory_before_curation_without_weakening_other_guards(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
+            inventory_started = threading.Event()
+            release_inventory = threading.Event()
 
-            class BlockingScanService(DummyWorkflowFacadeService):
-                def __init__(self, service_root: Path) -> None:
-                    super().__init__(service_root)
-                    self.scan_started = threading.Event()
-                    self.release_scan = threading.Event()
-
+            class InventoryScanService(DummyWorkflowFacadeService):
                 def _queue_scan_id(self) -> str:
                     return "scan-race-stable"
 
-                def build_queue_preview(self, _resolved, force_refresh: bool = False):
-                    _ = force_refresh
-                    self.scan_started.set()
-                    self.release_scan.wait(timeout=3.0)
-                    return []
+            def blocking_inventory(_resolved, *, scan_id: str):
+                inventory_started.set()
+                release_inventory.wait(timeout=3.0)
+                return {
+                    "schema_version": "desktop_queue_source_inventory.v1",
+                    "scan_id": scan_id,
+                    "row_count": 0,
+                    "warnings": [],
+                    "rows": [],
+                }
 
-            service = BlockingScanService(root)
-            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
-            resolved = _resolved(root)
-            resolved.local_base = root / "LocalBase"
-            resolved.state_root = resolved.local_base / "State"
-            resolved.source_movies = root / "Movies"
-            resolved.source_movies.mkdir(parents=True)
-            resolved.queue_snapshot_path = resolved.state_root / "Progress" / "queue_snapshot.json"
-            scan = service.start_queue_source_scan(
-                resolved,
-                {"mode": "inventory_then_curate", "force": True, "scope": "all"},
-            )
-            self.assertTrue(service.scan_started.wait(timeout=2.0))
-            try:
-                check = facade._normal_queue_scope_preflight_check(resolved)  # type: ignore[attr-defined]
-            finally:
-                service.release_scan.set()
+            harness = QueueLaunchHarness(root)
+            service = InventoryScanService(root)
+            service.queue_snapshot_freshness_wall_now = lambda: FIXED_NOW  # type: ignore[method-assign]
+            service.queue_snapshot_freshness_monotonic_now = lambda: 100.0  # type: ignore[method-assign]
+            harness.service = service
+            harness.facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            harness.write_snapshot()
+            with patch(
+                "mediapipeline.core.queue.service.build_queue_source_inventory",
+                side_effect=blocking_inventory,
+            ):
+                scan = service.start_queue_source_scan(
+                    harness.resolved,
+                    {"mode": "inventory_then_curate", "force": True, "scope": "all"},
+                )
+                self.assertTrue(inventory_started.wait(timeout=2.0))
                 active = getattr(service, "_queue_source_scan_active", None)
                 thread = active.get("thread") if isinstance(active, dict) else None
+                try:
+                    validate = harness.facade.start_pipeline_process(
+                        harness.resolved,
+                        {"mode": "validate"},
+                    ).to_mapping()
+                    single_file = harness.resolved.source_movies / "Single.mkv"  # type: ignore[operator]
+                    single_file.write_bytes(b"media")
+                    scoped_once = harness.facade.start_pipeline_process(
+                        harness.resolved,
+                        {"mode": "once", "single_file": str(single_file)},
+                    ).to_mapping()
+                    priority_once = harness.facade.start_pipeline_process(
+                        harness.resolved,
+                        {
+                            "mode": "once",
+                            "queue_scope": "priority_export",
+                            "priority_export_id": "missing-export",
+                        },
+                    ).to_mapping()
+                    preflight = harness.facade.get_launch_preflight(
+                        harness.resolved,
+                        {"target": "pipeline", "mode": "once"},
+                    )
+                    run_once = harness.facade.start_pipeline_process(
+                        harness.resolved,
+                        {"mode": "once", "_command_id": "command-scan-race"},
+                    ).to_mapping()
+                finally:
+                    proc = getattr(service, "started_pipeline_proc", None)
+                    if proc is not None:
+                        proc.complete()
+                    release_inventory.set()
+                    if isinstance(thread, threading.Thread):
+                        thread.join(timeout=2.0)
+                scan_status = service.read_queue_scan_status(harness.resolved)
+
+        self.assertTrue(scan["ok"])
+        for blocked in (validate, scoped_once, priority_once):
+            self.assertFalse(blocked["ok"])
+            self.assertIn("queue source scan", blocked["message"])
+        preflight_checks = {
+            str(check["key"]): check
+            for check in preflight["checks"]
+        }
+        self.assertTrue(preflight["can_request_start"])
+        self.assertEqual(preflight_checks["active_work"]["status"], "ready")
+        self.assertEqual(preflight_checks["normal_queue_scope"]["status"], "ready")
+        self.assertTrue(run_once["ok"])
+        self.assertEqual(run_once["data"]["accepted_queue_fingerprint"], "plan-stable")
+        self.assertEqual(scan_status["status"], "deferred")
+
+    def test_scan_already_curating_blocks_normal_run_once_preflight_and_start(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+
+            class CuratingScanService(DummyWorkflowFacadeService):
+                def __init__(self, service_root: Path) -> None:
+                    super().__init__(service_root)
+                    self.curate_started = threading.Event()
+                    self.release_curate = threading.Event()
+
+                def _queue_scan_id(self) -> str:
+                    return "scan-curating-stable"
+
+                def build_queue_preview(self, _resolved, force_refresh: bool = False):
+                    _ = force_refresh
+                    self.curate_started.set()
+                    self.release_curate.wait(timeout=3.0)
+                    return []
+
+            harness = QueueLaunchHarness(root)
+            service = CuratingScanService(root)
+            harness.service = service
+            harness.facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            harness.write_snapshot()
+            scan = service.start_queue_source_scan(
+                harness.resolved,
+                {"mode": "inventory_then_curate", "force": True, "scope": "all"},
+            )
+            self.assertTrue(service.curate_started.wait(timeout=2.0))
+            active = getattr(service, "_queue_source_scan_active", None)
+            thread = active.get("thread") if isinstance(active, dict) else None
+            try:
+                preflight = harness.facade.get_launch_preflight(
+                    harness.resolved,
+                    {"target": "pipeline", "mode": "once"},
+                )
+                run_once = harness.facade.start_pipeline_process(
+                    harness.resolved,
+                    {"mode": "once", "_command_id": "command-curating-race"},
+                ).to_mapping()
+            finally:
+                service.release_curate.set()
                 if isinstance(thread, threading.Thread):
                     thread.join(timeout=2.0)
 
+        preflight_checks = {
+            str(check["key"]): check
+            for check in preflight["checks"]
+        }
         self.assertTrue(scan["ok"])
-        self.assertEqual(check["status"], "blocked")
-        self.assertIn("queue_scan_running", check["detail"])
+        self.assertFalse(preflight["can_request_start"])
+        self.assertEqual(preflight_checks["active_work"]["status"], "blocked")
+        self.assertIn("queue source scan", str(preflight_checks["active_work"]["evidence"]))
+        self.assertFalse(run_once["ok"])
+        self.assertIn("queue source scan", run_once["message"])
 
     def test_csv_rerun_and_network_roles_do_not_enter_standard_queue_contract(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

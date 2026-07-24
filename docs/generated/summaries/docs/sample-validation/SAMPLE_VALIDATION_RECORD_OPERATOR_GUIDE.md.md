@@ -6,9 +6,9 @@ file_type: Markdown
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-04
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: 0d2ef7eb6b4b7bdababf7a8a116ef7db44e6f976d4989aa78b8621baddac1558
+sha256: 5dc795d63a6cd9061faa6b2221e1882b34ea9ea8bd554dcb74afde6ce104b8f4
 ---
 # `docs/sample-validation/SAMPLE_VALIDATION_RECORD_OPERATOR_GUIDE.md`
 

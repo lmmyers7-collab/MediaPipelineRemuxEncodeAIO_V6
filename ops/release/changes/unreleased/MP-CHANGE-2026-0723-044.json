@@ -1,0 +1,72 @@
+{
+  "id": "MP-CHANGE-2026-0723-044",
+  "title": "Remove source-mutating queue priority helpers",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": "2026-07-23",
+  "summary": "Remediate AUDIT-FIND-W03-003 by removing dormant queue-priority helpers and service methods that rename or retimestamp source paths while retaining read-only marker parsing and manifest-backed priority authority.",
+  "reason": "The obsolete compatibility surface remains callable production mutation authority without confirmation, configured-root validation, transaction evidence, or rollback even though active queue priority routes use a non-destructive manifest.",
+  "affected_areas": [
+    "Python queue priority compatibility surface",
+    "architecture and queue priority regression tests",
+    "generated source summaries and change-control evidence",
+    "generated_context",
+    "queue",
+    "queue priority manifest authority",
+    "source immutability boundary",
+    "tests"
+  ],
+  "behavior_before": "Public helper and QueueServiceMixin methods can rename a supplied media file or directory and alter its mtime as an ordinary compatibility call.",
+  "behavior_after": "Production queue priority exposes read-only filename parsing and manifest-backed priority only; no queue-priority helper or service method can rename or retimestamp source paths.",
+  "files_touched": [
+    "docs/change_control/CHANGELOG.md",
+    "docs/change_control/CHANGE_INDEX.md",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/feature-cards/generated-context.md",
+    "docs/generated/summaries/docs/change_control/CHANGELOG.md.md",
+    "docs/generated/summaries/docs/change_control/CHANGE_INDEX.md.md",
+    "docs/generated/summaries/ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-044.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/queue/priority_markers.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/queue/service.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_service_queue_priority.py.md",
+    "ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-044.json",
+    "src/mediapipeline/core/queue/priority_markers.py",
+    "src/mediapipeline/core/queue/service.py",
+    "tests/python/desktop/test_service_queue_priority.py"
+  ],
+  "tests_added": [
+    "Architecture assertion forbidding source-mutating priority helpers and service methods",
+    "Read-only marker parsing and manifest-backed priority behavior coverage",
+    "Temporary-path source immutability regression coverage"
+  ],
+  "manual_validation": [
+    "validate_changes --require-worktree-coverage - passed, 1186 packets valid",
+    "Source-mutating priority surface removed; focused queue, manifest, API, architecture, rename/path, active PowerShell queue, and summary-integrity gates passed; legacy aggregate prerequisite blocker recorded.",
+    "active Invoke-PipelineQueueEngineChecks.ps1 manifest-backed queue gate - passed",
+    "active-document reference check reports only established unrelated DOC005 at docs/reviews/comprehensive-production-audit-2026-07-19/evidence/BASELINE.md:15",
+    "canonical reliability wrapper with -RunLegacyDesktopChecks is blocked before assertions by the established missing ops/docs/architecture/DEPLOYABILITY_CHECKLIST.md prerequisite",
+    "change packet validation - 1186 packets valid",
+    "compileall for owned Python paths - passed",
+    "focused extracted PowerShell source-immutability architecture assertion - passed",
+    "focused queue-priority source-immutability and manifest tests - 12 passed",
+    "python -m ruff check for Batch 044 Python paths - passed",
+    "queue API, launch preflight, priority export, API contract, architecture, rename transaction, path-boundary, risky-file, and naming set - 151 passed, 1 skipped, 414 subtests passed",
+    "test_summary_integrity.py - 21 passed, 55 subtests passed",
+    "final project-index, dependency-graph, and feature-map --check modes - passed",
+    "final refresh_summaries --check reports only the 2 established unrelated test-suite-inventory stale summaries",
+    "git diff --check for all Batch 044 paths - passed with line-ending warnings only"
+  ],
+  "rollback_plan": "Restore only the removed compatibility symbols and tests if an explicitly authorized external caller is proven to require them; do not reactivate source mutation without a separately named policy, confirmation, path boundary, transaction evidence, undo plan, and operator approval.",
+  "related_changes": [
+    "AUDIT-FIND-W03-003"
+  ],
+  "notes": "High-risk source-mutation boundary hardening. This batch removed mutation authority and did not rename, retimestamp, delete, overwrite, or transcode real source media. Tests used disposable temporary files only. Pending-publish, scratch, FFmpeg, subtitle, and audio behavior remain untouched. Representative real media is explicitly not required by the audit validation rung. Python impact: existing queue-domain surface and focused tests only.\nRemove source rename/retimestamp and mutation-naming helpers; retain read-only parsing/ranking.\nRemove source-mutating queue priority service methods and imports.\nReplace mutation tests with source-immutability, architecture, and manifest-authority assertions.\nInvert legacy architecture gate to forbid source-mutating priority helpers.\nRegenerated after Batch 044 source, test, or architecture-gate changes.\nRegenerated from the completed Batch 044 packet and current source catalog.\nThe standalone and canonical legacy reliability invocations both stop at the same unrelated missing deployability-checklist precondition before reaching the edited assertion; the exact assertion was executed separately against current source and passed."
+}

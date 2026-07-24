@@ -6,9 +6,9 @@ file_type: PowerShell
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-07-20
+last_modified: 2026-07-22
 last_reviewed: 2026-06-04
-sha256: 5a58c1dfae8709f2331262e528dfd5f1ab487d9dc7dbbeafb69231d4004ef7f0
+sha256: 13cf6717d909235668a8ba7b2ddd3740ba5368c1d2ee8a9b83e5c24c2d3b238c
 ---
 # `ops/pipeline/engine/queue/pipeline_engine.ps1`
 

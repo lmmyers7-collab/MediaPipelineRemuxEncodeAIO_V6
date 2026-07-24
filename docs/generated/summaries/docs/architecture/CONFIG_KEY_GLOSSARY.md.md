@@ -6,9 +6,9 @@ file_type: Markdown
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-20
+last_modified: 2026-07-23
 last_reviewed: 2026-06-02
-sha256: 039380db8c47026d584d32d21722680f29a6d6bc54004861ef4553be740ea60d
+sha256: 516d5bf033179ebbecb0c7a5f89166c265665ebdf9f5eda5781011c2adaeeddd
 ---
 # `docs/architecture/CONFIG_KEY_GLOSSARY.md`
 

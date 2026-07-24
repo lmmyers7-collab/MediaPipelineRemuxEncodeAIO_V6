@@ -6,15 +6,15 @@ file_type: PowerShell
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-16
+last_modified: 2026-07-22
 last_reviewed: 2026-06-04
-sha256: 805b55c58c8d5cdbb9107c429c4b1883fb71aef4cd7d5c85f5e92615f8776830
+sha256: 3c774532d5b4d772c60434e405aff341e9562053926ef40dfda5b096416ea51f
 ---
 # `ops/pipeline/tests/Unit/Invoke-LocalWorkerSlotChecks.ps1`
 
-**Purpose:** PowerShell implementation for invoke local worker slot checks; exposes Assert-Equal, Assert-True, ConvertTo-MediaPipelineRunMonitorStageId.
+**Purpose:** PowerShell implementation for invoke local worker slot checks; exposes Assert-Equal, Assert-LocalWorkerClaimStoreAdmissionBlocked, Assert-True.
 
-**Public symbols:** `Assert-Equal`, `Assert-True`, `ConvertTo-MediaPipelineRunMonitorStageId`, `Get-MediaPipelineRunMonitorPath`, `Set-MediaPipelineRunMonitorWorkers`, `Start-Process`, `Write-Log`
+**Public symbols:** `Assert-Equal`, `Assert-LocalWorkerClaimStoreAdmissionBlocked`, `Assert-True`, `ConvertTo-MediaPipelineRunMonitorStageId`, `Get-MediaPipelineRunMonitorPath`, `Set-MediaPipelineRunMonitorWorkers`, `Start-Process`, `Write-Log`
 **State/config identifiers:** `MediaPipeline_config.psd1`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/pipeline/tests/Unit/Invoke-LocalWorkerSlotChecks.ps1`._

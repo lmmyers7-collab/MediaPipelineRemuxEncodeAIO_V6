@@ -5,6 +5,7 @@ import copy
 import hashlib
 import json
 import os
+import re
 import subprocess
 import threading
 import uuid
@@ -44,6 +45,7 @@ NETWORK_RERUN_FFPROBE_TIMEOUT_SECONDS = 5.0
 NETWORK_RERUN_SOURCE_SAMPLE_BYTES = 1024 * 1024
 NETWORK_RERUN_ARTIFACT_MAX_BYTES = 1024 * 1024
 NETWORK_RERUN_CONTENT_SHA256_ALGORITHM = "sha256-full-file"
+NETWORK_RERUN_BATCH_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}\Z")
 NETWORK_RERUN_TERMINAL_ROW_STATUSES = {
     "complete",
     "completed",
@@ -1381,9 +1383,8 @@ def rollback_network_rerun_claim(
     reason: str,
 ) -> None:
     with _NETWORK_RERUN_BATCH_STATE_LOCK:
-        registry.rollback_claim(lease.response.job_id, lease.worker_id)
         if not lease.state_path.exists():
-            return
+            raise FileNotFoundError(f"Network rerun batch state is unavailable: {lease.state_path}")
         payload = _read_state(lease.state_path)
         row_key = str(lease.response.rerun_row_key or "")
         for row in payload.get("rows") or []:
@@ -1391,12 +1392,12 @@ def rollback_network_rerun_claim(
                 continue
             active_claim = row.get("active_claim")
             if not isinstance(active_claim, Mapping):
-                return
+                raise RuntimeError(f"Network rerun row {row_key!r} no longer has an active claim")
             if (
                 str(active_claim.get("job_id") or "") != lease.response.job_id
                 or str(active_claim.get("worker_id") or "") != lease.worker_id
             ):
-                return
+                raise RuntimeError(f"Network rerun row {row_key!r} claim ownership changed before rollback")
             now = _now()
             row["status"] = "pending_claim"
             row["claim_status"] = "claim_rolled_back"
@@ -1413,18 +1414,36 @@ def rollback_network_rerun_claim(
             payload["rows_claimable"] = True
             _update_counts(payload)
             _write_state(lease.state_path, payload)
+            released = registry.rollback_claim(lease.response.job_id, lease.worker_id)
+            if released is None:
+                raise RuntimeError(
+                    f"Registry retained network rerun claim {lease.response.job_id!r} after batch rollback"
+                )
             return
+        raise RuntimeError(f"Network rerun row {row_key!r} was not found during claim rollback")
 
 
 def _metadata_state_path(metadata: Mapping[str, Any], app: Any) -> Path | None:
-    raw = str(metadata.get("batch_state_path") or "").strip()
-    if raw:
-        return Path(raw)
     batch_id = str(metadata.get("rerun_batch_id") or "").strip()
     root = network_rerun_state_root_for_app(app)
-    if root is None or not batch_id:
+    if root is None or NETWORK_RERUN_BATCH_ID_PATTERN.fullmatch(batch_id) is None:
         return None
-    return root / f"{batch_id}.json"
+    try:
+        resolved_root = root.resolve(strict=False)
+        expected = (resolved_root / f"{batch_id}.json").resolve(strict=False)
+    except (OSError, RuntimeError, ValueError):
+        return None
+    if expected.parent != resolved_root or not _path_under_or_equal(str(expected), str(resolved_root)):
+        return None
+    raw = str(metadata.get("batch_state_path") or "").strip()
+    if raw:
+        try:
+            supplied = Path(raw).resolve(strict=False)
+        except (OSError, RuntimeError, ValueError):
+            return None
+        if _path_key_for_boundary(supplied) != _path_key_for_boundary(expected):
+            return None
+    return expected
 
 
 def _request_text(request: Any, key: str) -> str:
@@ -1474,42 +1493,38 @@ def _artifact_text(payload: Mapping[str, Any], key: str) -> str:
     return str(payload.get(key) or "").strip()
 
 
-def _read_worker_result_artifact(path_text: str) -> tuple[dict[str, Any], dict[str, Any] | None]:
+def _read_worker_result_artifact(
+    path_text: str,
+    *,
+    inline_payload: Mapping[str, Any] | None = None,
+) -> tuple[dict[str, Any], dict[str, Any] | None]:
     path_raw = str(path_text or "").strip()
+    inline = dict(inline_payload) if isinstance(inline_payload, Mapping) else {}
     evidence: dict[str, Any] = {
         "path": path_raw,
-        "supplied": bool(path_raw),
+        "supplied": bool(inline),
+        "transport": "inline_signed_request" if inline else "none",
         "status": "not_supplied",
         "valid": None,
         "schema_version": "",
         "fields": {},
         "error": "",
     }
-    if not path_raw:
-        return evidence, None
-    path = Path(path_raw)
-    try:
-        probe = _killable_source_probe(
-            "read_json",
-            path,
-            max_bytes=NETWORK_RERUN_ARTIFACT_MAX_BYTES,
-        )
-        payload = probe.get("payload")
-    except FileNotFoundError:
-        evidence.update({"status": "missing", "valid": False, "error": "worker result artifact path is missing"})
-        return evidence, None
-    except (TimeoutError, PermissionError, OSError) as exc:
+    if inline:
+        payload: Any = inline
+    elif path_raw:
         evidence.update(
             {
-                "status": "access_failed",
-                "valid": False,
-                "stale": True,
-                "error": redact_network_secret_text(exc),
+                "transport": "legacy_worker_local_path",
+                "status": "legacy_path_unavailable",
+                "error": (
+                    "Legacy worker-local artifact paths are diagnostic only and are not "
+                    "dereferenced by the coordinator."
+                ),
             }
         )
         return evidence, None
-    except (UnicodeError, ValueError, json.JSONDecodeError) as exc:
-        evidence.update({"status": "unreadable", "valid": False, "error": redact_network_secret_text(exc)})
+    else:
         return evidence, None
     if not isinstance(payload, dict):
         evidence.update({"status": "invalid_root", "valid": False, "error": "worker result artifact root is not an object"})
@@ -1755,6 +1770,9 @@ def _duplicate_reducer_result(row: dict[str, Any], *, request: Any, now: str) ->
     job_id = _request_text(request, "job_id")
     if not job_id or str(existing.get("job_id") or "") != job_id:
         return False
+    worker_id = _request_text(request, "worker_id")
+    if not worker_id or str(existing.get("worker_id") or "") != worker_id:
+        return False
     row["duplicate_done_count"] = _safe_int(row.get("duplicate_done_count")) + 1
     row["last_duplicate_done_at_utc"] = now
     _append_bounded(
@@ -1764,7 +1782,7 @@ def _duplicate_reducer_result(row: dict[str, Any], *, request: Any, now: str) ->
             "schema_version": NETWORK_RERUN_REDUCER_SCHEMA_VERSION,
             "event": "duplicate_done_ignored",
             "job_id": job_id,
-            "worker_id": _request_text(request, "worker_id"),
+            "worker_id": worker_id,
             "recorded_at_utc": now,
         },
     )
@@ -1812,7 +1830,10 @@ def _build_reducer_result(
     row_key = str(row.get("row_key") or metadata.get("rerun_row_key") or _request_text(request, "rerun_row_key"))
     job_id = _request_text(request, "job_id") or str(metadata.get("job_id") or "")
     planned_output_path = str(metadata.get("planned_output_path") or row.get("planned_output_path") or _request_text(request, "planned_output_path"))
-    artifact, _artifact_payload = _read_worker_result_artifact(_request_text(request, "worker_result_artifact_path"))
+    artifact, _artifact_payload = _read_worker_result_artifact(
+        _request_text(request, "worker_result_artifact_path"),
+        inline_payload=_request_mapping(request, "worker_result_artifact"),
+    )
     output = _output_evidence(request, planned_output_path)
     identity, identity_mismatches = _source_identity_evidence(row=row, metadata=metadata, request=request)
     mismatches: list[str] = list(identity_mismatches)
@@ -2345,6 +2366,39 @@ def _active_claim_matches(row: Mapping[str, Any], *, job_id: str, worker_id: str
     )
 
 
+def _batch_identity_matches(payload: Mapping[str, Any], metadata: Mapping[str, Any]) -> bool:
+    batch_id = str(metadata.get("rerun_batch_id") or "")
+    return bool(batch_id) and str(payload.get("batch_id") or "") == batch_id
+
+
+def _late_reclaim_identity_matches(
+    row: Mapping[str, Any],
+    metadata: Mapping[str, Any],
+    request: Any,
+    late_report: Mapping[str, Any] | None,
+) -> bool:
+    if not isinstance(late_report, Mapping):
+        return False
+    request_job_id = _request_text(request, "job_id")
+    request_worker_id = _request_text(request, "worker_id")
+    row_source_path = _row_source_path(row)
+    return (
+        bool(request_job_id)
+        and bool(request_worker_id)
+        and bool(row_source_path)
+        and late_report.get("accepted") is True
+        and str(late_report.get("authorization_status") or "") == "accepted"
+        and str(late_report.get("job_id") or "") == request_job_id
+        and str(late_report.get("worker_id") or "") == request_worker_id
+        and str(late_report.get("reclaimed_worker_id") or "") == request_worker_id
+        and str(late_report.get("job_kind") or "") == NETWORK_RERUN_ROW_JOB_KIND
+        and str(late_report.get("rerun_batch_id") or "") == str(metadata.get("rerun_batch_id") or "")
+        and str(late_report.get("rerun_row_key") or "") == str(metadata.get("rerun_row_key") or "")
+        and normalize_source_identity(str(late_report.get("source_path") or ""))
+        == normalize_source_identity(row_source_path)
+    )
+
+
 def update_network_rerun_row_released(
     *,
     app: Any,
@@ -2378,6 +2432,8 @@ def _update_network_rerun_row_released_locked(
     if path is None or not path.exists():
         return False
     payload = _read_state(path)
+    if not _batch_identity_matches(payload, metadata):
+        return False
     now = _now()
     for row in payload.get("rows") or []:
         if not isinstance(row, dict) or not _row_matches(row, metadata):
@@ -2516,6 +2572,8 @@ def _prepare_network_rerun_row_done_locked(
     if path is None or not path.exists():
         return False, None
     payload = _read_state(path)
+    if not _batch_identity_matches(payload, metadata):
+        return False, None
     now = _now()
     for row in payload.get("rows") or []:
         if not isinstance(row, dict) or not _row_matches(row, metadata):
@@ -2535,7 +2593,10 @@ def _prepare_network_rerun_row_done_locked(
         request_worker_id = _request_text(request, "worker_id") or str(metadata.get("worker_id") or "")
         if not _active_claim_matches(row, job_id=request_job_id, worker_id=request_worker_id):
             return False, None
-        artifact, _payload = _read_worker_result_artifact(_request_text(request, "worker_result_artifact_path"))
+        artifact, _payload = _read_worker_result_artifact(
+            _request_text(request, "worker_result_artifact_path"),
+            inline_payload=_request_mapping(request, "worker_result_artifact"),
+        )
         row["worker_result"] = _worker_result_snapshot(metadata=metadata, request=request, now=now, artifact=artifact)
         reducer_result = _build_reducer_result(
             payload=payload,
@@ -2726,6 +2787,8 @@ def _record_late_network_rerun_row_done_locked(
     if path is None or not path.exists():
         return False
     payload = _read_state(path)
+    if not _batch_identity_matches(payload, metadata):
+        return False
     now = _now()
     for row in payload.get("rows") or []:
         if not isinstance(row, dict) or not _row_matches(row, metadata):
@@ -2737,7 +2800,12 @@ def _record_late_network_rerun_row_done_locked(
                 _write_state(path, payload)
                 return True
             return False
-        artifact, _payload = _read_worker_result_artifact(_request_text(request, "worker_result_artifact_path"))
+        if not _late_reclaim_identity_matches(row, metadata, request, late_report):
+            return False
+        artifact, _payload = _read_worker_result_artifact(
+            _request_text(request, "worker_result_artifact_path"),
+            inline_payload=_request_mapping(request, "worker_result_artifact"),
+        )
         late_result = _build_reducer_result(
             payload=payload,
             row=row,

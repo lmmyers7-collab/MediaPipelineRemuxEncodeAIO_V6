@@ -15,6 +15,10 @@ from mediapipeline.core.completed.policy import completed_record_key
 from mediapipeline.core.kernel.dto_commands import CommandResult
 from mediapipeline.core.completed.contracts import CompletedJobRecord
 from mediapipeline.core.kernel.contracts.pending_publish import PendingPushManifest
+from mediapipeline.core.publish.content_proof import (
+    ContentProofError,
+    verify_pending_manifest_content_proofs,
+)
 
 from .dry_run import (
     COMPLETED_RECONCILE_MANIFEST_COMMAND,
@@ -309,7 +313,11 @@ def _apply_pending_manifest_repair(
         proposed = row.get("proposed_manifest")
         if not path or not isinstance(proposed, Mapping):
             raise ValueError(f"Selected pending manifest row lacks backend proposed manifest fields: {row.get('row_key')}")
-        PendingPushManifest.from_mapping(proposed)
+        validated = PendingPushManifest.from_mapping(proposed)
+        try:
+            verify_pending_manifest_content_proofs(validated)
+        except ContentProofError as exc:
+            raise ValueError(f"Pending manifest repair content proof is invalid: {exc}") from exc
         _read_json_object(path)
         repaired = dict(proposed)
         backups.append(_copy_backup(path, backup_root))
@@ -342,6 +350,10 @@ def _apply_pending_orphan_manifest_reconcile(rows: list[Mapping[str, Any]]) -> t
         missing_sidecars = [str(sidecar) for sidecar in _pending_manifest_sidecar_paths(validated.sidecar_files) if not sidecar.exists()]
         if missing_sidecars:
             raise ValueError(f"Orphan payload manifest proposal references missing pending sidecar payloads: {', '.join(missing_sidecars)}")
+        try:
+            verify_pending_manifest_content_proofs(validated)
+        except ContentProofError as exc:
+            raise ValueError(f"Orphan payload manifest proposal content proof is invalid: {exc}") from exc
         _atomic_write_text(path, _json_dumps(dict(proposed)))
         written.append(path)
     return written, []

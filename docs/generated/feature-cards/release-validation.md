@@ -19,7 +19,7 @@ Validation: affected smoke checks and release self-test when packaging changes
 ### Contract / state / config
 
 - `ops/pipeline/config/setup/PathValidation.ps1` — scripts authority; PowerShell implementation for path validation; exposes ConvertTo-PowerShellLiteralString, Read-Path, Test-PathsDisjoint.
-- `ops/pipeline/config/setup/UserInteraction.ps1` — scripts authority; PowerShell implementation for user interaction; exposes Open-ConfigFile, Read-Choice, Read-PositiveNumber.
+- `ops/pipeline/config/setup/UserInteraction.ps1` — scripts authority; PowerShell implementation for user interaction; exposes Open-ConfigFile, Read-Choice, Read-PositiveInteger.
 - `ops/pipeline/config/setup/Validation.ps1` — scripts authority; Seeds pipeline_progress.json with a zeroed-out Idle skeleton if the file does not already exist. Called automatically after a successful config write so that the desktop app can display an Idle state immediately on first launch.
 
 ### Tests
@@ -63,4 +63,4 @@ Validation: affected smoke checks and release self-test when packaging changes
 
 ## Secondary evidence
 
-Counts only (request explicitly when needed): test=75, documentation=11, generated=0, change_evidence=0, archive=0, runtime_artifact=0.
+Counts only (request explicitly when needed): test=78, documentation=11, generated=0, change_evidence=0, archive=0, runtime_artifact=0.

@@ -1,20 +1,102 @@
 use super::{
     backend_shutdown_request_body, inspect_managed_child, parse_backend_shutdown_outcome,
-    resolve_shutdown_with_child, terminate_child, BackendProcess, BackendProcessExit,
-    BackendShutdownMode, BackendShutdownOutcome, ChildPoll, ManagedChildProcess,
-    ShutdownRequestState, WaitClock,
+    read_bounded_physical_line, resolve_shutdown_with_child, terminate_child,
+    BackendOutputLogEvent, BackendOutputLogLimiter, BackendProcess, BackendProcessExit,
+    BackendShutdownMode, BackendShutdownOutcome, BoundedOutputLine, ChildPoll, ManagedChildProcess,
+    ShutdownRequestState, WaitClock, BACKEND_OUTPUT_LOG_SUMMARY_INTERVAL,
+    MAX_BACKEND_OUTPUT_INITIAL_PREVIEWS,
 };
 use std::{
     collections::VecDeque,
-    fs,
-    io,
-    io::{Read, Write},
+    fs, io,
+    io::{BufReader, Cursor, Read, Write},
     net::TcpListener,
     process::{Child, Command, Stdio},
     sync::Mutex,
     thread,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
+
+#[test]
+fn bounded_reader_caps_multimegabyte_unterminated_physical_line() {
+    let retained_limit = 4 * 1024;
+    let physical_line_bytes = (3 * 1024 * 1024) + 137;
+    let input = vec![b'x'; physical_line_bytes];
+    let mut reader = BufReader::with_capacity(257, Cursor::new(input));
+
+    let line = read_bounded_physical_line(&mut reader, retained_limit)
+        .expect("bounded line read")
+        .expect("unterminated physical line");
+
+    assert_eq!(line.text.len(), retained_limit);
+    assert_eq!(
+        line.discarded_bytes,
+        (physical_line_bytes - retained_limit) as u64
+    );
+    assert!(read_bounded_physical_line(&mut reader, retained_limit)
+        .expect("bounded EOF read")
+        .is_none());
+}
+
+#[test]
+fn bounded_reader_preserves_bootstrap_payload_split_across_small_buffers() {
+    let payload = r#"{"schema_version":"desktop_local_api_bootstrap.v1","url":"http://127.0.0.1:3210","token":"test-token"}"#;
+    let mut bytes = payload.as_bytes().to_vec();
+    bytes.extend_from_slice(b"\r\n");
+    let mut reader = BufReader::with_capacity(3, Cursor::new(bytes));
+
+    let line = read_bounded_physical_line(&mut reader, 16 * 1024)
+        .expect("bounded bootstrap read")
+        .expect("bootstrap line");
+
+    assert_eq!(line.text, payload);
+    assert_eq!(line.discarded_bytes, 0);
+}
+
+#[test]
+fn flooding_output_is_fully_drained_with_rate_limited_content_free_summary() {
+    let line_count = 100_000_u64;
+    let input = "diagnostic line with bounded content\n".repeat(line_count as usize);
+    let mut reader = BufReader::with_capacity(113, Cursor::new(input.into_bytes()));
+    let started = Instant::now();
+    let mut limiter = BackendOutputLogLimiter::new(started);
+    let mut drained_lines = 0_u64;
+    let mut previews = 0_usize;
+
+    while let Some(line) =
+        read_bounded_physical_line(&mut reader, 128).expect("bounded flooding read")
+    {
+        drained_lines += 1;
+        if matches!(
+            limiter.observe(&line, started),
+            Some(BackendOutputLogEvent::Preview(_))
+        ) {
+            previews += 1;
+        }
+    }
+
+    assert_eq!(drained_lines, line_count);
+    assert_eq!(previews, MAX_BACKEND_OUTPUT_INITIAL_PREVIEWS);
+    assert_eq!(
+        limiter.take_summary(),
+        Some(BackendOutputLogEvent::SuppressionSummary {
+            suppressed_lines: line_count - MAX_BACKEND_OUTPUT_INITIAL_PREVIEWS as u64,
+            discarded_bytes: 0,
+        })
+    );
+
+    let truncated = BoundedOutputLine {
+        text: "safe preview".to_string(),
+        discarded_bytes: 8192,
+    };
+    assert_eq!(
+        limiter.observe(&truncated, started + BACKEND_OUTPUT_LOG_SUMMARY_INTERVAL),
+        Some(BackendOutputLogEvent::SuppressionSummary {
+            suppressed_lines: 1,
+            discarded_bytes: 8192,
+        })
+    );
+}
 
 #[derive(Default)]
 struct FakeWaitClock {
@@ -51,9 +133,7 @@ impl FakeManagedChild {
 
 impl ManagedChildProcess for FakeManagedChild {
     fn poll(&mut self) -> io::Result<ChildPoll> {
-        self.polls
-            .pop_front()
-            .unwrap_or(Ok(ChildPoll::Running))
+        self.polls.pop_front().unwrap_or(Ok(ChildPoll::Running))
     }
 
     fn terminate_tree_and_verify(&mut self) -> Result<(), String> {
@@ -204,15 +284,15 @@ fn descendants_refusing_termination_cannot_report_successful_shutdown() {
     assert_eq!(resolution.outcome, BackendShutdownOutcome::Failed);
     assert!(!resolution.release_ownership);
     assert_eq!(child.terminate_calls, 1);
-    assert!(resolution.detail.contains("descendant PID 77 remained alive"));
+    assert!(resolution
+        .detail
+        .contains("descendant PID 77 remained alive"));
 }
 
 #[test]
 fn backend_exit_between_health_checks_is_observed_as_exit_not_health() {
-    let mut child = FakeManagedChild::new([
-        Ok(ChildPoll::Running),
-        Ok(ChildPoll::Exited(Some(91))),
-    ]);
+    let mut child =
+        FakeManagedChild::new([Ok(ChildPoll::Running), Ok(ChildPoll::Exited(Some(91)))]);
 
     assert_eq!(
         inspect_managed_child(&mut child).expect("first lifecycle inspection"),

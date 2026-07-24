@@ -24,6 +24,10 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 
+if ($ReleaseTag -cne "app-v$Version") {
+    throw 'Release tag must equal app-v<version> exactly before updater metadata is generated.'
+}
+
 if (-not (Test-Path -LiteralPath $BundleRoot -PathType Container)) {
     throw "Bundle root not found: $BundleRoot"
 }

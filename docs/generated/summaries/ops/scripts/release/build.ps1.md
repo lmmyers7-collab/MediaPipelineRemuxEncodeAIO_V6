@@ -6,15 +6,15 @@ file_type: PowerShell
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-07-10
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: 2da098a118246b40fa5c5bfd2e3d073585f4aecbf596223d4747d66b624280ce
+sha256: 17f235696bc9d1542b8236707d97d3e294362872d7f37a41c018f14c164f7879
 ---
 # `ops/scripts/release/build.ps1`
 
-**Purpose:** PowerShell implementation for build; exposes Assert-ReleaseDestinationPathAllowed, Assert-ReleaseDestinationReplacementAllowed, ConvertTo-ReleaseCanonicalPath.
+**Purpose:** PowerShell implementation for build; exposes Assert-ReleaseDestinationPathAllowed, Assert-ReleaseDestinationReplacementAllowed, Assert-ReleaseReplacementPathHasNoReparsePoint.
 
-**Public symbols:** `Assert-ReleaseDestinationPathAllowed`, `Assert-ReleaseDestinationReplacementAllowed`, `ConvertTo-ReleaseCanonicalPath`, `ConvertTo-ReleaseRelativeDirectory`, `Find-ReleaseContentFinding`, `Get-DeployExclusionReason`, `Get-FileVersionText`, `Get-MediaPipelineReleaseLabel`, `Get-NormalizedMediaPipelineReleaseVersion`, `Get-PythonPackageVersions`, `Get-RelativePathText`, `Get-ReleaseFileHashEntries`, `Get-ReleaseSourceFileItems`, `Get-ReleaseSourceRevision`, `Resolve-ReleaseVerificationPowerShell`, `Test-ReleaseDestinationHasInProgressMarker`, `Test-ReleaseDestinationHasMarker`, `Test-ReleaseDirectoryIsEmpty`, `Test-ReleasePathEqualOrChild`, `Test-ReleaseTraversalDirectoryPruned`
+**Public symbols:** `Assert-ReleaseDestinationPathAllowed`, `Assert-ReleaseDestinationReplacementAllowed`, `Assert-ReleaseReplacementPathHasNoReparsePoint`, `ConvertTo-ReleaseCanonicalPath`, `ConvertTo-ReleaseRelativeDirectory`, `Find-ReleaseContentFinding`, `Get-DeployExclusionReason`, `Get-FileVersionText`, `Get-MediaPipelineReleaseLabel`, `Get-NormalizedMediaPipelineReleaseVersion`, `Get-PythonPackageVersions`, `Get-RelativePathText`, `Get-ReleaseFileHashEntries`, `Get-ReleasePathIdentity`, `Get-ReleaseSourceFileItems`, `Get-ReleaseSourceRevision`, `Move-ReleaseDestinationToQuarantine`, `New-ReleaseDestinationIdentity`, `Resolve-ReleaseVerificationPowerShell`, `Test-ReleaseDestinationHasInProgressMarker`, `Test-ReleaseDestinationHasMarker`, `Test-ReleaseDestinationIdentity`, `Test-ReleaseDirectoryIsEmpty`, `Test-ReleasePathEqualOrChild`, `Test-ReleaseTraversalDirectoryPruned`
 **State/config identifiers:** `MediaPipeline_config.psd1`, `MediaPipeline_config_chatgpt.psd1`, `MediaPipeline_config_template.psd1`, `release_manifest.json`
 **Invoked tools:** `ffmpeg`, `ffprobe`, `mkvmerge`, `pgstosrt`
 

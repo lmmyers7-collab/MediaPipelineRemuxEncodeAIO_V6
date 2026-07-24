@@ -6,9 +6,9 @@ file_type: Markdown
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-20
+last_modified: 2026-07-23
 last_reviewed: 2026-06-02
-sha256: a9f426e2277fbbd919b8eff04cb0947d24702cb90031b7ab563556d90f592bda
+sha256: 1d6420d086762ffe17e615fbc79db64867928f674a8f50b999084ddda675ddc7
 ---
 # `docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md`
 

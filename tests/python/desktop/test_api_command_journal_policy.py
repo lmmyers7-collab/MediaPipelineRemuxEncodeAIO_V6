@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -58,6 +59,50 @@ class LocalApiCommandJournalPolicyTests(unittest.TestCase):
         self.assertNotIn("abc", text)
         self.assertNotIn("user:pass", text)
 
+    def test_scalar_text_redacts_legacy_stringified_sensitive_mappings(self) -> None:
+        fake_secrets = {
+            "password": "fake-password-045",
+            "token": "fake-token-045",
+            "join_blob": "fake-join-blob-045",
+            "secret": "fake-secret-045",
+            "api_key": "fake-api-key-045",
+            "authorization": "Bearer fake-authorization-045",
+        }
+        variants = (
+            str(fake_secrets),
+            json.dumps(fake_secrets, sort_keys=True),
+            "password: fake-password-045; token: fake-token-045",
+        )
+
+        for variant in variants:
+            with self.subTest(variant=variant):
+                safe = scalar_text(variant, limit=2000)
+                for fake_secret in fake_secrets.values():
+                    self.assertNotIn(fake_secret, safe)
+                self.assertIn("<redacted>", safe)
+
+    def test_scalar_text_redacts_long_url_bearer_and_assignment_forms_before_bounding(self) -> None:
+        fake_secrets = (
+            "fake-url-secret-045",
+            "fake-bearer-secret-045",
+            "fake-assignment-secret-045",
+            "fake-join-assignment-secret-045",
+        )
+        text = scalar_text(
+            "prefix "
+            + ("x" * 200)
+            + f" http://user:{fake_secrets[0]}@host.test:7830/path?token={fake_secrets[0]}#fragment"
+            + f" Authorization: Bearer {fake_secrets[1]}"
+            + f" WorkerAuthToken={fake_secrets[2]}"
+            + f" join_blob={fake_secrets[3]}",
+            limit=500,
+        )
+
+        for fake_secret in fake_secrets:
+            self.assertNotIn(fake_secret, text)
+        self.assertIn("http://host.test:7830/path", text)
+        self.assertIn("<redacted>", text)
+
     def test_string_list_limits_and_scalarizes_values(self) -> None:
         values = ["one", 2, "three", "four"]
 
@@ -76,6 +121,11 @@ class LocalApiCommandJournalPolicyTests(unittest.TestCase):
             {"stdout": "C:/Temp/stdout.log", "42": "answer"},
         )
         self.assertEqual(string_dict(["not", "dict"], limit=2), {})
+
+    def test_string_dict_redacts_sensitive_mapping_keys(self) -> None:
+        fake_secret = "fake-log-path-token-045"
+
+        self.assertEqual(string_dict({"authorization": fake_secret}, limit=2), {"authorization": "<redacted>"})
 
     def test_summarize_command_payload_preserves_operator_feedback_fields(self) -> None:
         summary = summarize_command_payload(
@@ -132,6 +182,33 @@ class LocalApiCommandJournalPolicyTests(unittest.TestCase):
         self.assertEqual(summary["nested"]["password"], "<redacted>")
         self.assertEqual(summary["nested"]["score"], "nan")
 
+    def test_bounded_command_evidence_never_stringifies_deep_sensitive_containers(self) -> None:
+        aliases = ("password", "token", "join_blob", "secret", "api_key", "authorization")
+
+        for alias in aliases:
+            for depth in range(3, 7):
+                fake_secret = f"fake-{alias}-{depth}-045"
+                nested: object = {alias: fake_secret, "mode": "once"}
+                for level in range(depth):
+                    nested = {f"level_{level}": nested} if level % 2 == 0 else [nested]
+
+                with self.subTest(alias=alias, depth=depth):
+                    serialized = json.dumps(bounded_command_evidence(nested), sort_keys=True)
+                    self.assertNotIn(fake_secret, serialized)
+                    self.assertNotIn("{'", serialized)
+
+    def test_bounded_command_evidence_preserves_safe_scalars_at_depth_boundary(self) -> None:
+        fake_secret = "fake-depth-boundary-secret-045"
+        summary = bounded_command_evidence(
+            {"one": {"two": {"three": {"four": {"mode": "once", "token": fake_secret, "deeper": {"path": "hidden"}}}}}}
+        )
+
+        boundary = summary["one"]["two"]["three"]["four"]
+        self.assertEqual(boundary["mode"], "once")
+        self.assertEqual(boundary["token"], "<redacted>")
+        self.assertEqual(boundary["deeper"], "<truncated>")
+        self.assertNotIn(fake_secret, json.dumps(summary, sort_keys=True))
+
     def test_history_mapping_bounds_entries_and_copies_rows(self) -> None:
         entries = [{"command": "one"}, {"command": "two"}, {"command": "three"}]
         payload = command_history_mapping(entries, limit=2, max_entries=5)
@@ -185,6 +262,20 @@ class LocalApiCommandJournalPolicyTests(unittest.TestCase):
         self.assertEqual(len(row["log_paths"]), 12)
         self.assertEqual(row["data"], {"large": "kept", "token": "<redacted>"})
         self.assertEqual(row["request"]["changes"]["RoutingProfile"], "plex_direct_play")
+
+    def test_sanitize_journal_entry_redacts_loaded_stringified_sensitive_mappings(self) -> None:
+        fake_secret = "fake-loaded-legacy-token-045"
+        row = sanitize_journal_entry(
+            {
+                "command": "legacy.command",
+                "message": f"legacy evidence: {{'token': '{fake_secret}'}}",
+                "data": f'{{"authorization": "Bearer {fake_secret}"}}',
+            }
+        )
+
+        serialized = json.dumps(row, sort_keys=True)
+        self.assertNotIn(fake_secret, serialized)
+        self.assertIn("<redacted>", serialized)
 
 
 if __name__ == "__main__":

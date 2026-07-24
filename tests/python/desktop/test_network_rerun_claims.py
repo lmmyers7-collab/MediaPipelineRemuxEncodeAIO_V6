@@ -25,6 +25,7 @@ from mediapipeline.desktop.network.rerun_claims import (
     claim_next_network_rerun_row,
     record_late_network_rerun_row_done,
     request_network_rerun_row_retry,
+    rollback_network_rerun_claim,
     update_network_rerun_row_done,
     update_network_rerun_row_released,
 )
@@ -156,6 +157,7 @@ def _request_for_worker_done(*, job_id: str, output_path: Path, artifact_path: P
         error_message="",
         queue_terminal=False,
         retry_on_failure=True,
+        worker_result_artifact=json.loads(artifact_path.read_text(encoding="utf-8")),
         worker_result_artifact_path=str(artifact_path),
     )
 
@@ -178,6 +180,44 @@ def _request_for_worker_failure(*, job_id: str, reason: str = "source temporaril
         retry_on_failure=True,
         worker_result_artifact_path="",
     )
+
+
+def _late_done_request(root: Path, *, batch_id: str = "batch-1", row_key: str = "row-1") -> SimpleNamespace:
+    return SimpleNamespace(
+        job_id="job-late",
+        worker_id="worker-1",
+        success=True,
+        output_path="",
+        output_size_bytes=0,
+        completion_status="processed",
+        publish_state="published",
+        publish_mode="handoff",
+        route="network_lifecycle_single_file",
+        reason_code="",
+        reason="",
+        error_message="",
+        queue_terminal=False,
+        retry_on_failure=True,
+        job_kind="csv_rerun_row",
+        rerun_batch_id=batch_id,
+        rerun_row_key=row_key,
+        planned_output_path=str(root / "Handoff" / "batch-1" / "row-1"),
+        worker_result_artifact_path="",
+    )
+
+
+def _accepted_late_report(source: Path) -> dict[str, object]:
+    return {
+        "accepted": True,
+        "authorization_status": "accepted",
+        "job_id": "job-late",
+        "worker_id": "worker-1",
+        "reclaimed_worker_id": "worker-1",
+        "source_path": str(source),
+        "job_kind": "csv_rerun_row",
+        "rerun_batch_id": "batch-1",
+        "rerun_row_key": "row-1",
+    }
 
 
 def _run_destination_policy(
@@ -313,6 +353,91 @@ def _claim_row_for_reducer(root: Path, *, job_id: str = "job-reducer") -> tuple[
 
 
 class NetworkRerunClaimTests(unittest.TestCase):
+    def test_late_rerun_state_path_rejects_nonopaque_and_mismatched_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            app = SimpleNamespace(resolved=SimpleNamespace(state_root=root / "State"))
+            state_root = root / "State" / "Rerun" / "Network"
+            canonical = state_root / "batch-1.json"
+
+            for batch_id in (
+                "../outside",
+                "..\\outside",
+                "/absolute",
+                "C:\\absolute",
+                "batch/child",
+                "batch\\child",
+                "batch.json",
+            ):
+                with self.subTest(batch_id=batch_id):
+                    self.assertIsNone(
+                        rerun_claims_module._metadata_state_path(  # noqa: SLF001
+                            {"rerun_batch_id": batch_id},
+                            app,
+                        )
+                    )
+
+            self.assertEqual(
+                rerun_claims_module._metadata_state_path(  # noqa: SLF001
+                    {"rerun_batch_id": "batch-1", "batch_state_path": str(canonical)},
+                    app,
+                ),
+                canonical.resolve(),
+            )
+            self.assertIsNone(
+                rerun_claims_module._metadata_state_path(  # noqa: SLF001
+                    {"rerun_batch_id": "batch-1", "batch_state_path": str(root / "outside.json")},
+                    app,
+                )
+            )
+
+    def test_late_rerun_rejects_persisted_batch_identity_mismatch_without_write(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            source = root / "Movies" / "Movie.mkv"
+            source.parent.mkdir(parents=True)
+            source.write_bytes(b"source")
+            payload = _state_payload(root, source=source)
+            payload["batch_id"] = "batch-other"
+            state_path = _write_batch(root, payload)
+            before = state_path.read_bytes()
+            app = SimpleNamespace(resolved=SimpleNamespace(state_root=root / "State"))
+
+            recorded = record_late_network_rerun_row_done(
+                app=app,
+                request=_late_done_request(root),
+                late_report=_accepted_late_report(source),
+            )
+
+            self.assertFalse(recorded)
+            self.assertEqual(state_path.read_bytes(), before)
+
+    def test_late_rerun_binds_row_to_registry_reclaim_identity(self) -> None:
+        mismatches = {
+            "job_id": {"job_id": "job-other"},
+            "worker_id": {"worker_id": "worker-other"},
+            "source_path": {"source_path": "C:/Media/Other.mkv"},
+        }
+        for label, changes in mismatches.items():
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as td:
+                root = Path(td)
+                source = root / "Movies" / "Movie.mkv"
+                source.parent.mkdir(parents=True)
+                source.write_bytes(b"source")
+                state_path = _write_batch(root, _state_payload(root, source=source))
+                before = state_path.read_bytes()
+                app = SimpleNamespace(resolved=SimpleNamespace(state_root=root / "State"))
+                report = {**_accepted_late_report(source), **changes}
+
+                recorded = record_late_network_rerun_row_done(
+                    app=app,
+                    request=_late_done_request(root),
+                    late_report=report,
+                )
+
+                self.assertFalse(recorded)
+                self.assertEqual(state_path.read_bytes(), before)
+
     def test_mixed_terminal_batch_prefers_review_over_retry_exhausted_failure_and_skip(self) -> None:
         payload = {
             "rows": [
@@ -441,6 +566,7 @@ class NetworkRerunClaimTests(unittest.TestCase):
                 source_identity=claim_payload["source_identity"],
                 coordinator_source_path=str(source),
                 worker_source_path=str(source),
+                worker_result_artifact=json.loads(artifact_path.read_text(encoding="utf-8")),
                 worker_result_artifact_path=str(artifact_path),
             )
             done_sent: list[tuple[dict[str, object], int]] = []
@@ -454,6 +580,58 @@ class NetworkRerunClaimTests(unittest.TestCase):
             self.assertEqual(state["rows"][0]["reducer_result"]["classification"], "success")
             self.assertTrue(state["rows"][0]["reducer_result"]["pending_destination_policy"])
             self.assertEqual(state["rows"][0]["verified_output_path"], str(output_path))
+
+    def test_http_claim_delivery_rollback_retains_registry_when_batch_write_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            source = root / "Movies" / "Movie.mkv"
+            source.parent.mkdir()
+            source.write_bytes(b"source")
+            state_path = _write_batch(root, _state_payload(root, source=source))
+            inflight_path = root / "State" / "coordinator_inflight.json"
+            app = SimpleNamespace(resolved=SimpleNamespace(state_root=root / "State"), queue_records=[])
+            registry = InFlightRegistry()
+            dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+            dispatcher._app = app
+            dispatcher._registry = registry
+            dispatcher._claim_lock = threading.Lock()
+            dispatcher._accepting_claims = True
+            dispatcher._inflight_state_path = lambda: inflight_path  # type: ignore[method-assign]
+            dispatcher._compute_retry_after_seconds = lambda: 5  # type: ignore[method-assign]
+            dispatcher._coordinator_max_job_retries = lambda: 3  # type: ignore[method-assign]
+            dispatcher._source_has_prior_failure = lambda _source_path: False  # type: ignore[method-assign]
+            dispatcher._snapshot_encode_config = lambda _worker_name, record=None: {}  # type: ignore[method-assign]
+            dispatcher._scan_for_next_record = lambda *_args, **_kwargs: (None, {})  # type: ignore[method-assign]
+            dispatcher._safe_log_cluster_event = lambda *_args, **_kwargs: None  # type: ignore[method-assign]
+
+            original_write_state = rerun_claims_module._write_state
+            write_count = 0
+
+            def fail_rollback_write(path: Path, payload: dict[str, object]) -> None:
+                nonlocal write_count
+                write_count += 1
+                if write_count == 2:
+                    raise OSError("injected response-delivery rollback write failure")
+                original_write_state(path, payload)
+
+            handler = SimpleNamespace(
+                _send_json=mock.Mock(side_effect=RuntimeError("socket closed during claim delivery"))
+            )
+            with mock.patch.object(rerun_claims_module, "_write_state", side_effect=fail_rollback_write):
+                with self.assertRaisesRegex(RuntimeError, "socket closed during claim delivery"):
+                    CoordinatorDispatcher._http_claim(
+                        dispatcher,
+                        handler,
+                        {"worker_id": "worker-1", "worker_name": "Worker", "accessible_library_ids": "movies"},
+                    )
+
+            row = json.loads(state_path.read_text(encoding="utf-8"))["rows"][0]
+            job_id = str(row["active_claim"]["job_id"])
+            self.assertEqual(row["status"], "claimed")
+            self.assertTrue(registry.is_active(job_id, "worker-1"))
+            restored = InFlightRegistry()
+            self.assertTrue(restored.load(inflight_path))
+            self.assertTrue(restored.is_active(job_id, "worker-1"))
 
     def test_claim_next_network_rerun_row_claims_one_row_and_blocks_duplicate_source(self) -> None:
         with tempfile.TemporaryDirectory() as td:
@@ -501,6 +679,83 @@ class NetworkRerunClaimTests(unittest.TestCase):
                 allow_local_handoff=False,
             )
             self.assertIsNone(duplicate)
+
+    def test_rerun_claim_rollback_retains_registry_owner_when_batch_rollback_fails(self) -> None:
+        for failure_target in ("read", "write"):
+            with self.subTest(failure_target=failure_target), tempfile.TemporaryDirectory() as td:
+                root = Path(td)
+                source = root / "Movies" / "Movie.mkv"
+                source.parent.mkdir()
+                source.write_bytes(b"source")
+                state_path = _write_batch(root, _state_payload(root, source=source))
+                inflight_path = root / "State" / "coordinator_inflight.json"
+                app = SimpleNamespace(resolved=SimpleNamespace(state_root=root / "State"))
+                registry = InFlightRegistry()
+                lease = claim_next_network_rerun_row(
+                    app=app,
+                    registry=registry,
+                    worker_id="worker-1",
+                    worker_name="Worker",
+                    accessible_library_ids=["movies"],
+                    encode_config_for_row=lambda _record: {},
+                    allow_local_handoff=False,
+                    job_id="job-rollback",
+                )
+                assert lease is not None
+                registry.save(inflight_path)
+                patch_target = "_read_state" if failure_target == "read" else "_write_state"
+
+                with mock.patch.object(
+                    rerun_claims_module,
+                    patch_target,
+                    side_effect=OSError(f"injected batch {failure_target} failure"),
+                ):
+                    with self.assertRaisesRegex(OSError, f"injected batch {failure_target} failure"):
+                        rollback_network_rerun_claim(lease, registry, reason="delivery failed")
+
+                self.assertTrue(registry.is_active("job-rollback", "worker-1"))
+                persisted_row = json.loads(state_path.read_text(encoding="utf-8"))["rows"][0]
+                self.assertEqual(persisted_row["status"], "claimed")
+                self.assertEqual(persisted_row["active_claim"]["job_id"], "job-rollback")
+                restored = InFlightRegistry()
+                self.assertTrue(restored.load(inflight_path))
+                self.assertTrue(restored.is_active("job-rollback", "worker-1"))
+
+                rollback_network_rerun_claim(lease, registry, reason="retry delivery rollback")
+                self.assertFalse(registry.is_active("job-rollback", "worker-1"))
+                rolled_back_row = json.loads(state_path.read_text(encoding="utf-8"))["rows"][0]
+                self.assertEqual(rolled_back_row["status"], "pending_claim")
+                self.assertTrue(rolled_back_row["claimable"])
+
+    def test_rerun_claim_rollback_keeps_registry_quarantine_when_release_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            source = root / "Movies" / "Movie.mkv"
+            source.parent.mkdir()
+            source.write_bytes(b"source")
+            state_path = _write_batch(root, _state_payload(root, source=source))
+            app = SimpleNamespace(resolved=SimpleNamespace(state_root=root / "State"))
+            registry = InFlightRegistry()
+            lease = claim_next_network_rerun_row(
+                app=app,
+                registry=registry,
+                worker_id="worker-1",
+                worker_name="Worker",
+                accessible_library_ids=["movies"],
+                encode_config_for_row=lambda _record: {},
+                allow_local_handoff=False,
+                job_id="job-registry-reject",
+            )
+            assert lease is not None
+
+            with mock.patch.object(registry, "rollback_claim", return_value=None):
+                with self.assertRaisesRegex(RuntimeError, "Registry retained network rerun claim"):
+                    rollback_network_rerun_claim(lease, registry, reason="delivery failed")
+
+            self.assertTrue(registry.is_active("job-registry-reject", "worker-1"))
+            row = json.loads(state_path.read_text(encoding="utf-8"))["rows"][0]
+            self.assertEqual(row["status"], "pending_claim")
+            self.assertTrue(row["claimable"])
 
     def test_remote_claim_skips_local_only_handoff_rows(self) -> None:
         with tempfile.TemporaryDirectory() as td:
@@ -585,6 +840,7 @@ class NetworkRerunClaimTests(unittest.TestCase):
                 error_message="",
                 queue_terminal=False,
                 retry_on_failure=True,
+                worker_result_artifact=json.loads(artifact_path.read_text(encoding="utf-8")),
                 worker_result_artifact_path=str(artifact_path),
             )
             update_network_rerun_row_done(app=app, job=completed, request=request)
@@ -723,6 +979,7 @@ class NetworkRerunClaimTests(unittest.TestCase):
                 error_message="",
                 queue_terminal=False,
                 retry_on_failure=True,
+                worker_result_artifact=json.loads(artifact_path.read_text(encoding="utf-8")),
                 worker_result_artifact_path=str(artifact_path),
             )
 
@@ -759,6 +1016,7 @@ class NetworkRerunClaimTests(unittest.TestCase):
                 error_message="",
                 queue_terminal=False,
                 retry_on_failure=True,
+                worker_result_artifact=json.loads(artifact_path.read_text(encoding="utf-8")),
                 worker_result_artifact_path=str(artifact_path),
             )
 
@@ -796,6 +1054,14 @@ class NetworkRerunClaimTests(unittest.TestCase):
 
             update_network_rerun_row_done(app=app, job=completed, request=request)
             update_network_rerun_row_done(app=app, job=completed, request=request)
+            foreign_request = SimpleNamespace(**{**vars(request), "worker_id": "worker-foreign"})
+            self.assertFalse(
+                update_network_rerun_row_done(
+                    app=app,
+                    job=completed,
+                    request=foreign_request,
+                )
+            )
 
             row = json.loads(state_path.read_text(encoding="utf-8"))["rows"][0]
             self.assertEqual(row["status"], "retry_scheduled")
@@ -852,29 +1118,13 @@ class NetworkRerunClaimTests(unittest.TestCase):
             released = registry.unclaim("job-late", "worker-1")
             assert released is not None
             update_network_rerun_row_released(app=app, job=released, worker_id="worker-1", reason="test release")
-            request = SimpleNamespace(
-                job_id="job-late",
-                worker_id="worker-1",
-                success=True,
-                output_path="",
-                output_size_bytes=0,
-                completion_status="processed",
-                publish_state="published",
-                publish_mode="handoff",
-                route="network_lifecycle_single_file",
-                reason_code="",
-                reason="",
-                error_message="",
-                queue_terminal=False,
-                retry_on_failure=True,
-                job_kind="csv_rerun_row",
-                rerun_batch_id="batch-1",
-                rerun_row_key="row-1",
-                planned_output_path=str(root / "Handoff" / "batch-1" / "row-1"),
-                worker_result_artifact_path="",
-            )
+            request = _late_done_request(root)
 
-            record_late_network_rerun_row_done(app=app, request=request)
+            record_late_network_rerun_row_done(
+                app=app,
+                request=request,
+                late_report=_accepted_late_report(source),
+            )
 
             row = json.loads(state_path.read_text(encoding="utf-8"))["rows"][0]
             self.assertEqual(row["status"], "pending_claim")
@@ -2102,11 +2352,46 @@ class NetworkRerunClaimTests(unittest.TestCase):
             )
 
         self.assertIsNone(payload)
-        self.assertEqual(artifact["status"], "access_failed")
-        self.assertTrue(artifact["stale"])
+        self.assertEqual(artifact["status"], "legacy_path_unavailable")
+        self.assertFalse(artifact["supplied"])
         self.assertEqual(output["probe_status"], "access_failed")
         self.assertTrue(output["stale"])
-        self.assertGreaterEqual(probe.call_count, 2)
+        self.assertEqual(probe.call_count, 1)
+
+    def test_inline_worker_result_evidence_prevents_worker_local_path_probe(self) -> None:
+        inline = {
+            "SchemaVersion": "local_worker_result.v1",
+            "JobKind": "csv_rerun_row",
+            "RerunBatchId": "batch-1",
+            "RerunRowKey": "row-1",
+            "WorkerClaimId": "job-inline",
+            "Success": True,
+            "Status": "processed",
+            "OutputPath": r"\\server\handoff\batch-1\row-1\Movie.mkv",
+            "OutputSizeBytes": 123,
+            "PublishState": "published",
+            "PublishMode": "handoff",
+            "Route": "network_lifecycle_single_file",
+        }
+        worker_local_path = r"D:\WorkerState\NetworkWorkerResults\job-inline\result.json"
+        with mock.patch.object(rerun_claims_module, "_killable_source_probe") as probe:
+            evidence, payload = rerun_claims_module._read_worker_result_artifact(
+                worker_local_path,
+                inline_payload=inline,
+            )
+        probe.assert_not_called()
+        self.assertEqual(payload, inline)
+        self.assertTrue(evidence["valid"])
+        self.assertEqual(evidence["transport"], "inline_signed_request")
+
+        with mock.patch.object(rerun_claims_module, "_killable_source_probe") as probe:
+            legacy_evidence, legacy_payload = rerun_claims_module._read_worker_result_artifact(
+                worker_local_path
+            )
+        probe.assert_not_called()
+        self.assertIsNone(legacy_payload)
+        self.assertEqual(legacy_evidence["status"], "legacy_path_unavailable")
+        self.assertFalse(legacy_evidence["supplied"])
 
     def test_late_stale_release_cannot_clear_a_newer_network_rerun_claim(self) -> None:
         with tempfile.TemporaryDirectory() as td:

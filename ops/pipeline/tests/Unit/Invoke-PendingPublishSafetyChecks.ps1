@@ -1235,6 +1235,8 @@ try {
 $pendingTransactionsText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\publish\pending_transactions.ps1') -Raw
 $pendingParkText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\publish\pending_park_transaction.ps1') -Raw
 Assert-MatchText $pendingTransactionsText 'function Get-PendingFileSha256OrNull[\s\S]+\[scriptblock\]\s*\$PollHandler[\s\S]+TransformBlock' 'Pending SHA-256 proof must stream bytes and support a supplied heartbeat instead of blocking inside Get-FileHash.'
+Assert-MatchText $pendingTransactionsText 'function Enter-PendingPublishDestinationLock[\s\S]+FileShare\]::None' 'Pending destination transactions must use an exclusive cross-process file lock.'
+Assert-MatchText $pendingTransactionsText 'function Exit-PendingPublishDestinationLock[\s\S]+Keep the empty hashed sentinel' 'Destination lock release must retain a stable sentinel instead of unlinking an open-lock identity.'
 Assert-MatchText $pendingParkText 'New-MediaPipelineCurrentStageNativePollHandler[\s\S]{0,500}-Stage\s+''push''' 'Pending park must create an exact publish-stage heartbeat for manifest hashing.'
 Assert-MatchText $pendingParkText 'New-PendingParkManifest[\s\S]{0,2200}-HashPollHandler\s+\$pendingHashPollHandler' 'Pending park must pass its exact publish-stage heartbeat into manifest hashing.'
 
@@ -1252,10 +1254,14 @@ Assert-MatchText $publishCompletionText 'New-PipelinePublishResult[\s\S]+-Publis
 Assert-MatchText $publishCompletionText 'Clear-SourceFailureState \$SourceFile[\s\S]+output-space deferred publish' 'Low-space deferred publish no longer clears source failure state only after successful parking.'
 
 $pendingDrainText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\publish\pending_drain_transaction.ps1') -Raw
+$pendingRepairText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\publish\pending_repair.ps1') -Raw
 Assert-MatchText $pendingDrainText 'Test-PublishSidecarBackupReadyForReveal[\s\S]+retry_sidecar_backup_failed' 'Pending drain must fail closed when an existing final sidecar cannot be backed up.'
 Assert-MatchText $pendingDrainText 'Get-PendingFileSha256OrNull \$serverPartial' 'Pending drain must verify the copied partial with SHA-256 before reveal.'
 Assert-MatchText $pendingDrainText 'Get-PendingFileSha256OrNull \$server' 'Pending drain must verify the revealed final output with SHA-256 before pending cleanup.'
 Assert-MatchText $pendingDrainText 'Update-PendingManifestDrainAttempt' 'Pending drain must persist per-manifest attempt evidence.'
 Assert-MatchText $pendingDrainText 'Restore-PublishMediaAfterRevealFailure' 'Pending final hash failure must restore prior media or remove the newly revealed media.'
+Assert-MatchText $pendingDrainText 'Enter-PendingPublishTransactionLock[\s\S]+Enter-PendingPublishDestinationLock[\s\S]+Read-PendingManifestFile[\s\S]+Invoke-PendingDrainTransactionCore[\s\S]+Exit-PendingPublishDestinationLock[\s\S]+Exit-PendingPublishTransactionLock' 'Pending drain must hold manifest then destination locks across re-read, final transaction, evidence, and cleanup.'
+Assert-MatchText $pendingDrainText 'Get-PendingPublishDuplicateDestinationManifestPaths[\s\S]+review_duplicate_destination[\s\S]+duplicate_destination' 'Duplicate destination manifests must fail closed into explicit review before drain.'
+Assert-MatchText $pendingRepairText 'Enter-PendingPublishTransactionLock[\s\S]+Enter-PendingPublishDestinationLock[\s\S]+Read-PendingManifestFile[\s\S]+Test-PendingDrainFinalProof[\s\S]+Exit-PendingPublishDestinationLock[\s\S]+Exit-PendingPublishTransactionLock' 'Stale-attempt recovery must hold manifest then destination locks across re-read, proof, rollback, evidence, and cleanup.'
 
 Write-Host 'OK: pending publish safety checks passed.'

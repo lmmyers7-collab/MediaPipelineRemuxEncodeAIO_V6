@@ -6,9 +6,9 @@ file_type: PowerShell
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-07-16
+last_modified: 2026-07-22
 last_reviewed: 2026-06-04
-sha256: 6778218b409168974413b1b915b6bfae6014d735783d9ac93a736a7a3dd7a223
+sha256: 995a496a025dc46bce38225866962e9b664628568e827dd6732881d1de5551a8
 ---
 # `ops/pipeline/engine/queue/worker_claim_store.ps1`
 

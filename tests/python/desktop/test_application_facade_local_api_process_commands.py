@@ -226,7 +226,7 @@ class LocalApiProcessCommandTests(LocalApiHttpTestMixin, unittest.TestCase):
         self.assertEqual(entry["request"]["token"], "<redacted>")
         self.assertEqual(entry["request"]["extra_args"], "-NoDeleteSource")
 
-    def test_local_api_route_exception_is_recorded_in_command_journal(self) -> None:
+    def test_local_api_strict_route_exception_is_recorded_as_indeterminate_terminal(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             service = DummyWorkflowFacadeService(root)
@@ -254,22 +254,24 @@ class LocalApiProcessCommandTests(LocalApiHttpTestMixin, unittest.TestCase):
             finally:
                 server.stop()
 
-        self.assertEqual(status, 500)
-        self.assertEqual(payload["error"], "internal route error")
-        self.assertEqual(payload["path"], "/api/pipeline/start")
-        self.assertRegex(payload["error_id"], r"^[0-9a-f]{12}$")
+        self.assertEqual(status, 503)
+        self.assertEqual(payload["schema_version"], "desktop_command_result.v1")
+        self.assertEqual(payload["code"], "command_outcome_indeterminate")
+        self.assertEqual(payload["data"]["evidence_phase"], "indeterminate")
+        self.assertIsNone(payload["data"]["mutation_performed"])
+        self.assertTrue(payload["data"]["current_state_unverified"])
+        self.assertRegex(payload["data"]["error_id"], r"^[0-9a-f]{12}$")
         self.assertEqual(commands_status, 200)
         self.assertEqual(commands["schema_version"], "desktop_command_history.v1")
         self.assertEqual(commands["count"], 2)
         entry = commands["entries"][0]
-        self.assertEqual(entry["command"], "local_api.route_exception")
+        self.assertEqual(entry["command"], "pipeline.start")
         self.assertFalse(entry["ok"])
         self.assertEqual(entry["severity"], "error")
-        self.assertEqual(entry["refresh_hint"], "diagnostics")
-        self.assertEqual(entry["errors"], ["Internal route error."])
-        self.assertEqual(entry["data"]["path"], "/api/pipeline/start")
-        self.assertEqual(entry["data"]["status"], 500)
-        self.assertEqual(entry["data"]["error_id"], payload["error_id"])
+        self.assertEqual(entry["data"]["route"], "/api/pipeline/start")
+        self.assertEqual(entry["data"]["evidence_phase"], "indeterminate")
+        self.assertEqual(entry["data"]["error_id"], payload["data"]["error_id"])
+        self.assertTrue(entry["data"]["strict_command_journal_recorded"])
         self.assertEqual(entry["request"]["mode"], "validate")
         self.assertEqual(entry["request"]["sleep_seconds"], 1)
         self.assertNotIn("backend exploded", json.dumps(entry, sort_keys=True))

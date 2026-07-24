@@ -31,6 +31,7 @@ REQUIRED_ENTRY_KEYS = {
 }
 ALLOWED_ENTRY_KEYS = REQUIRED_ENTRY_KEYS | {"allow_missing"}
 VALID_RISK_LEVELS = {"critical", "high", "medium", "low"}
+GIT_ENUMERATION_TIMEOUT_SECONDS = 15
 
 
 @dataclass(frozen=True)
@@ -48,6 +49,10 @@ class RiskMatch:
     validation_rung: str
     required_checks: tuple[str, ...]
     manual_gates: tuple[str, ...]
+
+
+class PathEnumerationError(RuntimeError):
+    """Raised when Git cannot authoritatively enumerate the requested path set."""
 
 
 def normalize_path(path: str) -> str:
@@ -69,8 +74,9 @@ def _git_paths() -> set[str]:
             check=True,
             text=True,
             capture_output=True,
+            timeout=GIT_ENUMERATION_TIMEOUT_SECONDS,
         )
-    except (OSError, subprocess.CalledProcessError):
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return set()
     return {normalize_path(line) for line in result.stdout.splitlines() if line.strip()}
 
@@ -206,9 +212,20 @@ def changed_paths(*, staged: bool = False) -> list[str]:
             check=True,
             text=True,
             capture_output=True,
+            timeout=GIT_ENUMERATION_TIMEOUT_SECONDS,
         )
-    except (OSError, subprocess.CalledProcessError):
-        return []
+    except FileNotFoundError as exc:
+        raise PathEnumerationError("Git executable is unavailable; use --paths only with a trusted path set.") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise PathEnumerationError(
+            f"Git changed-path enumeration timed out after {GIT_ENUMERATION_TIMEOUT_SECONDS} seconds."
+        ) from exc
+    except subprocess.CalledProcessError as exc:
+        detail = str(exc.stderr or exc.stdout or "").strip()
+        suffix = f": {detail}" if detail else ""
+        raise PathEnumerationError(f"Git changed-path enumeration failed with exit {exc.returncode}{suffix}") from exc
+    except OSError as exc:
+        raise PathEnumerationError(f"Git changed-path enumeration could not run: {exc}") from exc
     return [normalize_path(line) for line in result.stdout.splitlines() if line.strip()]
 
 
@@ -232,12 +249,25 @@ def render_matches(matches: list[RiskMatch]) -> str:
     return "\n".join(lines)
 
 
-def _json_payload(findings: list[RegistryFinding], matches: list[RiskMatch]) -> str:
+def _json_payload(
+    findings: list[RegistryFinding],
+    matches: list[RiskMatch],
+    *,
+    enumeration_requested: bool,
+    enumeration_error: str,
+    path_count: int,
+) -> str:
     return json.dumps(
         {
-            "ok": not findings,
+            "ok": not findings and not enumeration_error,
             "findings": [finding.__dict__ for finding in findings],
             "matches": [match.__dict__ for match in matches],
+            "path_enumeration": {
+                "requested": enumeration_requested,
+                "ok": not enumeration_error if enumeration_requested else None,
+                "path_count": path_count,
+                "error": enumeration_error,
+            },
         },
         indent=2,
     )
@@ -254,22 +284,40 @@ def main(argv: list[str] | None = None) -> int:
     registry = load_registry()
     findings = validate_registry(registry)
     paths = args.paths
-    if args.changed:
-        paths = changed_paths(staged=False)
-    elif args.staged:
-        paths = changed_paths(staged=True)
+    enumeration_requested = bool(args.changed or args.staged)
+    enumeration_error = ""
+    try:
+        if args.changed:
+            paths = changed_paths(staged=False)
+        elif args.staged:
+            paths = changed_paths(staged=True)
+    except PathEnumerationError as exc:
+        paths = []
+        enumeration_error = str(exc)
     matches = classify_paths(paths, registry) if paths else []
 
     if args.json:
-        print(_json_payload(findings, matches))
+        print(
+            _json_payload(
+                findings,
+                matches,
+                enumeration_requested=enumeration_requested,
+                enumeration_error=enumeration_error,
+                path_count=len(paths),
+            )
+        )
+        if enumeration_error:
+            print(f"Risky changed-path enumeration failed: {enumeration_error}", file=sys.stderr)
     else:
         if findings:
             print(render_findings(findings), file=sys.stderr)
         else:
             print(f"OK: {REGISTRY_PATH.relative_to(REPO_ROOT)} is valid.")
-        if paths:
+        if enumeration_error:
+            print(f"Risky changed-path enumeration failed: {enumeration_error}", file=sys.stderr)
+        elif paths or enumeration_requested:
             print(render_matches(matches))
-    return 1 if findings else 0
+    return 1 if findings or enumeration_error else 0
 
 
 if __name__ == "__main__":

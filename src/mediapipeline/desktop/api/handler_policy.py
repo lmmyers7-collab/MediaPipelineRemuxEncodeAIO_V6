@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import hashlib
+import json
+import re
 from typing import Any
 import uuid
 
@@ -38,9 +41,35 @@ STRICT_DURABLE_COMMAND_ROUTES = frozenset(
     }
 )
 
+STRICT_COMMAND_ID_HEADER = "X-MediaPipeline-Command-ID"
+_STRICT_COMMAND_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$")
+
 
 def requires_strict_durable_command_journal(route: str) -> bool:
     return route in STRICT_DURABLE_COMMAND_ROUTES
+
+
+def validated_strict_command_id(value: object) -> str:
+    command_id = str(value or "").strip()
+    if not command_id:
+        raise ValueError(f"{STRICT_COMMAND_ID_HEADER} is required for strict commands")
+    if not _STRICT_COMMAND_ID_RE.fullmatch(command_id):
+        raise ValueError(
+            f"{STRICT_COMMAND_ID_HEADER} must be 8-128 ASCII letters, digits, dots, underscores, colons, or hyphens"
+        )
+    return command_id
+
+
+def strict_command_fingerprint(route: str, request: Mapping[str, Any]) -> str:
+    canonical_request = {str(key): value for key, value in request.items() if str(key) != "_command_id"}
+    canonical = json.dumps(
+        {"route": str(route or ""), "request": canonical_request},
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
 from .contract_command import LOCAL_API_COMMAND_ROUTE_CONTRACT
 from .http_helpers import LOCAL_API_CONTENT_SECURITY_POLICY
 
@@ -59,13 +88,14 @@ _COMMAND_ROUTE_BY_PATH = {
 
 
 class OperatorRouteError(RuntimeError):
-    """A safe, retryable route failure with an operator-facing explanation."""
+    """A safe pre-mutation route failure with an operator-facing explanation."""
 
     def __init__(self, *, code: str, operator_message: str, status: int = 503) -> None:
         super().__init__(operator_message)
         self.code = str(code or "backend_unavailable").strip() or "backend_unavailable"
         self.operator_message = bounded_error_text(operator_message, limit=500)
         self.status = int(status) if 400 <= int(status) <= 599 else 503
+        self.mutation_performed = False
 
 
 def options_response_headers(allowed_origin: str = "http://127.0.0.1") -> list[tuple[str, str]]:
@@ -74,7 +104,10 @@ def options_response_headers(allowed_origin: str = "http://127.0.0.1") -> list[t
         ("Allow", "GET, POST, OPTIONS"),
         ("Access-Control-Allow-Origin", origin),
         ("Vary", "Origin"),
-        ("Access-Control-Allow-Headers", "Authorization, X-MediaPipeline-Token, Content-Type"),
+        (
+            "Access-Control-Allow-Headers",
+            f"Authorization, X-MediaPipeline-Token, Content-Type, {STRICT_COMMAND_ID_HEADER}",
+        ),
         ("Access-Control-Allow-Methods", "GET, POST, OPTIONS"),
         ("Content-Length", "0"),
         *LOCAL_API_SECURITY_RESPONSE_HEADERS,

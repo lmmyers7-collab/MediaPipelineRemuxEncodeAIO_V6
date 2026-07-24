@@ -6,16 +6,16 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-11
+last_modified: 2026-07-22
 last_reviewed: 2026-06-04
-sha256: 8f5a81ae401413bfb6d0b3bd8fef2983aee2b51f39fdeb1234b7296dc54fa1d2
+sha256: 622f0e4d1ed3b43c43350b9ac5e1eca8df74d8e7305d00b9c6d7b6cbc5c55255
 ---
 # `src/mediapipeline/desktop/webview_settings_patch_smoke.py`
 
 **Purpose:** Python implementation for webview settings patch smoke; exposes default_app_root, main, parse_args.
 
 **Public symbols:** `default_app_root`, `main`, `parse_args`, `run_smoke`
-**In-repo imports:** `.api`, `.application`, `.config_keys`, `.models`, `.services`, `.webview_settings_live_smoke`, `mediapipeline.tools.paths`
+**In-repo imports:** `.api`, `.application`, `.config_keys`, `.models`, `.services`, `.webview_settings_live_smoke`, `mediapipeline.core.config.settings_store`, `mediapipeline.tools.paths`
 **HTTP routes:** `/api/commands`, `/api/commands?limit=20`, `/api/settings/preview-patch`, `/api/settings/save-patch`, `/api/settings/workspace`
 **State/config identifiers:** `MediaPipeline_config.psd1`
 

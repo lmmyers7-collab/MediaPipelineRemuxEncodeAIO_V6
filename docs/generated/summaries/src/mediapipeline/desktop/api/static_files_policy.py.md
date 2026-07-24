@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-07-10
+last_modified: 2026-07-22
 last_reviewed: 2026-06-04
-sha256: 5ba17069a404d6c24555bea4c47f9e53bb30cb83eb0c0e16db095fa59adb5b8c
+sha256: 7ca6b3ff0d95471f5f9cf4b620cdbf1234fe2b7daf38f50decff813c014ce8c3
 ---
 # `src/mediapipeline/desktop/api/static_files_policy.py`
 

@@ -46,22 +46,25 @@ from mediapipeline.desktop.network.registry_support import *  # noqa: F403
 class InFlightRegistryPersistenceMixin:
     def save(self, path: Path) -> None:
         """Write in-flight state to *path* (atomic rename via temp file)."""
-        with self._lock:
-            data: dict[str, Any] = {
-                "jobs":              [j.to_dict() for j in self._jobs.values()],
-                "session_completed": self.session_completed,
-                "session_failed":    self.session_failed,
-                "worker_stats":      dict(self._worker_stats),
-                "failure_ledger":    [dict(entry) for entry in self._failure_ledger.values()],
-                "reclaim_ledger":    [dict(entry) for entry in self._reclaim_ledger.values()],
-                "late_terminal_reports": [dict(entry) for entry in self._late_terminal_reports],
-                "reclaimed_source_quarantine": [dict(entry) for entry in self._reclaimed_source_quarantine.values()],
-            }
         tmp_path: Path | None = None
-        try:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            payload = json.dumps(data, indent=2, allow_nan=False) + "\n"
-            with self._save_lock:
+        # Lock order is save-order first, registry state second. A later save
+        # therefore cannot publish before an older caller finishes, and every
+        # queued caller snapshots current state only after it owns save order.
+        with self._save_lock:
+            try:
+                with self._lock:
+                    data: dict[str, Any] = copy.deepcopy({
+                        "jobs":              [j.to_dict() for j in self._jobs.values()],
+                        "session_completed": self.session_completed,
+                        "session_failed":    self.session_failed,
+                        "worker_stats":      self._worker_stats,
+                        "failure_ledger":    list(self._failure_ledger.values()),
+                        "reclaim_ledger":    list(self._reclaim_ledger.values()),
+                        "late_terminal_reports": self._late_terminal_reports,
+                        "reclaimed_source_quarantine": list(self._reclaimed_source_quarantine.values()),
+                    })
+                path.parent.mkdir(parents=True, exist_ok=True)
+                payload = json.dumps(data, indent=2, allow_nan=False) + "\n"
                 fd, tmp_name = tempfile.mkstemp(
                     prefix=f".{path.name}.",
                     suffix=".tmp",
@@ -75,14 +78,14 @@ class InFlightRegistryPersistenceMixin:
                     os.fsync(fh.fileno())
                 os.replace(tmp_path, path)
                 tmp_path = None
-        except Exception:
-            if tmp_path is not None:
-                try:
-                    tmp_path.unlink(missing_ok=True)
-                except OSError as cleanup_exc:
-                    _log.warning("Failed to remove temporary InFlightRegistry file %s: %s", tmp_path, cleanup_exc)
-            _log.exception("Failed to save InFlightRegistry to %s", path)
-            raise
+            except Exception:
+                if tmp_path is not None:
+                    try:
+                        tmp_path.unlink(missing_ok=True)
+                    except OSError as cleanup_exc:
+                        _log.warning("Failed to remove temporary InFlightRegistry file %s: %s", tmp_path, cleanup_exc)
+                _log.exception("Failed to save InFlightRegistry to %s", path)
+                raise
 
     def load(self, path: Path) -> bool:
         """Restore in-flight state from *path* (crash recovery on startup)."""
@@ -92,24 +95,33 @@ class InFlightRegistryPersistenceMixin:
             data = loads_strict_json(path.read_text(encoding="utf-8"))
             if not isinstance(data, dict):
                 raise ValueError("registry state root must be a JSON object")
+            raw_jobs = data.get("jobs", [])
+            if not isinstance(raw_jobs, list):
+                raise ValueError("persisted active jobs must be a JSON array")
             jobs: dict[str, InFlightJob] = {}
             claimed_paths: dict[str, str] = {}
-            for index, j_dict in enumerate(data.get("jobs", [])):
+            for index, j_dict in enumerate(raw_jobs):
                 if not isinstance(j_dict, dict):
-                    _log.warning("Skipping malformed in-flight job at index %d in %s: expected object", index, path)
-                    continue
+                    raise ValueError(f"invalid active job at index {index}: expected object")
+                required_fields = ("job_id", "worker_id", "source_path", "claimed_at", "last_heartbeat")
+                missing_fields = [
+                    field_name
+                    for field_name in required_fields
+                    if not str(j_dict.get(field_name, "") or "").strip()
+                ]
+                if missing_fields:
+                    raise ValueError(
+                        f"invalid active job at index {index}: missing required "
+                        f"field(s) {', '.join(missing_fields)}"
+                    )
+                if not isinstance(j_dict.get("encode_config", {}), dict):
+                    raise ValueError(f"invalid active job at index {index}: encode_config must be an object")
+                if not isinstance(j_dict.get("claim_metadata", {}), dict):
+                    raise ValueError(f"invalid active job at index {index}: claim_metadata must be an object")
                 try:
                     job = InFlightJob.from_dict(j_dict)
                 except Exception as exc:
-                    _log.warning("Skipping malformed in-flight job at index %d in %s: %s", index, path, exc)
-                    continue
-                if not job.job_id or not job.source_path:
-                    _log.warning(
-                        "Skipping incomplete in-flight job at index %d in %s: missing job_id or source_path",
-                        index,
-                        path,
-                    )
-                    continue
+                    raise ValueError(f"invalid active job at index {index}: {exc}") from exc
                 if job.job_id in jobs:
                     raise ValueError(
                         f"duplicate in-flight job_id {job.job_id!r} at index {index}; "
@@ -292,6 +304,7 @@ class InFlightRegistryPersistenceMixin:
                 self._reclaimed_source_quarantine = reclaimed_source_quarantine
             _log.info("Restored %d in-flight job(s) from %s", len(self._jobs), path)
             return True
-        except Exception:
-            _log.exception("Failed to load InFlightRegistry from %s", path)
+        except Exception as exc:
+            safe_error = " ".join(redact_network_secret_text(exc).split())[:500]
+            _log.error("Failed to load InFlightRegistry from %s: %s", path, safe_error)
             return False

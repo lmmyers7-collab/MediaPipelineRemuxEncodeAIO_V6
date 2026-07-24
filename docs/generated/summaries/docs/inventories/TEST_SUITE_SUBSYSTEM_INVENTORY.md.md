@@ -6,9 +6,9 @@ file_type: Markdown
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-20
+last_modified: 2026-07-23
 last_reviewed: 2026-05-29
-sha256: 5c90a45ec7a3f78b77bb112d3f64d0aa0f4418907a2ecc2df64d1088f71b12cc
+sha256: db117d88721cad15f08c0ca608b1d353dd0ffa5faf1f7713d227085e742e04d5
 ---
 # `docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md`
 

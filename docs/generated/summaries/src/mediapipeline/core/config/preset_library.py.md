@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-07-02
+last_modified: 2026-07-23
 last_reviewed: 2026-06-19
-sha256: bb3fb51273e230205c0e4602fde12a3afeca159a8c2023870ece58674f53d1a8
+sha256: 5c5d16995e1ed7c5374f9774b7ded8d6fd31a6aeea3c12beb840563951394201
 ---
 # `src/mediapipeline/core/config/preset_library.py`
 

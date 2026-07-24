@@ -6,9 +6,9 @@ file_type: Markdown
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-20
+last_modified: 2026-07-24
 last_reviewed: 2026-05-29
-sha256: cdd80f4452b0d232266f89bfc7bce9f4f7e0a05cb08ff0edd7990e9a695b7cf8
+sha256: 429dc211fc913628d4d2a5afdaeda92b4a52ea3340f385c0394c36475cf0e687
 ---
 # `docs/inventories/API_ROUTE_INVENTORY.md`
 

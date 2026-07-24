@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: network
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-11
+last_modified: 2026-07-22
 last_reviewed: 2026-06-04
-sha256: 6f60f09d88605f06c7a117bdb744c9e9d2294de5779328d748e33d363ad401df
+sha256: 889167408366286688149f6c6d0714b179e2453a6876b18fb75ac62f32f68e32
 ---
 # `tests/python/desktop/test_network_protocol_runtime.py`
 

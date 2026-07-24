@@ -335,6 +335,29 @@ class WebViewApiClientCommandReplaySmokeTests(unittest.TestCase):
                 `server unknown: retry did not reuse identity: ${unknownFirst?.commandId} / ${unknownRetry?.commandId}`,
               );
 
+              const unresolvedPayload = { reason: "terminal-and-marker-unresolved" };
+              enqueue("server-unresolved", "response", {
+                ok: false,
+                status: 503,
+                body: JSON.stringify({
+                  code: "command_evidence_unresolved",
+                  message: "The accepted reservation remains unresolved.",
+                }),
+              });
+              const unresolvedError = await captureRejection(
+                client.apiPost("/api/backend/shutdown", unresolvedPayload),
+                "server unresolved",
+              );
+              const unresolvedFirst = callsFor("server-unresolved")[0];
+              assertAmbiguous(unresolvedError, unresolvedFirst?.commandId, "server unresolved");
+              enqueue("server-unresolved-retry", "response", { body: JSON.stringify({ ok: true, replayed: true }) });
+              await client.apiPost("/api/backend/shutdown", { reason: "terminal-and-marker-unresolved" });
+              const unresolvedRetry = callsFor("server-unresolved-retry")[0];
+              check(
+                unresolvedFirst?.commandId === unresolvedRetry?.commandId && Boolean(unresolvedRetry?.commandId),
+                `server unresolved: retry did not reuse identity: ${unresolvedFirst?.commandId} / ${unresolvedRetry?.commandId}`,
+              );
+
               const rejectedPayload = { confirm_stop: false, reason: "strict-confirmation-rejected" };
               enqueue("strict-rejection", "response", {
                 ok: false,

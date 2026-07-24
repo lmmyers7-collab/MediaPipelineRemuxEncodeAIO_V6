@@ -394,6 +394,11 @@ def rerun_manifest_queue_rows(
             "replaced_sidecar_hold_paths": _string_list(raw_row.get("replaced_sidecar_hold_paths")),
             "completed_manifest_path": _clean_text(raw_row.get("completed_manifest_path")),
             "completed_manifest_append": _clean_text(raw_row.get("completed_manifest_append")),
+            "publication_transaction_id": _clean_text(raw_row.get("publication_transaction_id")),
+            "publication_transaction_manifest_path": _clean_text(
+                raw_row.get("publication_transaction_manifest_path")
+            ),
+            "publication_transaction_state": _clean_text(raw_row.get("publication_transaction_state")),
             "source_size": raw_row.get("source_size"),
             "source_mtime_utc": _clean_text(raw_row.get("source_mtime_utc")),
             "source_identity_v2": _clean_text(
@@ -478,6 +483,11 @@ def rerun_manifest_queue_rows(
                 "final_output_source_field": _clean_text(raw_row.get("final_output_source_field")),
                 "completed_manifest_path": _clean_text(raw_row.get("completed_manifest_path")),
                 "completed_manifest_append": _clean_text(raw_row.get("completed_manifest_append")),
+                "publication_transaction_id": _clean_text(raw_row.get("publication_transaction_id")),
+                "publication_transaction_manifest_path": _clean_text(
+                    raw_row.get("publication_transaction_manifest_path")
+                ),
+                "publication_transaction_state": _clean_text(raw_row.get("publication_transaction_state")),
             },
             "attempt_evidence": {
                 "row_index": row_index,
@@ -494,6 +504,11 @@ def rerun_manifest_queue_rows(
                 "operator_message": operator_message,
                 "pipeline_sidecar_publish": _clean_text(raw_row.get("pipeline_sidecar_publish")),
                 "completed_manifest_append": _clean_text(raw_row.get("completed_manifest_append")),
+                "publication_transaction_id": _clean_text(raw_row.get("publication_transaction_id")),
+                "publication_transaction_manifest_path": _clean_text(
+                    raw_row.get("publication_transaction_manifest_path")
+                ),
+                "publication_transaction_state": _clean_text(raw_row.get("publication_transaction_state")),
             },
         }
         pending_recovery_blocked = (

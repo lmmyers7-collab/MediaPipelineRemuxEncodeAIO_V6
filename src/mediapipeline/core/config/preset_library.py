@@ -9,7 +9,10 @@ from pathlib import Path
 from typing import Any
 from collections.abc import Mapping
 
-from mediapipeline.core.config.preset_migration import legacy_config_patch_from_preset_v2
+from mediapipeline.core.config.preset_migration import (
+    legacy_config_patch_from_preset_v2,
+    preset_v2_legacy_apply_unsupported_differences,
+)
 from mediapipeline.core.config.preset_policy import PresetV2, preset_v2_validation_issues
 from mediapipeline.core.kernel.dto_commands import CommandResult
 
@@ -58,16 +61,79 @@ def _empty_library() -> dict[str, Any]:
     return {"schema_version": PRESET_LIBRARY_SCHEMA_VERSION, "records": []}
 
 
+class _PresetLibraryFormatError(ValueError):
+    """Persisted preset state is unsupported and must not be rewritten."""
+
+
+def _validated_library_record(
+    row: object,
+    *,
+    index: int,
+    seen_ids: set[str],
+) -> dict[str, Any]:
+    if not isinstance(row, Mapping):
+        raise _PresetLibraryFormatError(f"Preset library records[{index}] must be a JSON object.")
+    record = dict(row)
+    if record.get("schema_version") != PRESET_LIBRARY_RECORD_SCHEMA_VERSION:
+        raise _PresetLibraryFormatError(
+            f"Preset library records[{index}] has an unsupported record schema_version."
+        )
+    preset_id = str(record.get("id") or "").strip()
+    if not preset_id:
+        raise _PresetLibraryFormatError(f"Preset library records[{index}].id must be non-empty.")
+    identity = preset_id.casefold()
+    if identity in seen_ids:
+        raise _PresetLibraryFormatError(f"Preset library contains duplicate id: {preset_id}.")
+    seen_ids.add(identity)
+    if not str(record.get("name") or "").strip():
+        raise _PresetLibraryFormatError(f"Preset library records[{index}].name must be non-empty.")
+    tags = record.get("tags")
+    if not isinstance(tags, list) or any(not isinstance(tag, str) for tag in tags):
+        raise _PresetLibraryFormatError(f"Preset library records[{index}].tags must be a list of strings.")
+    try:
+        PresetV2.model_validate(record.get("preset_v2"))
+    except Exception as exc:
+        raise _PresetLibraryFormatError(
+            f"Preset library records[{index}].preset_v2 does not satisfy the PresetV2 contract."
+        ) from exc
+    return record
+
+
 def _load_library(path: Path) -> dict[str, Any]:
     if not path.exists():
         return _empty_library()
-    payload = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise _PresetLibraryFormatError("Preset library is not valid JSON.") from exc
     if not isinstance(payload, dict):
-        raise ValueError("Preset library root must be a JSON object.")
+        raise _PresetLibraryFormatError("Preset library root must be a JSON object.")
+    if payload.get("schema_version") != PRESET_LIBRARY_SCHEMA_VERSION:
+        raise _PresetLibraryFormatError("Preset library has an unsupported schema_version.")
     records = payload.get("records")
     if not isinstance(records, list):
-        records = []
-    return {"schema_version": PRESET_LIBRARY_SCHEMA_VERSION, "records": [dict(row) for row in records if isinstance(row, Mapping)]}
+        raise _PresetLibraryFormatError("Preset library records must be a JSON array.")
+    seen_ids: set[str] = set()
+    validated_records = [
+        _validated_library_record(row, index=index, seen_ids=seen_ids)
+        for index, row in enumerate(records)
+    ]
+    return {"schema_version": PRESET_LIBRARY_SCHEMA_VERSION, "records": validated_records}
+
+
+def _library_recovery_data(path: Path, **fields: Any) -> dict[str, Any]:
+    return {
+        "schema_version": PRESET_LIBRARY_SCHEMA_VERSION,
+        "path": str(path),
+        "library_state": "recovery_required",
+        "recovery_required": True,
+        "original_bytes_preserved": path.exists(),
+        "safe_next_action": (
+            "Restore a known-good presets.json or repair it to the documented preset_library.v1 schema, "
+            "then retry. The backend will not overwrite unsupported state."
+        ),
+        **fields,
+    }
 
 
 def _record_from_request(request: Mapping[str, Any], existing: Mapping[str, Any] | None = None) -> dict[str, Any]:
@@ -118,10 +184,20 @@ def _command_result(**fields: Any) -> CommandResult:
 
 class PresetLibraryFacadeMixin:
     def list_preset_library(self, resolved: Any) -> CommandResult:
+        path = preset_library_path(resolved)
         try:
-            path = preset_library_path(resolved)
             data = _load_library(path)
             data["path"] = str(path)
+        except _PresetLibraryFormatError as exc:
+            return _command_result(
+                command="settings.preset_library.list",
+                ok=False,
+                severity="error",
+                message=f"Preset library recovery is required: {exc}",
+                errors=[str(exc)],
+                refresh_hint="settings",
+                data=_library_recovery_data(path, records=[], error=str(exc)),
+            )
         except Exception as exc:
             return _command_result(
                 command="settings.preset_library.list",
@@ -158,8 +234,8 @@ class PresetLibraryFacadeMixin:
         )
 
     def save_preset_library(self, resolved: Any, request: dict[str, Any]) -> CommandResult:
+        path = preset_library_path(resolved)
         try:
-            path = preset_library_path(resolved)
             library = _load_library(path)
             existing = _find_record(library, request.get("id"))
             record = _record_from_request(request, existing)
@@ -168,6 +244,16 @@ class PresetLibraryFacadeMixin:
             records.sort(key=lambda row: str(row.get("name") or row.get("id") or "").casefold())
             payload = {"schema_version": PRESET_LIBRARY_SCHEMA_VERSION, "records": records}
             _atomic_write_json(path, payload)
+        except _PresetLibraryFormatError as exc:
+            return _command_result(
+                command="settings.preset_library.save",
+                ok=False,
+                severity="error",
+                message=f"Preset save blocked; library recovery is required: {exc}",
+                errors=[str(exc)],
+                refresh_hint="settings",
+                data=_library_recovery_data(path, record=None),
+            )
         except Exception as exc:
             return _command_result(
                 command="settings.preset_library.save",
@@ -176,7 +262,7 @@ class PresetLibraryFacadeMixin:
                 message=f"Could not save preset: {exc}",
                 errors=[str(exc)],
                 refresh_hint="settings",
-                data={"schema_version": PRESET_LIBRARY_SCHEMA_VERSION, "record": None, "path": str(preset_library_path(resolved))},
+                data={"schema_version": PRESET_LIBRARY_SCHEMA_VERSION, "record": None, "path": str(path)},
             )
         return _command_result(
             command="settings.preset_library.save",
@@ -279,6 +365,11 @@ class PresetLibraryFacadeMixin:
             library = _load_library(preset_library_path(resolved))
             record, source = _record_or_inline_preset(library, request)
             legacy_patch = legacy_config_patch_from_preset_v2(record["preset_v2"])
+            unsupported_differences = preset_v2_legacy_apply_unsupported_differences(
+                record["preset_v2"],
+                getattr(resolved, "config_data", None),
+            )
+            unsupported_paths = [str(difference["path"]) for difference in unsupported_differences]
             settings_preview = None
             preview = getattr(self, "preview_settings_patch", None)
             if callable(preview):
@@ -297,13 +388,29 @@ class PresetLibraryFacadeMixin:
             command="settings.preset_library.apply_preview",
             ok=True,
             severity="warning",
-            message=f"Preset apply preview ready: {record['name']}.",
+            message=(
+                f"Preset apply is blocked because {len(unsupported_differences)} reviewed policy field(s) "
+                "cannot be represented by the current settings adapter."
+                if unsupported_differences
+                else f"Preset apply preview ready: {record['name']}."
+            ),
+            warnings=(
+                [
+                    "Confirmed apply will not write settings until every differing preset policy field is supported: "
+                    + ", ".join(unsupported_paths)
+                ]
+                if unsupported_differences
+                else []
+            ),
             refresh_hint="settings",
             data={
                 "schema_version": PRESET_LIBRARY_APPLY_PREVIEW_SCHEMA_VERSION,
                 "preset_id": source,
                 "record": record,
                 "legacy_patch": legacy_patch,
+                "apply_supported": not unsupported_differences,
+                "unsupported_paths": unsupported_paths,
+                "unsupported_differences": unsupported_differences,
                 "writes_config": False,
                 "affects_future_launches_only": True,
                 "settings_preview": settings_preview,
@@ -324,6 +431,21 @@ class PresetLibraryFacadeMixin:
         preview = self.preview_preset_library_apply(resolved, request)
         if not preview.ok:
             return preview
+        unsupported_differences = list(preview.data.get("unsupported_differences") or [])
+        if unsupported_differences:
+            unsupported_paths = [str(item.get("path") or "") for item in unsupported_differences]
+            return _command_result(
+                command="settings.preset_library.apply",
+                ok=False,
+                severity="error",
+                message=(
+                    f"Preset apply blocked before settings save: {len(unsupported_differences)} reviewed policy "
+                    "field(s) are not supported by the current settings adapter."
+                ),
+                errors=["Unsupported preset policy fields: " + ", ".join(unsupported_paths)],
+                refresh_hint="settings",
+                data=preview.data,
+            )
         save = getattr(self, "save_settings_patch", None)
         if not callable(save):
             return _command_result(

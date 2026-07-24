@@ -14,6 +14,7 @@ from mediapipeline.core.processes.rerun_results import (
 
 from .command_results import (
     backend_shutdown_cleanup_failure_payload,
+    backend_shutdown_scheduling_failure_payload,
     backend_shutdown_success_payload,
     backend_shutdown_unavailable_payload,
     close_readiness_unavailable_payload,
@@ -64,10 +65,10 @@ def _validate_pipeline_single_file_browse_path(raw_path: str) -> dict[str, Any]:
 
 
 class LocalApiProcessCommandPayloadMixin:
-    def _request_backend_shutdown_after_response(self) -> None:
+    def _request_backend_shutdown_after_response(self) -> tuple[bool, str]:
         shutdown_request = self.shutdown_request
         if shutdown_request is None:
-            return
+            return False, "Backend shutdown callback is unavailable."
 
         def _run() -> None:
             try:
@@ -79,8 +80,10 @@ class LocalApiProcessCommandPayloadMixin:
             timer = threading.Timer(0.1, _run)
             timer.daemon = True
             timer.start()
-        except Exception:
+        except Exception as exc:
             self.logger.exception("local API backend shutdown timer start failed")
+            return False, f"{type(exc).__name__}: {exc}"
+        return True, ""
 
     def _pipeline_control_payload(self, request: dict[str, Any]) -> dict[str, Any]:
         resolved = self._resolved()
@@ -369,7 +372,15 @@ class LocalApiProcessCommandPayloadMixin:
                     cleanup_errors=cleanup_errors,
                     post_cleanup_readiness=post_cleanup_readiness,
                 )
-        self._request_backend_shutdown_after_response()
+        shutdown_scheduled, scheduling_error = self._request_backend_shutdown_after_response()
+        if not shutdown_scheduled:
+            return backend_shutdown_scheduling_failure_payload(
+                readiness,
+                scheduling_error=scheduling_error,
+                force_active_work_shutdown=force_active_work_shutdown,
+                cleanup_messages=cleanup_messages,
+                post_cleanup_readiness=post_cleanup_readiness,
+            )
         return backend_shutdown_success_payload(
             readiness,
             force_active_work_shutdown=force_active_work_shutdown,

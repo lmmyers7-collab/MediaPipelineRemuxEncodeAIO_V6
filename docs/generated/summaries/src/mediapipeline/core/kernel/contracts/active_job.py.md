@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: kernel
-last_modified: 2026-07-15
+last_modified: 2026-07-22
 last_reviewed: 2026-06-04
-sha256: dc985d726318a04b141c12aa60a9ebb318feacebceea5c13b8423420d0969d1d
+sha256: 77824643befa92a5d08fafafc9bca8540b9b832a33b0baf174cbb0c0cdd5d86d
 ---
 # `src/mediapipeline/core/kernel/contracts/active_job.py`
 

@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-11
+last_modified: 2026-07-22
 last_reviewed: 2026-06-04
-sha256: 618a576ccc3a8c9dee4e9697012ff6527e2ab97f88812f5f4783c74a5e50315a
+sha256: e7fe5d0ac21cea74ca6fcbbd066e4ff62098ed46882a589c903cb44db88a5a05
 ---
 # `tests/python/desktop/test_application_facade_core_contracts.py`
 

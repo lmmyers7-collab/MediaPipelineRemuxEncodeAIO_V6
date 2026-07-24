@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-07-20
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: 0d219425865496d1d8c236d962242edf2f8ee3a20278f47c4dde92c1fa521e2f
+sha256: aa5b69fa43a5ef7c7066f7c9b01e8742f395089dccfb3d4589860037511e400f
 ---
 # `src/mediapipeline/tools/change_control/finalize_release.py`
 

@@ -93,18 +93,82 @@ function New-MediaPipelineLocalWorkerClaimStore {
 function Get-MediaPipelineLocalWorkerClaimStore {
     param([Parameter(Mandatory)] [string] $ClaimStorePath)
 
-    $store = $null
-    try { $store = Read-MediaPipelineJsonFile -Path $ClaimStorePath } catch { $store = $null }
-    if (-not $store) { return New-MediaPipelineLocalWorkerClaimStore }
+    $exists = $false
+    $isLeaf = $false
+    try {
+        $exists = Test-Path -LiteralPath $ClaimStorePath -ErrorAction Stop
+        if ($exists) {
+            $isLeaf = Test-Path -LiteralPath $ClaimStorePath -PathType Leaf -ErrorAction Stop
+        }
+    } catch {
+        throw [System.IO.InvalidDataException]::new(
+            "Local-worker claim store untrusted: Existing local-worker claim authority could not be inspected at '$ClaimStorePath'. Preserve it and reconcile it before starting workers.",
+            $_.Exception
+        )
+    }
+    if (-not $exists) { return New-MediaPipelineLocalWorkerClaimStore }
+    if (-not $isLeaf) {
+        throw [System.IO.InvalidDataException]::new(
+            "Local-worker claim store untrusted: Existing local-worker claim authority is not a file at '$ClaimStorePath'. Preserve it and reconcile it before starting workers."
+        )
+    }
 
-    $claims = @()
-    if ($store.PSObject.Properties['claims'] -and $null -ne $store.claims) {
-        $claims = @($store.claims)
+    try {
+        $store = Read-MediaPipelineJsonFile -Path $ClaimStorePath
+    } catch {
+        throw [System.IO.InvalidDataException]::new(
+            "Local-worker claim store untrusted: Existing local-worker claim authority could not be read at '$ClaimStorePath'. Preserve it and reconcile it before starting workers.",
+            $_.Exception
+        )
+    }
+    if ($null -eq $store -or $store -isnot [pscustomobject]) {
+        throw [System.IO.InvalidDataException]::new(
+            "Local-worker claim store untrusted: Existing local-worker claim authority has an invalid root at '$ClaimStorePath'. Preserve it and reconcile it before starting workers."
+        )
+    }
+    if (-not $store.PSObject.Properties['schema_version'] -or [string]$store.schema_version -ne 'local_worker_claims.v1') {
+        throw [System.IO.InvalidDataException]::new(
+            "Local-worker claim store untrusted: Existing local-worker claim authority has an unsupported schema at '$ClaimStorePath'. Preserve it and reconcile it before starting workers."
+        )
+    }
+    if (-not $store.PSObject.Properties['updated_at'] -or [string]::IsNullOrWhiteSpace([string]$store.updated_at)) {
+        throw [System.IO.InvalidDataException]::new(
+            "Local-worker claim store untrusted: Existing local-worker claim authority is missing updated_at at '$ClaimStorePath'. Preserve it and reconcile it before starting workers."
+        )
+    }
+    if (-not $store.PSObject.Properties['claims'] -or $null -eq $store.claims -or $store.claims -isnot [System.Array]) {
+        throw [System.IO.InvalidDataException]::new(
+            "Local-worker claim store untrusted: Existing local-worker claim authority has a non-array claims field at '$ClaimStorePath'. Preserve it and reconcile it before starting workers."
+        )
+    }
+
+    $claimIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    foreach ($claim in @($store.claims)) {
+        $claimId = if ($null -ne $claim -and $claim.PSObject.Properties['claim_id']) { [string]$claim.claim_id } else { '' }
+        $status = if ($null -ne $claim -and $claim.PSObject.Properties['status']) { [string]$claim.status } else { '' }
+        $sourcePath = if ($null -ne $claim -and $claim.PSObject.Properties['source_path']) { [string]$claim.source_path } else { '' }
+        $sourceKey = if ($null -ne $claim -and $claim.PSObject.Properties['source_key']) { [string]$claim.source_key } else { '' }
+        if (
+            $null -eq $claim -or
+            $claim -isnot [pscustomobject] -or
+            -not $claim.PSObject.Properties['schema_version'] -or
+            [string]$claim.schema_version -ne 'local_worker_claim.v1' -or
+            [string]::IsNullOrWhiteSpace($claimId) -or
+            [string]::IsNullOrWhiteSpace($status) -or
+            [string]::IsNullOrWhiteSpace($sourcePath) -or
+            [string]::IsNullOrWhiteSpace($sourceKey) -or
+            $sourceKey -ne (ConvertTo-MediaPipelineLocalWorkerPathKey -Path $sourcePath) -or
+            -not $claimIds.Add($claimId)
+        ) {
+            throw [System.IO.InvalidDataException]::new(
+                "Local-worker claim store untrusted: Existing local-worker claim authority contains an invalid claim record at '$ClaimStorePath'. Preserve it and reconcile it before starting workers."
+            )
+        }
     }
     return [ordered]@{
-        schema_version = if ($store.PSObject.Properties['schema_version']) { [string]$store.schema_version } else { 'local_worker_claims.v1' }
-        updated_at     = if ($store.PSObject.Properties['updated_at']) { [string]$store.updated_at } else { Get-MediaPipelineLocalWorkerTimestamp }
-        claims         = @($claims)
+        schema_version = [string]$store.schema_version
+        updated_at     = [string]$store.updated_at
+        claims         = @($store.claims)
     }
 }
 

@@ -11,58 +11,70 @@
 <img src="dependency-atlas.svg" alt="dependency overview">
 <h2>Domain Summary</h2>
 <table><thead><tr><th>Domain</th><th>Files</th><th>Internal module edges</th><th>Outgoing domain edges</th><th>Incoming domain edges</th></tr></thead><tbody>
-<tr><td>core/config</td><td>64</td><td>102</td><td>65</td><td>44</td></tr>
-<tr><td>desktop/network</td><td>49</td><td>97</td><td>29</td><td>14</td></tr>
-<tr><td>core/processes</td><td>34</td><td>41</td><td>38</td><td>22</td></tr>
-<tr><td>core/api</td><td>32</td><td>58</td><td>38</td><td>3</td></tr>
-<tr><td>core/queue</td><td>28</td><td>37</td><td>26</td><td>13</td></tr>
-<tr><td>core/kernel</td><td>27</td><td>32</td><td>0</td><td>86</td></tr>
-<tr><td>tools/dev</td><td>27</td><td>7</td><td>31</td><td>0</td></tr>
-<tr><td>core/rename</td><td>26</td><td>48</td><td>21</td><td>20</td></tr>
-<tr><td>desktop/api</td><td>26</td><td>41</td><td>16</td><td>11</td></tr>
-<tr><td>desktop/application</td><td>23</td><td>29</td><td>74</td><td>88</td></tr>
+<tr><td>core/config</td><td>68</td><td>117</td><td>70</td><td>64</td></tr>
+<tr><td>core/processes</td><td>60</td><td>146</td><td>119</td><td>40</td></tr>
+<tr><td>desktop/network</td><td>55</td><td>131</td><td>39</td><td>8</td></tr>
+<tr><td>tools/dev</td><td>49</td><td>36</td><td>56</td><td>0</td></tr>
+<tr><td>core/api</td><td>33</td><td>59</td><td>41</td><td>4</td></tr>
+<tr><td>desktop/api</td><td>32</td><td>45</td><td>25</td><td>5</td></tr>
+<tr><td>core/queue</td><td>30</td><td>45</td><td>26</td><td>21</td></tr>
+<tr><td>core/rename</td><td>28</td><td>57</td><td>25</td><td>25</td></tr>
+<tr><td>core/kernel</td><td>27</td><td>31</td><td>0</td><td>246</td></tr>
+<tr><td>core/status</td><td>24</td><td>43</td><td>24</td><td>24</td></tr>
+<tr><td>core/diagnostics</td><td>23</td><td>69</td><td>36</td><td>12</td></tr>
+<tr><td>core/network</td><td>23</td><td>78</td><td>32</td><td>34</td></tr>
+<tr><td>desktop/application</td><td>23</td><td>12</td><td>79</td><td>4</td></tr>
+<tr><td>core/publish</td><td>21</td><td>31</td><td>23</td><td>9</td></tr>
 <tr><td>core/maintenance</td><td>19</td><td>15</td><td>21</td><td>11</td></tr>
-<tr><td>core/publish</td><td>19</td><td>30</td><td>20</td><td>6</td></tr>
-<tr><td>core/status</td><td>19</td><td>27</td><td>16</td><td>6</td></tr>
-<tr><td>core/audit</td><td>13</td><td>17</td><td>17</td><td>2</td></tr>
-<tr><td>core/completed</td><td>10</td><td>8</td><td>18</td><td>11</td></tr>
+<tr><td>core/completed</td><td>16</td><td>45</td><td>37</td><td>22</td></tr>
+<tr><td>core/failures</td><td>16</td><td>34</td><td>12</td><td>8</td></tr>
+<tr><td>core/audit</td><td>15</td><td>26</td><td>23</td><td>9</td></tr>
+<tr><td>core/sample_validation</td><td>13</td><td>28</td><td>14</td><td>10</td></tr>
+<tr><td>tools/change_control</td><td>11</td><td>5</td><td>11</td><td>1</td></tr>
 <tr><td>core/decide</td><td>10</td><td>22</td><td>11</td><td>3</td></tr>
-<tr><td>core/diagnostics</td><td>10</td><td>8</td><td>19</td><td>9</td></tr>
-<tr><td>desktop/contracts</td><td>10</td><td>0</td><td>10</td><td>8</td></tr>
-<tr><td>tools/change_control</td><td>10</td><td>4</td><td>10</td><td>1</td></tr>
-<tr><td>core/failures</td><td>9</td><td>5</td><td>9</td><td>4</td></tr>
-<tr><td>core/final_library</td><td>9</td><td>8</td><td>8</td><td>2</td></tr>
+<tr><td>desktop/contracts</td><td>10</td><td>0</td><td>10</td><td>0</td></tr>
+<tr><td>core/final_library</td><td>9</td><td>8</td><td>11</td><td>10</td></tr>
+<tr><td>core/paths</td><td>9</td><td>8</td><td>5</td><td>127</td></tr>
+<tr><td>core/repair_reconcile</td><td>8</td><td>14</td><td>17</td><td>2</td></tr>
+<tr><td>core/schedule</td><td>8</td><td>6</td><td>5</td><td>5</td></tr>
 <tr><td>core/folder_policy</td><td>7</td><td>7</td><td>2</td><td>1</td></tr>
-<tr><td>core/paths</td><td>7</td><td>6</td><td>8</td><td>5</td></tr>
-<tr><td>core/schedule</td><td>7</td><td>5</td><td>5</td><td>2</td></tr>
-<tr><td>core/observability</td><td>6</td><td>1</td><td>3</td><td>9</td></tr>
-<tr><td>core/telemetry</td><td>6</td><td>3</td><td>10</td><td>2</td></tr>
-<tr><td>pipeline/ass_to_srt</td><td>6</td><td>5</td><td>0</td><td>6</td></tr>
-<tr><td>core/network</td><td>5</td><td>4</td><td>18</td><td>14</td></tr>
-<tr><td>core/storage</td><td>5</td><td>2</td><td>0</td><td>10</td></tr>
-<tr><td>core/files</td><td>4</td><td>3</td><td>0</td><td>14</td></tr>
-<tr><td>core/metrics</td><td>4</td><td>5</td><td>8</td><td>1</td></tr>
-<tr><td>core/orchestration</td><td>4</td><td>1</td><td>15</td><td>3</td></tr>
-<tr><td>core/repair_reconcile</td><td>4</td><td>5</td><td>9</td><td>2</td></tr>
+<tr><td>core/observability</td><td>7</td><td>1</td><td>2</td><td>18</td></tr>
+<tr><td>core/telemetry</td><td>7</td><td>7</td><td>7</td><td>5</td></tr>
+<tr><td>core/library</td><td>6</td><td>7</td><td>16</td><td>1</td></tr>
+<tr><td>pipeline/ass_to_srt</td><td>6</td><td>5</td><td>0</td><td>9</td></tr>
+<tr><td>core/storage</td><td>5</td><td>2</td><td>0</td><td>11</td></tr>
+<tr><td>core/files</td><td>4</td><td>3</td><td>0</td><td>21</td></tr>
+<tr><td>core/metrics</td><td>4</td><td>5</td><td>10</td><td>2</td></tr>
+<tr><td>core/orchestration</td><td>4</td><td>1</td><td>19</td><td>3</td></tr>
 <tr><td>core/shared</td><td>4</td><td>0</td><td>0</td><td>0</td></tr>
-<tr><td>core/library</td><td>3</td><td>2</td><td>5</td><td>1</td></tr>
-<tr><td>core/sample_validation</td><td>3</td><td>1</td><td>13</td><td>1</td></tr>
-<tr><td>core/subtitles</td><td>3</td><td>2</td><td>3</td><td>3</td></tr>
-<tr><td>core/validation</td><td>3</td><td>0</td><td>2</td><td>8</td></tr>
+<tr><td>core/subtitles</td><td>4</td><td>2</td><td>8</td><td>8</td></tr>
+<tr><td>core/validation</td><td>4</td><td>1</td><td>2</td><td>9</td></tr>
 <tr><td>desktop/watch</td><td>3</td><td>3</td><td>1</td><td>2</td></tr>
-<tr><td>core/application</td><td>2</td><td>0</td><td>1</td><td>1</td></tr>
+<tr><td>core/application</td><td>2</td><td>0</td><td>2</td><td>1</td></tr>
+<tr><td>core/rerun</td><td>2</td><td>0</td><td>1</td><td>3</td></tr>
 <tr><td>core/ui</td><td>2</td><td>0</td><td>1</td><td>0</td></tr>
-<tr><td>contracts/api_commands</td><td>1</td><td>0</td><td>1</td><td>1</td></tr>
-<tr><td>contracts/config</td><td>1</td><td>0</td><td>9</td><td>13</td></tr>
-<tr><td>contracts/config_coercion</td><td>1</td><td>0</td><td>1</td><td>1</td></tr>
-<tr><td>contracts/config_defaults</td><td>1</td><td>0</td><td>1</td><td>1</td></tr>
-<tr><td>contracts/config_schema_extras</td><td>1</td><td>0</td><td>0</td><td>1</td></tr>
-<tr><td>contracts/config_validators</td><td>1</td><td>0</td><td>1</td><td>1</td></tr>
+<tr><td>contracts/api_commands</td><td>1</td><td>0</td><td>1</td><td>3</td></tr>
+<tr><td>contracts/api_routes</td><td>1</td><td>0</td><td>3</td><td>2</td></tr>
+<tr><td>contracts/api_routes_command</td><td>1</td><td>0</td><td>5</td><td>1</td></tr>
+<tr><td>contracts/api_routes_command_file</td><td>1</td><td>0</td><td>0</td><td>1</td></tr>
+<tr><td>contracts/api_routes_command_network</td><td>1</td><td>0</td><td>0</td><td>1</td></tr>
+<tr><td>contracts/api_routes_command_operations</td><td>1</td><td>0</td><td>1</td><td>1</td></tr>
+<tr><td>contracts/api_routes_command_process</td><td>1</td><td>0</td><td>0</td><td>1</td></tr>
+<tr><td>contracts/api_routes_command_settings_ui</td><td>1</td><td>0</td><td>0</td><td>1</td></tr>
+<tr><td>contracts/api_routes_read</td><td>1</td><td>0</td><td>1</td><td>1</td></tr>
+<tr><td>contracts/api_routes_shared</td><td>1</td><td>0</td><td>0</td><td>2</td></tr>
+<tr><td>contracts/config</td><td>1</td><td>0</td><td>10</td><td>12</td></tr>
+<tr><td>contracts/config_coercion</td><td>1</td><td>0</td><td>1</td><td>3</td></tr>
+<tr><td>contracts/config_defaults</td><td>1</td><td>0</td><td>1</td><td>3</td></tr>
+<tr><td>contracts/config_fields</td><td>1</td><td>0</td><td>9</td><td>1</td></tr>
+<tr><td>contracts/config_schema_extras</td><td>1</td><td>0</td><td>0</td><td>2</td></tr>
+<tr><td>contracts/config_validators</td><td>1</td><td>0</td><td>1</td><td>2</td></tr>
 <tr><td>contracts/decision_policy</td><td>1</td><td>0</td><td>2</td><td>2</td></tr>
-<tr><td>contracts/height_tolerance</td><td>1</td><td>0</td><td>0</td><td>7</td></tr>
+<tr><td>contracts/height_tolerance</td><td>1</td><td>0</td><td>0</td><td>8</td></tr>
 <tr><td>contracts/lifecycle</td><td>1</td><td>0</td><td>0</td><td>1</td></tr>
 <tr><td>contracts/pipeline_plan</td><td>1</td><td>0</td><td>1</td><td>1</td></tr>
 <tr><td>contracts/root</td><td>1</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td>contracts/run_monitor</td><td>1</td><td>0</td><td>0</td><td>3</td></tr>
 <tr><td>contracts/runtime_evidence</td><td>1</td><td>0</td><td>0</td><td>0</td></tr>
 <tr><td>contracts/source_media</td><td>1</td><td>0</td><td>2</td><td>11</td></tr>
 <tr><td>contracts/source_media_adapters</td><td>1</td><td>0</td><td>4</td><td>1</td></tr>
@@ -72,7 +84,7 @@
 <tr><td>contracts/source_media_values</td><td>1</td><td>0</td><td>1</td><td>3</td></tr>
 <tr><td>contracts/stage_base</td><td>1</td><td>0</td><td>0</td><td>4</td></tr>
 <tr><td>contracts/stage_decide</td><td>1</td><td>0</td><td>2</td><td>2</td></tr>
-<tr><td>contracts/stage_mutation</td><td>1</td><td>0</td><td>2</td><td>1</td></tr>
+<tr><td>contracts/stage_mutation</td><td>1</td><td>0</td><td>2</td><td>3</td></tr>
 <tr><td>contracts/stage_probe</td><td>1</td><td>0</td><td>1</td><td>1</td></tr>
 <tr><td>contracts/stages</td><td>1</td><td>0</td><td>4</td><td>4</td></tr>
 <tr><td>contracts/subtitles</td><td>1</td><td>0</td><td>0</td><td>1</td></tr>
@@ -81,196 +93,209 @@
 <tr><td>core/ui_preferences</td><td>1</td><td>0</td><td>0</td><td>2</td></tr>
 <tr><td>desktop/__main__</td><td>1</td><td>0</td><td>1</td><td>0</td></tr>
 <tr><td>desktop/backend_bootstrap</td><td>1</td><td>0</td><td>0</td><td>1</td></tr>
-<tr><td>desktop/config_keys</td><td>1</td><td>0</td><td>1</td><td>12</td></tr>
-<tr><td>desktop/local_api_main</td><td>1</td><td>0</td><td>10</td><td>1</td></tr>
-<tr><td>desktop/models</td><td>1</td><td>0</td><td>1</td><td>99</td></tr>
-<tr><td>desktop/models_core</td><td>1</td><td>0</td><td>1</td><td>4</td></tr>
+<tr><td>desktop/backend_instance</td><td>1</td><td>0</td><td>0</td><td>1</td></tr>
+<tr><td>desktop/config_keys</td><td>1</td><td>0</td><td>1</td><td>7</td></tr>
+<tr><td>desktop/local_api_main</td><td>1</td><td>0</td><td>13</td><td>1</td></tr>
+<tr><td>desktop/models</td><td>1</td><td>0</td><td>9</td><td>7</td></tr>
+<tr><td>desktop/models_core</td><td>1</td><td>0</td><td>5</td><td>0</td></tr>
 <tr><td>desktop/models_media_paths</td><td>1</td><td>0</td><td>1</td><td>0</td></tr>
-<tr><td>desktop/priority_markers</td><td>1</td><td>0</td><td>0</td><td>2</td></tr>
+<tr><td>desktop/priority_markers</td><td>1</td><td>0</td><td>1</td><td>0</td></tr>
 <tr><td>desktop/root</td><td>1</td><td>0</td><td>2</td><td>5</td></tr>
-<tr><td>desktop/services</td><td>1</td><td>0</td><td>29</td><td>3</td></tr>
-<tr><td>desktop/subprocess_runner</td><td>1</td><td>0</td><td>1</td><td>18</td></tr>
+<tr><td>desktop/services</td><td>1</td><td>0</td><td>24</td><td>3</td></tr>
+<tr><td>desktop/subprocess_runner</td><td>1</td><td>0</td><td>1</td><td>0</td></tr>
 <tr><td>desktop/webview_settings_live_smoke</td><td>1</td><td>0</td><td>7</td><td>1</td></tr>
-<tr><td>desktop/webview_settings_patch_smoke</td><td>1</td><td>0</td><td>7</td><td>0</td></tr>
+<tr><td>desktop/webview_settings_patch_smoke</td><td>1</td><td>0</td><td>8</td><td>0</td></tr>
 <tr><td>pipeline/ass_to_srt_cli</td><td>1</td><td>0</td><td>6</td><td>0</td></tr>
 <tr><td>pipeline/root</td><td>1</td><td>0</td><td>0</td><td>0</td></tr>
 <tr><td>tools/autonomy_growth_snapshot</td><td>1</td><td>0</td><td>2</td><td>0</td></tr>
 <tr><td>tools/autonomy_health_gate</td><td>1</td><td>0</td><td>4</td><td>2</td></tr>
 <tr><td>tools/autonomy_soak_tick</td><td>1</td><td>0</td><td>4</td><td>0</td></tr>
 <tr><td>tools/lint_naming</td><td>1</td><td>0</td><td>1</td><td>0</td></tr>
-<tr><td>tools/paths</td><td>1</td><td>0</td><td>0</td><td>45</td></tr>
+<tr><td>tools/paths</td><td>1</td><td>0</td><td>0</td><td>65</td></tr>
 <tr><td>tools/release_identity</td><td>1</td><td>0</td><td>1</td><td>2</td></tr>
 <tr><td>tools/root</td><td>1</td><td>0</td><td>0</td><td>0</td></tr>
 </tbody></table>
 <h2>Top Cross-Domain Edges</h2>
 <table><thead><tr><th>From</th><th>To</th><th>Source modules</th></tr></thead><tbody>
-<tr><td>tools/dev</td><td>tools/paths</td><td>25</td></tr>
-<tr><td>core/config</td><td>core/kernel</td><td>22</td></tr>
-<tr><td>core/processes</td><td>desktop/application</td><td>11</td></tr>
-<tr><td>core/processes</td><td>desktop/models</td><td>11</td></tr>
-<tr><td>core/publish</td><td>desktop/application</td><td>11</td></tr>
-<tr><td>core/sample_validation</td><td>desktop/application</td><td>11</td></tr>
+<tr><td>tools/dev</td><td>tools/paths</td><td>44</td></tr>
+<tr><td>core/config</td><td>core/kernel</td><td>35</td></tr>
+<tr><td>core/processes</td><td>core/kernel</td><td>35</td></tr>
+<tr><td>core/processes</td><td>core/paths</td><td>35</td></tr>
+<tr><td>core/diagnostics</td><td>core/kernel</td><td>19</td></tr>
+<tr><td>core/publish</td><td>core/kernel</td><td>17</td></tr>
+<tr><td>desktop/network</td><td>core/network</td><td>15</td></tr>
+<tr><td>core/network</td><td>core/kernel</td><td>14</td></tr>
+<tr><td>core/maintenance</td><td>core/kernel</td><td>13</td></tr>
+<tr><td>core/processes</td><td>core/network</td><td>13</td></tr>
+<tr><td>core/diagnostics</td><td>core/status</td><td>12</td></tr>
+<tr><td>core/completed</td><td>core/kernel</td><td>11</td></tr>
+<tr><td>core/rename</td><td>core/kernel</td><td>11</td></tr>
+<tr><td>core/repair_reconcile</td><td>core/kernel</td><td>11</td></tr>
+<tr><td>core/completed</td><td>core/observability</td><td>10</td></tr>
+<tr><td>core/config</td><td>core/paths</td><td>10</td></tr>
+<tr><td>core/library</td><td>core/config</td><td>10</td></tr>
+<tr><td>core/queue</td><td>core/paths</td><td>10</td></tr>
+<tr><td>desktop/application</td><td>core/processes</td><td>10</td></tr>
+<tr><td>desktop/application</td><td>core/sample_validation</td><td>10</td></tr>
 <tr><td>desktop/contracts</td><td>core/kernel</td><td>10</td></tr>
+<tr><td>tools/change_control</td><td>tools/paths</td><td>10</td></tr>
 <tr><td>core/api</td><td>core/queue</td><td>9</td></tr>
-<tr><td>core/config</td><td>desktop/application</td><td>9</td></tr>
-<tr><td>core/config</td><td>desktop/models</td><td>9</td></tr>
-<tr><td>core/network</td><td>desktop/network</td><td>9</td></tr>
-<tr><td>desktop/network</td><td>core/network</td><td>9</td></tr>
-<tr><td>tools/change_control</td><td>tools/paths</td><td>9</td></tr>
-<tr><td>core/audit</td><td>desktop/models</td><td>8</td></tr>
+<tr><td>core/processes</td><td>core/config</td><td>9</td></tr>
+<tr><td>core/audit</td><td>core/paths</td><td>8</td></tr>
 <tr><td>core/config</td><td>contracts/config</td><td>8</td></tr>
-<tr><td>core/queue</td><td>desktop/models</td><td>8</td></tr>
+<tr><td>core/processes</td><td>core/final_library</td><td>8</td></tr>
+<tr><td>core/sample_validation</td><td>core/paths</td><td>8</td></tr>
+<tr><td>core/status</td><td>core/paths</td><td>8</td></tr>
+<tr><td>desktop/application</td><td>core/config</td><td>8</td></tr>
 <tr><td>desktop/application</td><td>core/kernel</td><td>8</td></tr>
-<tr><td>desktop/application</td><td>core/processes</td><td>8</td></tr>
-<tr><td>core/completed</td><td>desktop/models</td><td>7</td></tr>
+<tr><td>desktop/application</td><td>desktop/network</td><td>8</td></tr>
+<tr><td>core/api</td><td>core/config</td><td>7</td></tr>
+<tr><td>core/api</td><td>core/kernel</td><td>7</td></tr>
+<tr><td>core/audit</td><td>core/kernel</td><td>7</td></tr>
 <tr><td>core/decide</td><td>contracts/source_media</td><td>7</td></tr>
-<tr><td>core/processes</td><td>core/config</td><td>7</td></tr>
-<tr><td>desktop/application</td><td>core/config</td><td>7</td></tr>
+<tr><td>core/failures</td><td>core/kernel</td><td>7</td></tr>
+<tr><td>core/orchestration</td><td>core/config</td><td>7</td></tr>
+<tr><td>core/rename</td><td>core/files</td><td>7</td></tr>
 <tr><td>desktop/application</td><td>core/maintenance</td><td>7</td></tr>
-<tr><td>desktop/application</td><td>desktop/models</td><td>7</td></tr>
-<tr><td>core/api</td><td>core/config</td><td>6</td></tr>
-<tr><td>core/api</td><td>desktop/api</td><td>6</td></tr>
-<tr><td>core/diagnostics</td><td>core/kernel</td><td>6</td></tr>
-<tr><td>core/maintenance</td><td>desktop/application</td><td>6</td></tr>
-<tr><td>core/repair_reconcile</td><td>core/kernel</td><td>6</td></tr>
+<tr><td>core/api</td><td>core/processes</td><td>6</td></tr>
+<tr><td>core/metrics</td><td>core/completed</td><td>6</td></tr>
+<tr><td>core/network</td><td>core/config</td><td>6</td></tr>
+<tr><td>core/network</td><td>core/paths</td><td>6</td></tr>
+<tr><td>core/network</td><td>core/processes</td><td>6</td></tr>
+<tr><td>core/queue</td><td>core/kernel</td><td>6</td></tr>
 <tr><td>pipeline/ass_to_srt_cli</td><td>pipeline/ass_to_srt</td><td>6</td></tr>
-<tr><td>core/orchestration</td><td>core/config</td><td>5</td></tr>
-<tr><td>core/rename</td><td>core/files</td><td>5</td></tr>
-<tr><td>core/rename</td><td>desktop/application</td><td>5</td></tr>
-<tr><td>core/schedule</td><td>desktop/application</td><td>5</td></tr>
-<tr><td>core/status</td><td>desktop/models</td><td>5</td></tr>
-<tr><td>desktop/application</td><td>desktop/config_keys</td><td>5</td></tr>
-<tr><td>desktop/application</td><td>desktop/network</td><td>5</td></tr>
+<tr><td>core/completed</td><td>core/files</td><td>5</td></tr>
+<tr><td>core/completed</td><td>core/paths</td><td>5</td></tr>
+<tr><td>core/completed</td><td>core/subtitles</td><td>5</td></tr>
+<tr><td>core/failures</td><td>core/paths</td><td>5</td></tr>
+<tr><td>core/processes</td><td>core/audit</td><td>5</td></tr>
+<tr><td>core/sample_validation</td><td>core/kernel</td><td>5</td></tr>
 <tr><td>desktop/network</td><td>core/config</td><td>5</td></tr>
 <tr><td>desktop/network</td><td>desktop/config_keys</td><td>5</td></tr>
-<tr><td>core/api</td><td>desktop/application</td><td>4</td></tr>
-<tr><td>core/audit</td><td>desktop/application</td><td>4</td></tr>
-<tr><td>core/completed</td><td>desktop/application</td><td>4</td></tr>
+<tr><td>tools/dev</td><td>core/diagnostics</td><td>5</td></tr>
+<tr><td>core/api</td><td>core/rename</td><td>4</td></tr>
+<tr><td>core/audit</td><td>core/failures</td><td>4</td></tr>
 <tr><td>core/config</td><td>core/rename</td><td>4</td></tr>
-<tr><td>core/diagnostics</td><td>core/status</td><td>4</td></tr>
-<tr><td>core/failures</td><td>desktop/application</td><td>4</td></tr>
-<tr><td>core/failures</td><td>desktop/models</td><td>4</td></tr>
-<tr><td>core/maintenance</td><td>core/kernel</td><td>4</td></tr>
-<tr><td>core/maintenance</td><td>desktop/models</td><td>4</td></tr>
-<tr><td>core/network</td><td>core/kernel</td><td>4</td></tr>
-<tr><td>core/processes</td><td>core/kernel</td><td>4</td></tr>
-<tr><td>core/processes</td><td>desktop/contracts</td><td>4</td></tr>
+<tr><td>core/final_library</td><td>core/completed</td><td>4</td></tr>
+<tr><td>core/maintenance</td><td>core/paths</td><td>4</td></tr>
+<tr><td>core/processes</td><td>core/status</td><td>4</td></tr>
 <tr><td>core/queue</td><td>core/observability</td><td>4</td></tr>
-<tr><td>core/rename</td><td>desktop/subprocess_runner</td><td>4</td></tr>
+<tr><td>core/rename</td><td>core/paths</td><td>4</td></tr>
+<tr><td>core/schedule</td><td>core/kernel</td><td>4</td></tr>
+<tr><td>core/status</td><td>core/kernel</td><td>4</td></tr>
 <tr><td>core/status</td><td>core/rename</td><td>4</td></tr>
-<tr><td>core/telemetry</td><td>desktop/models</td><td>4</td></tr>
+<tr><td>desktop/network</td><td>core/kernel</td><td>4</td></tr>
+<tr><td>desktop/network</td><td>core/processes</td><td>4</td></tr>
 <tr><td>desktop/network</td><td>desktop/root</td><td>4</td></tr>
 <tr><td>contracts/config</td><td>core/rename</td><td>3</td></tr>
-<tr><td>core/audit</td><td>desktop/subprocess_runner</td><td>3</td></tr>
+<tr><td>contracts/config_fields</td><td>core/rename</td><td>3</td></tr>
 <tr><td>core/config</td><td>core/validation</td><td>3</td></tr>
-<tr><td>core/diagnostics</td><td>desktop/application</td><td>3</td></tr>
-<tr><td>core/diagnostics</td><td>desktop/models</td><td>3</td></tr>
-<tr><td>core/final_library</td><td>desktop/models</td><td>3</td></tr>
-<tr><td>core/library</td><td>core/config</td><td>3</td></tr>
-<tr><td>core/maintenance</td><td>desktop/subprocess_runner</td><td>3</td></tr>
-<tr><td>core/metrics</td><td>core/completed</td><td>3</td></tr>
-<tr><td>core/metrics</td><td>desktop/models</td><td>3</td></tr>
+<tr><td>core/diagnostics</td><td>core/paths</td><td>3</td></tr>
+<tr><td>core/final_library</td><td>core/paths</td><td>3</td></tr>
+<tr><td>core/library</td><td>core/kernel</td><td>3</td></tr>
 <tr><td>core/orchestration</td><td>core/decide</td><td>3</td></tr>
 <tr><td>core/paths</td><td>core/kernel</td><td>3</td></tr>
-<tr><td>core/publish</td><td>core/kernel</td><td>3</td></tr>
-<tr><td>core/publish</td><td>desktop/models</td><td>3</td></tr>
-<tr><td>core/queue</td><td>desktop/application</td><td>3</td></tr>
-<tr><td>core/rename</td><td>core/paths</td><td>3</td></tr>
-<tr><td>desktop/application</td><td>core/network</td><td>3</td></tr>
-<tr><td>desktop/services</td><td>core/maintenance</td><td>3</td></tr>
-<tr><td>core/api</td><td>core/kernel</td><td>2</td></tr>
-<tr><td>core/api</td><td>core/orchestration</td><td>2</td></tr>
-<tr><td>core/api</td><td>core/rename</td><td>2</td></tr>
-<tr><td>core/completed</td><td>core/observability</td><td>2</td></tr>
-<tr><td>core/completed</td><td>desktop/subprocess_runner</td><td>2</td></tr>
-<tr><td>core/config</td><td>contracts/height_tolerance</td><td>2</td></tr>
+<tr><td>core/processes</td><td>core/queue</td><td>3</td></tr>
+<tr><td>core/processes</td><td>core/rerun</td><td>3</td></tr>
 </tbody></table>
 <h2>Focused Module Diagrams</h2>
-<details open><summary>core/config - 64 files, 195 shown edges</summary>
+<details open><summary>core/config - 68 files, 219 shown edges</summary>
 <p><a href="assets/dependency_detail_core_config.png">PNG</a> <a href="assets/dependency_detail_core_config.svg">SVG</a></p>
 <img src="assets/dependency_detail_core_config.svg" alt="core/config dependency detail">
 </details>
-<details><summary>core/processes - 34 files, 95 shown edges</summary>
+<details><summary>core/processes - 60 files, 262 shown edges</summary>
 <p><a href="assets/dependency_detail_core_processes.png">PNG</a> <a href="assets/dependency_detail_core_processes.svg">SVG</a></p>
 <img src="assets/dependency_detail_core_processes.svg" alt="core/processes dependency detail">
 </details>
-<details open><summary>core/api - 32 files, 95 shown edges</summary>
+<details open><summary>core/api - 33 files, 99 shown edges</summary>
 <p><a href="assets/dependency_detail_core_api.png">PNG</a> <a href="assets/dependency_detail_core_api.svg">SVG</a></p>
 <img src="assets/dependency_detail_core_api.svg" alt="core/api dependency detail">
 </details>
-<details><summary>core/queue - 28 files, 68 shown edges</summary>
+<details><summary>core/queue - 30 files, 80 shown edges</summary>
 <p><a href="assets/dependency_detail_core_queue.png">PNG</a> <a href="assets/dependency_detail_core_queue.svg">SVG</a></p>
 <img src="assets/dependency_detail_core_queue.svg" alt="core/queue dependency detail">
 </details>
-<details><summary>core/kernel - 27 files, 88 shown edges</summary>
+<details><summary>core/rename - 28 files, 103 shown edges</summary>
+<p><a href="assets/dependency_detail_core_rename.png">PNG</a> <a href="assets/dependency_detail_core_rename.svg">SVG</a></p>
+<img src="assets/dependency_detail_core_rename.svg" alt="core/rename dependency detail">
+</details>
+<details><summary>core/kernel - 27 files, 135 shown edges</summary>
 <p><a href="assets/dependency_detail_core_kernel.png">PNG</a> <a href="assets/dependency_detail_core_kernel.svg">SVG</a></p>
 <img src="assets/dependency_detail_core_kernel.svg" alt="core/kernel dependency detail">
 </details>
-<details><summary>core/rename - 26 files, 85 shown edges</summary>
-<p><a href="assets/dependency_detail_core_rename.png">PNG</a> <a href="assets/dependency_detail_core_rename.svg">SVG</a></p>
-<img src="assets/dependency_detail_core_rename.svg" alt="core/rename dependency detail">
+<details><summary>core/status - 24 files, 82 shown edges</summary>
+<p><a href="assets/dependency_detail_core_status.png">PNG</a> <a href="assets/dependency_detail_core_status.svg">SVG</a></p>
+<img src="assets/dependency_detail_core_status.svg" alt="core/status dependency detail">
+</details>
+<details><summary>core/diagnostics - 23 files, 104 shown edges</summary>
+<p><a href="assets/dependency_detail_core_diagnostics.png">PNG</a> <a href="assets/dependency_detail_core_diagnostics.svg">SVG</a></p>
+<img src="assets/dependency_detail_core_diagnostics.svg" alt="core/diagnostics dependency detail">
+</details>
+<details><summary>core/network - 23 files, 112 shown edges</summary>
+<p><a href="assets/dependency_detail_core_network.png">PNG</a> <a href="assets/dependency_detail_core_network.svg">SVG</a></p>
+<img src="assets/dependency_detail_core_network.svg" alt="core/network dependency detail">
+</details>
+<details open><summary>core/publish - 21 files, 56 shown edges</summary>
+<p><a href="assets/dependency_detail_core_publish.png">PNG</a> <a href="assets/dependency_detail_core_publish.svg">SVG</a></p>
+<img src="assets/dependency_detail_core_publish.svg" alt="core/publish dependency detail">
 </details>
 <details><summary>core/maintenance - 19 files, 45 shown edges</summary>
 <p><a href="assets/dependency_detail_core_maintenance.png">PNG</a> <a href="assets/dependency_detail_core_maintenance.svg">SVG</a></p>
 <img src="assets/dependency_detail_core_maintenance.svg" alt="core/maintenance dependency detail">
 </details>
-<details open><summary>core/publish - 19 files, 52 shown edges</summary>
-<p><a href="assets/dependency_detail_core_publish.png">PNG</a> <a href="assets/dependency_detail_core_publish.svg">SVG</a></p>
-<img src="assets/dependency_detail_core_publish.svg" alt="core/publish dependency detail">
+<details><summary>core/completed - 16 files, 93 shown edges</summary>
+<p><a href="assets/dependency_detail_core_completed.png">PNG</a> <a href="assets/dependency_detail_core_completed.svg">SVG</a></p>
+<img src="assets/dependency_detail_core_completed.svg" alt="core/completed dependency detail">
 </details>
-<details><summary>core/status - 19 files, 47 shown edges</summary>
-<p><a href="assets/dependency_detail_core_status.png">PNG</a> <a href="assets/dependency_detail_core_status.svg">SVG</a></p>
-<img src="assets/dependency_detail_core_status.svg" alt="core/status dependency detail">
+<details><summary>core/failures - 16 files, 50 shown edges</summary>
+<p><a href="assets/dependency_detail_core_failures.png">PNG</a> <a href="assets/dependency_detail_core_failures.svg">SVG</a></p>
+<img src="assets/dependency_detail_core_failures.svg" alt="core/failures dependency detail">
 </details>
-<details><summary>core/audit - 13 files, 34 shown edges</summary>
+<details><summary>core/audit - 15 files, 52 shown edges</summary>
 <p><a href="assets/dependency_detail_core_audit.png">PNG</a> <a href="assets/dependency_detail_core_audit.svg">SVG</a></p>
 <img src="assets/dependency_detail_core_audit.svg" alt="core/audit dependency detail">
 </details>
-<details><summary>core/completed - 10 files, 35 shown edges</summary>
-<p><a href="assets/dependency_detail_core_completed.png">PNG</a> <a href="assets/dependency_detail_core_completed.svg">SVG</a></p>
-<img src="assets/dependency_detail_core_completed.svg" alt="core/completed dependency detail">
+<details><summary>core/sample_validation - 13 files, 52 shown edges</summary>
+<p><a href="assets/dependency_detail_core_sample_validation.png">PNG</a> <a href="assets/dependency_detail_core_sample_validation.svg">SVG</a></p>
+<img src="assets/dependency_detail_core_sample_validation.svg" alt="core/sample_validation dependency detail">
 </details>
 <details><summary>core/decide - 10 files, 36 shown edges</summary>
 <p><a href="assets/dependency_detail_core_decide.png">PNG</a> <a href="assets/dependency_detail_core_decide.svg">SVG</a></p>
 <img src="assets/dependency_detail_core_decide.svg" alt="core/decide dependency detail">
 </details>
-<details><summary>core/diagnostics - 10 files, 30 shown edges</summary>
-<p><a href="assets/dependency_detail_core_diagnostics.png">PNG</a> <a href="assets/dependency_detail_core_diagnostics.svg">SVG</a></p>
-<img src="assets/dependency_detail_core_diagnostics.svg" alt="core/diagnostics dependency detail">
-</details>
-<details><summary>core/failures - 9 files, 16 shown edges</summary>
-<p><a href="assets/dependency_detail_core_failures.png">PNG</a> <a href="assets/dependency_detail_core_failures.svg">SVG</a></p>
-<img src="assets/dependency_detail_core_failures.svg" alt="core/failures dependency detail">
-</details>
-<details><summary>core/final_library - 9 files, 18 shown edges</summary>
+<details><summary>core/final_library - 9 files, 21 shown edges</summary>
 <p><a href="assets/dependency_detail_core_final_library.png">PNG</a> <a href="assets/dependency_detail_core_final_library.svg">SVG</a></p>
 <img src="assets/dependency_detail_core_final_library.svg" alt="core/final_library dependency detail">
+</details>
+<details><summary>core/paths - 9 files, 48 shown edges</summary>
+<p><a href="assets/dependency_detail_core_paths.png">PNG</a> <a href="assets/dependency_detail_core_paths.svg">SVG</a></p>
+<img src="assets/dependency_detail_core_paths.svg" alt="core/paths dependency detail">
+</details>
+<details><summary>core/repair_reconcile - 8 files, 26 shown edges</summary>
+<p><a href="assets/dependency_detail_core_repair_reconcile.png">PNG</a> <a href="assets/dependency_detail_core_repair_reconcile.svg">SVG</a></p>
+<img src="assets/dependency_detail_core_repair_reconcile.svg" alt="core/repair_reconcile dependency detail">
+</details>
+<details><summary>core/schedule - 8 files, 13 shown edges</summary>
+<p><a href="assets/dependency_detail_core_schedule.png">PNG</a> <a href="assets/dependency_detail_core_schedule.svg">SVG</a></p>
+<img src="assets/dependency_detail_core_schedule.svg" alt="core/schedule dependency detail">
 </details>
 <details><summary>core/folder_policy - 7 files, 10 shown edges</summary>
 <p><a href="assets/dependency_detail_core_folder_policy.png">PNG</a> <a href="assets/dependency_detail_core_folder_policy.svg">SVG</a></p>
 <img src="assets/dependency_detail_core_folder_policy.svg" alt="core/folder_policy dependency detail">
 </details>
-<details><summary>core/paths - 7 files, 17 shown edges</summary>
-<p><a href="assets/dependency_detail_core_paths.png">PNG</a> <a href="assets/dependency_detail_core_paths.svg">SVG</a></p>
-<img src="assets/dependency_detail_core_paths.svg" alt="core/paths dependency detail">
-</details>
-<details><summary>core/schedule - 7 files, 9 shown edges</summary>
-<p><a href="assets/dependency_detail_core_schedule.png">PNG</a> <a href="assets/dependency_detail_core_schedule.svg">SVG</a></p>
-<img src="assets/dependency_detail_core_schedule.svg" alt="core/schedule dependency detail">
-</details>
-<details><summary>core/observability - 6 files, 12 shown edges</summary>
+<details><summary>core/observability - 7 files, 12 shown edges</summary>
 <p><a href="assets/dependency_detail_core_observability.png">PNG</a> <a href="assets/dependency_detail_core_observability.svg">SVG</a></p>
 <img src="assets/dependency_detail_core_observability.svg" alt="core/observability dependency detail">
 </details>
-<details><summary>core/telemetry - 6 files, 15 shown edges</summary>
+<details><summary>core/telemetry - 7 files, 19 shown edges</summary>
 <p><a href="assets/dependency_detail_core_telemetry.png">PNG</a> <a href="assets/dependency_detail_core_telemetry.svg">SVG</a></p>
 <img src="assets/dependency_detail_core_telemetry.svg" alt="core/telemetry dependency detail">
 </details>
-<details><summary>core/network - 5 files, 19 shown edges</summary>
-<p><a href="assets/dependency_detail_core_network.png">PNG</a> <a href="assets/dependency_detail_core_network.svg">SVG</a></p>
-<img src="assets/dependency_detail_core_network.svg" alt="core/network dependency detail">
+<details><summary>core/library - 6 files, 18 shown edges</summary>
+<p><a href="assets/dependency_detail_core_library.png">PNG</a> <a href="assets/dependency_detail_core_library.svg">SVG</a></p>
+<img src="assets/dependency_detail_core_library.svg" alt="core/library dependency detail">
 </details>
-<details><summary>core/storage - 5 files, 11 shown edges</summary>
+<details><summary>core/storage - 5 files, 12 shown edges</summary>
 <p><a href="assets/dependency_detail_core_storage.png">PNG</a> <a href="assets/dependency_detail_core_storage.svg">SVG</a></p>
 <img src="assets/dependency_detail_core_storage.svg" alt="core/storage dependency detail">
 </details>
@@ -282,37 +307,29 @@
 <p><a href="assets/dependency_detail_core_metrics.png">PNG</a> <a href="assets/dependency_detail_core_metrics.svg">SVG</a></p>
 <img src="assets/dependency_detail_core_metrics.svg" alt="core/metrics dependency detail">
 </details>
-<details><summary>core/orchestration - 4 files, 13 shown edges</summary>
+<details><summary>core/orchestration - 4 files, 15 shown edges</summary>
 <p><a href="assets/dependency_detail_core_orchestration.png">PNG</a> <a href="assets/dependency_detail_core_orchestration.svg">SVG</a></p>
 <img src="assets/dependency_detail_core_orchestration.svg" alt="core/orchestration dependency detail">
-</details>
-<details><summary>core/repair_reconcile - 4 files, 12 shown edges</summary>
-<p><a href="assets/dependency_detail_core_repair_reconcile.png">PNG</a> <a href="assets/dependency_detail_core_repair_reconcile.svg">SVG</a></p>
-<img src="assets/dependency_detail_core_repair_reconcile.svg" alt="core/repair_reconcile dependency detail">
 </details>
 <details><summary>core/shared - 4 files, 0 shown edges</summary>
 <p><a href="assets/dependency_detail_core_shared.png">PNG</a> <a href="assets/dependency_detail_core_shared.svg">SVG</a></p>
 <img src="assets/dependency_detail_core_shared.svg" alt="core/shared dependency detail">
 </details>
-<details><summary>core/library - 3 files, 6 shown edges</summary>
-<p><a href="assets/dependency_detail_core_library.png">PNG</a> <a href="assets/dependency_detail_core_library.svg">SVG</a></p>
-<img src="assets/dependency_detail_core_library.svg" alt="core/library dependency detail">
-</details>
-<details><summary>core/sample_validation - 3 files, 6 shown edges</summary>
-<p><a href="assets/dependency_detail_core_sample_validation.png">PNG</a> <a href="assets/dependency_detail_core_sample_validation.svg">SVG</a></p>
-<img src="assets/dependency_detail_core_sample_validation.svg" alt="core/sample_validation dependency detail">
-</details>
-<details><summary>core/subtitles - 3 files, 8 shown edges</summary>
+<details><summary>core/subtitles - 4 files, 12 shown edges</summary>
 <p><a href="assets/dependency_detail_core_subtitles.png">PNG</a> <a href="assets/dependency_detail_core_subtitles.svg">SVG</a></p>
 <img src="assets/dependency_detail_core_subtitles.svg" alt="core/subtitles dependency detail">
 </details>
-<details><summary>core/validation - 3 files, 8 shown edges</summary>
+<details><summary>core/validation - 4 files, 10 shown edges</summary>
 <p><a href="assets/dependency_detail_core_validation.png">PNG</a> <a href="assets/dependency_detail_core_validation.svg">SVG</a></p>
 <img src="assets/dependency_detail_core_validation.svg" alt="core/validation dependency detail">
 </details>
 <details><summary>core/application - 2 files, 2 shown edges</summary>
 <p><a href="assets/dependency_detail_core_application.png">PNG</a> <a href="assets/dependency_detail_core_application.svg">SVG</a></p>
 <img src="assets/dependency_detail_core_application.svg" alt="core/application dependency detail">
+</details>
+<details><summary>core/rerun - 2 files, 2 shown edges</summary>
+<p><a href="assets/dependency_detail_core_rerun.png">PNG</a> <a href="assets/dependency_detail_core_rerun.svg">SVG</a></p>
+<img src="assets/dependency_detail_core_rerun.svg" alt="core/rerun dependency detail">
 </details>
 <details><summary>core/ui - 2 files, 1 shown edges</summary>
 <p><a href="assets/dependency_detail_core_ui.png">PNG</a> <a href="assets/dependency_detail_core_ui.svg">SVG</a></p>
@@ -322,31 +339,31 @@
 <p><a href="assets/dependency_detail_core_ui_preferences.png">PNG</a> <a href="assets/dependency_detail_core_ui_preferences.svg">SVG</a></p>
 <img src="assets/dependency_detail_core_ui_preferences.svg" alt="core/ui_preferences dependency detail">
 </details>
-<details><summary>desktop/network - 49 files, 135 shown edges</summary>
+<details><summary>desktop/network - 55 files, 173 shown edges</summary>
 <p><a href="assets/dependency_detail_desktop_network.png">PNG</a> <a href="assets/dependency_detail_desktop_network.svg">SVG</a></p>
 <img src="assets/dependency_detail_desktop_network.svg" alt="desktop/network dependency detail">
 </details>
-<details><summary>tools/dev - 27 files, 38 shown edges</summary>
+<details><summary>tools/dev - 49 files, 92 shown edges</summary>
 <p><a href="assets/dependency_detail_tools_dev.png">PNG</a> <a href="assets/dependency_detail_tools_dev.svg">SVG</a></p>
 <img src="assets/dependency_detail_tools_dev.svg" alt="tools/dev dependency detail">
 </details>
-<details open><summary>desktop/api - 26 files, 64 shown edges</summary>
+<details open><summary>desktop/api - 32 files, 74 shown edges</summary>
 <p><a href="assets/dependency_detail_desktop_api.png">PNG</a> <a href="assets/dependency_detail_desktop_api.svg">SVG</a></p>
 <img src="assets/dependency_detail_desktop_api.svg" alt="desktop/api dependency detail">
 </details>
-<details open><summary>desktop/application - 23 files, 130 shown edges</summary>
+<details open><summary>desktop/application - 23 files, 64 shown edges</summary>
 <p><a href="assets/dependency_detail_desktop_application.png">PNG</a> <a href="assets/dependency_detail_desktop_application.svg">SVG</a></p>
 <img src="assets/dependency_detail_desktop_application.svg" alt="desktop/application dependency detail">
 </details>
-<details><summary>desktop/contracts - 10 files, 16 shown edges</summary>
-<p><a href="assets/dependency_detail_desktop_contracts.png">PNG</a> <a href="assets/dependency_detail_desktop_contracts.svg">SVG</a></p>
-<img src="assets/dependency_detail_desktop_contracts.svg" alt="desktop/contracts dependency detail">
-</details>
-<details><summary>tools/change_control - 10 files, 15 shown edges</summary>
+<details><summary>tools/change_control - 11 files, 17 shown edges</summary>
 <p><a href="assets/dependency_detail_tools_change_control.png">PNG</a> <a href="assets/dependency_detail_tools_change_control.svg">SVG</a></p>
 <img src="assets/dependency_detail_tools_change_control.svg" alt="tools/change_control dependency detail">
 </details>
-<details><summary>pipeline/ass_to_srt - 6 files, 11 shown edges</summary>
+<details><summary>desktop/contracts - 10 files, 10 shown edges</summary>
+<p><a href="assets/dependency_detail_desktop_contracts.png">PNG</a> <a href="assets/dependency_detail_desktop_contracts.svg">SVG</a></p>
+<img src="assets/dependency_detail_desktop_contracts.svg" alt="desktop/contracts dependency detail">
+</details>
+<details><summary>pipeline/ass_to_srt - 6 files, 14 shown edges</summary>
 <p><a href="assets/dependency_detail_pipeline_ass_to_srt.png">PNG</a> <a href="assets/dependency_detail_pipeline_ass_to_srt.svg">SVG</a></p>
 <img src="assets/dependency_detail_pipeline_ass_to_srt.svg" alt="pipeline/ass_to_srt dependency detail">
 </details>
@@ -354,27 +371,67 @@
 <p><a href="assets/dependency_detail_desktop_watch.png">PNG</a> <a href="assets/dependency_detail_desktop_watch.svg">SVG</a></p>
 <img src="assets/dependency_detail_desktop_watch.svg" alt="desktop/watch dependency detail">
 </details>
-<details><summary>contracts/api_commands - 1 files, 2 shown edges</summary>
+<details><summary>contracts/api_commands - 1 files, 4 shown edges</summary>
 <p><a href="assets/dependency_detail_contracts_api_commands.png">PNG</a> <a href="assets/dependency_detail_contracts_api_commands.svg">SVG</a></p>
 <img src="assets/dependency_detail_contracts_api_commands.svg" alt="contracts/api_commands dependency detail">
+</details>
+<details><summary>contracts/api_routes - 1 files, 5 shown edges</summary>
+<p><a href="assets/dependency_detail_contracts_api_routes.png">PNG</a> <a href="assets/dependency_detail_contracts_api_routes.svg">SVG</a></p>
+<img src="assets/dependency_detail_contracts_api_routes.svg" alt="contracts/api_routes dependency detail">
+</details>
+<details><summary>contracts/api_routes_command - 1 files, 6 shown edges</summary>
+<p><a href="assets/dependency_detail_contracts_api_routes_command.png">PNG</a> <a href="assets/dependency_detail_contracts_api_routes_command.svg">SVG</a></p>
+<img src="assets/dependency_detail_contracts_api_routes_command.svg" alt="contracts/api_routes_command dependency detail">
+</details>
+<details><summary>contracts/api_routes_command_file - 1 files, 1 shown edges</summary>
+<p><a href="assets/dependency_detail_contracts_api_routes_command_file.png">PNG</a> <a href="assets/dependency_detail_contracts_api_routes_command_file.svg">SVG</a></p>
+<img src="assets/dependency_detail_contracts_api_routes_command_file.svg" alt="contracts/api_routes_command_file dependency detail">
+</details>
+<details><summary>contracts/api_routes_command_network - 1 files, 1 shown edges</summary>
+<p><a href="assets/dependency_detail_contracts_api_routes_command_network.png">PNG</a> <a href="assets/dependency_detail_contracts_api_routes_command_network.svg">SVG</a></p>
+<img src="assets/dependency_detail_contracts_api_routes_command_network.svg" alt="contracts/api_routes_command_network dependency detail">
+</details>
+<details><summary>contracts/api_routes_command_operations - 1 files, 2 shown edges</summary>
+<p><a href="assets/dependency_detail_contracts_api_routes_command_operations.png">PNG</a> <a href="assets/dependency_detail_contracts_api_routes_command_operations.svg">SVG</a></p>
+<img src="assets/dependency_detail_contracts_api_routes_command_operations.svg" alt="contracts/api_routes_command_operations dependency detail">
+</details>
+<details><summary>contracts/api_routes_command_process - 1 files, 1 shown edges</summary>
+<p><a href="assets/dependency_detail_contracts_api_routes_command_process.png">PNG</a> <a href="assets/dependency_detail_contracts_api_routes_command_process.svg">SVG</a></p>
+<img src="assets/dependency_detail_contracts_api_routes_command_process.svg" alt="contracts/api_routes_command_process dependency detail">
+</details>
+<details><summary>contracts/api_routes_command_settings_ui - 1 files, 1 shown edges</summary>
+<p><a href="assets/dependency_detail_contracts_api_routes_command_settings_ui.png">PNG</a> <a href="assets/dependency_detail_contracts_api_routes_command_settings_ui.svg">SVG</a></p>
+<img src="assets/dependency_detail_contracts_api_routes_command_settings_ui.svg" alt="contracts/api_routes_command_settings_ui dependency detail">
+</details>
+<details><summary>contracts/api_routes_read - 1 files, 2 shown edges</summary>
+<p><a href="assets/dependency_detail_contracts_api_routes_read.png">PNG</a> <a href="assets/dependency_detail_contracts_api_routes_read.svg">SVG</a></p>
+<img src="assets/dependency_detail_contracts_api_routes_read.svg" alt="contracts/api_routes_read dependency detail">
+</details>
+<details><summary>contracts/api_routes_shared - 1 files, 2 shown edges</summary>
+<p><a href="assets/dependency_detail_contracts_api_routes_shared.png">PNG</a> <a href="assets/dependency_detail_contracts_api_routes_shared.svg">SVG</a></p>
+<img src="assets/dependency_detail_contracts_api_routes_shared.svg" alt="contracts/api_routes_shared dependency detail">
 </details>
 <details><summary>contracts/config - 1 files, 13 shown edges</summary>
 <p><a href="assets/dependency_detail_contracts_config.png">PNG</a> <a href="assets/dependency_detail_contracts_config.svg">SVG</a></p>
 <img src="assets/dependency_detail_contracts_config.svg" alt="contracts/config dependency detail">
 </details>
-<details><summary>contracts/config_coercion - 1 files, 2 shown edges</summary>
+<details><summary>contracts/config_coercion - 1 files, 4 shown edges</summary>
 <p><a href="assets/dependency_detail_contracts_config_coercion.png">PNG</a> <a href="assets/dependency_detail_contracts_config_coercion.svg">SVG</a></p>
 <img src="assets/dependency_detail_contracts_config_coercion.svg" alt="contracts/config_coercion dependency detail">
 </details>
-<details><summary>contracts/config_defaults - 1 files, 2 shown edges</summary>
+<details><summary>contracts/config_defaults - 1 files, 4 shown edges</summary>
 <p><a href="assets/dependency_detail_contracts_config_defaults.png">PNG</a> <a href="assets/dependency_detail_contracts_config_defaults.svg">SVG</a></p>
 <img src="assets/dependency_detail_contracts_config_defaults.svg" alt="contracts/config_defaults dependency detail">
 </details>
-<details><summary>contracts/config_schema_extras - 1 files, 1 shown edges</summary>
+<details><summary>contracts/config_fields - 1 files, 8 shown edges</summary>
+<p><a href="assets/dependency_detail_contracts_config_fields.png">PNG</a> <a href="assets/dependency_detail_contracts_config_fields.svg">SVG</a></p>
+<img src="assets/dependency_detail_contracts_config_fields.svg" alt="contracts/config_fields dependency detail">
+</details>
+<details><summary>contracts/config_schema_extras - 1 files, 2 shown edges</summary>
 <p><a href="assets/dependency_detail_contracts_config_schema_extras.png">PNG</a> <a href="assets/dependency_detail_contracts_config_schema_extras.svg">SVG</a></p>
 <img src="assets/dependency_detail_contracts_config_schema_extras.svg" alt="contracts/config_schema_extras dependency detail">
 </details>
-<details><summary>contracts/config_validators - 1 files, 2 shown edges</summary>
+<details><summary>contracts/config_validators - 1 files, 3 shown edges</summary>
 <p><a href="assets/dependency_detail_contracts_config_validators.png">PNG</a> <a href="assets/dependency_detail_contracts_config_validators.svg">SVG</a></p>
 <img src="assets/dependency_detail_contracts_config_validators.svg" alt="contracts/config_validators dependency detail">
 </details>
@@ -382,7 +439,7 @@
 <p><a href="assets/dependency_detail_contracts_decision_policy.png">PNG</a> <a href="assets/dependency_detail_contracts_decision_policy.svg">SVG</a></p>
 <img src="assets/dependency_detail_contracts_decision_policy.svg" alt="contracts/decision_policy dependency detail">
 </details>
-<details><summary>contracts/height_tolerance - 1 files, 6 shown edges</summary>
+<details><summary>contracts/height_tolerance - 1 files, 7 shown edges</summary>
 <p><a href="assets/dependency_detail_contracts_height_tolerance.png">PNG</a> <a href="assets/dependency_detail_contracts_height_tolerance.svg">SVG</a></p>
 <img src="assets/dependency_detail_contracts_height_tolerance.svg" alt="contracts/height_tolerance dependency detail">
 </details>
@@ -393,6 +450,10 @@
 <details><summary>contracts/pipeline_plan - 1 files, 2 shown edges</summary>
 <p><a href="assets/dependency_detail_contracts_pipeline_plan.png">PNG</a> <a href="assets/dependency_detail_contracts_pipeline_plan.svg">SVG</a></p>
 <img src="assets/dependency_detail_contracts_pipeline_plan.svg" alt="contracts/pipeline_plan dependency detail">
+</details>
+<details><summary>contracts/run_monitor - 1 files, 2 shown edges</summary>
+<p><a href="assets/dependency_detail_contracts_run_monitor.png">PNG</a> <a href="assets/dependency_detail_contracts_run_monitor.svg">SVG</a></p>
+<img src="assets/dependency_detail_contracts_run_monitor.svg" alt="contracts/run_monitor dependency detail">
 </details>
 <details><summary>contracts/source_media - 1 files, 6 shown edges</summary>
 <p><a href="assets/dependency_detail_contracts_source_media.png">PNG</a> <a href="assets/dependency_detail_contracts_source_media.svg">SVG</a></p>
@@ -426,7 +487,7 @@
 <p><a href="assets/dependency_detail_contracts_stage_decide.png">PNG</a> <a href="assets/dependency_detail_contracts_stage_decide.svg">SVG</a></p>
 <img src="assets/dependency_detail_contracts_stage_decide.svg" alt="contracts/stage_decide dependency detail">
 </details>
-<details><summary>contracts/stage_mutation - 1 files, 3 shown edges</summary>
+<details><summary>contracts/stage_mutation - 1 files, 5 shown edges</summary>
 <p><a href="assets/dependency_detail_contracts_stage_mutation.png">PNG</a> <a href="assets/dependency_detail_contracts_stage_mutation.svg">SVG</a></p>
 <img src="assets/dependency_detail_contracts_stage_mutation.svg" alt="contracts/stage_mutation dependency detail">
 </details>
@@ -454,15 +515,19 @@
 <p><a href="assets/dependency_detail_desktop_backend_bootstrap.png">PNG</a> <a href="assets/dependency_detail_desktop_backend_bootstrap.svg">SVG</a></p>
 <img src="assets/dependency_detail_desktop_backend_bootstrap.svg" alt="desktop/backend_bootstrap dependency detail">
 </details>
-<details><summary>desktop/config_keys - 1 files, 5 shown edges</summary>
+<details><summary>desktop/backend_instance - 1 files, 1 shown edges</summary>
+<p><a href="assets/dependency_detail_desktop_backend_instance.png">PNG</a> <a href="assets/dependency_detail_desktop_backend_instance.svg">SVG</a></p>
+<img src="assets/dependency_detail_desktop_backend_instance.svg" alt="desktop/backend_instance dependency detail">
+</details>
+<details><summary>desktop/config_keys - 1 files, 4 shown edges</summary>
 <p><a href="assets/dependency_detail_desktop_config_keys.png">PNG</a> <a href="assets/dependency_detail_desktop_config_keys.svg">SVG</a></p>
 <img src="assets/dependency_detail_desktop_config_keys.svg" alt="desktop/config_keys dependency detail">
 </details>
-<details><summary>desktop/local_api_main - 1 files, 9 shown edges</summary>
+<details><summary>desktop/local_api_main - 1 files, 11 shown edges</summary>
 <p><a href="assets/dependency_detail_desktop_local_api_main.png">PNG</a> <a href="assets/dependency_detail_desktop_local_api_main.svg">SVG</a></p>
 <img src="assets/dependency_detail_desktop_local_api_main.svg" alt="desktop/local_api_main dependency detail">
 </details>
-<details><summary>desktop/models - 1 files, 31 shown edges</summary>
+<details><summary>desktop/models - 1 files, 15 shown edges</summary>
 <p><a href="assets/dependency_detail_desktop_models.png">PNG</a> <a href="assets/dependency_detail_desktop_models.svg">SVG</a></p>
 <img src="assets/dependency_detail_desktop_models.svg" alt="desktop/models dependency detail">
 </details>
@@ -482,11 +547,11 @@
 <p><a href="assets/dependency_detail_desktop_root.png">PNG</a> <a href="assets/dependency_detail_desktop_root.svg">SVG</a></p>
 <img src="assets/dependency_detail_desktop_root.svg" alt="desktop/root dependency detail">
 </details>
-<details><summary>desktop/services - 1 files, 24 shown edges</summary>
+<details><summary>desktop/services - 1 files, 23 shown edges</summary>
 <p><a href="assets/dependency_detail_desktop_services.png">PNG</a> <a href="assets/dependency_detail_desktop_services.svg">SVG</a></p>
 <img src="assets/dependency_detail_desktop_services.svg" alt="desktop/services dependency detail">
 </details>
-<details><summary>desktop/subprocess_runner - 1 files, 10 shown edges</summary>
+<details><summary>desktop/subprocess_runner - 1 files, 1 shown edges</summary>
 <p><a href="assets/dependency_detail_desktop_subprocess_runner.png">PNG</a> <a href="assets/dependency_detail_desktop_subprocess_runner.svg">SVG</a></p>
 <img src="assets/dependency_detail_desktop_subprocess_runner.svg" alt="desktop/subprocess_runner dependency detail">
 </details>
@@ -494,7 +559,7 @@
 <p><a href="assets/dependency_detail_desktop_webview_settings_live_smoke.png">PNG</a> <a href="assets/dependency_detail_desktop_webview_settings_live_smoke.svg">SVG</a></p>
 <img src="assets/dependency_detail_desktop_webview_settings_live_smoke.svg" alt="desktop/webview_settings_live_smoke dependency detail">
 </details>
-<details><summary>desktop/webview_settings_patch_smoke - 1 files, 7 shown edges</summary>
+<details><summary>desktop/webview_settings_patch_smoke - 1 files, 8 shown edges</summary>
 <p><a href="assets/dependency_detail_desktop_webview_settings_patch_smoke.png">PNG</a> <a href="assets/dependency_detail_desktop_webview_settings_patch_smoke.svg">SVG</a></p>
 <img src="assets/dependency_detail_desktop_webview_settings_patch_smoke.svg" alt="desktop/webview_settings_patch_smoke dependency detail">
 </details>

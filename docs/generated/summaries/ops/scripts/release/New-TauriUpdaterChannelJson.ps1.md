@@ -6,9 +6,9 @@ file_type: PowerShell
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-17
+last_modified: 2026-07-23
 last_reviewed: 2026-06-17
-sha256: 7bd1c9688bccc9203dd5adb3ff223dd3d123f67db5470bb3c8a108c6343c0975
+sha256: e64e97ad9d7a6182819394d6bac1cb1628af6f7824f457ad913c35c47d6749f4
 ---
 # `ops/scripts/release/New-TauriUpdaterChannelJson.ps1`
 

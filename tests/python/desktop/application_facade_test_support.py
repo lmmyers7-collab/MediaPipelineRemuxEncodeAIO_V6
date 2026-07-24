@@ -8,6 +8,7 @@ import re
 import sys
 import tempfile
 import unittest
+import uuid
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -574,7 +575,11 @@ class LocalApiHttpTestMixin:
         from urllib.error import HTTPError
         from urllib.request import Request, urlopen
 
-        headers = {"Content-Type": "application/json", **dict(extra_headers or {})}
+        headers = {
+            "Content-Type": "application/json",
+            "X-MediaPipeline-Command-ID": uuid.uuid4().hex,
+            **dict(extra_headers or {}),
+        }
         if token:
             headers["Authorization"] = f"Bearer {token}"
         body = json.dumps(payload).encode("utf-8")

@@ -1,0 +1,48 @@
+{
+  "id": "MP-CHANGE-2026-0722-005",
+  "title": "Preserve active audit state in close readiness",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-22",
+  "date_completed": "2026-07-22",
+  "summary": "Preserve current snapshot audit activity when reducing backend close-readiness state.",
+  "reason": "Remediate P1 AUDIT-FIND-W03-015. The existing bundled-runtime regression returns safe_to_close=true for audit_progress.status=running when pipeline progress is empty.",
+  "affected_areas": [
+    "audit lifecycle",
+    "close readiness",
+    "process safety",
+    "state reduction",
+    "validation"
+  ],
+  "behavior_before": "The combined state reducer can classify an authoritative running-audit snapshot as idle when pipeline progress is empty and audit progress has no embedded timestamp.",
+  "behavior_after": "Current active audit evidence will produce the audit state before non-blocking pipeline states, while explicitly timestamped stale audit evidence remains non-blocking.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/src/mediapipeline/core/application/utilities.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0722-005.json",
+    "src/mediapipeline/core/application/utilities.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Close policy, Local API lifecycle, Tauri close adversarial, core contracts, and Tdarr lifecycle set - passed: 110 tests, 7 subtests",
+    "Existing close-readiness regression - expected red before implementation: audit safe_to_close was true",
+    "Full close-readiness suite after implementation - passed: 22 tests, 7 subtests",
+    "Project index, feature map, lifecycle map, architecture guardrails, and naming lint checks - passed",
+    "State reducer summary refreshed and project index/dependency graph regenerated",
+    "Tooling guardrail tests - passed: 33 tests, 57 subtests",
+    "ai_guardrail postflight - only separate finding-backed failures AUDIT-FIND-COV-001, AUDIT-FIND-DEP-001, and AUDIT-FIND-W12-ACTIVE-001; batch-local checks passed with 0 god-file errors",
+    "git diff --check - passed (line-ending warnings only)",
+    "ruff and py_compile for state reducer - passed",
+    "validate_changes --require-worktree-coverage - passed before completion: 1120 packets valid"
+  ],
+  "rollback_plan": "Revert the combined-state precedence change, refresh its generated summary, and retain this packet as incomplete evidence if rollback occurs.",
+  "related_changes": [
+    "AUDIT-FIND-W03-013",
+    "AUDIT-FIND-W03-015"
+  ],
+  "notes": "Finding disposition before remediation: confirmed by the existing currently failing test at tests/python/desktop/test_application_facade_close_readiness.py. Invariant: a current backend snapshot proving active audit work must block native close even when pipeline progress is absent. Explicitly timestamped stale audit evidence must remain non-blocking. Required validation: full close-readiness suite, Local API lifecycle contracts, Tauri close adversarial scaffold, and strict packet coverage. No real media is required or authorized. Python impact: yes; shared application state reduction only."
+}

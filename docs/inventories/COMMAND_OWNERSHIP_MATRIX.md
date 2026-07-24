@@ -16,6 +16,18 @@ command-journaled, and provider-guarded. Repair/reconcile has backend-owned
 dry-run and confirmed apply routes; confirmed apply routes require matching
 dry-run fingerprints and backend backups.
 
+All strict durable routes use the backend-published `durableCommandRoutes`
+bootstrap inventory and require `X-MediaPipeline-Command-ID`. The WebView owns
+only the request-stable delivery identity lifecycle; the backend command journal
+owns canonical route/payload fingerprinting, atomic reservation, conflict and
+in-progress decisions, and terminal response replay. Ambiguous outcomes retain
+the same ID and never authorize blind creation of a second command. Only the
+backend's explicitly pre-mutation `OperatorRouteError` may terminalize as
+`failed`; every unclassified dispatch exception terminalizes as `indeterminate`.
+If terminal persistence fails, the accepted reservation remains authoritative
+and the response distinguishes a verified lifecycle fallback marker from
+`command_evidence_unresolved` marker failure.
+
 ---
 
 ## Contract Groups

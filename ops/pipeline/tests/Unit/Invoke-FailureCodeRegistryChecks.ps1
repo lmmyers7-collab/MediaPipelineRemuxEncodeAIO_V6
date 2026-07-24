@@ -14,6 +14,37 @@ $failureCodesModule = Join-Path $repoRoot 'ops\pipeline\engine\shared\failure_co
 
 . $failureCodesModule
 
+function Get-OutcomeTokenPattern {
+    param([Parameter(Mandatory)] [string[]]$KnownCodes)
+
+    $prefixes = @(
+        $KnownCodes |
+            Where-Object { $_ -ne 'OK' -and $_ -match '_' } |
+            ForEach-Object { ([string]$_ -split '_', 2)[0] } |
+            Sort-Object -Unique
+    )
+    if ($prefixes.Count -eq 0) { throw 'Outcome registry exposes no token prefixes.' }
+    $prefixAlternation = (($prefixes | ForEach-Object { [regex]::Escape($_) }) -join '|')
+    return "(?<![A-Z0-9_])(?<code>(?:(?:$prefixAlternation)[A-Z0-9]*_[A-Z0-9_]*[A-Z0-9]|OK))(?![A-Z0-9_])"
+}
+
+function Get-EmittedOutcomeCodesFromLines {
+    param(
+        [Parameter(Mandatory)] [AllowEmptyCollection()] [AllowEmptyString()] [string[]]$Lines,
+        [Parameter(Mandatory)] [string]$TokenPattern
+    )
+
+    $emissionSignalPattern = 'ErrorCode|errorCode|error_code|ReasonCode|reasonCode|reason_code|Register-SourceFailure|New-MediaPipelineProcessFileResult|New-FileIntegrityResult|New-\w+FailureRecord|SOURCE_MEDIA_AUDIO_|OUTPUT_DESTINATION_'
+    return @(
+        foreach ($line in $Lines) {
+            if ($line -notmatch $emissionSignalPattern) { continue }
+            foreach ($match in [regex]::Matches($line, $TokenPattern)) {
+                [string]$match.Groups['code'].Value
+            }
+        }
+    )
+}
+
 $moduleText = Get-Content -LiteralPath $failureCodesModule -Raw
 $returnCodes = @(
     [regex]::Matches($moduleText, "return '([A-Z0-9_]{4,})'") |
@@ -96,17 +127,25 @@ $legacyModulesRoot = Join-Path $pipelineRoot 'Modules'
 if (Test-Path -LiteralPath $legacyModulesRoot -PathType Container) {
     $scanFiles += Get-ChildItem -LiteralPath $legacyModulesRoot -Filter '*.ps1' -File -Recurse
 }
-$outcomeTokenPattern = '(?<![A-Z0-9_])(?<code>(?:ALREADY|AUDIO|BAD|ENCODE|ENCODER|FFMPEG|FILE|HDR|INTEGRITY|MEDIA|MKVMERGE|NATIVE|OPERATOR|OUTPUT|PENDING|PERMANENT|PROGRESS|PUBLISH|REMUX|SCRATCH|SIDECAR|SOURCE|STOP|SUBTITLE|SYSTEM|TRANSIENT|TV|UNKNOWN)[A-Z0-9]*_[A-Z0-9_]*[A-Z0-9]|OK)(?![A-Z0-9_])'
+$outcomeTokenPattern = Get-OutcomeTokenPattern -KnownCodes $outcomeCodes
+$scannerFixtures = @(
+    [pscustomobject]@{ Code = 'DYNAMIC_NEW_UNREGISTERED'; Line = "ErrorCode = 'DYNAMIC_NEW_UNREGISTERED'" },
+    [pscustomobject]@{ Code = 'DOVI_NEW_UNREGISTERED'; Line = "errorCode = 'DOVI_NEW_UNREGISTERED'" },
+    [pscustomobject]@{ Code = 'DESTINATION_NEW_UNREGISTERED'; Line = "error_code = 'DESTINATION_NEW_UNREGISTERED'" },
+    [pscustomobject]@{ Code = 'LOCAL_NEW_UNREGISTERED'; Line = "ReasonCode = 'LOCAL_NEW_UNREGISTERED'" },
+    [pscustomobject]@{ Code = 'OUTPUT_NEW_UNREGISTERED'; Line = "reasonCode = 'OUTPUT_NEW_UNREGISTERED'" },
+    [pscustomobject]@{ Code = 'SIDECAR_NEW_UNREGISTERED'; Line = "reason_code = 'SIDECAR_NEW_UNREGISTERED'" }
+)
+foreach ($fixture in $scannerFixtures) {
+    if ($fixture.Code -in $outcomeCodes) { throw "Scanner fixture unexpectedly became registered: $($fixture.Code)" }
+    $detectedFixtureCodes = @(Get-EmittedOutcomeCodesFromLines -Lines @($fixture.Line) -TokenPattern $outcomeTokenPattern)
+    if ($fixture.Code -notin $detectedFixtureCodes) {
+        throw "Emitted-code scanner missed $($fixture.Code) through fixture line: $($fixture.Line)"
+    }
+}
 $emittedCodes = @(
     foreach ($file in $scanFiles) {
-        foreach ($line in @(Get-Content -LiteralPath $file.FullName)) {
-            if ($line -notmatch 'ErrorCode|errorCode|ReasonCode|Register-SourceFailure|New-MediaPipelineProcessFileResult|New-FileIntegrityResult|New-\w+FailureRecord|SOURCE_MEDIA_AUDIO_|OUTPUT_DESTINATION_') {
-                continue
-            }
-            foreach ($match in [regex]::Matches($line, $outcomeTokenPattern)) {
-                [string]$match.Groups['code'].Value
-            }
-        }
+        Get-EmittedOutcomeCodesFromLines -Lines @(Get-Content -LiteralPath $file.FullName) -TokenPattern $outcomeTokenPattern
     }
 ) | Sort-Object -Unique
 
@@ -118,6 +157,32 @@ if ($unknownOutcomeCodes.Count -gt 0) {
 $missingFailureCodesFromOutcomeRegistry = @($knownCodes | Where-Object { $_ -notin $outcomeCodes })
 if ($missingFailureCodesFromOutcomeRegistry.Count -gt 0) {
     throw "Outcome registry is missing classifier failure codes: $($missingFailureCodesFromOutcomeRegistry -join ', ')"
+}
+
+$metadataFields = @('Family', 'Stage', 'WhenFires', 'Retryable', 'OperatorSeverity', 'HandledBy', 'OperatorAction')
+foreach ($code in $knownCodes) {
+    $failureMetadata = Get-MediaPipelineFailureCodeMetadata -Code $code
+    $outcomeMetadata = Get-MediaPipelineOutcomeCodeMetadata -Code $code
+    foreach ($field in $metadataFields) {
+        if ($failureMetadata.$field -ne $outcomeMetadata.$field) {
+            throw "Shared code $code has namespace-dependent $field metadata: failure='$($failureMetadata.$field)' outcome='$($outcomeMetadata.$field)'."
+        }
+    }
+}
+$canonicalSharedFamilies = @{
+    ENCODER_UNAVAILABLE      = 'encode'
+    FFMPEG_FAILED            = 'native_tool'
+    FFMPEG_INVALID_ARGUMENT  = 'native_tool'
+    FFMPEG_STOPPED           = 'native_tool'
+    FFMPEG_TIMEOUT           = 'native_tool'
+    OUTPUT_DISK_FULL         = 'publish'
+    SYSTEM_OUT_OF_MEMORY     = 'native_tool'
+}
+foreach ($code in $canonicalSharedFamilies.Keys) {
+    $metadata = Get-MediaPipelineOutcomeCodeMetadata -Code $code
+    if ($metadata.Family -ne $canonicalSharedFamilies[$code]) {
+        throw "$code canonical family must be $($canonicalSharedFamilies[$code]), got $($metadata.Family)."
+    }
 }
 
 $outcomeRegistryCodes = @($outcomeRegistry | ForEach-Object { [string]$_.Code } | Sort-Object -Unique)
@@ -165,6 +230,28 @@ if (-not $scratchUnsafe -or $scratchUnsafe.Family -ne 'source_media' -or $scratc
 $pendingBackpressure = Get-MediaPipelineOutcomeCodeMetadata -Code 'PENDING_PUBLISH_BACKPRESSURE_BLOCKED'
 if (-not $pendingBackpressure -or $pendingBackpressure.Family -ne 'publish' -or $pendingBackpressure.Stage -ne 'publish' -or -not [bool]$pendingBackpressure.Retryable -or $pendingBackpressure.OperatorSeverity -ne 'warning' -or $pendingBackpressure.HandledBy -notmatch 'PendingPush' -or $pendingBackpressure.OperatorAction -notmatch 'pending publish manifests') {
     throw 'PENDING_PUBLISH_BACKPRESSURE_BLOCKED metadata should direct the operator to manifest-backed publish recovery.'
+}
+$pendingTrustCodes = @('OUTPUT_HASH_INVALID', 'OUTPUT_HASH_MISSING', 'SIDECAR_HASH_INVALID', 'SIDECAR_SIZE_INVALID')
+foreach ($code in $pendingTrustCodes) {
+    $metadata = Get-MediaPipelineOutcomeCodeMetadata -Code $code
+    if (-not $metadata -or $metadata.Family -ne 'publish' -or $metadata.Stage -ne 'publish' -or [bool]$metadata.Retryable -or $metadata.OperatorSeverity -ne 'error' -or $metadata.HandledBy -notmatch 'Pending' -or $metadata.OperatorAction -notmatch 'Do not drain') {
+        throw "$code metadata must fail closed and direct the operator through trusted pending-manifest repair."
+    }
+}
+$trackVerification = Get-MediaPipelineOutcomeCodeMetadata -Code 'OUTPUT_MEDIA_TRACK_VERIFICATION_FAILED'
+if (-not $trackVerification -or $trackVerification.Family -ne 'publish' -or $trackVerification.Stage -ne 'publish' -or $trackVerification.HandledBy -notmatch 'MediaTrackVerification' -or $trackVerification.OperatorAction -notmatch 'Do not publish') {
+    throw 'OUTPUT_MEDIA_TRACK_VERIFICATION_FAILED metadata must preserve fail-closed publish guidance.'
+}
+$localWorkerCodes = @('LOCAL_WORKER_CHILD_STALE_HEARTBEAT', 'LOCAL_WORKER_DUPLICATE_CLAIM', 'LOCAL_WORKER_FAILED', 'LOCAL_WORKER_RESULT_INVALID', 'LOCAL_WORKER_START_FAILED', 'LOCAL_WORKER_STOPPED')
+foreach ($code in $localWorkerCodes) {
+    $metadata = Get-MediaPipelineOutcomeCodeMetadata -Code $code
+    if (-not $metadata -or $metadata.Family -ne 'process_lifecycle' -or $metadata.Stage -ne 'process-lifecycle' -or $metadata.HandledBy -notmatch 'LocalWorker' -or $metadata.OperatorAction -notmatch 'claim') {
+        throw "$code metadata must route operators through local-worker lifecycle evidence."
+    }
+}
+$subtitleHelper = Get-MediaPipelineOutcomeCodeMetadata -Code 'SUBTITLE_HELPER_SELFCHECK_FAILED'
+if (-not $subtitleHelper -or $subtitleHelper.Family -ne 'subtitle' -or $subtitleHelper.Stage -ne 'subtitle' -or $subtitleHelper.HandledBy -notmatch 'Subtitles') {
+    throw 'SUBTITLE_HELPER_SELFCHECK_FAILED metadata must identify the subtitle startup surface.'
 }
 $destinationEvidenceMissing = Get-MediaPipelineOutcomeCodeMetadata -Code 'DESTINATION_NAMING_EVIDENCE_MISSING'
 if (-not $destinationEvidenceMissing -or $destinationEvidenceMissing.Family -ne 'destination_naming' -or $destinationEvidenceMissing.Stage -ne 'destination-naming' -or [bool]$destinationEvidenceMissing.Retryable -or $destinationEvidenceMissing.OperatorSeverity -ne 'error' -or $destinationEvidenceMissing.HandledBy -notmatch 'RunMonitorState' -or $destinationEvidenceMissing.OperatorAction -notmatch 'Refresh Queue') {

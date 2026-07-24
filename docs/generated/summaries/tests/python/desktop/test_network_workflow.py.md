@@ -6,16 +6,16 @@ file_type: Python
 pipeline_stage: network
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-16
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: c76c96f1664dd625baef769311091da53642d912f1bff91ef7468b89984bf5ca
+sha256: 0532b0386435d1173fdca2ba6eaa2c6f646ee6a0c7fefafd5c0acfbc6fdfc6e1
 ---
 # `tests/python/desktop/test_network_workflow.py`
 
-**Purpose:** Python implementation for test network workflow; exposes WorkflowEnhancementTests.
+**Purpose:** Python implementation for test network workflow; exposes StandaloneDispatcherTests, WorkflowEnhancementTests.
 
-**Public symbols:** `WorkflowEnhancementTests`
-**In-repo imports:** `mediapipeline.desktop.network.cluster_log`, `mediapipeline.desktop.network.coordinator`, `mediapipeline.desktop.network.coordinator_policy`, `mediapipeline.desktop.network.poll_policy`, `mediapipeline.desktop.network.protocol`, `mediapipeline.desktop.network.registry`, `mediapipeline.desktop.network.worker`, `mediapipeline.tools.paths`
+**Public symbols:** `StandaloneDispatcherTests`, `WorkflowEnhancementTests`
+**In-repo imports:** `mediapipeline.desktop.network`, `mediapipeline.desktop.network.cluster_log`, `mediapipeline.desktop.network.coordinator`, `mediapipeline.desktop.network.coordinator_policy`, `mediapipeline.desktop.network.poll_policy`, `mediapipeline.desktop.network.protocol`, `mediapipeline.desktop.network.registry`, `mediapipeline.desktop.network.standalone`, `mediapipeline.desktop.network.worker`, `mediapipeline.tools.paths`
 **HTTP routes:** `/api/claim`, `/api/done`, `/api/health`, `/api/workers`
 **State/config identifiers:** `desktop_app_state.json`
 

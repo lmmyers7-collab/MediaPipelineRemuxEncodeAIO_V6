@@ -267,8 +267,7 @@ textarea[data-state="error"]:focus {
   box-shadow: var(--shadow-2);
 }
 
-.tauri-lifecycle-alert,
-.launch-preflight-startup-alert {
+.tauri-lifecycle-alert {
   display: grid;
   gap: var(--space-2);
   margin: calc(var(--space-4) * -1) 0 var(--space-6);
@@ -280,21 +279,18 @@ textarea[data-state="error"]:focus {
   box-shadow: var(--shadow-1);
 }
 
-.tauri-lifecycle-alert[data-state="blocked"],
-.launch-preflight-startup-alert[data-state="blocked"] {
+.tauri-lifecycle-alert[data-state="blocked"] {
   border-color: var(--semantic-danger-border);
   background: var(--semantic-danger-bg);
   color: var(--semantic-danger-text);
 }
 
-.tauri-lifecycle-alert strong,
-.launch-preflight-startup-alert strong {
+.tauri-lifecycle-alert strong {
   color: inherit;
   font-size: var(--text-sm);
 }
 
-.tauri-lifecycle-alert span,
-.launch-preflight-startup-alert span {
+.tauri-lifecycle-alert span {
   font-size: var(--text-sm);
   line-height: 1.45;
 }

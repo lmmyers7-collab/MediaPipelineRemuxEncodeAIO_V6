@@ -18,6 +18,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 from mediapipeline.core.status.runtime_health import runtime_reliability_counters
 from mediapipeline.desktop.network.worker_state import (
     atomic_write_text,
+    clear_worker_state,
     iter_pending_done_report_files,
     load_pending_done_report,
     load_worker_state,
@@ -167,6 +168,63 @@ class NetworkWorkerStateTests(unittest.TestCase):
             self.assertEqual(load_worker_state(path)["job_id"], "job-backup")
             quarantined = list((path.parent / "worker_state_review").glob("*.json"))
             self.assertEqual(len(quarantined), 1)
+
+    def test_worker_state_backup_tracks_current_job_generation(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "worker_state.json"
+
+            save_worker_state(path, job_id="job-a", source_path="C:/Media/a.mkv")
+            save_worker_state(path, job_id="job-b", source_path="C:/Media/b.mkv")
+
+            backup = json.loads(worker_state_backup_path(path).read_text(encoding="utf-8"))
+            self.assertEqual(load_worker_state(path)["job_id"], "job-b")
+            self.assertEqual(backup["job_id"], "job-b")
+
+    def test_worker_state_backup_refresh_failure_retires_stale_generation(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "worker_state.json"
+            backup_path = worker_state_backup_path(path)
+            save_worker_state(path, job_id="job-a", source_path="C:/Media/a.mkv")
+            real_replace = os.replace
+
+            def reject_backup_replace(source: str | os.PathLike[str], target: str | os.PathLike[str]) -> None:
+                if Path(target) == backup_path:
+                    raise OSError("backup replace denied")
+                real_replace(source, target)
+
+            with (
+                patch("mediapipeline.desktop.network.worker_state.os.replace", side_effect=reject_backup_replace),
+                self.assertLogs("mediapipeline.desktop.network.worker_state", level="WARNING"),
+            ):
+                save_worker_state(path, job_id="job-b", source_path="C:/Media/b.mkv")
+
+            self.assertEqual(load_worker_state(path)["job_id"], "job-b")
+            self.assertFalse(backup_path.exists())
+
+    def test_clear_worker_state_retires_primary_and_backup(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "worker_state.json"
+
+            save_worker_state(path, job_id="job-a", source_path="C:/Media/a.mkv")
+            self.assertTrue(worker_state_backup_path(path).exists())
+
+            clear_worker_state(path)
+
+            self.assertFalse(path.exists())
+            self.assertFalse(worker_state_backup_path(path).exists())
+
+    def test_corrupt_new_job_never_recovers_cleared_prior_job(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "worker_state.json"
+
+            save_worker_state(path, job_id="job-a", source_path="C:/Media/a.mkv")
+            clear_worker_state(path)
+            save_worker_state(path, job_id="job-b", source_path="C:/Media/b.mkv")
+            path.write_text("{not json", encoding="utf-8")
+
+            recovered = load_worker_state(path)
+
+            self.assertEqual(recovered["job_id"], "job-b")
 
     def test_worker_state_rejects_nonfinite_pending_done_json(self) -> None:
         with tempfile.TemporaryDirectory() as td:

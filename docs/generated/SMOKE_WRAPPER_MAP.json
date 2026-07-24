@@ -330,7 +330,7 @@
       {
         "disk_count": 25,
         "kind": "browser_wrapper_count",
-        "line": 413,
+        "line": 427,
         "matched_text": "25 canonical browser wrappers",
         "matches_disk": true,
         "path": "docs/inventories/API_ROUTE_INVENTORY.md",
@@ -420,7 +420,7 @@
       {
         "disk_count": 34,
         "kind": "browser_module_count",
-        "line": 760,
+        "line": 800,
         "matched_text": "34 browser Python modules",
         "matches_disk": true,
         "path": "docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md",
@@ -429,7 +429,7 @@
       {
         "disk_count": 25,
         "kind": "browser_wrapper_count",
-        "line": 760,
+        "line": 800,
         "matched_text": "25 canonical browser\nwrappers",
         "matches_disk": true,
         "path": "docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md",
@@ -438,7 +438,7 @@
       {
         "disk_count": 9,
         "kind": "browser_direct_only_module_count",
-        "line": 761,
+        "line": 801,
         "matched_text": "9 direct-only browser Python modules",
         "matches_disk": true,
         "path": "docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md",
@@ -645,7 +645,7 @@
       {
         "disk_count": 25,
         "kind": "browser_wrapper_count",
-        "line": 450,
+        "line": 454,
         "matched_text": "25 canonical browser wrappers",
         "matches_disk": true,
         "path": "docs/testing/TEST_COVERAGE_MATRIX.md",
@@ -1715,11 +1715,12 @@
       "uses_shared_browser_support": true
     },
     {
-      "allows_skipped_tests": false,
+      "allows_skipped_tests": true,
       "boundary_lines": [
         "Boundary: starts a temporary local API against generated temporary state.",
         "Boundary: evaluates backend-served WebView JavaScript with mocked DOM state and fixture command history.",
-        "Boundary: does not process media, launch pipeline commands, publish, rename, save settings, mutate queue state, or modify source/output/scratch media."
+        "Boundary: does not process media, launch pipeline commands, publish, rename, save settings, mutate queue state, or modify source/output/scratch media.",
+        "Boundary: fails when Node.js is missing or tests skip unless -AllowSkippedTests is explicit."
       ],
       "browser_backed": false,
       "docs": {
@@ -1740,7 +1741,7 @@
       "test_selectors": [
         "tests.webview.test_webview_command_evidence_smoke"
       ],
-      "uses_shared_browser_support": false
+      "uses_shared_browser_support": true
     },
     {
       "allows_skipped_tests": false,
@@ -1770,13 +1771,14 @@
       "uses_shared_browser_support": false
     },
     {
-      "allows_skipped_tests": false,
+      "allows_skipped_tests": true,
       "boundary_lines": [
         "Boundary: evaluates WebView Rename assets in Node with mocked DOM state.",
         "Boundary: verifies Apply Readiness and Pipeline Handoff for a ready single-row scope and a blocked duplicate-target scope.",
         "Boundary: verifies large-preview render cap text without calling rename.apply.",
         "Boundary: verifies duplicate-target blocking does not call rename.apply.",
-        "Boundary: does not process media, launch pipeline commands, publish, rename files, save settings, mutate queue state, or touch source/output/scratch media."
+        "Boundary: does not process media, launch pipeline commands, publish, rename files, save settings, mutate queue state, or touch source/output/scratch media.",
+        "Boundary: fails when Node.js is missing or tests skip unless -AllowSkippedTests is explicit."
       ],
       "browser_backed": false,
       "docs": {
@@ -1797,15 +1799,16 @@
       "test_selectors": [
         "tests.webview.test_webview_rename_readiness_smoke"
       ],
-      "uses_shared_browser_support": false
+      "uses_shared_browser_support": true
     },
     {
-      "allows_skipped_tests": false,
+      "allows_skipped_tests": true,
       "boundary_lines": [
         "Boundary: starts a temporary local API against generated temporary state.",
         "Boundary: evaluates backend-served WebView JavaScript with mocked DOM selected-row state.",
         "Boundary: validates Queue, Completed, and Pending Publish row details plus diagnostics handoff text.",
-        "Boundary: does not process media, launch pipeline commands, publish, rename, save settings, mutate queue state, or modify source/output/scratch media."
+        "Boundary: does not process media, launch pipeline commands, publish, rename, save settings, mutate queue state, or modify source/output/scratch media.",
+        "Boundary: fails when Node.js is missing or tests skip unless -AllowSkippedTests is explicit."
       ],
       "browser_backed": false,
       "docs": {
@@ -1826,14 +1829,15 @@
       "test_selectors": [
         "tests.webview.test_webview_row_detail_smoke"
       ],
-      "uses_shared_browser_support": false
+      "uses_shared_browser_support": true
     },
     {
-      "allows_skipped_tests": false,
+      "allows_skipped_tests": true,
       "boundary_lines": [
         "Boundary: evaluates WebView Schedule assets in Node with mocked DOM state.",
         "Boundary: verifies Schedule Coverage Review, selected day detail, table status legend, Schedule Editor preview/save routing, and app-state-write result copy.",
-        "Boundary: does not start pipeline commands, override schedule gates, mutate queue state, touch media files, or write app state from frontend code."
+        "Boundary: does not start pipeline commands, override schedule gates, mutate queue state, touch media files, or write app state from frontend code.",
+        "Boundary: fails when Node.js is missing or tests skip unless -AllowSkippedTests is explicit."
       ],
       "browser_backed": false,
       "docs": {
@@ -1854,7 +1858,7 @@
       "test_selectors": [
         "tests.webview.test_webview_schedule_smoke"
       ],
-      "uses_shared_browser_support": false
+      "uses_shared_browser_support": true
     },
     {
       "allows_skipped_tests": false,

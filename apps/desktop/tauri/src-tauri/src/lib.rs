@@ -14,6 +14,8 @@ mod debug_webview;
 mod dialogs;
 mod http_helpers;
 mod single_instance_guard;
+mod updater_controller;
+mod webview_origin;
 
 #[cfg(test)]
 use backend_contract::{
@@ -24,8 +26,9 @@ use backend_contract::{
 use backend_lifecycle_monitor::start_backend_lifecycle_monitor;
 #[cfg(test)]
 use backend_process::{
-    bootstrap_error, push_bootstrap_stdout_context, redact_bootstrap_stdout,
-    web_ui_validation_error_is_fatal, MAX_BOOTSTRAP_STDOUT_CHARS, MAX_BOOTSTRAP_STDOUT_LINES,
+    bootstrap_error, isolated_python_module_bootstrap, push_bootstrap_stdout_context,
+    redact_bootstrap_stdout, web_ui_validation_error_is_fatal, MAX_BOOTSTRAP_STDOUT_CHARS,
+    MAX_BOOTSTRAP_STDOUT_LINES,
 };
 use backend_process::{
     close_request_decision, shutdown_backend_state, start_backend, BackendProcess,
@@ -37,17 +40,21 @@ use close_readiness::{
     CloseReadiness, ContinuousWatcher,
 };
 use debug_webview::{
-    maybe_schedule_debug_webview_autolaunch, maybe_write_debug_backend_auth_capture,
+    maybe_record_debug_navigation_denial, maybe_schedule_debug_webview_autolaunch,
+    maybe_write_debug_backend_auth_capture,
 };
 use dialogs::resolve_desktop_root;
 #[cfg(test)]
 use dialogs::{
     desktop_root_candidates_from_exe_dir, format_path_candidates, project_root_from_desktop_root,
+    resolve_python_for_mode,
 };
 use http_helpers::validate_loopback_backend_url;
 #[cfg(test)]
 use http_helpers::{read_backend_response_capped, request_backend_json};
 use single_instance_guard::acquire_single_instance_guard;
+use updater_controller::schedule_native_update_check;
+use webview_origin::{navigation_matches_webview_origin, normalized_webview_origin};
 
 type ShellResult<T> = Result<T, Box<dyn Error>>;
 const MAX_BACKEND_RESPONSE_BYTES: usize = 16 * 1024 * 1024;
@@ -94,11 +101,21 @@ fn open_pipeline_log_window(app: AppHandle) -> Result<(), String> {
 
     let url = pipeline_log_window_url(&backend_url)
         .map_err(|error| format!("Could not build Pipeline Log window URL: {error}"))?;
+    let allowed_origin = normalized_webview_origin(&url);
+    let navigation_origin = allowed_origin.clone();
     WebviewWindowBuilder::new(&app, PIPELINE_LOG_WINDOW_LABEL, WebviewUrl::External(url))
         .initialization_script(tauri_bootstrap_initialization_script(
             &token,
             &startup_warnings,
+            &allowed_origin,
         ))
+        .on_navigation(move |candidate| {
+            let allowed = navigation_matches_webview_origin(candidate, &navigation_origin);
+            if !allowed {
+                maybe_record_debug_navigation_denial(PIPELINE_LOG_WINDOW_LABEL, candidate);
+            }
+            allowed
+        })
         .title("Pipeline Log")
         .inner_size(980.0, 680.0)
         .min_inner_size(720.0, 420.0)
@@ -127,14 +144,26 @@ pub fn run() {
                 backend.url()
             );
             maybe_write_debug_backend_auth_capture(backend.url(), backend.token());
-            let initialization_script =
-                tauri_bootstrap_initialization_script(backend.token(), backend.startup_warnings());
             let url = validate_loopback_backend_url(backend.url())?;
+            let allowed_origin = normalized_webview_origin(&url);
+            let initialization_script = tauri_bootstrap_initialization_script(
+                backend.token(),
+                backend.startup_warnings(),
+                &allowed_origin,
+            );
+            let navigation_origin = allowed_origin.clone();
             app.manage(backend);
             start_backend_lifecycle_monitor(app.app_handle().clone());
             eprintln!("[mediapipeline-shell] setup: building main WebView window");
             let window = match WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url))
                 .initialization_script(initialization_script)
+                .on_navigation(move |candidate| {
+                    let allowed = navigation_matches_webview_origin(candidate, &navigation_origin);
+                    if !allowed {
+                        maybe_record_debug_navigation_denial("main", candidate);
+                    }
+                    allowed
+                })
                 .title("MediaPipelineRemuxEncodeAIO")
                 .inner_size(1440.0, 920.0)
                 .min_inner_size(1120.0, 720.0)
@@ -148,6 +177,7 @@ pub fn run() {
             };
             eprintln!("[mediapipeline-shell] setup: main WebView window built");
             maybe_schedule_debug_webview_autolaunch(&window);
+            schedule_native_update_check(app.app_handle().clone());
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -215,13 +245,16 @@ pub fn run() {
 pub(crate) fn tauri_bootstrap_initialization_script(
     token: &str,
     startup_warnings: &[String],
+    allowed_origin: &str,
 ) -> String {
     let token_json = serde_json::to_string(token).unwrap_or_else(|_| "\"\"".to_string());
+    let allowed_origin_json =
+        serde_json::to_string(allowed_origin).unwrap_or_else(|_| "\"\"".to_string());
     let warnings_json =
         serde_json::to_string(&bounded_startup_validation_warnings(startup_warnings))
             .unwrap_or_else(|_| "[]".to_string());
     format!(
-        r#"(function(){{const startupWarnings={warnings_json};window.MEDIA_PIPELINE_TAURI_BOOTSTRAP=Object.freeze({{token:{token_json},tokenSource:"tauri-initialization-script",startupWarnings}});if(startupWarnings.length){{console.warn("MediaPipeline Tauri startup validation warnings",startupWarnings);const render=function(){{if(!document.body||document.querySelector("[data-tauri-startup-validation-warning]"))return;const node=document.createElement("div");node.className="tauri-lifecycle-alert";node.dataset.state="warning";node.dataset.tauriStartupValidationWarning="true";node.setAttribute("role","alert");const title=document.createElement("strong");title.textContent="Startup validation warning";const detail=document.createElement("span");detail.textContent=startupWarnings.slice(0,3).join(" | ");const hint=document.createElement("span");hint.textContent="The backend opened, but Tauri detected WebView asset drift. Open Diagnostics before starting, draining, saving, renaming, publishing, or closing.";node.replaceChildren(title,detail,hint);const topbar=document.querySelector(".topbar");if(topbar&&topbar.parentNode)topbar.insertAdjacentElement("afterend",node);else document.body.prepend(node);}};if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",render,{{once:true}});else render();}}}})();"#
+        r#"(function(){{const allowedOrigin={allowed_origin_json};if(window.top!==window||window.location.origin!==allowedOrigin){{try{{delete window.MEDIA_PIPELINE_TAURI_BOOTSTRAP;}}catch(_error){{window.MEDIA_PIPELINE_TAURI_BOOTSTRAP=undefined;}}return;}}const startupWarnings={warnings_json};window.MEDIA_PIPELINE_TAURI_BOOTSTRAP=Object.freeze({{token:{token_json},tokenSource:"tauri-initialization-script",startupWarnings}});if(startupWarnings.length){{console.warn("MediaPipeline Tauri startup validation warnings",startupWarnings);const render=function(){{if(!document.body||document.querySelector("[data-tauri-startup-validation-warning]"))return;const node=document.createElement("div");node.className="tauri-lifecycle-alert";node.dataset.state="warning";node.dataset.tauriStartupValidationWarning="true";node.setAttribute("role","alert");const title=document.createElement("strong");title.textContent="Startup validation warning";const detail=document.createElement("span");detail.textContent=startupWarnings.slice(0,3).join(" | ");const hint=document.createElement("span");hint.textContent="The backend opened, but Tauri detected WebView asset drift. Open Diagnostics before starting, draining, saving, renaming, publishing, or closing.";node.replaceChildren(title,detail,hint);const topbar=document.querySelector(".topbar");if(topbar&&topbar.parentNode)topbar.insertAdjacentElement("afterend",node);else document.body.prepend(node);}};if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",render,{{once:true}});else render();}}}})();"#
     )
 }
 

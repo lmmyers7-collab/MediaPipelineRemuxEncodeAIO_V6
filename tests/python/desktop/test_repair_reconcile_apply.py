@@ -12,6 +12,14 @@ from types import SimpleNamespace
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
+
+def _strict_headers() -> dict[str, str]:
+    return {
+        "Authorization": "Bearer test-token",
+        "Content-Type": "application/json",
+        "X-MediaPipeline-Command-ID": uuid.uuid4().hex,
+    }
+
 from mediapipeline.tools.paths import find_repo_root
 
 PROJECT_ROOT = find_repo_root(Path(__file__))
@@ -606,6 +614,48 @@ class RepairReconcileApplyTests(unittest.TestCase):
             self.assertTrue(repaired_preview["drain_summary"]["exists"])
             self.assertEqual(repaired_preview["drain_summary"]["path"], str(drain_summary))
 
+    def test_orphan_payload_reconcile_apply_rejects_payload_changed_after_dry_run(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved, files = _pending_fixture(root, orphan_payload=True)
+            manifest = Path(str(files["pending_payload"]) + ".manifest.json")
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+            preview = facade.get_pending_publish_preview(resolved).to_mapping()
+            row = preview["rows"][0]
+            row["backend_manifest_proposal"] = _pending_manifest_payload(
+                files["pending_payload"], files["output"], files["source"]
+            )
+            facade.get_pending_publish_preview = lambda _resolved: SimpleNamespace(  # type: ignore[method-assign]
+                to_mapping=lambda: preview
+            )
+            dry_run = facade.plan_repair_reconcile_dry_run(
+                resolved,
+                candidate_command="pending_publish.reconcile_orphan_payloads",
+                request={"scope": "selected", "row_key": row["row_key"]},
+            ).to_mapping()["data"]
+            self.assertTrue(dry_run["safe_to_apply"])
+
+            files["pending_payload"].write_bytes(b"changed-payload")
+            changed_state = _file_state(files["pending_payload"])
+            result = facade.apply_repair_reconcile(
+                resolved,
+                candidate_command="pending_publish.reconcile_orphan_payloads",
+                request=_apply_request(dry_run, reason="must revalidate exact bytes"),
+            ).to_mapping()
+
+            self.assertFalse(result["ok"])
+            self.assertFalse(result["data"]["applied"])
+            self.assertFalse(manifest.exists())
+            self.assertEqual(_file_state(files["pending_payload"]), changed_state)
+            self.assertTrue(
+                any(
+                    "content proof" in str(error).casefold()
+                    or "safe_to_apply" in str(error)
+                    or "fingerprint" in str(error).casefold()
+                    for error in result["errors"]
+                )
+            )
+
     def test_confirmed_apply_payload_is_strict_and_rejects_frontend_paths(self) -> None:
         payload = {
             "scope": "selected",
@@ -649,7 +699,7 @@ class RepairReconcileApplyTests(unittest.TestCase):
                 request = Request(
                     f"{server.url}/api/completed/repair-sidecar-metadata",
                     data=json.dumps(_apply_request(dry_run_payload["data"], reason="sidecar metadata only")).encode("utf-8"),
-                    headers={"Authorization": "Bearer test-token", "Content-Type": "application/json"},
+                    headers=_strict_headers(),
                     method="POST",
                 )
                 with urlopen(request, timeout=5) as response:  # noqa: S310 - localhost test server
@@ -742,7 +792,7 @@ class RepairReconcileApplyTests(unittest.TestCase):
                 apply_request = Request(
                     f"{server.url}/api/completed/reconcile-manifest",
                     data=json.dumps(_apply_request(dry_run_payload["data"], reason="manifest only")).encode("utf-8"),
-                    headers={"Authorization": "Bearer test-token", "Content-Type": "application/json"},
+                    headers=_strict_headers(),
                     method="POST",
                 )
                 with urlopen(apply_request, timeout=5) as response:  # noqa: S310 - localhost test server
@@ -833,7 +883,7 @@ class RepairReconcileApplyTests(unittest.TestCase):
                 apply_request = Request(
                     f"{server.url}/api/pending-publish/repair-manifest",
                     data=json.dumps(_apply_request(dry_run_payload["data"], reason="normalize pending manifest only")).encode("utf-8"),
-                    headers={"Authorization": "Bearer test-token", "Content-Type": "application/json"},
+                    headers=_strict_headers(),
                     method="POST",
                 )
                 with urlopen(apply_request, timeout=5) as response:  # noqa: S310 - localhost test server
@@ -939,7 +989,7 @@ class RepairReconcileApplyTests(unittest.TestCase):
                 apply_request = Request(
                     f"{server.url}/api/pending-publish/reconcile-orphan-payloads",
                     data=json.dumps(_apply_request(dry_run_payload["data"], reason="recover pending manifest only")).encode("utf-8"),
-                    headers={"Authorization": "Bearer test-token", "Content-Type": "application/json"},
+                    headers=_strict_headers(),
                     method="POST",
                 )
                 with urlopen(apply_request, timeout=5) as response:  # noqa: S310 - localhost test server
@@ -1054,7 +1104,7 @@ class RepairReconcileApplyTests(unittest.TestCase):
                 apply_request = Request(
                     f"{server.url}/api/pending-publish/reconcile-orphan-payloads",
                     data=json.dumps(_apply_request(dry_run_payload["data"], reason="recover drainable pending manifest only")).encode("utf-8"),
-                    headers={"Authorization": "Bearer test-token", "Content-Type": "application/json"},
+                    headers=_strict_headers(),
                     method="POST",
                 )
                 with urlopen(apply_request, timeout=5) as response:  # noqa: S310 - localhost test server

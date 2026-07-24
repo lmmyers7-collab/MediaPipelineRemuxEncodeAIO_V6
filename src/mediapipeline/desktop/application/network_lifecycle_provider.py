@@ -26,6 +26,7 @@ from mediapipeline.desktop.network.failure_reasons import REASON_ENCODE_ERROR
 from mediapipeline.desktop.network.processing_policy import materialize_worker_effective_config
 from mediapipeline.desktop.network.registry import normalize_source_identity
 from mediapipeline.desktop.network.worker import WorkerDispatcher
+from mediapipeline.desktop.network.worker_state import atomic_write_text
 
 
 _log = logging.getLogger(__name__)
@@ -50,6 +51,10 @@ _RUNNING_WORKER_HOT_APPLY_METHODS = {
     KEY_WORKER_SOURCE_PATH_MAP: "update_source_path_map",
     KEY_WORKER_ENCODER_MAP: "update_worker_encoder_map",
     KEY_WORKER_HONOR_COORDINATOR_POLICY: "update_honor_coordinator_policy",
+}
+_RUNNING_WORKER_CONNECTION_IDENTITY_KEYS = {
+    KEY_WORKER_COORDINATOR_URL,
+    KEY_WORKER_AUTH_TOKEN,
 }
 
 
@@ -156,26 +161,41 @@ def _augment_network_worker_result(payload: dict[str, Any], job: Any) -> dict[st
     return augmented
 
 
-def _read_network_worker_result(proc: Any, job: Any) -> tuple[dict[str, Any] | None, str]:
+def _worker_result_enrichment_evidence(
+    *,
+    status: str,
+    error: str = "",
+    artifact_preserved: bool = True,
+) -> dict[str, Any]:
+    return {
+        "schema_version": "network_worker_result_enrichment.v1",
+        "status": status,
+        "error": error,
+        "artifact_preserved": artifact_preserved,
+    }
+
+
+def _read_network_worker_result(proc: Any, job: Any) -> tuple[dict[str, Any] | None, str, dict[str, Any]]:
+    not_attempted = _worker_result_enrichment_evidence(status="not_attempted")
     result_path, expected_run_id, expected_claim_id = _network_worker_result_identity(proc)
     if result_path is None:
-        return None, "network worker result artifact path was not attached"
+        return None, "network worker result artifact path was not attached", not_attempted
     if not result_path.exists():
-        return None, f"network worker result artifact is missing: {result_path}"
+        return None, f"network worker result artifact is missing: {result_path}", not_attempted
     try:
         payload = json.loads(result_path.read_text(encoding="utf-8-sig"))
     except Exception as exc:
-        return None, f"network worker result artifact could not be read: {_bounded_result_error(exc)}"
+        return None, f"network worker result artifact could not be read: {_bounded_result_error(exc)}", not_attempted
     if not isinstance(payload, dict):
-        return None, "network worker result artifact root must be a JSON object"
+        return None, "network worker result artifact root must be a JSON object", not_attempted
     if str(payload.get("SchemaVersion") or "") != "local_worker_result.v1":
-        return None, "network worker result artifact schema is not local_worker_result.v1"
+        return None, "network worker result artifact schema is not local_worker_result.v1", not_attempted
     actual_claim_id = str(payload.get("WorkerClaimId") or "")
     job_id = str(getattr(job, "job_id", "") or "")
     if actual_claim_id != expected_claim_id or actual_claim_id != job_id:
-        return None, "network worker result artifact claim id does not match the active claim"
+        return None, "network worker result artifact claim id does not match the active claim", not_attempted
     if str(payload.get("WorkerRunId") or "") != expected_run_id:
-        return None, "network worker result artifact run id does not match the launched run"
+        return None, "network worker result artifact run id does not match the launched run", not_attempted
     try:
         _strict_bool_field(payload, "Success")
         _strict_bool_field(payload, "QueueTerminal", default=False)
@@ -183,14 +203,21 @@ def _read_network_worker_result(proc: Any, job: Any) -> tuple[dict[str, Any] | N
         _nonnegative_int_field(payload, "ElapsedSeconds", default=0)
         _nonnegative_int_field(payload, "OutputSizeBytes", default=0)
     except ValueError as exc:
-        return None, str(exc)
-    augmented = _augment_network_worker_result(payload, job)
-    if augmented is not payload:
-        try:
-            result_path.write_text(json.dumps(augmented, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        except Exception as exc:
-            return None, f"network worker result artifact could not be extended with rerun metadata: {_bounded_result_error(exc)}"
-    return augmented, ""
+        return None, str(exc), not_attempted
+    try:
+        augmented = _augment_network_worker_result(payload, job)
+        if augmented is payload:
+            return payload, "", _worker_result_enrichment_evidence(status="not_required")
+        serialized = json.dumps(augmented, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    except Exception as exc:
+        enrichment_error = f"network worker rerun metadata could not be built: {_bounded_result_error(exc)}"
+        return payload, "", _worker_result_enrichment_evidence(status="failed", error=enrichment_error)
+    try:
+        atomic_write_text(result_path, serialized)
+    except Exception as exc:
+        enrichment_error = f"network worker rerun metadata could not be persisted atomically: {_bounded_result_error(exc)}"
+        return augmented, "", _worker_result_enrichment_evidence(status="failed", error=enrichment_error)
+    return augmented, "", _worker_result_enrichment_evidence(status="persisted")
 
 
 def _network_done_kwargs_from_result(
@@ -203,7 +230,7 @@ def _network_done_kwargs_from_result(
 ) -> dict[str, Any]:
     result_path, _expected_run_id, _expected_claim_id = _network_worker_result_identity(proc)
     artifact_path = str(result_path or "")
-    result, result_error = _read_network_worker_result(proc, job)
+    result, result_error, enrichment = _read_network_worker_result(proc, job)
     process_error = wait_error
     if return_code != 0 and not process_error:
         process_error = f"pipeline process exited with code {return_code}"
@@ -219,6 +246,7 @@ def _network_done_kwargs_from_result(
             "retry_on_failure": True,
             "reason_code": REASON_ENCODE_ERROR,
             "reason": detail,
+            "worker_result_artifact": {},
             "worker_result_artifact_path": artifact_path,
         }
 
@@ -242,6 +270,10 @@ def _network_done_kwargs_from_result(
         retryable = True
     if not success and not reason:
         reason = process_error or status or "network worker process failed"
+    result_artifact = dict(result)
+    result_artifact["CoordinatorMetadataPersistence"] = dict(enrichment)
+    if enrichment.get("status") == "failed":
+        _log.warning("Network worker result metadata enrichment failed: %s", enrichment.get("error") or "unknown error")
     return {
         "success": success,
         "output_path": str(result.get("OutputPath") or ""),
@@ -256,6 +288,7 @@ def _network_done_kwargs_from_result(
         "retry_on_failure": retryable,
         "reason_code": str(result.get("ErrorCode") or ("" if success else REASON_ENCODE_ERROR)),
         "reason": "" if success else reason,
+        "worker_result_artifact": result_artifact,
         "worker_result_artifact_path": artifact_path,
     }
 
@@ -544,6 +577,7 @@ class NetworkLifecycleProviderMixin:
                 "message": "No running worker dispatcher was available for hot-apply.",
             }]
 
+        active_claim = _entry_has_active_network_job(entry)
         updates: list[dict[str, Any]] = []
         for key in relevant:
             method_name = _RUNNING_WORKER_HOT_APPLY_METHODS[key]
@@ -576,13 +610,24 @@ class NetworkLifecycleProviderMixin:
                 if warnings is not None:
                     warnings.append(message)
             else:
-                updates.append({
+                update = {
                     "schema_version": "desktop_network_worker_hot_apply.v1",
                     "role": "worker",
                     "key": key,
                     "status": "applied",
                     "method": method_name,
-                })
+                }
+                if active_claim and key in _RUNNING_WORKER_CONNECTION_IDENTITY_KEYS:
+                    update.update(
+                        {
+                            "active_claim_affinity": "preserved",
+                            "message": (
+                                "Saved connection identity applies to idle/future requests; "
+                                "the active claim remains bound to its issuing coordinator."
+                            ),
+                        }
+                    )
+                updates.append(update)
 
         app = entry.get("app")
         running_resolved = getattr(app, "resolved", None)

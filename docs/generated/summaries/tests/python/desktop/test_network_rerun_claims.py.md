@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: network
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-15
+last_modified: 2026-07-22
 last_reviewed: 2026-07-05
-sha256: 75bcc246b2f2d8c00d50c4a1854111efd59159bc42a1eaceea27cf6862c9daa9
+sha256: 05300119e5275b592e33e24b58c6be2d47ef48cb87a01fbbd39f16fd3c00112b
 ---
 # `tests/python/desktop/test_network_rerun_claims.py`
 

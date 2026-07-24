@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: network
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-20
+last_modified: 2026-07-23
 last_reviewed: 2026-07-20
-sha256: afa1d38403f917b151c21b6b6c02ab01099eb590154bf29211df3f1e08ec93bf
+sha256: a203f12f6957a79f1e969bf57ed4092f8c9c6c931fb96521adc5d9fc787aea09
 ---
 # `tests/python/desktop/test_application_facade_network_lifecycle.py`
 

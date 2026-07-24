@@ -37,8 +37,8 @@ Validation: targeted queue, launch, and WebView tests
 - `ops/pipeline/tests/Unit/Invoke-PipelineQueueEngineChecks.ps1` — verification evidence; PowerShell implementation for invoke pipeline queue engine checks; exposes Already-Processed, Assert-Equal, Assert-True.
 - `tests/python/desktop/test_application_facade_launch_preflight.py` — verification evidence; Python implementation for test application facade launch preflight; exposes ApplicationFacadeLaunchPreflightTests.
 - `tests/python/desktop/test_application_facade_web_static.py` — verification evidence; Python implementation for test application facade web static; exposes ApplicationFacadeWebStaticTests.
+- `tests/python/desktop/test_priority_queue_export.py` — verification evidence; Python implementation for test priority queue export; exposes PipelineStartPriorityScopeContractTests, PriorityQueueExportLaunchTests, PriorityQueueExportStoreTests.
 - `tests/python/desktop/test_queue_snapshot_launch_policy.py` — verification evidence; Python implementation for test queue snapshot launch policy; exposes QueueLaunchHarness, QueueSnapshotLaunchPolicyTests.
-- `tests/python/desktop/test_service_queue_dry_run.py` — verification evidence; Python implementation for test service queue dry run; exposes QueueDryRunHelperTests.
 
 ### Boundaries / validation
 
@@ -61,14 +61,14 @@ Validation: targeted queue, launch, and WebView tests
 - `ops/pipeline/tests/Unit/Invoke-PipelineQueueEngineChecks.ps1`
 - `tests/python/desktop/test_application_facade_launch_preflight.py`
 - `tests/python/desktop/test_application_facade_web_static.py`
+- `tests/python/desktop/test_priority_queue_export.py`
 - `tests/python/desktop/test_queue_snapshot_launch_policy.py`
 - `tests/python/desktop/test_service_queue_dry_run.py`
 - `tests/python/desktop/test_service_queue_dry_run_runner.py`
 - `tests/python/desktop/test_service_queue_preview_builder.py`
-- `tests/python/desktop/test_service_queue_priority.py`
 - Smallest validation rung: targeted queue, launch, and WebView tests.
 - Boundaries: `docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`.
 
 ## Secondary evidence
 
-Counts only (request explicitly when needed): test=12, documentation=3, generated=0, change_evidence=0, archive=0, runtime_artifact=0.
+Counts only (request explicitly when needed): test=13, documentation=3, generated=0, change_evidence=0, archive=0, runtime_artifact=0.

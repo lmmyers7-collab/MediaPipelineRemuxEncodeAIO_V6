@@ -626,6 +626,140 @@ Invoke-FaultCheck -Name 'duplicate drain request cannot mutate or duplicate outp
     }
 }
 
+Invoke-FaultCheck -Name 'different-process drains share one canonical destination lock across path aliases' -Body {
+    Invoke-WithFaultRoots {
+        param($Root)
+        $fixture = New-PendingFaultFixture -Root $Root -SidecarCount 1
+        $firstManifest = Read-PendingManifestFile -Path $fixture.ManifestPath
+        $secondPayload = Join-Path $script:LocalPendingPush 'contending-target.mkv'
+        $secondManifestPath = Join-Path $script:LocalPendingPush 'contending-target.mkv.manifest.json'
+        [System.IO.File]::Copy($fixture.PendingPath, $secondPayload, $false)
+        $secondManifest = ConvertTo-PendingManifestMap $firstManifest
+        $secondManifest['local_file'] = $secondPayload
+        $secondManifest['server_out'] = $fixture.ServerOut.ToUpperInvariant().Replace('\', '/')
+        $secondManifest['publish_transaction_id'] = 'contending-target-transaction'
+        $secondManifest['source_identity'] = 'contending-target-source-v1'
+        $secondManifest['source_identity_v2'] = 'contending-target-source-v2'
+        Write-PendingManifestFile -Path $secondManifestPath -Manifest $secondManifest | Out-Null
+        $firstManifestHash = Get-PendingFileSha256OrNull -Path $fixture.ManifestPath
+        $secondManifestHash = Get-PendingFileSha256OrNull -Path $secondManifestPath
+        $readyPath = Join-Path $Root.FullName 'destination-lock.ready'
+        $releasePath = Join-Path $Root.FullName 'destination-lock.release'
+        $workerPath = Join-Path $Root.FullName 'destination-lock-worker.ps1'
+        $workerSource = @'
+param($RepoRoot, $PendingRoot, $ManifestPath, $ServerOut, $ReadyPath, $ReleasePath)
+$ErrorActionPreference = 'Stop'
+. (Join-Path $RepoRoot 'ops\pipeline\engine\shared\path_helpers.ps1')
+. (Join-Path $RepoRoot 'ops\pipeline\engine\publish\pending_manifest_store.ps1')
+. (Join-Path $RepoRoot 'ops\pipeline\engine\publish\pending_transactions.ps1')
+$script:LocalPendingPush = $PendingRoot
+function Test-PendingManifestTrustedForDrain { return [pscustomobject]@{ Ok = $true } }
+function Invoke-PendingDrainTransactionCore {
+    param([System.IO.FileInfo]$ManifestFile, $Manifest)
+    $lockPath = Get-PendingPublishDestinationLockPath -ManifestPath $ManifestFile.FullName -ServerOut ([string]$Manifest.server_out)
+    [System.IO.File]::WriteAllText($ReadyPath, $lockPath)
+    $deadline = [DateTime]::UtcNow.AddSeconds(15)
+    while (-not (Test-Path -LiteralPath $ReleasePath -PathType Leaf)) {
+        if ([DateTime]::UtcNow -gt $deadline) { exit 4 }
+        Start-Sleep -Milliseconds 25
+    }
+    return [pscustomobject]@{ Status = 'worker_released' }
+}
+$manifest = Read-PendingManifestFile -Path $ManifestPath
+$result = Invoke-PendingDrainTransaction -ManifestFile (Get-Item -LiteralPath $ManifestPath) -Manifest $manifest
+if ([string]$result.Status -ne 'worker_released') { exit 3 }
+'@
+        [System.IO.File]::WriteAllText($workerPath, $workerSource)
+        $pwshPath = (Get-Process -Id $PID).Path
+        $processInfo = [System.Diagnostics.ProcessStartInfo]::new()
+        $processInfo.FileName = $pwshPath
+        $processInfo.UseShellExecute = $false
+        foreach ($argument in @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $workerPath, $repoRoot.Path, $script:LocalPendingPush, $fixture.ManifestPath, $fixture.ServerOut, $readyPath, $releasePath)) {
+            $processInfo.ArgumentList.Add([string]$argument)
+        }
+        $worker = [System.Diagnostics.Process]::Start($processInfo)
+        try {
+            $deadline = [DateTime]::UtcNow.AddSeconds(15)
+            while (-not (Test-Path -LiteralPath $readyPath -PathType Leaf)) {
+                if ($worker.HasExited) { throw "Destination lock worker exited early with code $($worker.ExitCode)." }
+                if ([DateTime]::UtcNow -gt $deadline) { throw 'Timed out waiting for destination lock worker.' }
+                Start-Sleep -Milliseconds 25
+            }
+            $aliasServerOut = $fixture.ServerOut.ToUpperInvariant().Replace('\', '/')
+            $secondManifest = Read-PendingManifestFile -Path $secondManifestPath
+            $contended = Invoke-PendingDrainTransaction -ManifestFile (Get-Item -LiteralPath $secondManifestPath) -Manifest $secondManifest
+            Assert-Equal ([string]$contended.Status) 'destination_lock_unavailable' 'Second process drain did not fail closed on the shared canonical destination lock.'
+            Assert-Equal (Get-PendingFileSha256OrNull -Path $fixture.PendingPath) $fixture.MediaHash 'Destination contention changed the first parked payload.'
+            Assert-Equal (Get-PendingFileSha256OrNull -Path $secondPayload) $fixture.MediaHash 'Destination contention changed the second parked payload.'
+            Assert-Equal (Get-PendingFileSha256OrNull -Path $fixture.ManifestPath) $firstManifestHash 'Destination contention rewrote the first manifest.'
+            Assert-Equal (Get-PendingFileSha256OrNull -Path $secondManifestPath) $secondManifestHash 'Destination contention rewrote the second manifest.'
+            Assert-True (-not (Test-Path -LiteralPath $fixture.ServerOut -PathType Leaf)) 'Destination contention exposed final output.'
+            foreach ($sidecar in @($fixture.SidecarEntries)) {
+                Assert-True (-not (Test-Path -LiteralPath ([string]$sidecar.server_out) -PathType Leaf)) 'Destination contention exposed a final sidecar.'
+            }
+            $completionRows = if (Test-Path -LiteralPath $script:CompletedJobsManifest -PathType Leaf) { @(Get-Content -LiteralPath $script:CompletedJobsManifest | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) } else { @() }
+            Assert-Equal $completionRows.Count 0 'Destination contention wrote premature completion evidence.'
+            [System.IO.File]::WriteAllText($releasePath, 'release')
+            Assert-True ($worker.WaitForExit(15000)) 'Destination lock worker did not release its lock.'
+            Assert-Equal $worker.ExitCode 0 'Destination lock worker failed.'
+            $released = Enter-PendingPublishDestinationLock -ManifestPath $fixture.ManifestPath -ServerOut $aliasServerOut
+            Assert-True ($null -ne $released) 'Canonical destination lock could not be reacquired after the owner exited.'
+            try {
+                Assert-Equal ([string]$released.Path) ([string](Get-Content -LiteralPath $readyPath -Raw)) 'Canonical aliases did not resolve to one stable lock file.'
+            } finally {
+                Exit-PendingPublishDestinationLock -Lock $released
+            }
+        } finally {
+            if (-not $worker.HasExited) {
+                [System.IO.File]::WriteAllText($releasePath, 'release')
+                if (-not $worker.WaitForExit(5000)) { $worker.Kill($true) }
+            }
+            $worker.Dispose()
+        }
+        Remove-Item -LiteralPath $secondManifestPath -Force
+        Remove-Item -LiteralPath $secondPayload -Force
+        Complete-PendingFaultFixture -Fixture $fixture
+        Assert-PendingFaultFixtureCompleted -Fixture $fixture
+    }
+}
+
+Invoke-FaultCheck -Name 'different manifests for one canonical destination fail closed into review' -Body {
+    Invoke-WithFaultRoots {
+        param($Root)
+        $fixture = New-PendingFaultFixture -Root $Root -SidecarCount 1
+        $firstManifest = Read-PendingManifestFile -Path $fixture.ManifestPath
+        $secondPayload = Join-Path $script:LocalPendingPush 'duplicate-target.mkv'
+        $secondManifestPath = Join-Path $script:LocalPendingPush 'duplicate-target.mkv.manifest.json'
+        [System.IO.File]::Copy($fixture.PendingPath, $secondPayload, $false)
+        $secondManifest = ConvertTo-PendingManifestMap $firstManifest
+        $secondManifest['local_file'] = $secondPayload
+        $secondManifest['server_out'] = $fixture.ServerOut.ToUpperInvariant().Replace('\', '/')
+        $secondManifest['publish_transaction_id'] = 'duplicate-target-transaction'
+        $secondManifest['source_identity'] = 'duplicate-target-source-v1'
+        $secondManifest['source_identity_v2'] = 'duplicate-target-source-v2'
+        Write-PendingManifestFile -Path $secondManifestPath -Manifest $secondManifest | Out-Null
+
+        $firstResult = Invoke-PendingDrainTransaction -ManifestFile (Get-Item -LiteralPath $fixture.ManifestPath) -Manifest $firstManifest
+        Assert-Equal ([string]$firstResult.Status) 'duplicate_destination' 'First duplicate-target manifest did not fail closed.'
+        $firstReview = Read-PendingManifestFile -Path $fixture.ManifestPath
+        Assert-Equal ([string]$firstReview.manifest_state) 'review_duplicate_destination' 'First duplicate-target manifest lacks review state.'
+
+        $secondManifest = Read-PendingManifestFile -Path $secondManifestPath
+        $secondResult = Invoke-PendingDrainTransaction -ManifestFile (Get-Item -LiteralPath $secondManifestPath) -Manifest $secondManifest
+        Assert-Equal ([string]$secondResult.Status) 'duplicate_destination' 'Second duplicate-target manifest did not fail closed.'
+        $secondReview = Read-PendingManifestFile -Path $secondManifestPath
+        Assert-Equal ([string]$secondReview.manifest_state) 'review_duplicate_destination' 'Second duplicate-target manifest lacks review state.'
+
+        Assert-True (-not (Test-Path -LiteralPath $fixture.ServerOut -PathType Leaf)) 'Duplicate-target review exposed final media.'
+        Assert-Equal (Get-PendingFileSha256OrNull -Path $fixture.PendingPath) $fixture.MediaHash 'Duplicate-target review changed the first parked payload.'
+        Assert-Equal (Get-PendingFileSha256OrNull -Path $secondPayload) $fixture.MediaHash 'Duplicate-target review changed the second parked payload.'
+        Assert-True (Test-Path -LiteralPath $fixture.ManifestPath -PathType Leaf) 'Duplicate-target review removed the first manifest.'
+        Assert-True (Test-Path -LiteralPath $secondManifestPath -PathType Leaf) 'Duplicate-target review removed the second manifest.'
+        Assert-Equal (Get-PendingFileSha256OrNull -Path $fixture.SourcePath) $fixture.SourceHash 'Duplicate-target review changed source media.'
+        Assert-Equal (Get-PendingFileSha256OrNull -Path $fixture.ScratchPath) $fixture.ScratchHash 'Duplicate-target review changed scratch media.'
+    }
+}
+
 Invoke-FaultCheck -Name 'ambiguous success retry is idempotent without restart helper' -Body {
     Invoke-WithFaultRoots {
         param($Root)
@@ -660,6 +794,36 @@ Invoke-FaultCheck -Name 'stale in-progress attempt is reconciled on restart' -Bo
         Assert-True (-not (Test-Path -LiteralPath $partial -PathType Leaf)) 'Restart recovery left a stale partial artifact.'
         $recoveredManifest = Read-PendingManifestFile -Path $fixture.ManifestPath
         Assert-Equal ([string]$recoveredManifest.manifest_state) 'parked_recovered' 'Stale attempt was not returned to parked recovery posture.'
+        Complete-PendingFaultFixture -Fixture $fixture
+        Assert-PendingFaultFixtureCompleted -Fixture $fixture
+    }
+}
+
+Invoke-FaultCheck -Name 'stale-attempt recovery cannot mutate a destination held by another transaction' -Body {
+    Invoke-WithFaultRoots {
+        param($Root)
+        $fixture = New-PendingFaultFixture -Root $Root -SidecarCount 1
+        $manifest = Read-PendingManifestFile -Path $fixture.ManifestPath
+        $manifest = Update-PendingManifestDrainAttempt -ManifestPath $fixture.ManifestPath -Manifest $manifest -AttemptId 'destination-lock-held' -Status 'in_progress'
+        $manifest = Update-PendingManifestTransactionPhase -ManifestPath $fixture.ManifestPath -Manifest $manifest -Phase 'final_partial_copied' -AttemptId 'destination-lock-held'
+        $partial = New-PublishPartialMediaPath -ServerOut $fixture.ServerOut -PublishTransactionId ([string]$manifest.publish_transaction_id)
+        [System.IO.File]::Copy($fixture.PendingPath, $partial, $true)
+        $manifestHash = Get-PendingFileSha256OrNull -Path $fixture.ManifestPath
+        $partialHash = Get-PendingFileSha256OrNull -Path $partial
+        $destinationLock = Enter-PendingPublishDestinationLock -ManifestPath $fixture.ManifestPath -ServerOut $fixture.ServerOut
+        Assert-True ($null -ne $destinationLock) 'Could not acquire destination lock for recovery contention fixture.'
+        try {
+            $blocked = Repair-PendingStaleDrainAttempt -ManifestFile (Get-Item -LiteralPath $fixture.ManifestPath) -Manifest $manifest
+            Assert-Equal ([string]$blocked.Status) 'busy' 'Stale-attempt recovery did not fail closed on destination contention.'
+            Assert-Equal (Get-PendingFileSha256OrNull -Path $fixture.ManifestPath) $manifestHash 'Blocked recovery rewrote the pending manifest.'
+            Assert-Equal (Get-PendingFileSha256OrNull -Path $fixture.PendingPath) $fixture.MediaHash 'Blocked recovery changed the parked payload.'
+            Assert-Equal (Get-PendingFileSha256OrNull -Path $partial) $partialHash 'Blocked recovery changed the transaction partial.'
+            Assert-True (-not (Test-Path -LiteralPath $fixture.ServerOut -PathType Leaf)) 'Blocked recovery exposed final media.'
+        } finally {
+            Exit-PendingPublishDestinationLock -Lock $destinationLock
+        }
+        $recovery = Invoke-PendingPublishRecovery -Reason 'destination-lock-released'
+        Assert-Equal ([int]$recovery.recovered_count) 1 'Recovery did not reconcile after destination lock release.'
         Complete-PendingFaultFixture -Fixture $fixture
         Assert-PendingFaultFixtureCompleted -Fixture $fixture
     }

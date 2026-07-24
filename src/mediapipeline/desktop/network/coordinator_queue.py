@@ -258,6 +258,48 @@ class CoordinatorQueueMixin:
             worker_id=worker_id,
         )
 
+    def _restore_local_completion_after_failure(
+        self,
+        rollback_snapshot: dict[str, object] | None,
+        *,
+        job: object,
+        context: str,
+    ) -> bool:
+        """Restore and persist one failed coordinator-local completion."""
+        if rollback_snapshot is None:
+            _log.error("Cannot restore %s because no job-scoped rollback receipt exists.", context)
+            return False
+        restorer = getattr(self._registry, "restore_rollback_snapshot", None)
+        if not callable(restorer):
+            _log.error("Cannot restore %s because the registry has no rollback adapter.", context)
+            return False
+        try:
+            restored = bool(restorer(rollback_snapshot))
+        except Exception:
+            _log.exception("Failed to restore job-scoped registry state after %s.", context)
+            return False
+        if not restored:
+            _log.error("Refused job-scoped registry restore after %s due to newer target ownership.", context)
+            return False
+        try:
+            self._registry.save(self._inflight_state_path())
+        except Exception as exc:
+            safe_exc = redact_network_secret_text(exc)
+            _log.error("Failed to persist restored registry after %s: %s", context, safe_exc)
+            self._safe_log_cluster_event(
+                "local-completion-rollback-save-failed",
+                level="ERROR",
+                event="inflight_rollback_save_failed",
+                message=f"Failed to persist restored in-flight registry after {context}: {safe_exc}",
+                worker_id=str(getattr(job, "worker_id", "") or ""),
+                worker_name=str(getattr(job, "worker_name", "") or "coordinator"),
+                role="coordinator",
+                job_id=str(getattr(job, "job_id", "") or ""),
+                source_path=str(getattr(job, "source_path", "") or ""),
+            )
+            return False
+        return True
+
     def mark_done(
         self,
         job: ClaimedJob,
@@ -275,6 +317,8 @@ class CoordinatorQueueMixin:
         retry_on_failure: bool | None = None,
         reason_code: str | None = None,
         reason: str | None = None,
+        worker_result_artifact: dict | None = None,
+        worker_result_artifact_path: str | None = None,
     ) -> None:
         # W1 — previously this method called registry.complete() and saved,
         # but discarded every other parameter. The local-encode path
@@ -294,6 +338,16 @@ class CoordinatorQueueMixin:
             output_path=output_path or "",
             route=route or "",
         )
+        rollback_snapshot = None
+        snapshotter = getattr(self._registry, "rollback_snapshot", None)
+        if callable(snapshotter):
+            rollback_snapshot = snapshotter(
+                job.job_id,
+                transition="complete",
+                success=bool(success),
+                elapsed_seconds=elapsed_seconds,
+                output_size_bytes=output_size_bytes or 0,
+            )
         completed = self._registry.complete(
             job.job_id,
             job.worker_id,
@@ -348,9 +402,10 @@ class CoordinatorQueueMixin:
                     "reason_code": final_reason_code,
                     "reason": final_reason,
                     "error_message": error or "",
+                    "worker_result_artifact": dict(worker_result_artifact or {}),
+                    "worker_result_artifact_path": worker_result_artifact_path or "",
                 },
             )()
-            update_network_rerun_row_done(app=self._app, job=completed, request=request)
             try:
                 self._registry.save(self._inflight_state_path())
             except Exception as exc:
@@ -367,7 +422,33 @@ class CoordinatorQueueMixin:
                     job_id=job.job_id,
                     source_path=source_path,
                 )
+                self._restore_local_completion_after_failure(
+                    rollback_snapshot,
+                    job=completed,
+                    context="local Network CSV rerun registry save failure",
+                )
                 raise RuntimeError(f"registry save failed after local Network CSV rerun done: {safe_exc}") from exc
+            try:
+                row_updated = update_network_rerun_row_done(
+                    app=self._app,
+                    job=completed,
+                    request=request,
+                )
+                if row_updated is not True:
+                    raise RuntimeError("Network rerun row completion compare-and-set was rejected")
+            except Exception as exc:
+                self._restore_local_completion_after_failure(
+                    rollback_snapshot,
+                    job=completed,
+                    context="local Network CSV rerun row completion failure",
+                )
+                safe_exc = redact_network_secret_text(exc)
+                _log.warning(
+                    "Local Network CSV rerun row completion for job %s was rolled back: %s",
+                    job.job_id[:8],
+                    safe_exc,
+                )
+                raise RuntimeError(f"Network rerun row completion failed: {safe_exc}") from exc
             self._safe_log_cluster_event(
                 "network-rerun-row-pending-reduction",
                 level="INFO" if success else "ERROR",
@@ -381,22 +462,30 @@ class CoordinatorQueueMixin:
             )
             return
 
-        self._emit_done_outcome(
-            job               = completed,
-            success           = success,
-            worker_id         = job.worker_id,
-            elapsed_seconds   = elapsed_seconds,
-            output_size_bytes = int(output_size_bytes or 0),
-            completion_status = completion_status or "",
-            publish_state     = publish_state or "",
-            publish_mode      = publish_mode or "",
-            error_message     = error or "",
-            queue_terminal    = bool(queue_terminal),
-            retry_on_failure  = True if retry_on_failure is None else bool(retry_on_failure),
-            output_path       = output_path or "",
-            reason_code       = final_reason_code,
-            reason            = final_reason,
-        )
+        try:
+            self._emit_done_outcome(
+                job               = completed,
+                success           = success,
+                worker_id         = job.worker_id,
+                elapsed_seconds   = elapsed_seconds,
+                output_size_bytes = int(output_size_bytes or 0),
+                completion_status = completion_status or "",
+                publish_state     = publish_state or "",
+                publish_mode      = publish_mode or "",
+                error_message     = error or "",
+                queue_terminal    = bool(queue_terminal),
+                retry_on_failure  = True if retry_on_failure is None else bool(retry_on_failure),
+                output_path       = output_path or "",
+                reason_code       = final_reason_code,
+                reason            = final_reason,
+            )
+        except Exception:
+            self._restore_local_completion_after_failure(
+                rollback_snapshot,
+                job=completed,
+                context="local done outcome persistence failure",
+            )
+            raise
 
     def release(self, job: ClaimedJob) -> None:
         # N3 — pass the local worker_id so the registry's ownership

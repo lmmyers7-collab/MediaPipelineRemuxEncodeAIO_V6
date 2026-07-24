@@ -147,7 +147,49 @@ function Invoke-PendingDrainTransaction {
         })
     }
     try {
-        return Invoke-PendingDrainTransactionCore -ManifestFile $ManifestFile -Manifest $Manifest
+        try {
+            $lockedManifest = Read-PendingManifestFile -Path $ManifestFile.FullName
+        } catch {
+            return [pscustomobject]([ordered]@{
+                Status = 'invalid_manifest'; Recovered = $false; LocalFile = [string]$Manifest.local_file
+                ServerOut = [string]$Manifest.server_out; Route = [string]$Manifest.route
+                PublishMode = [string]$Manifest.publish_mode; SourcePath = [string]$Manifest.source_path
+                ManifestPath = [string]$ManifestFile.FullName; PublishTransactionId = [string]$Manifest.publish_transaction_id
+                SidecarCount = 0; Error = "Pending manifest could not be re-read under its transaction lock: $_"
+            })
+        }
+        $drainTrust = Test-PendingManifestTrustedForDrain -ManifestFile $ManifestFile -Manifest $lockedManifest
+        if (-not $drainTrust.Ok) {
+            return Invoke-PendingDrainTransactionCore -ManifestFile $ManifestFile -Manifest $lockedManifest
+        }
+
+        $lockedServer = [string](Get-PendingObjectProperty -Object $lockedManifest -Name 'server_out')
+        $destinationLock = Enter-PendingPublishDestinationLock -ManifestPath $ManifestFile.FullName -ServerOut $lockedServer
+        if ($null -eq $destinationLock) {
+            return [pscustomobject]([ordered]@{
+                Status = 'destination_lock_unavailable'; Recovered = $false; LocalFile = [string]$lockedManifest.local_file
+                ServerOut = $lockedServer; Route = [string]$lockedManifest.route
+                PublishMode = [string]$lockedManifest.publish_mode; SourcePath = [string]$lockedManifest.source_path
+                ManifestPath = [string]$ManifestFile.FullName; PublishTransactionId = [string]$lockedManifest.publish_transaction_id
+                SidecarCount = 0; Error = 'Another transaction holds the canonical destination lock, or the lock could not be opened; no files were changed.'
+            })
+        }
+        try {
+            $lockedManifest = Read-PendingManifestFile -Path $ManifestFile.FullName
+            $reReadServer = [string](Get-PendingObjectProperty -Object $lockedManifest -Name 'server_out')
+            if ((Get-PendingPublishDestinationIdentity -ServerOut $reReadServer) -ne [string]$destinationLock.Identity) {
+                return [pscustomobject]([ordered]@{
+                    Status = 'manifest_changed'; Recovered = $false; LocalFile = [string]$lockedManifest.local_file
+                    ServerOut = $reReadServer; Route = [string]$lockedManifest.route
+                    PublishMode = [string]$lockedManifest.publish_mode; SourcePath = [string]$lockedManifest.source_path
+                    ManifestPath = [string]$ManifestFile.FullName; PublishTransactionId = [string]$lockedManifest.publish_transaction_id
+                    SidecarCount = 0; Error = 'Pending destination identity changed while locks were acquired; no files were changed.'
+                })
+            }
+            return Invoke-PendingDrainTransactionCore -ManifestFile $ManifestFile -Manifest $lockedManifest
+        } finally {
+            Exit-PendingPublishDestinationLock -Lock $destinationLock
+        }
     } finally {
         Exit-PendingPublishTransactionLock -Lock $lock
     }
@@ -190,6 +232,16 @@ function Invoke-PendingDrainTransactionCore {
     }
 
     $attemptId = [guid]::NewGuid().ToString('N')
+    $duplicateDestinations = @(Get-PendingPublishDuplicateDestinationManifestPaths -ManifestPath $manifestPath -ServerOut $server)
+    if ($duplicateDestinations.Count -gt 0) {
+        $reason = "Duplicate pending manifests target the same canonical destination; reconcile before drain. Conflicts: $($duplicateDestinations -join ', ')"
+        $Manifest = Update-PendingManifestReviewState -ManifestPath $manifestPath -Manifest $Manifest -State 'review_duplicate_destination' -Reason $reason -AttemptId $attemptId
+        Update-PendingManifestDrainAttempt -ManifestPath $manifestPath -Manifest $Manifest -AttemptId $attemptId -Status 'duplicate_destination' -Error $reason | Out-Null
+        Write-Log "Pending: $reason" 'ERROR'
+        $result.Status = 'duplicate_destination'
+        $result.Error = $reason
+        return [pscustomobject]$result
+    }
     try {
         $Manifest = Update-PendingManifestDrainAttempt -ManifestPath $manifestPath -Manifest $Manifest -AttemptId $attemptId -Status 'in_progress'
         $Manifest = Update-PendingManifestTransactionPhase -ManifestPath $manifestPath -Manifest $Manifest -Phase 'drain_attempt_started' -AttemptId $attemptId

@@ -13,7 +13,8 @@
 │ TAURI SHELL  (apps/desktop/tauri/src-tauri/src/)              │
 │   Rust process that owns app lifecycle, launches the backend,     │
 │   hosts the WebView2 window, enforces close-readiness.            │
-│   Files: lib.rs and focused Rust lifecycle/contract modules.      │
+│   Files: lib.rs and focused Rust lifecycle/contract modules,      │
+│   including updater_controller.rs for signed, close-gated updates.│
 └────────────────────────────────────────────────────────────────────┘
                               │  spawns
                               ▼
@@ -104,7 +105,8 @@
 │        process/tool_log_lifecycle.ps1                              │
 │        status/progress_state.ps1, queue/queue_plan.ps1             │
 │        naming/naming.ps1, shared/source_identity.ps1               │
-│        publish/*.ps1, library/library_index.ps1                    │
+│        publish/*.ps1, rerun/publication_transaction.ps1,          │
+│        library/library_index.ps1                                   │
 │        process/pipeline_processing.ps1, queue/pipeline_engine.ps1  │
 │                                                                    │
 │  entrypoints/Audit-MediaLibrary.ps1, Backfill-CompletedManifest.ps1, │
@@ -236,6 +238,7 @@ Parked output is media plus sidecars. The backend owns every decision about what
 | `ops/pipeline/engine/publish/pending_transactions.ps1` | Durable media-plus-sidecar park transaction, drain transaction, server-copy validation, sidecar rollback, and `pending_move` crash recovery. | Operator command routing, frontend policy, or read-only row shaping. |
 | `ops/pipeline/engine/publish/pending_push.ps1` | Public PowerShell facade for park/retry/drain commands, drain summary, event/log emission, and pending index refresh calls. | Low-level copy/reveal rollback details already owned by `PendingTransactions.ps1`. |
 | `ops/pipeline/engine/publish/pending_publish_index.ps1` | Read-only in-memory index and health rows for parked manifests and missing payloads. | Moving, deleting, draining, repairing, or accepting parked payloads. |
+| `ops/pipeline/engine/rerun/publication_transaction.ps1` | Same-volume staging, exact media/sidecar/SRT commit, idempotent completion evidence, replacement rollback, and restart reconciliation for CSV rerun final-library publication. | Source-media mutation, Pending Publish drain policy, frontend inference, or declaring success before companion and completion proof. |
 | `src/mediapipeline/core/publish/pending_*.py` | Read-only desktop scan, row shaping, open-target support, and API DTO normalization over backend-authored manifests. | Media copy/reveal policy, discard decisions, manifest repair side effects, or drain safety inference. |
 
 ---
@@ -247,7 +250,7 @@ Settings persistence is JSON-authoritative. `%LOCALAPPDATA%\MediaPipelineRemuxEn
 1. **Python backend** at API-resolution time — loads `settings.v1.json` when present, imports the PSD1 only for first-run or explicit recovery import, applies aliases/migrations, and regenerates the PSD1 projection.
 2. **PS1 entry** (`MediaPipeline.ps1`) at startup — validates the projection manifest when present, then reads the generated PSD1 with `Import-PowerShellDataFile`.
 
-Both sides ingest the same canonical known keys. Unknown imported PSD1 keys are preserved as inert `legacy_extras` for projection/recovery only and must not affect runtime policy. **Config-key names are documented in `docs/architecture/CONFIG_KEY_GLOSSARY.md`**. Python-side key names are guarded in `src/mediapipeline/core/kernel/config_key_groups.py` and related config metadata; PowerShell-side key names are guarded in `ops/pipeline/engine/config/config_keys.ps1`. Drift tests include `tests/python/desktop/test_config_keys.py`, `tests/python/desktop/test_settings_store.py`, and `ops/pipeline/tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1`.
+Both sides ingest the same canonical known keys. Unknown imported PSD1 keys are preserved only as archival `legacy_extras` in the JSON authority, with their count recorded in projection-manifest evidence; they are excluded from the active PSD1 and cannot become PowerShell runtime variables. **Config-key names are documented in `docs/architecture/CONFIG_KEY_GLOSSARY.md`**. Python-side key names are guarded in `src/mediapipeline/core/kernel/config_key_groups.py` and related config metadata; PowerShell runtime merge independently enforces `ops/pipeline/engine/config/config_keys.ps1`. Drift and executable-boundary tests include `tests/python/desktop/test_config_keys.py`, `tests/python/desktop/test_settings_store.py`, and `ops/pipeline/tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1`.
 
 ---
 

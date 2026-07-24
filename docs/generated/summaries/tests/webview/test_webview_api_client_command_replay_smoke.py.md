@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-20
+last_modified: 2026-07-22
 last_reviewed: 2026-07-20
-sha256: 7b920a0a6d73484c3311d1dc99e5c444e83f0b04de11106d8372dafe8c77d9e0
+sha256: 486a8a5d8ed5f10ea3b44b0a4372ea91ea5fe9782e7c75dab7884e3162bb64aa
 ---
 # `tests/webview/test_webview_api_client_command_replay_smoke.py`
 

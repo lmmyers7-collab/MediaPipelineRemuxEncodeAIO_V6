@@ -6,13 +6,13 @@ file_type: Python
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-07-02
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: 3161ec701c1e4c8a556c0d430d296b971ed6999db322a9825df165343cc9c059
+sha256: c07c217642feb8dde3c3bcf54aff9fb81fca99c24013c3a2881289b8113ce8b9
 ---
 # `src/mediapipeline/desktop/network/standalone.py`
 
-**Purpose:** network.standalone ================== ``StandaloneDispatcher`` — wraps the existing single-machine queue behaviour. This is the default dispatcher used when ``NetworkRole == "standalone"``. It is a thin wrapper around the queue_records list that the app already maintains. Behaviour is byte-for-byte identical to what the app did before the dispatcher abstraction was introduced — the wrapper exists purely so the rest of the app can call ``dispatcher.claim_next()`` without knowing which mode is active. No networking, no locking beyond what was already present, no side effects.
+**Purpose:** network.standalone ================== ``StandaloneDispatcher`` — wraps the existing single-machine queue behaviour. This is the default dispatcher used when ``NetworkRole == "standalone"``. It wraps the ``queue_records`` list that the app already maintains. Claims, releases, and terminal completion share application-scoped reservation state so separately created dispatcher instances cannot claim one record twice. No networking or filesystem side effects.
 
 **Public symbols:** `StandaloneDispatcher`
 **In-repo imports:** `.dispatcher`

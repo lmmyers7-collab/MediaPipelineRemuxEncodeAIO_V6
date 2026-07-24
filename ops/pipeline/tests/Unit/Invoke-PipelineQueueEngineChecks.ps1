@@ -41,6 +41,20 @@ function Assert-Equal {
     }
 }
 
+# The production entrypoint loads routing before the queue engine. Keep this
+# queue-focused wrapper on the same complete route-plan contract without
+# coupling its synthetic file objects to media-probe and routing-policy tests.
+function Resolve-InitialMediaRoutePlan {
+    param($File, [bool]$IsTV = $false, $MediaProfile = $null, $RouteHints = $null)
+    return [pscustomobject]@{
+        Route = 'remux'
+        DisplayRoute = 'REMUX (codec check pending)'
+        Reason = 'synthetic complete route evidence'
+        ReasonCode = 'size_within_threshold'
+        DecisionTrace = @([pscustomobject]@{ code = 'size_within_threshold'; message = 'synthetic complete route evidence' })
+    }
+}
+
 Assert-Equal (Get-QueueEpisodeNumber '[SubsPlease] Kanan-sama wa Akumade Choroi - 12v2 (1080p) [80A8418A]') 12 'Queue ordering should ignore uploader revision suffixes.'
 
 function New-ManualOrderSortEntry {
@@ -959,6 +973,72 @@ function Invoke-AcceptedRunBlocksWhenBackendNamingEvidenceFailsCheck {
     }
 }
 
+function Invoke-AcceptedRunBlocksWhenRouteEvidenceFailsCheck {
+    $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("MediaPipelineQueueRouteFailureTest_" + [guid]::NewGuid().ToString('N'))
+    $existingResolver = Get-Command -Name Resolve-InitialMediaRoutePlan -ErrorAction SilentlyContinue
+    $originalResolver = if ($existingResolver) { $existingResolver.ScriptBlock } else { $null }
+    $previousOutputContainer = $script:OutputContainer
+    try {
+        New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+        $successfulEntry = New-QueueEngineTestEntry -Root $tempRoot -Name 'Route.Success.2026.mkv' -Phase 'movie' -MediaKind 'movie' -QueueIndex 1 -QueueTotal 3
+        $failedEntry = New-QueueEngineTestEntry -Root $tempRoot -Name 'Route.Exception.2026.mkv' -Phase 'movie' -MediaKind 'movie' -QueueIndex 2 -QueueTotal 3
+        $incompleteEntry = New-QueueEngineTestEntry -Root $tempRoot -Name 'Route.Incomplete.2026.mkv' -Phase 'movie' -MediaKind 'movie' -QueueIndex 3 -QueueTotal 3
+        $plan = New-TestQueuePlan
+        $plan.NormalMovieEntries = @($successfulEntry, $failedEntry, $incompleteEntry)
+        $plan.MovieCount = 3
+        $script:configPath = ''
+        $script:LocalBase = $tempRoot
+        $script:SourceMovies = $tempRoot
+        $script:SourceTV = $tempRoot
+        $script:Outsource = ''
+        $script:ValidExtensions = @('.mkv')
+        $script:OutputContainer = '.mkv'
+
+        Set-Item -LiteralPath Function:\Resolve-InitialMediaRoutePlan -Value {
+            param($File, [bool]$IsTV = $false, $MediaProfile = $null, $RouteHints = $null)
+            if ([string]$File.Name -eq 'Route.Exception.2026.mkv') {
+                throw 'synthetic route resolver failure'
+            }
+            if ([string]$File.Name -eq 'Route.Incomplete.2026.mkv') {
+                return [pscustomobject]@{
+                    Route = ''; DisplayRoute = ''; Reason = ''; ReasonCode = ''; DecisionTrace = @()
+                }
+            }
+            return [pscustomobject]@{
+                Route = 'remux'
+                DisplayRoute = 'REMUX (codec check pending)'
+                Reason = 'synthetic complete route evidence'
+                ReasonCode = 'size_within_threshold'
+                DecisionTrace = @([pscustomobject]@{ code = 'size_within_threshold'; message = 'synthetic complete route evidence' })
+            }
+        }
+        $snapshot = Build-QueuePlanSnapshotRows -QueuePlan $plan -ProcessedIndex @{}
+
+        Assert-Equal ([int]$snapshot.runnable_count) 1 'Only a complete authoritative route decision may enter the accepted workload.'
+        Assert-Equal ([int]$snapshot.accepted_run_rows.Count) 1 'Route failures must be absent from accepted Run Once membership.'
+        Assert-True (-not [string]::IsNullOrWhiteSpace([string]$snapshot.accepted_run_rows[0].route)) 'Accepted route identity must be nonempty.'
+        Assert-True (-not [string]::IsNullOrWhiteSpace([string]$snapshot.accepted_run_rows[0].route_reason)) 'Accepted route reason must be nonempty.'
+        Assert-True (-not [string]::IsNullOrWhiteSpace([string]$snapshot.accepted_run_rows[0].route_reason_code)) 'Accepted route reason code must be nonempty.'
+        Assert-Equal ([string]$snapshot.rows[1].blocked_reason_code) 'route_preview_failed' 'Route resolver exceptions must publish a stable Queue blocker.'
+        Assert-Equal ([string]$snapshot.rows[1].route_reason_code) 'route_preview_failed' 'Route resolver exceptions must not retain empty or stale route reason codes.'
+        Assert-True ([string]$snapshot.rows[1].blocked_reason -match 'synthetic route resolver failure') 'Route exception blocker must preserve the resolver reason.'
+        Assert-Equal ([int]$snapshot.rows[1].run_queue_index) 0 'Route resolver exceptions must not receive runnable ordering.'
+        Assert-Equal ([string]$snapshot.rows[2].blocked_reason_code) 'route_preview_failed' 'Incomplete route objects must publish the same stable Queue blocker.'
+        Assert-Equal ([string]$snapshot.rows[2].route_reason_code) 'route_preview_failed' 'Incomplete route objects must not retain empty route reason codes.'
+        Assert-Equal ([int]$snapshot.rows[2].run_queue_index) 0 'Incomplete route objects must not receive runnable ordering.'
+    } finally {
+        if ($originalResolver) {
+            Set-Item -LiteralPath Function:\Resolve-InitialMediaRoutePlan -Value $originalResolver
+        } else {
+            Remove-Item -LiteralPath Function:\Resolve-InitialMediaRoutePlan -ErrorAction SilentlyContinue
+        }
+        $script:OutputContainer = $previousOutputContainer
+        if (Test-Path -LiteralPath $tempRoot -PathType Container) {
+            Remove-Item -LiteralPath $tempRoot -Recurse -Force
+        }
+    }
+}
+
 function Invoke-QueueSnapshotRowsAreCappedButTotalsRemainAccurateCheck {
     $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("MediaPipelineQueueRowCapTest_" + [guid]::NewGuid().ToString('N'))
     $previousRowLimit = $script:QueueSnapshotRowLimit
@@ -1736,6 +1816,7 @@ Invoke-AcceptedRunSeedRequiresPlannedNameEvidenceCheck
 Invoke-AcceptedRunUsesBackendRenameDisplayNameCheck
 Invoke-QueuePlanFingerprintDimensionCheck
 Invoke-AcceptedRunBlocksWhenBackendNamingEvidenceFailsCheck
+Invoke-AcceptedRunBlocksWhenRouteEvidenceFailsCheck
 Invoke-QueueSnapshotRowsAreCappedButTotalsRemainAccurateCheck
 Invoke-AcceptedRunRowsMustMatchActiveEvidenceExactlyCheck
 Invoke-QueueExecutionCapLimitsRunnableWindowCheck

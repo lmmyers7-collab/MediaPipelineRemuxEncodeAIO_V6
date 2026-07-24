@@ -14,6 +14,10 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 
+$scriptRoot = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
+$repoRoot = [IO.Path]::GetFullPath((Join-Path $scriptRoot '..\..\..'))
+. (Join-Path $repoRoot 'ops\scripts\smoke\tauri_harness_process_ownership.ps1')
+
 function Resolve-ToolPath {
     param([Parameter(Mandatory)][string]$Name)
 
@@ -57,28 +61,8 @@ function Resolve-VsDevCmd {
     return ''
 }
 
-function Get-LocalApiBackendProcesses {
-    Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
-        Where-Object {
-            [string]$_.Name -match '^python(\d+(\.\d+)*)?\.exe$' -and
-            [string]$_.CommandLine -match 'mediapipeline.desktop\.local_api_main'
-        }
-}
-
 function Get-TauriShellProcesses {
     Get-Process -Name 'mediapipeline-tauri-shell' -ErrorAction SilentlyContinue
-}
-
-function Get-WebView2RootProcesses {
-    param([int[]]$ShellProcessIds)
-
-    $ids = @($ShellProcessIds | Where-Object { $_ -gt 0 } | Select-Object -Unique)
-    if ($ids.Count -eq 0) { return @() }
-    return Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
-        Where-Object {
-            [string]$_.Name -eq 'msedgewebview2.exe' -and
-            $ids -contains [int]$_.ParentProcessId
-        }
 }
 
 function Get-WebView2UserDataFolder {
@@ -106,31 +90,6 @@ function Stop-ProcessTree {
     } catch {
         try { $Process.Kill() } catch { }
     }
-}
-
-function Stop-ProcessIdTree {
-    param([int]$ProcessId)
-
-    $proc = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
-    if (-not $proc) { return }
-    Stop-ProcessTree -Process $proc
-}
-
-function Wait-ProcessIdsGone {
-    param(
-        [int[]]$ProcessIds,
-        [int]$TimeoutSeconds
-    )
-
-    $ids = @($ProcessIds | Where-Object { $_ -gt 0 } | Select-Object -Unique)
-    if ($ids.Count -eq 0) { return @() }
-    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
-    do {
-        $remaining = @($ids | Where-Object { Get-Process -Id $_ -ErrorAction SilentlyContinue })
-        if ($remaining.Count -eq 0) { return @() }
-        Start-Sleep -Milliseconds 500
-    } while ((Get-Date) -lt $deadline)
-    return $remaining
 }
 
 function Get-LogTail {
@@ -762,7 +721,6 @@ function Invoke-PipelineLogNativeWindowProbe {
     }
 }
 
-$scriptRoot = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
 $shellRoot = [System.IO.Path]::GetFullPath($scriptRoot)
 $node = Resolve-ToolPath node
 $npm = Resolve-ToolPath npm
@@ -779,8 +737,6 @@ foreach ($tool in @(
     }
 }
 
-$baselineBackendIds = @(Get-LocalApiBackendProcesses | ForEach-Object { [int]$_.ProcessId })
-$baselineShellIds = @(Get-TauriShellProcesses | ForEach-Object { [int]$_.Id })
 $expectedWebView2Folder = ''
 if ($ExpectedWebView2UserDataFolder) {
     $expectedWebView2Folder = [System.IO.Path]::GetFullPath($ExpectedWebView2UserDataFolder).TrimEnd('\', '/')
@@ -806,6 +762,10 @@ $cmdLine = 'call "' + $vsDevCmd + '" -arch=x64 -host_arch=x64 >nul && set "PATH=
 Write-Host "Launching Tauri dev shell from $shellRoot"
 Write-Host "Logs: $stdoutLog"
 $devProcess = Start-Process -FilePath $env:ComSpec -ArgumentList @('/d', '/s', '/c', $cmdLine) -WorkingDirectory $shellRoot -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog -WindowStyle Hidden -PassThru
+$launcherIdentity = $null
+$ownedBackendIdentities = @()
+$ownedShellIdentities = @()
+$ownedWebView2Identities = @()
 $newBackendIds = @()
 $newShellIds = @()
 $newWebView2Ids = @()
@@ -814,24 +774,30 @@ $visibleWindowProcess = $null
 $mainWindowHandle = [IntPtr]::Zero
 $homeNameEvidence = $null
 try {
+    $launcherIdentity = Get-TauriHarnessProcessIdentity -ProcessId $devProcess.Id
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     while ((Get-Date) -lt $deadline) {
         if ($devProcess.HasExited) {
             throw "Tauri dev process exited before the window appeared. Exit=$($devProcess.ExitCode). stderr=$(Get-LogTail -Path $stderrLog)"
         }
-        $shellProcesses = @(Get-TauriShellProcesses | Where-Object { $baselineShellIds -notcontains [int]$_.Id })
-        $newShellIds = @($shellProcesses | ForEach-Object { [int]$_.Id })
+        $processSnapshot = @(Get-TauriHarnessProcessSnapshot)
+        $ownedShellIdentities = @(Get-TauriHarnessOwnedShellIdentities -RootIdentity $launcherIdentity -ProcessSnapshot $processSnapshot)
+        $ownedBackendIdentities = @(Get-TauriHarnessOwnedBackendIdentities -RootIdentity $launcherIdentity -ProcessSnapshot $processSnapshot)
+        $newShellIds = @($ownedShellIdentities | ForEach-Object { [int]$_.ProcessId })
+        $newBackendIds = @($ownedBackendIdentities | ForEach-Object { [int]$_.ProcessId })
+        $shellProcesses = @(Get-TauriShellProcesses | Where-Object { $newShellIds -contains [int]$_.Id })
         $visibleWindowProcess = $shellProcesses |
             Where-Object { $_.MainWindowTitle -eq $WindowTitle } |
             Select-Object -First 1
-        $backendProcesses = @(Get-LocalApiBackendProcesses)
-        $newBackendIds = @($backendProcesses | Where-Object { $baselineBackendIds -notcontains [int]$_.ProcessId } | ForEach-Object { [int]$_.ProcessId })
         if ($visibleWindowProcess -and $newBackendIds.Count -gt 0) { break }
         Start-Sleep -Milliseconds 500
     }
 
     if (-not $visibleWindowProcess) {
         throw "Tauri window '$WindowTitle' was not detected within $TimeoutSeconds seconds. stdout_tail=$(Get-LogTail -Path $stdoutLog) stderr_tail=$(Get-LogTail -Path $stderrLog)"
+    }
+    if ($ownedBackendIdentities.Count -ne 1) {
+        throw "Expected exactly one launcher-owned Local API backend; found $($ownedBackendIdentities.Count): $($newBackendIds -join ', ')."
     }
     $mainWindowHandle = [IntPtr]$visibleWindowProcess.MainWindowHandle
 
@@ -840,14 +806,16 @@ try {
         $webViewDeadline = (Get-Date).AddSeconds(10)
         $webViewRoots = @()
         do {
-            $webViewRoots = @(Get-WebView2RootProcesses -ShellProcessIds $newShellIds)
+            $processSnapshot = @(Get-TauriHarnessProcessSnapshot)
+            $ownedWebView2Identities = @(Get-TauriHarnessOwnedWebView2Identities -RootIdentity $launcherIdentity -ProcessSnapshot $processSnapshot)
+            $webViewRoots = $ownedWebView2Identities
             if ($webViewRoots.Count -gt 0) { break }
             Start-Sleep -Milliseconds 100
         } while ((Get-Date) -lt $webViewDeadline)
         if ($webViewRoots.Count -eq 0) {
             throw "WebView2 root process was not found for Tauri shell PID(s): $($newShellIds -join ', ')."
         }
-        $newWebView2Ids = @($webViewRoots | ForEach-Object { [int]$_.ProcessId })
+        $newWebView2Ids = @($ownedWebView2Identities | ForEach-Object { [int]$_.ProcessId })
         $observedFolders = @($webViewRoots | ForEach-Object {
             Get-WebView2UserDataFolder -CommandLine ([string]$_.CommandLine)
         })
@@ -909,33 +877,41 @@ try {
     }
     if (-not $devProcess.WaitForExit($CloseTimeoutSeconds * 1000)) {
         Write-Warning "Tauri dev process did not exit within $CloseTimeoutSeconds seconds; forcing the isolated probe tree to stop."
+        foreach ($identity in @($ownedBackendIdentities + $ownedWebView2Identities + $ownedShellIdentities)) {
+            if (Test-TauriHarnessProcessIdentityCurrent -Identity $identity) {
+                Stop-TauriHarnessOwnedProcessTree -Identity $identity -Label 'launcher-owned probe process' | Out-Null
+            }
+        }
         Stop-ProcessTree -Process $devProcess
-        foreach ($processId in @($newShellIds + $newBackendIds + $newWebView2Ids | Select-Object -Unique)) {
-            Stop-ProcessIdTree -ProcessId $processId
-        }
     }
-    $trackedProcessIds = @($newShellIds + $newBackendIds + $newWebView2Ids | Select-Object -Unique)
-    $remainingProcessIds = @(Wait-ProcessIdsGone -ProcessIds $trackedProcessIds -TimeoutSeconds $CloseTimeoutSeconds)
-    if ($remainingProcessIds.Count -gt 0) {
-        foreach ($processId in $remainingProcessIds) {
-            Stop-ProcessIdTree -ProcessId $processId
+    $trackedProcessIdentities = @($ownedShellIdentities + $ownedBackendIdentities + $ownedWebView2Identities)
+    $remainingProcessIdentities = @(Wait-TauriHarnessProcessIdentitiesGone -Identities $trackedProcessIdentities -TimeoutSeconds $CloseTimeoutSeconds -Label 'launcher-owned probe process(es)')
+    if ($remainingProcessIdentities.Count -gt 0) {
+        foreach ($identity in $remainingProcessIdentities) {
+            Stop-TauriHarnessOwnedProcessTree -Identity $identity -Label 'launcher-owned probe process' | Out-Null
         }
-        $remainingProcessIds = @(Wait-ProcessIdsGone -ProcessIds $remainingProcessIds -TimeoutSeconds 5)
+        $remainingProcessIdentities = @(Wait-TauriHarnessProcessIdentitiesGone -Identities $remainingProcessIdentities -TimeoutSeconds 5 -Label 'launcher-owned probe process(es)')
     }
-    if ($remainingProcessIds.Count -gt 0) {
-        throw "Probe cleanup left tracked processes running after forced cleanup. process_ids=$($remainingProcessIds -join ', ')"
+    if ($remainingProcessIdentities.Count -gt 0) {
+        throw "Probe cleanup left tracked processes running after forced cleanup. process_ids=$(@($remainingProcessIdentities.ProcessId) -join ', ')"
     }
 } finally {
+    foreach ($identity in $ownedBackendIdentities) {
+        if (Test-TauriHarnessProcessIdentityCurrent -Identity $identity) {
+            Stop-TauriHarnessOwnedProcessTree -Identity $identity -Label 'launcher-owned backend' | Out-Null
+        }
+    }
+    foreach ($identity in $ownedWebView2Identities) {
+        if (Test-TauriHarnessProcessIdentityCurrent -Identity $identity) {
+            Stop-TauriHarnessOwnedProcessTree -Identity $identity -Label 'launcher-owned WebView2 process' | Out-Null
+        }
+    }
+    foreach ($identity in $ownedShellIdentities) {
+        if (Test-TauriHarnessProcessIdentityCurrent -Identity $identity) {
+            Stop-TauriHarnessOwnedProcessTree -Identity $identity -Label 'launcher-owned Tauri shell' | Out-Null
+        }
+    }
     if ($devProcess -and -not $devProcess.HasExited) {
         Stop-ProcessTree -Process $devProcess
-    }
-    foreach ($shellPid in $newShellIds) {
-        Stop-ProcessIdTree -ProcessId $shellPid
-    }
-    foreach ($backendPid in $newBackendIds) {
-        Stop-ProcessIdTree -ProcessId $backendPid
-    }
-    foreach ($webView2Pid in $newWebView2Ids) {
-        Stop-ProcessIdTree -ProcessId $webView2Pid
     }
 }

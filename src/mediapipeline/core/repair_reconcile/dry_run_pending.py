@@ -14,6 +14,11 @@ from mediapipeline.core.kernel.contracts.pending_publish import (
     PENDING_PUSH_MANIFEST_SCHEMA_VERSION,
     PendingPushManifest,
 )
+from mediapipeline.core.publish.content_proof import (
+    ContentProofError,
+    read_content_proof,
+    verify_pending_manifest_content_proofs,
+)
 from mediapipeline.core.repair_reconcile.dry_run_contract import *  # noqa: F403
 from mediapipeline.core.repair_reconcile.dry_run_support import *  # noqa: F403
 
@@ -65,6 +70,70 @@ def _pending_manifest_array_alias(proposed: Mapping[str, Any], field: str) -> li
     return []
 
 
+def _backfill_missing_content_proof(
+    proposed: dict[str, Any],
+    changed: dict[str, dict[str, Any]],
+    reasons: list[str],
+) -> None:
+    local_text = str(proposed.get("local_file") or "").strip()
+    if local_text:
+        try:
+            proof = read_content_proof(Path(local_text))
+        except ContentProofError:
+            proof = None
+        if proof is not None:
+            current_hash = str(proposed.get("output_sha256") or "").strip()
+            if not current_hash:
+                _set_pending_manifest_field(proposed, changed, "output_sha256", proof.sha256)
+                reasons.append("missing_output_sha256_derived_from_payload")
+                current_hash = proof.sha256
+            if (
+                not str(proposed.get("output_hash_algorithm") or "").strip()
+                and current_hash.casefold() == proof.sha256.casefold()
+            ):
+                _set_pending_manifest_field(
+                    proposed, changed, "output_hash_algorithm", "SHA256"
+                )
+                reasons.append("missing_output_hash_algorithm_bound_to_payload_sha256")
+
+    sidecars = proposed.get("sidecar_files")
+    if not isinstance(sidecars, list):
+        return
+    updated_sidecars: list[Any] = []
+    sidecars_changed = False
+    for sidecar in sidecars:
+        if not isinstance(sidecar, Mapping):
+            updated_sidecars.append(sidecar)
+            continue
+        copied = dict(sidecar)
+        sidecar_text = str(copied.get("local_file") or "").strip()
+        try:
+            sidecar_proof = read_content_proof(Path(sidecar_text)) if sidecar_text else None
+        except ContentProofError:
+            sidecar_proof = None
+        if sidecar_proof is not None:
+            if copied.get("output_size") in (None, ""):
+                copied["output_size"] = sidecar_proof.size
+                sidecars_changed = True
+            current_hash = str(copied.get("output_sha256") or "").strip()
+            if not current_hash:
+                copied["output_sha256"] = sidecar_proof.sha256
+                current_hash = sidecar_proof.sha256
+                sidecars_changed = True
+            if (
+                not str(copied.get("output_hash_algorithm") or "").strip()
+                and current_hash.casefold() == sidecar_proof.sha256.casefold()
+            ):
+                copied["output_hash_algorithm"] = "SHA256"
+                sidecars_changed = True
+        updated_sidecars.append(copied)
+    if sidecars_changed:
+        _set_pending_manifest_field(
+            proposed, changed, "sidecar_files", updated_sidecars
+        )
+        reasons.append("missing_sidecar_content_proof_derived_from_payloads")
+
+
 def _repair_legacy_csv_rerun_manifest(
     *,
     proposed: dict[str, Any],
@@ -105,6 +174,9 @@ def _pending_orphan_missing_manifest_evidence(row: Mapping[str, Any]) -> list[st
             missing.append(field)
     if "output_size" not in row or row.get("output_size") in (None, ""):
         missing.append("output_size")
+    for field in ("output_sha256", "output_hash_algorithm"):
+        if not str(row.get(field) or "").strip():
+            missing.append(field)
     for field in PENDING_PUSH_MANIFEST_REQUIRED_ARRAY_FIELDS:
         if not isinstance(row.get(field), list):
             missing.append(field)
@@ -371,6 +443,22 @@ def _pending_orphan_payload_candidate_row(
             "safe_next_action": "Restore missing sidecar payloads before confirmed orphan manifest reconcile.",
         }
 
+    try:
+        verify_pending_manifest_content_proofs(validated)
+    except ContentProofError as exc:
+        return {
+            "row_key": key,
+            "status": "blocked",
+            "action": "pending_orphan_payload_reconcile",
+            "manifest_path": str(expected_manifest_path),
+            "local_file": local_file,
+            "diagnostic_status": diagnostic_status,
+            "proposed_manifest_available": True,
+            "proposal_source": proposal_source,
+            "error": f"Backend orphan manifest proposal content proof is invalid: {exc}",
+            "safe_next_action": "Refresh backend SHA-256 evidence from the exact pending payload bytes before confirmed apply.",
+        }
+
     return {
         "row_key": key,
         "status": "candidate",
@@ -488,10 +576,13 @@ def _pending_manifest_repair_candidate_row(
             except OSError:
                 pass
 
+    _backfill_missing_content_proof(proposed, changed, reasons)
+
     if not changed:
         try:
-            PendingPushManifest.from_mapping(manifest)
-        except ContractError as exc:
+            current = PendingPushManifest.from_mapping(manifest)
+            verify_pending_manifest_content_proofs(current)
+        except (ContractError, ContentProofError) as exc:
             return {
                 "row_key": key,
                 "status": "blocked",
@@ -578,6 +669,21 @@ def _pending_manifest_repair_candidate_row(
             "missing_sidecar_paths": missing_sidecars,
             "error": "Backend proposed manifest references missing pending sidecar payloads.",
             "safe_next_action": "Restore missing sidecar payloads before confirmed manifest repair.",
+        }
+
+    try:
+        verify_pending_manifest_content_proofs(validated)
+    except ContentProofError as exc:
+        return {
+            "row_key": key,
+            "status": "blocked",
+            "action": "pending_manifest_repair",
+            "manifest_path": manifest_path,
+            "diagnostic_status": diagnostic_status,
+            "changed_fields": changed,
+            "missing_or_unsafe_fields": sorted(changed),
+            "error": f"Backend proposed manifest content proof is invalid: {exc}",
+            "safe_next_action": "Refresh backend SHA-256 evidence from the exact pending payload and sidecar bytes before confirmed apply.",
         }
 
     return {

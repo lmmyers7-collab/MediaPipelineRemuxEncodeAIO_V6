@@ -4,17 +4,17 @@ network.standalone
 ``StandaloneDispatcher`` — wraps the existing single-machine queue behaviour.
 
 This is the default dispatcher used when ``NetworkRole == "standalone"``.
-It is a thin wrapper around the queue_records list that the app already
-maintains.  Behaviour is byte-for-byte identical to what the app did before
-the dispatcher abstraction was introduced — the wrapper exists purely so the
-rest of the app can call ``dispatcher.claim_next()`` without knowing which
-mode is active.
+It wraps the ``queue_records`` list that the app already maintains. Claims,
+releases, and terminal completion share application-scoped reservation state
+so separately created dispatcher instances cannot claim one record twice.
 
-No networking, no locking beyond what was already present, no side effects.
+No networking or filesystem side effects.
 """
 from __future__ import annotations
 
+import threading
 import uuid
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -24,11 +24,27 @@ if TYPE_CHECKING:
     from ..app import MediaPipelineApp
 
 
+@dataclass
+class _StandaloneDispatchState:
+    lock: threading.Lock = field(default_factory=threading.Lock)
+    inflight: dict[str, object] = field(default_factory=dict)
+
+
+_STATE_INIT_LOCK = threading.Lock()
+_STATE_ATTRIBUTE = "_standalone_dispatch_state"
+
+
 class StandaloneDispatcher(QueueDispatcher):
     """Single-machine dispatcher.  Pops from the local queue_records list."""
 
     def __init__(self, app: MediaPipelineApp) -> None:
         self._app = app
+        with _STATE_INIT_LOCK:
+            state = getattr(app, _STATE_ATTRIBUTE, None)
+            if not isinstance(state, _StandaloneDispatchState):
+                state = _StandaloneDispatchState()
+                setattr(app, _STATE_ATTRIBUTE, state)
+            self._state = state
 
     # ------------------------------------------------------------------
     # QueueDispatcher interface
@@ -39,20 +55,21 @@ class StandaloneDispatcher(QueueDispatcher):
 
         Returns ``None`` when the queue is empty.
         """
-        records = getattr(self._app, "queue_records", None)
-        if not records:
-            return None
+        with self._state.lock:
+            records = getattr(self._app, "queue_records", None)
+            if not records:
+                return None
 
-        record = records[0]
-        encode_config = self._snapshot_encode_config()
-
-        return ClaimedJob(
-            job_id=str(uuid.uuid4()),
-            record=record,
-            encode_config=encode_config,
-            claimed_at=datetime.now(),
-            worker_id=getattr(self._app, "_machine_id", "local"),
-        )
+            record = records.pop(0)
+            job = ClaimedJob(
+                job_id=str(uuid.uuid4()),
+                record=record,
+                encode_config=self._snapshot_encode_config(),
+                claimed_at=datetime.now(),
+                worker_id=getattr(self._app, "_machine_id", "local"),
+            )
+            self._state.inflight[job.job_id] = record
+            return job
 
     def mark_done(
         self,
@@ -70,19 +87,18 @@ class StandaloneDispatcher(QueueDispatcher):
         queue_terminal: bool = False,
         reason_code: str | None = None,
         reason: str | None = None,
+        worker_result_artifact: dict | None = None,
+        worker_result_artifact_path: str | None = None,
     ) -> None:
-        """Delegate to the app's existing completion handler.
+        """Terminalize this dispatcher's reservation for a completed job.
 
-        The app's normal post-encode logic (sidecar writing, completion
-        record, failure logging) is invoked directly — nothing changes
-        from the pre-dispatcher implementation.
+        The existing encode loop remains responsible for all completion side
+        effects; this method only removes the in-memory ownership record.
         """
-        # The existing completion path lives on the app.  We call it
-        # through whatever method the app exposes after the encode
-        # subprocess exits.  In standalone mode the encode loop handles
-        # this; mark_done is a signal that the dispatcher layer is done
-        # with the job.  No additional work needed here.
-        pass
+        # The existing encode loop owns completion side effects. The
+        # dispatcher only terminalizes its reservation, once.
+        with self._state.lock:
+            self._state.inflight.pop(job.job_id, None)
 
     def release(self, job: ClaimedJob) -> None:
         """Re-insert the job's record at the front of the queue.
@@ -90,15 +106,20 @@ class StandaloneDispatcher(QueueDispatcher):
         Called when the app is shutting down mid-encode so the file is
         not silently dropped from the queue.
         """
-        records = getattr(self._app, "queue_records", None)
-        if records is None:
-            return
-        # Only re-insert if not already present (idempotent).
-        source = getattr(job.record, "source_path", None)
-        if source and not any(
-            getattr(r, "source_path", None) == source for r in records
-        ):
-            records.insert(0, job.record)
+        with self._state.lock:
+            records = getattr(self._app, "queue_records", None)
+            reserved = self._state.inflight.get(job.job_id)
+            if records is None or reserved is None:
+                return
+            self._state.inflight.pop(job.job_id, None)
+            source = getattr(reserved, "source_path", None)
+            already_queued = (
+                any(getattr(record, "source_path", None) == source for record in records)
+                if source is not None
+                else any(record is reserved for record in records)
+            )
+            if not already_queued:
+                records.insert(0, reserved)
 
     # heartbeat() inherited — always returns True (no coordinator to notify)
     # shutdown()  inherited — no-op

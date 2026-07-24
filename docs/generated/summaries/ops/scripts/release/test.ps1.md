@@ -6,9 +6,9 @@ file_type: PowerShell
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-07-16
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: ce8efc8147dd1a6853e5f77f5344ea4815bc947022b26d8f9ac64479e5b7c848
+sha256: 983b7ee67ccf03e70fc32c8db7d162f928bf7f0c0336de2ac3dcf3656e4b9c85
 ---
 # `ops/scripts/release/test.ps1`
 

@@ -8,7 +8,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-20
 last_reviewed: 2026-07-20
-sha256: b9f537e532aefc2c45e40a122bd667eda22df285a7551918c0306d6ff15ac11f
+sha256: b7b5e20c18d07f3fd0daade80df3d5bac48dab12f74ec82606fb5288eb8f2f38
 ---
 # `src/mediapipeline/tools/dev/check_test_suite_subsystem_inventory.py`
 

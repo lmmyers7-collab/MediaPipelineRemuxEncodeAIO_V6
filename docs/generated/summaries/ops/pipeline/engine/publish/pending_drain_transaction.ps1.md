@@ -6,9 +6,9 @@ file_type: PowerShell
 pipeline_stage: publish
 token_priority: high
 owner_domain: publish
-last_modified: 2026-07-20
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: 46d6c8f7e847f79ac3c824d7fd162fa30e87d711ba20dcebe6976141d9fe9631
+sha256: 8f94fee713e1d5960cc90f43288d08448dbd36ae5b034feb1a5785f91fb81009
 ---
 # `ops/pipeline/engine/publish/pending_drain_transaction.ps1`
 

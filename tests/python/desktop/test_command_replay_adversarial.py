@@ -12,6 +12,7 @@ from unittest.mock import patch
 from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.desktop.api.command_journal import CommandJournal
 from mediapipeline.desktop.api import handler_policy
+from mediapipeline.desktop.api.handler_policy import OperatorRouteError
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
 from tests.python.desktop.application_facade_test_support import (
     DummyFacadeService,
@@ -370,10 +371,212 @@ class CommandReplayAdversarialTests(LocalApiHttpTestMixin, unittest.TestCase):
 
         self.assertEqual(indeterminate_status, 503)
         self.assertEqual(indeterminate["data"]["evidence_phase"], "indeterminate")
+        self.assertTrue(indeterminate["data"]["accepted_reservation_durable"])
+        self.assertTrue(indeterminate["data"]["lifecycle_marker_persisted"])
+        self.assertEqual(indeterminate["data"]["journal_durability"], "fallback_marker")
         self.assertEqual(mutation_count, 1)
         self.assertIn(retry_status, {409, 503})
         self.assertIn(retry["code"], {"command_in_progress", "command_outcome_indeterminate"})
         self.assertFalse(retry["data"]["mutation_performed"])
+
+    def test_unclassified_dispatch_exception_is_durable_indeterminate_and_replays_without_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            mutation_count = 0
+
+            def mutate_then_raise(_request: dict[str, Any]) -> dict[str, Any]:
+                nonlocal mutation_count
+                mutation_count += 1
+                raise RuntimeError("synthetic secret after side effect")
+
+            first_server = self._server(root)
+            first_server._pipeline_start_payload = mutate_then_raise  # type: ignore[method-assign]
+            try:
+                first_server.start()
+                first_status, first = self._post_command(
+                    first_server,
+                    "/api/pipeline/start",
+                    {"mode": "validate", "sleep_seconds": 1},
+                )
+                replay_status, replay = self._post_command(
+                    first_server,
+                    "/api/pipeline/start",
+                    {"mode": "validate", "sleep_seconds": 1},
+                )
+                _history_status, history = self._get_json(
+                    f"{first_server.url}/api/commands?limit=10",
+                    token="test-token",
+                )
+            finally:
+                first_server.stop()
+
+            restarted = self._server(root)
+            restarted._pipeline_start_payload = mutate_then_raise  # type: ignore[method-assign]
+            try:
+                restarted.start()
+                restart_status, restart_replay = self._post_command(
+                    restarted,
+                    "/api/pipeline/start",
+                    {"mode": "validate", "sleep_seconds": 1},
+                )
+            finally:
+                restarted.stop()
+
+        self.assertEqual((first_status, replay_status, restart_status), (503, 503, 503))
+        self.assertEqual(mutation_count, 1)
+        self.assertEqual(first["code"], "command_outcome_indeterminate")
+        self.assertEqual(first["data"]["evidence_phase"], "indeterminate")
+        self.assertTrue(first["data"]["current_state_unverified"])
+        self.assertNotIn("synthetic secret", json.dumps(first, sort_keys=True))
+        self.assertTrue(replay["data"]["idempotent_replay"])
+        self.assertEqual(replay["data"]["original_evidence_phase"], "indeterminate")
+        self.assertTrue(restart_replay["data"]["idempotent_replay"])
+        self.assertEqual(history["entries"][0]["data"]["evidence_phase"], "indeterminate")
+        self.assertEqual(history["entries"][0]["data"]["command_id"], COMMAND_ID)
+        self.assertFalse(any(entry["command"] == "local_api.route_exception" for entry in history["entries"]))
+
+    def test_explicit_pre_mutation_operator_error_is_durable_failed_terminal(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            server = self._server(root)
+            dispatch_count = 0
+
+            def reject_before_mutation(_request: dict[str, Any]) -> dict[str, Any]:
+                nonlocal dispatch_count
+                dispatch_count += 1
+                raise OperatorRouteError(
+                    code="synthetic_precondition",
+                    operator_message="Synthetic precondition rejected before mutation.",
+                    status=503,
+                )
+
+            server._pipeline_start_payload = reject_before_mutation  # type: ignore[method-assign]
+            try:
+                server.start()
+                first_status, first = self._post_command(
+                    server,
+                    "/api/pipeline/start",
+                    {"mode": "validate", "sleep_seconds": 1},
+                )
+                replay_status, replay = self._post_command(
+                    server,
+                    "/api/pipeline/start",
+                    {"mode": "validate", "sleep_seconds": 1},
+                )
+            finally:
+                server.stop()
+
+        self.assertEqual((first_status, replay_status), (503, 503))
+        self.assertEqual(dispatch_count, 1)
+        self.assertEqual(first["code"], "synthetic_precondition")
+        self.assertEqual(first["data"]["evidence_phase"], "failed")
+        self.assertFalse(first["data"]["mutation_performed"])
+        self.assertTrue(first["data"]["strict_command_journal_recorded"])
+        self.assertTrue(replay["data"]["idempotent_replay"])
+        self.assertEqual(replay["data"]["original_evidence_phase"], "failed")
+
+    def test_terminal_and_marker_persistence_failure_reports_unresolved_proof_and_blocks_same_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            server = self._server(root)
+            mutation_count = 0
+            save_count = 0
+            real_save: Callable[..., None] = server.command_journal._save_locked  # type: ignore[method-assign]
+
+            def mutate(_request: dict[str, Any]) -> dict[str, Any]:
+                nonlocal mutation_count
+                mutation_count += 1
+                return _result("pipeline.start", mutation_count)
+
+            def interrupt_terminal(*args: Any, **kwargs: Any) -> None:
+                nonlocal save_count
+                save_count += 1
+                if save_count == 2:
+                    raise OSError("terminal write interrupted")
+                real_save(*args, **kwargs)
+
+            server._pipeline_start_payload = mutate  # type: ignore[method-assign]
+            try:
+                server.start()
+                with (
+                    patch.object(server.command_journal, "_save_locked", side_effect=interrupt_terminal),
+                    patch("mediapipeline.desktop.api.server.LifecycleLeaseStore.mark_indeterminate", side_effect=OSError("marker denied")),
+                ):
+                    first_status, first = self._post_command(
+                        server,
+                        "/api/pipeline/start",
+                        {"mode": "validate", "sleep_seconds": 1},
+                    )
+                retry_status, retry = self._post_command(
+                    server,
+                    "/api/pipeline/start",
+                    {"mode": "validate", "sleep_seconds": 1},
+                )
+            finally:
+                server.stop()
+
+        self.assertEqual(first_status, 503)
+        self.assertEqual(first["code"], "command_evidence_unresolved")
+        self.assertEqual(first["data"]["evidence_phase"], "unresolved")
+        self.assertTrue(first["data"]["accepted_reservation_durable"])
+        self.assertFalse(first["data"]["lifecycle_marker_persisted"])
+        self.assertNotIn("marker denied", first.get("message", ""))
+        self.assertIn(retry_status, {409, 503})
+        self.assertFalse(retry["data"]["mutation_performed"])
+        self.assertEqual(mutation_count, 1)
+
+    def test_missing_or_raising_state_provider_reports_marker_absence_without_unsafe_retry(self) -> None:
+        for provider_mode in ("missing", "raising"):
+            with self.subTest(provider_mode=provider_mode), tempfile.TemporaryDirectory() as raw_root:
+                root = Path(raw_root)
+                server = self._server(root)
+                mutation_count = 0
+                save_count = 0
+                real_save: Callable[..., None] = server.command_journal._save_locked  # type: ignore[method-assign]
+
+                def mutate(_request: dict[str, Any]) -> dict[str, Any]:
+                    nonlocal mutation_count
+                    mutation_count += 1
+                    return _result("pipeline.start", mutation_count)
+
+                def interrupt_terminal(*args: Any, _real_save: Callable[..., None] = real_save, **kwargs: Any) -> None:
+                    nonlocal save_count
+                    save_count += 1
+                    if save_count == 2:
+                        raise OSError("terminal write interrupted")
+                    _real_save(*args, **kwargs)
+
+                if provider_mode == "missing":
+                    server.resolved_provider = lambda: None
+                else:
+                    def fail_resolved() -> None:
+                        raise RuntimeError("resolved provider failed")
+
+                    server.resolved_provider = fail_resolved
+                server._pipeline_start_payload = mutate  # type: ignore[method-assign]
+                try:
+                    server.start()
+                    with patch.object(server.command_journal, "_save_locked", side_effect=interrupt_terminal):
+                        first_status, first = self._post_command(
+                            server,
+                            "/api/pipeline/start",
+                            {"mode": "validate", "sleep_seconds": 1},
+                        )
+                    retry_status, retry = self._post_command(
+                        server,
+                        "/api/pipeline/start",
+                        {"mode": "validate", "sleep_seconds": 1},
+                    )
+                finally:
+                    server.stop()
+
+                self.assertEqual(first_status, 503)
+                self.assertEqual(first["code"], "command_evidence_unresolved")
+                self.assertFalse(first["data"]["lifecycle_marker_persisted"])
+                self.assertTrue(first["data"]["accepted_reservation_durable"])
+                self.assertIn(retry_status, {409, 503})
+                self.assertFalse(retry["data"]["mutation_performed"])
+                self.assertEqual(mutation_count, 1)
 
     def test_incomplete_accepted_record_blocks_same_identity_after_restart(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -397,12 +600,64 @@ class CommandReplayAdversarialTests(LocalApiHttpTestMixin, unittest.TestCase):
         self.assertEqual(restarted["code"], "command_in_progress")
         self.assertFalse(restarted["mutation_performed"])
 
+    def test_missing_or_invalid_command_identity_rejects_before_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            server = self._server(root)
+            mutation_count = 0
+
+            def mutate(_request: dict[str, Any]) -> dict[str, Any]:
+                nonlocal mutation_count
+                mutation_count += 1
+                return _result("pipeline.start", mutation_count)
+
+            server._pipeline_start_payload = mutate  # type: ignore[method-assign]
+            try:
+                server.start()
+                missing_status, missing = self._post_json(
+                    f"{server.url}/api/pipeline/start",
+                    {"mode": "validate", "sleep_seconds": 1},
+                    token="test-token",
+                    extra_headers={COMMAND_HEADER: ""},
+                )
+                invalid_status, invalid = self._post_json(
+                    f"{server.url}/api/pipeline/start",
+                    {"mode": "validate", "sleep_seconds": 1},
+                    token="test-token",
+                    extra_headers={COMMAND_HEADER: "bad id"},
+                )
+            finally:
+                server.stop()
+
+        self.assertEqual((missing_status, invalid_status), (400, 400))
+        self.assertEqual(missing["code"], "command_id_required")
+        self.assertEqual(invalid["code"], "command_id_invalid")
+        self.assertFalse(missing["data"]["mutation_performed"])
+        self.assertFalse(invalid["data"]["mutation_performed"])
+        self.assertEqual(mutation_count, 0)
+
+    def test_preflight_allows_the_strict_command_identity_header(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            server = self._server(Path(raw_root))
+            try:
+                server.start()
+                status, headers, _body = self._options(
+                    f"{server.url}/api/pipeline/start",
+                    extra_headers={"Origin": server.url},
+                )
+            finally:
+                server.stop()
+
+        self.assertEqual(status, 204)
+        self.assertIn(COMMAND_HEADER, headers.get("Access-Control-Allow-Headers", ""))
+
     def test_malformed_journal_fails_closed_and_reports_history_unavailable(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             path = root / "RunLogs" / "local_api_command_history.json"
             path.parent.mkdir(parents=True)
-            path.write_text("{not valid JSON", encoding="utf-8")
+            original_bytes = b"{not valid JSON"
+            path.write_bytes(original_bytes)
             server = self._server(root)
             mutation_count = 0
 
@@ -422,6 +677,7 @@ class CommandReplayAdversarialTests(LocalApiHttpTestMixin, unittest.TestCase):
                 history_status, history = self._get_json(f"{server.url}/api/commands?limit=5", token="test-token")
             finally:
                 server.stop()
+            preserved_bytes = path.read_bytes()
 
         self.assertEqual(status, 503)
         self.assertEqual(payload["code"], "command_journal_unavailable")
@@ -430,6 +686,7 @@ class CommandReplayAdversarialTests(LocalApiHttpTestMixin, unittest.TestCase):
         self.assertTrue(history["journal_persistence"]["degraded"])
         self.assertEqual(history["journal_persistence"]["json"]["status"], "failed")
         self.assertTrue(history["journal_persistence"]["json"]["last_error"])
+        self.assertEqual(preserved_bytes, original_bytes)
 
     def test_same_id_cannot_cross_command_route_boundary(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

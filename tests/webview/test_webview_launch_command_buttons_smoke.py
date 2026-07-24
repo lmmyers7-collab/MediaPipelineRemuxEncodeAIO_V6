@@ -23,7 +23,6 @@ PAGE_QUEUE_HTML = ROOT / "apps" / "desktop" / "webview" / "static" / "partials" 
 PAGE_DIAGNOSTICS_HTML = ROOT / "apps" / "desktop" / "webview" / "static" / "partials" / "page-diagnostics.html"
 PREFLIGHT_JS = ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "launchView.preflight.js"
 PILOT_READINESS_JS = ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "launch" / "preflight" / "pilotReadiness.js"
-QUEUE_SCAN_JS = ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "queue" / "scan.js"
 START_REQUEST_JS = ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "launch" / "startRequest.js"
 QUEUE_RERUN_REQUEST_JS = ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "queue" / "rerunRequest.js"
 LAUNCH_VIEW_ASSET_NAMES = (
@@ -281,7 +280,6 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
 
         const pilotReadinessSource = fs.readFileSync({str(PILOT_READINESS_JS)!r}, "utf8");
         const source = fs.readFileSync({str(PREFLIGHT_JS)!r}, "utf8");
-        const queueScanSource = fs.readFileSync({str(QUEUE_SCAN_JS)!r}, "utf8");
         const text = {{}};
         const elements = {{
           "launch-backend-preflight-status": {{ dataset: {{}} }},
@@ -316,15 +314,6 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
             }},
           }};
         }}
-        function findByClass(node, className) {{
-          if (!node) return null;
-          if (String(node.className || "").split(/\\s+/).includes(className)) return node;
-          for (const child of node.children || []) {{
-            const match = findByClass(child, className);
-            if (match) return match;
-          }}
-          return null;
-        }}
         domNodes[".topbar"] = {{
           insertAdjacentElement(position, node) {{
             this.insertedPosition = position;
@@ -345,7 +334,6 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
         vm.createContext(context);
         vm.runInContext(pilotReadinessSource, context);
         vm.runInContext(source, context);
-        vm.runInContext(queueScanSource, context);
 
         const encoderCapabilityDetail = {{
           schema_version: "settings_encoder_capability_report.v1",
@@ -368,18 +356,6 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
 
         const fetchUrls = [];
         const postCalls = [];
-        const queueScanPostCalls = [];
-        let queueScanInFlight = false;
-        let resolveQueueScanRequest = null;
-        const queueScanModule = context.window.__queueScanModule.createQueueScanModule({{
-          getScanInFlight() {{ return queueScanInFlight; }},
-          setScanInFlight(value) {{ queueScanInFlight = Boolean(value); }},
-          apiPost(path, payload, options) {{
-            queueScanPostCalls.push({{ path, payload, timeoutMs: options?.timeoutMs || 0 }});
-            return new Promise((resolve) => {{ resolveQueueScanRequest = resolve; }});
-          }},
-          refreshAll() {{ return Promise.resolve(); }},
-        }});
         const factory = context.window.__launchViewPreflightModule.createLaunchPreflightModule;
         const launchPreflightModule = factory({{
           apiGet(url) {{
@@ -450,7 +426,6 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
 
           const emptyCsvFetchUrls = [];
           const emptyCsvPostCalls = [];
-          let queueScanRequestCount = 0;
           const emptyCsvText = {{}};
           const emptyCsvElements = {{
             "launch-backend-preflight-status": {{ dataset: {{}} }},
@@ -488,10 +463,6 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
             collectRerunStartRequest(options = {{}}) {{ return {{ csv_path: "", dry_run: Boolean(options.dry_run), plan_only: Boolean(options.plan_only), execution_mode: "one_at_a_time", destination_mode: "review_workspace", collision_policy: "suffix", window_size: 1 }}; }},
             launchPreflightRequestMatches(payload, request, keys) {{
               return keys.every((key) => String(payload.request?.[key] ?? "") === String(request?.[key] ?? ""));
-            }},
-            requestQueueScan() {{
-              queueScanRequestCount += 1;
-              return queueScanModule.requestQueueScan();
             }},
             setText(id, value) {{ emptyCsvText[id] = String(value); }},
             updateTableStatusLegend() {{}},
@@ -541,7 +512,7 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
             }},
           ];
           emptyCsvModule.renderLaunchBackendPreflight(activeWorkAlertPayloads);
-          const activeWorkAlertSuppressed = !domNodes[".launch-preflight-startup-alert"];
+          const activeWorkGlobalAlertAbsent = !domNodes[".launch-preflight-startup-alert"];
           const queueScanAlertPayloads = [
             {{
               target: "pipeline",
@@ -561,31 +532,7 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
             }},
           ];
           emptyCsvModule.renderLaunchBackendPreflight(queueScanAlertPayloads);
-          const queueScanAlert = domNodes[".launch-preflight-startup-alert"];
-          const queueScanButton = findByClass(queueScanAlert, "launch-preflight-scan-action");
-          const queueScanStatus = findByClass(queueScanAlert, "launch-preflight-scan-status");
-          const queueScanReasonCode = queueScanButton?.dataset?.reasonCode || "";
-          const queueScanClick = queueScanButton.click();
-          await Promise.resolve();
-          const queueScanPending = {{
-            disabled: queueScanButton.disabled,
-            busy: queueScanButton.attributes["aria-busy"],
-            text: queueScanButton.textContent,
-            status: queueScanStatus.textContent,
-          }};
-          resolveQueueScanRequest({{ ok: true, message: "Queue source scan command accepted." }});
-          await queueScanClick;
-          const queueScanAccepted = {{
-            disabled: queueScanButton.disabled,
-            busy: queueScanButton.attributes["aria-busy"],
-            text: queueScanButton.textContent,
-            status: queueScanStatus.textContent,
-          }};
-          const failedQueueScanModule = context.window.__queueScanModule.createQueueScanModule({{
-            getScanInFlight() {{ return false; }},
-            apiPost() {{ return Promise.reject(new Error("backend unavailable")); }},
-          }});
-          const failedQueueScanResult = await failedQueueScanModule.requestQueueScan();
+          const queueScanGlobalAlertAbsent = !domNodes[".launch-preflight-startup-alert"];
           const alertPayloads = [
             {{
               target: "pipeline",
@@ -615,14 +562,11 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
             }},
           ];
           emptyCsvModule.renderLaunchBackendPreflight(alertPayloads);
-          const blockedAlert = domNodes[".launch-preflight-startup-alert"];
-          const unrelatedBlockerHasQueueScanAction = Boolean(findByClass(blockedAlert, "launch-preflight-scan-action"));
-          const blockedAlertText = blockedAlert ? blockedAlert.textContent : "";
-          const blockedAlertState = blockedAlert?.dataset?.state || "";
-          const blockedAlertRole = blockedAlert?.attributes?.role || "";
-          const blockedAlertLive = blockedAlert?.attributes?.["aria-live"] || "";
+          const blockedGlobalAlertAbsent = !domNodes[".launch-preflight-startup-alert"];
+          const blockedRows = emptyCsvModule.launchBackendPreflightRows(alertPayloads);
+          const blockedDetail = emptyCsvModule.launchBackendPreflightDetailLines(blockedRows[0] || {{}}).join("\\n");
           emptyCsvModule.renderLaunchBackendPreflight(poisonPayloads);
-          const alertClearedByReadyPipeline = !domNodes[".launch-preflight-startup-alert"];
+          const readyGlobalAlertAbsent = !domNodes[".launch-preflight-startup-alert"];
           process.stdout.write(JSON.stringify({{
             renderFetchCount,
             fetchUrls,
@@ -645,19 +589,12 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
             poisonStatus: emptyCsvModule.launchBackendPreflightOverallStatus(poisonPayloads),
             poisonRows: emptyCsvModule.launchBackendPreflightRows(poisonPayloads).map((row) => row.targetLabel + ":" + row.posture),
             poisonScopeLabel: emptyCsvModule.launchBackendPreflightScopeLabel(poisonPayloads),
-            activeWorkAlertSuppressed,
-            queueScanRequestCount,
-            queueScanPostCalls,
-            queueScanReasonCode,
-            queueScanPending,
-            queueScanAccepted,
-            failedQueueScanResult,
-            unrelatedBlockerHasQueueScanAction,
-            blockedAlertText,
-            blockedAlertState,
-            blockedAlertRole,
-            blockedAlertLive,
-            alertClearedByReadyPipeline,
+            activeWorkGlobalAlertAbsent,
+            queueScanGlobalAlertAbsent,
+            blockedGlobalAlertAbsent,
+            blockedRowPostures: blockedRows.map((row) => row.posture),
+            blockedDetail,
+            readyGlobalAlertAbsent,
           }}));
         }})().catch((error) => {{
           console.error(error && error.stack ? error.stack : String(error));
@@ -1149,58 +1086,15 @@ class WebViewLaunchCommandButtonsSmoke(unittest.TestCase):
         self.assertEqual(result["poisonStatus"], "Ready")
         self.assertEqual(result["poisonRows"], ["Pipeline:ready"])
         self.assertEqual(result["poisonScopeLabel"], "Pipeline backend preflight")
-        self.assertTrue(result["activeWorkAlertSuppressed"])
-        self.assertEqual(result["queueScanRequestCount"], 1)
-        self.assertEqual(
-            result["queueScanPostCalls"],
-            [
-                {
-                    "path": "/api/queue/scan",
-                    "payload": {
-                        "mode": "inventory_then_curate",
-                        "force": True,
-                        "scope": "all",
-                        "reason": "operator_requested_queue_scan",
-                    },
-                    "timeoutMs": 10000,
-                }
-            ],
-        )
-        self.assertEqual(result["queueScanReasonCode"], "queue_snapshot_origin_not_dry_run")
-        self.assertEqual(
-            result["queueScanPending"],
-            {
-                "disabled": True,
-                "busy": "true",
-                "text": "Starting Queue scan...",
-                "status": "Submitting the existing backend Queue scan.",
-            },
-        )
-        self.assertEqual(
-            result["queueScanAccepted"],
-            {
-                "disabled": True,
-                "busy": "false",
-                "text": "Queue scan started",
-                "status": "Queue source scan command accepted.",
-            },
-        )
-        self.assertFalse(result["unrelatedBlockerHasQueueScanAction"])
-        self.assertFalse(result["failedQueueScanResult"]["ok"])
-        self.assertIn("backend unavailable", result["failedQueueScanResult"]["message"])
-        self.assertIn("Pipeline launch blocked by backend preflight", result["blockedAlertText"])
-        self.assertIn("What is wrong: Autonomy health gate is blocked", result["blockedAlertText"])
-        self.assertIn("pipeline_version is required and cannot be blank", result["blockedAlertText"])
-        self.assertIn("How to fix: Open Pending Publish", result["blockedAlertText"])
-        self.assertIn("STATE_FILE_SCHEMA_REFERENCE.md", result["blockedAlertText"])
-        self.assertIn("Backend detail: row_key=pending-row-1", result["blockedAlertText"])
-        self.assertIn("Recovery route: Open Pending Publish Recovery Plan at /api/pending-publish/recovery-plan", result["blockedAlertText"])
-        self.assertEqual(result["blockedAlertState"], "blocked")
-        self.assertEqual(result["blockedAlertRole"], "alert")
-        self.assertEqual(result["blockedAlertLive"], "assertive")
-        self.assertTrue(result["alertClearedByReadyPipeline"])
-        preflight_source = PREFLIGHT_JS.read_text(encoding="utf-8")
-        self.assertIn("mediaPipelineQueueView?.requestQueueScan", preflight_source)
+        self.assertTrue(result["activeWorkGlobalAlertAbsent"])
+        self.assertTrue(result["queueScanGlobalAlertAbsent"])
+        self.assertTrue(result["blockedGlobalAlertAbsent"])
+        self.assertEqual(result["blockedRowPostures"], ["blocked"])
+        self.assertIn("Autonomy health gate", result["blockedDetail"])
+        self.assertIn("pipeline_version is required and cannot be blank", result["blockedDetail"])
+        self.assertIn("STATE_FILE_SCHEMA_REFERENCE.md", result["blockedDetail"])
+        self.assertIn("Open Pending Publish Recovery Plan", result["blockedDetail"])
+        self.assertTrue(result["readyGlobalAlertAbsent"])
 
     def test_active_work_compact_gate_renders_active_instead_of_will_fail(self) -> None:
         result = _run_launch_compact_gate_smoke()

@@ -20,10 +20,17 @@ function Get-MediaPipelinePendingPublishBackpressure {
         try { $pendingRoot = [string]$script:LocalStateLayout.Paths.PendingPublish } catch {}
     }
     $manifestPaths = @()
-    if (-not [string]::IsNullOrWhiteSpace($pendingRoot) -and (Test-Path -LiteralPath $pendingRoot -PathType Container)) {
+    $readHealthy = $true
+    $readErrors = @()
+    $invalidManifestCount = 0
+    if (-not [string]::IsNullOrWhiteSpace($pendingRoot)) {
         try {
-            $manifestPaths = @(Get-ChildItem -LiteralPath $pendingRoot -Filter '*.manifest.json' -File -ErrorAction Stop)
+            if (Test-Path -LiteralPath $pendingRoot -PathType Container -ErrorAction Stop) {
+                $manifestPaths = @(Get-ChildItem -LiteralPath $pendingRoot -Filter '*.manifest.json' -File -ErrorAction Stop)
+            }
         } catch {
+            $readHealthy = $false
+            $readErrors += "Pending root enumeration failed: $($_.Exception.Message)"
             Write-Log "Pending publish backpressure scan failed: $_" 'WARN'
         }
     }
@@ -36,6 +43,10 @@ function Get-MediaPipelinePendingPublishBackpressure {
         try {
             $manifest = Get-Content -LiteralPath $manifestPath.FullName -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
         } catch {
+            $readHealthy = $false
+            $invalidManifestCount++
+            $readErrors += "Manifest '$($manifestPath.Name)' is unreadable or invalid: $($_.Exception.Message)"
+            Write-Log "Pending publish backpressure manifest could not be trusted: $($manifestPath.FullName): $_" 'WARN'
             continue
         }
         $parkedAtText = ''
@@ -68,7 +79,9 @@ function Get-MediaPipelinePendingPublishBackpressure {
     $deferredThreshold = [int]$script:PendingPublishDeferredBlockThreshold
     if ($deferredThreshold -le 0) { $deferredThreshold = 25 }
     $blockReason = ''
-    if ($deferred -and $count -ge $deferredThreshold) {
+    if (-not $readHealthy) {
+        $blockReason = 'pending_publish_state_unavailable'
+    } elseif ($deferred -and $count -ge $deferredThreshold) {
         $blockReason = 'deferred_backlog_threshold'
     } elseif (-not $deferred -and $count -ge $normalThreshold) {
         $blockReason = 'backlog_threshold'
@@ -88,13 +101,16 @@ function Get-MediaPipelinePendingPublishBackpressure {
         NormalThreshold     = $normalThreshold
         DeferredThreshold   = $deferredThreshold
         PendingRoot         = $pendingRoot
+        ReadHealth          = if ($readHealthy) { 'healthy' } else { 'unavailable' }
+        ReadError           = (@($readErrors | Select-Object -First 5) -join '; ')
+        InvalidManifestCount = [int]$invalidManifestCount
     }
 }
 
 function Write-MediaPipelinePendingPublishBackpressure {
     param([Parameter(Mandatory)] $Backpressure)
 
-    Write-Log "Pending publish backpressure blocked queue execution: reason=$($Backpressure.BlockReason); count=$($Backpressure.ManifestCount); deferred=$($Backpressure.DeferredPublish)" 'WARN'
+    Write-Log "Pending publish backpressure blocked queue execution: reason=$($Backpressure.BlockReason); count=$($Backpressure.ManifestCount); deferred=$($Backpressure.DeferredPublish); read_health=$($Backpressure.ReadHealth); invalid_manifests=$($Backpressure.InvalidManifestCount)" 'WARN'
     if (Get-Command -Name Write-PipelineEvent -ErrorAction SilentlyContinue) {
         try {
             Write-PipelineEvent -EventType 'pending_publish_backpressure_blocked' -Stage 'pending_publish' -Status 'blocked' -Data @{
@@ -106,6 +122,9 @@ function Write-MediaPipelinePendingPublishBackpressure {
                 total_bytes           = [int64]$Backpressure.TotalBytes
                 retry_exhausted_count = [int]$Backpressure.RetryExhaustedCount
                 pending_root          = [string]$Backpressure.PendingRoot
+                read_health           = [string]$Backpressure.ReadHealth
+                read_error            = [string]$Backpressure.ReadError
+                invalid_manifest_count = [int]$Backpressure.InvalidManifestCount
             } | Out-Null
         } catch {}
     }

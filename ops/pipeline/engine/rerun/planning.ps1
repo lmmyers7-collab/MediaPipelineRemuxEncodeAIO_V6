@@ -122,6 +122,9 @@ function Resolve-RerunPlans {
             replaced_sidecar_hold_paths = @()
             completed_manifest_path = ''
             completed_manifest_append = ''
+            publication_transaction_id = ''
+            publication_transaction_manifest_path = ''
+            publication_transaction_state = ''
             source_overwrite_confirmed = $false
             staged_input_cleanup = ''
             status = 'pending'

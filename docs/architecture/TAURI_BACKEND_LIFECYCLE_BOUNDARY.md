@@ -12,19 +12,39 @@ changes.
 
 The Tauri shell (`apps/desktop/tauri/src-tauri/src/lib.rs`) owns:
 
-- Spawning the Python backend process (`python -m mediapipeline.desktop.local_api_main`)
-- Resolving the Python runtime path from bundled or development locations
+- Spawning the Python backend through an isolated interpreter bootstrap (`python -I -c ...`) that inserts only the resolved release `src` root before running `mediapipeline.desktop.local_api_main`
+- Requiring release builds to use `apps/desktop/runtime/Python/python.exe` and to match its byte count and SHA-256 against the exact entry in the root `mediapipeline_release_manifest.v1`; ambient `python` remains available only in debug builds
+- Removing inherited `PYTHONPATH`, `PYTHONHOME`, `PYTHONUSERBASE`, and `PYTHONSTARTUP` from the child environment and disabling user-site/safe-path fallbacks
 - Reading the bootstrap payload from backend stdout (token + URL, `desktop_local_api_bootstrap.v1` schema)
 - Validating backend health via `GET /api/health` before opening WebView2
 - Validating the backend route contract via `GET /api/contract` before opening WebView2
 - Validating backend-served WebView assets via `GET /` + selected asset paths before opening WebView2
 - Holding a per-user Windows single-instance mutex before backend startup so a second Tauri shell does not spawn a second local backend
+- Requiring validation harnesses to bind observed shell, backend, WebView2, and backend-reported pipeline processes to the exact `Start-Process` launcher ancestry. Harness cleanup retains PID plus creation time, revalidates both before fallback termination, and refuses global name/baseline-delta cleanup.
 - Starting a bounded lifecycle monitor after setup that checks backend process exit and periodically validates `GET /api/health`
 - Querying close readiness via `GET /api/backend/close-readiness` when the operator closes the window
+- In productized builds only, checking the configured signed updater channel at startup, keeping download/signature verification separate from installation, and obtaining explicit native confirmation for both phases
+- Refusing updater installation unless a fresh backend close-readiness response is safe and a second backend-owned `SafeOnly` shutdown check completes; the updater has no force-close path
+- Writing bounded native updater recovery evidence under Tauri's app-local data root and reconciling installer handoff against the exact version observed on the next launch
+- Enforcing a five-second monotonic total deadline across every loopback backend request's connect, write, and read phases, in addition to per-I/O timeouts and the response-size cap
 - Requesting graceful shutdown via `POST /api/backend/shutdown` after close is confirmed
 - Terminating the backend process tree if graceful shutdown does not complete within a grace period
-- Draining backend stdout/stderr to prevent pipe deadlock
-- Enforcing bounded bootstrap line/char limits to prevent runaway stdout floods
+- Draining backend stdout/stderr incrementally without `BufRead::lines` so a
+  child-controlled physical line retains at most 16 KiB before UTF-8 decoding
+  and cannot force an unbounded allocation
+- Limiting each backend-output diagnostic preview to 500 characters, emitting
+  only a 20-line burst per stream, and replacing later content with
+  content-free suppression/overflow counters no more often than every five
+  seconds
+- Keeping bootstrap discovery lossless within the 16 KiB physical-line bound
+  through a capacity-one channel, then explicitly releasing the receiver so
+  stdout draining continues during startup validation
+- Binding both native WebViews to the exact normalized backend origin with
+  `on_navigation`; sibling loopback ports, alternate loopback spellings,
+  foreign schemes/hosts, `about:blank`, and `data:` navigations are denied
+- Running the token-bearing initialization script only in the top frame when
+  `window.location.origin` exactly matches that validated origin, and clearing
+  the bootstrap global before returning in every other frame or document
 
 The Python backend (local API) owns:
 
@@ -67,13 +87,20 @@ The pipeline may spawn or coordinate worker processes. If the shell kills the ba
 ## Production Lifecycle Guardrails
 
 The current promoted lifecycle has production-hardening guardrails for shell
-startup, backend health/crash visibility, and token/devtools static posture.
+startup, runtime/import provenance, backend health/crash visibility, and
+token/devtools static posture.
 Default-launcher/package-mode promotion is closed by operator confirmation on
 2026-05-30, and representative real-media validation is closed by operator
 attestation on 2026-05-28. Future launcher, package, Tauri, or Local API
 lifecycle changes still require package/open/close validation. Future
 media-policy, FFmpeg, subtitle, audio, publish/drain, source movement, or cleanup
 behavior changes still require representative real-media revalidation.
+
+The synthetic Tauri harness ownership gate launches two concurrent disposable
+process trees and proves that exact-tree cleanup preserves the unrelated tree
+and rejects a creation-time mismatch. That gate does not replace the
+representative active-work/real-media close validation required before a
+harness cleanup change is trusted around live processing.
 
 ### 1. Spawn resilience
 
@@ -113,7 +140,8 @@ behavior changes still require representative real-media revalidation.
 [Tauri shell]
   │
   ├─ acquire single-instance mutex → reject second Tauri shell before backend start
-  ├─ spawn python -m local_api_main
+  ├─ verify bundled python.exe against release_manifest.json
+  ├─ spawn python -I with a release-src-only local_api_main bootstrap
   │     │
   │     └─ backend writes: desktop_local_api_bootstrap.v1 to stdout
   │
@@ -125,6 +153,13 @@ behavior changes still require representative real-media revalidation.
   ├─ start lifecycle monitor → emit backend health/crash event for WebView banner
   │
   │   [WebView2 open, operator uses UI]
+  │
+  │   [productized startup updater branch]
+  ├─ check signed channel → if newer: prompt before download
+  ├─ download complete package and verify signature → prompt before install
+  ├─ GET /api/backend/close-readiness → unsafe/unavailable blocks install
+  ├─ POST /api/backend/shutdown in SafeOnly mode → blocked/failed stops install
+  ├─ record installer handoff; next launch reconciles exact target version
   │
   │   [operator closes window]
   │
@@ -149,6 +184,7 @@ behavior changes still require representative real-media revalidation.
 - A confirmed native force-close still requires backend acknowledgement. Tauri retains a live backend if its shutdown transport fails or the backend declines the request; it does not use transport failure as permission to tree-kill work.
 
 - Tauri shell Rust source: `apps/desktop/tauri/src-tauri/src/lib.rs`
+- Native updater lifecycle: `apps/desktop/tauri/src-tauri/src/updater_controller.rs`, schema `tauri_native_updater_event.v1`
 - Single-instance guard: `apps/desktop/tauri/src-tauri/src/single_instance_guard.rs`
 - Tauri lifecycle WebView bridge: `apps/desktop/webview/static/assets/tauriLifecycleBridge.js`
 - Production surface audit: `apps/desktop/tauri/Test-TauriShell-ProductionSurface.ps1`

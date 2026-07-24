@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-11
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: 27b470350c8b6c661ed51ad9ed44ee65471e58950c4f390fe5f068a76383e7d7
+sha256: 317110a5f8b43e0625cd3c898698be00a2840d1ca61fc4e0761615915276556f
 ---
 # `tests/python/desktop/test_api_command_results_policy.py`
 

@@ -1,0 +1,55 @@
+{
+  "id": "MP-CHANGE-2026-0723-001",
+  "title": "Block incomplete queue route previews",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": "2026-07-23",
+  "summary": "Require a complete authoritative route decision before a queue row can enter accepted Run Once scope.",
+  "reason": "Remediate P1 AUDIT-FIND-W03-008. A route resolver exception after successful destination naming currently leaves route identity empty but still increments runnable membership and fingerprints the row as accepted.",
+  "affected_areas": [
+    "queue snapshot route planning",
+    "accepted Run Once membership",
+    "queue and accepted-run fingerprints",
+    "Run Monitor planned-route evidence"
+  ],
+  "behavior_before": "Route-resolution exceptions populate only display reason text; the later acceptance gate checks naming but not route validity, so incomplete rows can become runnable and accepted.",
+  "behavior_after": "Route exceptions and incomplete or noncanonical route objects receive route_preview_failed evidence, clear stale route fields, disable deferred runtime-check claims, and cannot receive run indexes or accepted-plan membership.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/feature-cards/queue-launch.md",
+    "docs/generated/summaries/ops/pipeline/engine/queue/snapshot_rows.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-PipelineQueueEngineChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-001.json.md",
+    "ops/pipeline/engine/queue/snapshot_rows.ps1",
+    "ops/pipeline/tests/Unit/Invoke-PipelineQueueEngineChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-001.json"
+  ],
+  "tests_added": [
+    "Injected route-resolver exception and incomplete-route fixtures prove the rows are blocked, have stable reason codes and zero runnable index, and remain absent from accepted Run Once membership.",
+    "The queue-engine harness now supplies complete contract-faithful route plans by default instead of accidentally relying on the production fail-open behavior."
+  ],
+  "manual_validation": [
+    "Corrected pre-fix queue-engine fixture - expected red: the thrown and incomplete route decisions produced three runnable rows instead of one.",
+    "Post-fix Invoke-PipelineQueueEngineChecks.ps1 - passed the full queue snapshot/engine wrapper with contract-faithful default route evidence and injected failure cases.",
+    "Media-route selection, route-explanation evidence, and library-profile routing PowerShell wrappers - passed against the actual route policy modules.",
+    "Queue snapshot, launch policy/preflight, process launch, and facade queue Python modules - passed: 93 tests and 45 subtests.",
+    "PowerShell parser and git diff whitespace checks passed for both changed source/test scripts.",
+    "Targeted refresh_summaries wrote three summaries; generate_project_index regenerated 2,478 typed records and the dependency graph; feature-file map and 15 feature cards regenerated.",
+    "Summary integrity, risky-file registry, lifecycle-map, feature-card, and AI-guardrail unit set - passed: 35 tests and 72 subtests.",
+    "Project-index, feature-map, risky-file registry, and architecture guardrails passed.",
+    "Global summary freshness reports only the same six pre-existing stale files outside this packet; every touched summary is current.",
+    "God-file guard remains red on two pre-existing maximum violations: snapshot_rows.ps1 was 1,018 lines at HEAD and is 1,056 after the focused 38-line gate; Invoke-PipelineQueueEngineChecks.ps1 was 2,044 lines at HEAD and is 2,125 after 81 focused test lines. The guard was not weakened and a broad unrelated split was not folded into this safety batch.",
+    "validate_changes --require-worktree-coverage - passed with 1,143 valid packets before completion."
+  ],
+  "rollback_plan": "Revert the route acceptance gate, focused queue parity fixtures, generated context, and packet metadata together; retain this packet as incomplete evidence if rollback occurs.",
+  "related_changes": [
+    "AUDIT-FIND-W03-008"
+  ],
+  "notes": "High-risk queue preview/runtime routing boundary. This batch changes acceptance validation only, not Resolve-InitialMediaRoutePlan semantics or FFmpeg command generation. Required validation is queue snapshot/engine tests, Python launch-scope tests, and synthetic Run Once parity smoke. Representative real media is not required by the audit validation rung."
+}

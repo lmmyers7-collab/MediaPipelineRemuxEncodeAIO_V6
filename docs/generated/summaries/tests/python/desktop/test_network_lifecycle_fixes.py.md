@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: network
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-09
+last_modified: 2026-07-23
 last_reviewed: 2026-06-13
-sha256: 40fe86c7536b2a15bf36b0ea3774f0c082a917d091c62a62a2f258a1f6940af8
+sha256: 39b551d305a7d25d2fc8c0aea9ca1d41cd70d3db67c0a2fe2111de0482b3b984
 ---
 # `tests/python/desktop/test_network_lifecycle_fixes.py`
 
@@ -16,6 +16,7 @@ sha256: 40fe86c7536b2a15bf36b0ea3774f0c082a917d091c62a62a2f258a1f6940af8
 
 **Public symbols:** `CoordinatorQueueRefreshTests`, `LifecycleProviderPresenceTests`, `QueueRecordFieldCoercionTests`, `RunningWorkerSettingsHotApplyTests`, `StopJournalFailureCommitsStoppedTests`, `WorkerUrlPreconditionParityTests`
 **In-repo imports:** `mediapipeline.desktop.application`, `mediapipeline.desktop.application.network_lifecycle_provider`, `mediapipeline.desktop.network.coordinator_queue`, `mediapipeline.desktop.network.coordinator_url`, `mediapipeline.desktop.network.worker`, `mediapipeline.tools.paths`
+**HTTP routes:** `/api/heartbeat`
 **State/config identifiers:** `config.psd1`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths tests/python/desktop/test_network_lifecycle_fixes.py`._

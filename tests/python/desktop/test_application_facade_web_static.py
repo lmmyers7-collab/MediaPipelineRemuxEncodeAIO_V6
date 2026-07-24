@@ -102,6 +102,24 @@ def _read_network_asset_bundle(assets_root: Path) -> str:
 
 
 class ApplicationFacadeWebStaticTests(unittest.TestCase):
+    def test_launch_preflight_global_banner_is_absent_from_shipped_static_source(self) -> None:
+        desktop_root = find_repo_root(Path(__file__))
+        static_root = desktop_root / "apps" / "desktop" / "webview" / "static"
+        forbidden_tokens = (
+            ".launch-preflight-startup-alert",
+            "Pipeline launch blocked by backend preflight",
+            "renderLaunchBackendPreflightStartupAlert",
+        )
+        violations: list[str] = []
+        for path in static_root.rglob("*"):
+            if not path.is_file() or path.suffix.lower() not in {".css", ".html", ".js", ".mjs"}:
+                continue
+            source = path.read_text(encoding="utf-8")
+            for token in forbidden_tokens:
+                if token in source:
+                    violations.append(f"{path.relative_to(static_root)}: {token}")
+        self.assertEqual(violations, [])
+
     def test_sidebar_nav_order_and_output_publish_tab(self) -> None:
         desktop_root = find_repo_root(Path(__file__))
         static_root = desktop_root / "apps" / "desktop" / "webview" / "static"
@@ -1803,8 +1821,9 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("launchBackendPreflightPayloadForTarget", launch_js)
         self.assertIn("launchStartDecisionGate", launch_js)
         self.assertIn("await launchView.refreshLaunchBackendPreflight();", app_js)
-        self.assertIn('document.querySelector(".launch-preflight-startup-alert")', app_js)
-        self.assertIn("!refreshOptions.automatic || launchVisible || launchAlertVisible", app_js)
+        self.assertNotIn('document.querySelector(".launch-preflight-startup-alert")', app_js)
+        self.assertIn("!refreshOptions.automatic || launchVisible", app_js)
+        self.assertNotIn("launchAlertVisible", app_js)
         self.assertIn("launchView.updateLaunchCommandButtonStates?.(", app_js)
         self.assertIn('return ["pipeline", "history"];', launch_js)
         self.assertIn('data-launch-tab="pipeline">Pipeline Processor</button>', html)

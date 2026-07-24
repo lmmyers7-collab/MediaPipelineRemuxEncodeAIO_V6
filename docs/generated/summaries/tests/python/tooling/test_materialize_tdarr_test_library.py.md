@@ -6,15 +6,15 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-10
+last_modified: 2026-07-23
 last_reviewed: 2026-06-07
-sha256: b6fbdbaa2fa50b2e8ed97bce36c31538d6e7511739fe1b6e1e25722ec4949420
+sha256: 924b874b36801c4119301286cef773e8da33335327d43d10ac650f83a07105e1
 ---
 # `tests/python/tooling/test_materialize_tdarr_test_library.py`
 
 **Purpose:** Python implementation for test materialize tdarr test library; exposes sample, TdarrMatrixMaterializerTests, write_inventory.
 
-**Public symbols:** `sample`, `TdarrMatrixMaterializerTests`, `write_inventory`
+**Public symbols:** `sample`, `TdarrMatrixMaterializerTests`, `write_inventory`, `write_materialize_fixture`
 **In-repo imports:** `mediapipeline.tools.dev`
 **HTTP routes:** `/api/v1/samples/{name}`
 **State/config identifiers:** `MediaPipeline_config_template.psd1`

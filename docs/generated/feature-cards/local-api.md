@@ -10,7 +10,6 @@ Validation: targeted route and strict-JSON contract tests
 
 ### WebView / Tauri
 
-- `apps/desktop/webview/static/assets/apiClient.js` — operator display/intent surface; JavaScript implementation for api client; exposes actionDescriptor, apiClientError, apiGet.
 - `apps/desktop/tauri/src-tauri/src/lib_tests/mod.rs` — Rust implementation for lib tests mod; exposes assert_lifecycle_route_drift, bootstrap_err; Rust implementation for lib tests mod; exposes assert_lifecycle_route_drift, bootstrap_error_includes_bounded_stdout_context, bootstrap_stdout_context_redacts_token_like_values.
 
 ### API route

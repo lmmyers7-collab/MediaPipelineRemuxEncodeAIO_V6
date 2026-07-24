@@ -38,6 +38,8 @@ Record a sample validation note after a small real-media sample run when **all**
 
 Do not record before a run completes. Do not record if the Readiness payload blocks append (it will show the blocking reason).
 
+The former `Test-TauriShell-PG2SampleValidationAppend.ps1` automatic append flow is disabled and fails closed. It constructed exact media claims from caller-provided paths instead of backend evidence. Use `/api/sample-validation/preview` through Home → Sample Validation, inspect the named files and current Queue/Completed/Pending/Diagnostics evidence, then append only through the operator-controlled WebView flow. Automation must remain unavailable until a backend-authored, run-bound provenance projection replaces those caller assertions.
+
 ---
 
 ## What `stale`, `current`, and `review` Mean

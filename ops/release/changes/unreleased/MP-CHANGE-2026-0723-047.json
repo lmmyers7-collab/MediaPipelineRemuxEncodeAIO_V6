@@ -1,0 +1,58 @@
+{
+  "id": "MP-CHANGE-2026-0723-047",
+  "title": "Preserve terminal worker evidence during metadata enrichment",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": "2026-07-23",
+  "summary": "Remediate AUDIT-FIND-W01-008 by making CSV rerun coordinator-metadata enrichment preserve validated local_worker_result.v1 evidence and its terminal success semantics.",
+  "reason": "The provider currently truncates and rewrites the authoritative worker-result artifact in place; a partial write can destroy proven success and project an already completed job as retryable failed_result_invalid.",
+  "affected_areas": [
+    "coordinator done and retry projection",
+    "generated source summaries and change-control evidence",
+    "handoff output duplicate-work prevention",
+    "local_worker_result.v1 evidence durability",
+    "network CSV rerun worker completion",
+    "network restart recovery"
+  ],
+  "behavior_before": "Optional coordinator-metadata enrichment overwrites terminal worker evidence non-atomically and any enrichment failure discards the validated result as retryable invalid evidence.",
+  "behavior_after": "Validated terminal evidence remains byte-for-byte intact unless a complete atomic enrichment replacement succeeds, and optional enrichment failure is surfaced separately without converting proven success into retryable work.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/application/network_lifecycle_provider.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_network_lifecycle.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-047.json",
+    "src/mediapipeline/desktop/application/network_lifecycle_provider.py",
+    "tests/python/desktop/test_application_facade_network_lifecycle.py"
+  ],
+  "tests_added": [
+    "atomic replace failure preserves original evidence and cleans temporary state",
+    "optional enrichment failure retains successful non-retryable done projection",
+    "partial temporary-write failure preserves original terminal evidence bytes",
+    "restart recovery ignores interrupted enrichment temporary files"
+  ],
+  "manual_validation": [
+    "Architecture guardrails: passed across 215 creation candidates",
+    "Broader rerun/done/release selection: 167 passed and 49 subtests; five unrelated known pending/rerun fixture baseline failures remained (missing output_sha256/pending-publish path evidence)",
+    "Bundled PowerShell Invoke-LocalWorkerClaimLifecycleChecks.ps1: passed",
+    "Bundled Ruff on both Batch 047 Python paths: passed",
+    "Bundled focused network lifecycle transaction tests: 14 passed, 10 subtests passed",
+    "Exact-path summary refresh: 2 written; project index and feature-map generators completed",
+    "Focused plus rerun/done/release network suite with known pending fixture baselines deselected: 146 passed, 2 deselected, 45 subtests passed",
+    "Planned: coordinator done/retry, collision, and restart recovery regression tests",
+    "Planned: focused network lifecycle and CSV rerun result tests",
+    "Planned: network reliability gate, generated-context checks, and strict worktree coverage",
+    "generate_project_index --check and generate_feature_file_map --check: passed",
+    "refresh_summaries --check: Batch 047 summaries current; only the two pre-existing test-suite-inventory summary baselines remain stale",
+    "validate_changes --require-worktree-coverage: 1189 packets valid before completion"
+  ],
+  "rollback_plan": "Revert only this packet's enrichment transaction/error-policy changes, focused tests, and generated artifacts. No persisted schema migration is required; orphaned temporary files use a non-authoritative suffix and are ignored by readers.",
+  "related_changes": [
+    "AUDIT-FIND-W01-008"
+  ],
+  "notes": "All validation uses synthetic temporary local_worker_result.v1 files and fake handoff paths. No representative real-media validation is required for this write-transaction defect, and no source/output/scratch media will be read or mutated. Python impact: existing network lifecycle provider and focused tests only; no new compatibility surface.\nAtomic enrichment reuses the existing desktop network worker-state atomic writer; failed optional persistence is logged and included inside the existing worker_result_artifact contract, without adding dispatcher keyword arguments.\nRepresentative real-media validation was not required by the finding because the defect is isolated to synthetic terminal-evidence metadata persistence; source/output/scratch media policy is unchanged.\nBoth edited Python paths already contained completed MP-CHANGE-2026-0722-017 inline-artifact work, and the provider also contained MP-CHANGE-2026-0722-019 active-claim affinity work. Those overlapping edits were preserved and remain owned by their existing packets."
+}

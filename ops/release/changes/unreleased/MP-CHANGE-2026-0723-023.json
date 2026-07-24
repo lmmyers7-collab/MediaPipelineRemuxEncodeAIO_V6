@@ -1,0 +1,51 @@
+{
+  "id": "MP-CHANGE-2026-0723-023",
+  "title": "Protect shared Tdarr test-library parents",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": "2026-07-23",
+  "summary": "Require Tdarr materialization to target a direct tool-owned child of TestLibraries and use root-bound sentinel identity plus recoverable rebuild quarantine.",
+  "reason": "Remediate P1 AUDIT-FIND-W11-018. The rebuild containment check accepts the shared TestLibraries parent itself and a same-named sentinel alone authorizes recursive deletion of every child below it.",
+  "affected_areas": [
+    "developer tooling",
+    "filesystem safety",
+    "Tdarr fixtures",
+    "tests"
+  ],
+  "behavior_before": "Any path equal to or below LocalBase/Scratch/TestLibraries passes containment, and --rebuild recursively deletes it when the sentinel filename exists without validating its contents or root ownership.",
+  "behavior_after": "Materialization accepts only a direct TdarrMatrix* child of the resolved TestLibraries parent, rejects the parent itself and any symlink/junction/reparse component, and requires a parsed sentinel with the expected schema, purpose, exact root path/hash, and nonzero build nonce before rebuild. The owned leaf moves to a sibling quarantine, is restored on failure, and never mutates unrelated sibling libraries.",
+  "files_touched": [
+    "docs/change_control/CHANGE_INDEX.md",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-023.json.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/materialize_tdarr_test_library.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_materialize_tdarr_test_library.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-023.json",
+    "src/mediapipeline/tools/dev/materialize_tdarr_test_library.py",
+    "tests/python/tooling/test_materialize_tdarr_test_library.py"
+  ],
+  "tests_added": [
+    "Exact shared-parent and unrelated non-Tdarr child roots are rejected while their sibling files survive.",
+    "Malformed, schema-only, and copied root-identity sentinels fail closed without deleting their directories.",
+    "A Windows directory junction target is rejected and preserved.",
+    "A valid owned-leaf rebuild retains the prior tree in quarantine and preserves unrelated TestLibraries siblings.",
+    "A post-quarantine configuration failure restores the prior owned leaf and preserves failed partial output."
+  ],
+  "manual_validation": [
+    "Focused materializer boundary suite passed: 9 tests and 2 subtests with no skips.",
+    "Adjacent materializer, Tdarr Proof Pack, Policy Proof Pack, matrix audit, and desktop service slice passed: 69 tests and 10 subtests.",
+    "Targeted Ruff validation passed for the changed implementation and tests.",
+    "Targeted summary freshness, project index/dependency graph, feature map, risky-file registry, git diff --check, and strict worktree coverage passed; strict coverage reported 1,165 valid packets."
+  ],
+  "rollback_plan": "Revert the strict tool-owned leaf boundary, sentinel identity validation, quarantine/rollback behavior, temporary-filesystem tests, generated summaries/maps, and this packet together. Preserve any reported quarantine or failed-partial paths for manual recovery.",
+  "related_changes": [
+    "AUDIT-FIND-W11-018"
+  ],
+  "notes": "High-risk disposable-filesystem validation only. Representative real media is neither required nor allowed; all tests use synthetic temporary fixtures and must prove unrelated sibling preservation."
+}

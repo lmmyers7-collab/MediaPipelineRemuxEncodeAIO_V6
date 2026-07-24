@@ -65,20 +65,23 @@ the compact `docs/REMEDIATION_CHANGELOG.md` history index, and
   MP-CHANGE-2026-0622-007. Those runs are historical baselines, not proof for
   later high-risk changes.
 
-- [x] **Package/open/close evidence for the current integrated runtime** —
-  Satisfied for commit `52e9be6564aeb13571c0231e2b55ea2903cbc0c0` by source
-  validation plus isolated copied-folder and extracted-ZIP startup, WebView,
-  AppData-state, safe-close, immutable-install-root, and no-leftover-child
-  checks. Reopen after launcher, package, Tauri, Local API bootstrap, or release
-  layout changes. Evidence: `docs/RealMediaValidationRuns/README.md`.
+- [ ] **Package/open/close and signed-updater evidence for the current integrated
+  runtime** — The prior package/open/close evidence for commit
+  `52e9be6564aeb13571c0231e2b55ea2903cbc0c0` was reopened by the Tauri updater
+  lifecycle change in MP-CHANGE-2026-0723-041. Reaccept on a clean Windows
+  account with copied-folder/extracted-package startup, AppData state,
+  safe-close, immutable-install-root, and no-leftover-child checks plus a signed
+  local update fixture covering no-update, available/declined update,
+  network/signature rejection, unsafe/safe close-readiness, installer restart,
+  and rollback. Evidence location: `docs/RealMediaValidationRuns/README.md`.
 
 ## Summary Count
 
 | Category | Count |
 |---|---:|
 | Open implementation or externally blocked items | 4 |
-| Currently blocked validation gates | 1 |
-| Satisfied recurring gates that reopen on a named trigger | 1 |
+| Currently blocked validation gates | 2 |
+| Satisfied recurring gates that reopen on a named trigger | 0 |
 
 <a id="p0--closed-promotion-gates"></a>
 <a id="high--closed-local-legacy--packaging-work"></a>

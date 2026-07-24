@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import threading
 import time
@@ -10,7 +11,11 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
-from mediapipeline.desktop.application.network_lifecycle_provider import _NetworkRuntimeApp
+from mediapipeline.desktop.application.network_lifecycle_provider import (
+    _NetworkRuntimeApp,
+    _network_done_kwargs_from_result,
+    _read_network_worker_result,
+)
 from tests.python.desktop.application_facade_test_support import (
     DummyProc,
     DummyWorkflowFacadeService,
@@ -19,6 +24,56 @@ from tests.python.desktop.application_facade_test_support import (
 
 
 class ApplicationFacadeNetworkLifecycleTests(unittest.TestCase):
+    @staticmethod
+    def _write_csv_rerun_worker_result(root: Path) -> tuple[Path, SimpleNamespace, SimpleNamespace]:
+        result_path = root / "NetworkWorkerResults" / "job-1" / "run-1.worker_result.json"
+        result_path.parent.mkdir(parents=True)
+        result_path.write_text(
+            json.dumps(
+                {
+                    "SchemaVersion": "local_worker_result.v1",
+                    "Success": True,
+                    "Status": "processed",
+                    "Reason": "",
+                    "ErrorCode": "",
+                    "WorkerRunId": "run-1",
+                    "WorkerClaimId": "job-1",
+                    "QueueTerminal": True,
+                    "Retryable": False,
+                    "ElapsedSeconds": 12,
+                    "OutputSizeBytes": 456,
+                    "OutputPath": str(root / "Handoff" / "Movie.mkv"),
+                    "PublishState": "handoff_ready",
+                    "PublishMode": "network_handoff",
+                    "Route": "encode",
+                },
+                separators=(",", ":"),
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        proc = SimpleNamespace(
+            _network_worker_result_path=str(result_path),
+            _network_worker_run_id="run-1",
+            _network_worker_claim_id="job-1",
+        )
+        job = SimpleNamespace(
+            job_id="job-1",
+            claim_metadata={
+                "job_kind": "csv_rerun_row",
+                "rerun_batch_id": "batch-1",
+                "rerun_row_key": "row-1",
+                "rerun_row_index": 1,
+                "planned_output_path": str(root / "Handoff" / "Movie.mkv"),
+                "coordinator_source_path": str(root / "Coordinator" / "Movie.mkv"),
+                "worker_source_path": str(root / "Worker" / "Movie.mkv"),
+                "output_handoff": {"mode": "copy"},
+                "source_identity": {"library_id": "movies", "relative_path": "Movie.mkv"},
+                "handoff_probe": {"status": "ready"},
+            },
+        )
+        return result_path, proc, job
+
     def test_pipeline_start_refuses_network_modes(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -392,6 +447,14 @@ class ApplicationFacadeNetworkLifecycleTests(unittest.TestCase):
         self.assertEqual(dispatcher.done[0]["route"], "encode")
         self.assertFalse(dispatcher.done[0]["queue_terminal"])
         self.assertTrue(dispatcher.done[0]["retry_on_failure"])
+        self.assertEqual(
+            dispatcher.done[0]["worker_result_artifact"]["WorkerClaimId"],
+            "job-1",
+        )
+        self.assertEqual(
+            dispatcher.done[0]["worker_result_artifact"]["SchemaVersion"],
+            "local_worker_result.v1",
+        )
         self.assertTrue(dispatcher.shutdown_called)
 
     def test_worker_provider_result_artifact_failure_paths_and_field_propagation(self) -> None:
@@ -546,6 +609,100 @@ class ApplicationFacadeNetworkLifecycleTests(unittest.TestCase):
                 done = dispatcher.done[0]
                 for key, value in expected.items():
                     self.assertEqual(done.get(key), value, key)
+
+    def test_csv_rerun_result_partial_temp_write_preserves_success_and_original_bytes(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            result_path, proc, job = self._write_csv_rerun_worker_result(root)
+            original_bytes = result_path.read_bytes()
+            real_fdopen = os.fdopen
+
+            class PartialWriter:
+                def __init__(self, handle: object) -> None:
+                    self.handle = handle
+
+                def __enter__(self) -> PartialWriter:
+                    return self
+
+                def __exit__(self, *_args: object) -> None:
+                    self.handle.close()  # type: ignore[attr-defined]
+
+                def write(self, text: str) -> None:
+                    self.handle.write(text[:1])  # type: ignore[attr-defined]
+                    self.handle.flush()  # type: ignore[attr-defined]
+                    raise OSError("injected partial enrichment write")
+
+                def flush(self) -> None:
+                    self.handle.flush()  # type: ignore[attr-defined]
+
+                def fileno(self) -> int:
+                    return int(self.handle.fileno())  # type: ignore[attr-defined]
+
+            def partial_fdopen(fd: int, *args: object, **kwargs: object) -> PartialWriter:
+                return PartialWriter(real_fdopen(fd, *args, **kwargs))
+
+            with (
+                patch("mediapipeline.desktop.network.worker_state.os.fdopen", partial_fdopen),
+                self.assertLogs("mediapipeline.desktop.application.network_lifecycle_provider", level="WARNING"),
+            ):
+                done = _network_done_kwargs_from_result(proc, job, return_code=0, wait_error="", elapsed_seconds=12.0)
+
+            preserved_bytes = result_path.read_bytes()
+            leftovers = list(result_path.parent.glob(f".{result_path.name}.*.tmp"))
+
+        self.assertEqual(preserved_bytes, original_bytes)
+        self.assertTrue(done["success"])
+        self.assertFalse(done["retry_on_failure"])
+        self.assertEqual(done["completion_status"], "processed")
+        self.assertEqual(done["worker_result_artifact"]["RerunBatchId"], "batch-1")
+        enrichment = done["worker_result_artifact"]["CoordinatorMetadataPersistence"]
+        self.assertEqual(enrichment["status"], "failed")
+        self.assertTrue(enrichment["artifact_preserved"])
+        self.assertIn("partial enrichment write", enrichment["error"])
+        self.assertEqual(leftovers, [])
+
+    def test_csv_rerun_result_replace_failure_preserves_original_and_reports_separately(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            result_path, proc, job = self._write_csv_rerun_worker_result(root)
+            original_bytes = result_path.read_bytes()
+
+            with patch(
+                "mediapipeline.desktop.network.worker_state.os.replace",
+                side_effect=OSError("injected atomic replace failure"),
+            ):
+                result, result_error, enrichment = _read_network_worker_result(proc, job)
+
+            preserved_bytes = result_path.read_bytes()
+            leftovers = list(result_path.parent.glob(f".{result_path.name}.*.tmp"))
+
+        self.assertEqual(result_error, "")
+        self.assertIsNotNone(result)
+        self.assertEqual(result["RerunRowKey"], "row-1")  # type: ignore[index]
+        self.assertEqual(enrichment["status"], "failed")
+        self.assertTrue(enrichment["artifact_preserved"])
+        self.assertIn("atomic replace failure", enrichment["error"])
+        self.assertEqual(preserved_bytes, original_bytes)
+        self.assertEqual(leftovers, [])
+
+    def test_csv_rerun_result_restart_ignores_interrupted_enrichment_temp(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            result_path, proc, job = self._write_csv_rerun_worker_result(root)
+            orphan = result_path.parent / f".{result_path.name}.interrupted.tmp"
+            orphan.write_text("{", encoding="utf-8")
+
+            result, result_error, enrichment = _read_network_worker_result(proc, job)
+            persisted = json.loads(result_path.read_text(encoding="utf-8"))
+            orphan_still_non_authoritative = orphan.read_text(encoding="utf-8")
+
+        self.assertEqual(result_error, "")
+        self.assertIsNotNone(result)
+        self.assertTrue(result["Success"])  # type: ignore[index]
+        self.assertEqual(result["RerunBatchId"], "batch-1")  # type: ignore[index]
+        self.assertEqual(enrichment["status"], "persisted")
+        self.assertEqual(persisted["RerunBatchId"], "batch-1")
+        self.assertEqual(orphan_still_non_authoritative, "{")
 
     def test_network_lifecycle_provider_signature_mismatch_fails_closed_without_retry(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

@@ -1,0 +1,57 @@
+{
+  "id": "MP-CHANGE-2026-0723-010",
+  "title": "Bound Tauri backend HTTP requests by total deadline",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": "2026-07-23",
+  "summary": "Enforce one monotonic total deadline across Tauri loopback backend connect, request write, and response read operations.",
+  "reason": "Remediate P2 AUDIT-FIND-W09-005. Per-operation socket timeouts could be reset forever by a loopback peer that made slow incremental progress.",
+  "affected_areas": [
+    "Tauri loopback HTTP transport",
+    "startup backend validation",
+    "close-readiness availability",
+    "backend lifecycle monitoring"
+  ],
+  "behavior_before": "Backend requests used two-second connect/read/write timeouts independently and read until EOF, allowing a peer that sent one byte before each read timeout to keep synchronous lifecycle calls blocked forever.",
+  "behavior_after": "Backend requests share a five-second monotonic deadline across connect, all request writes, and all response reads while retaining the two-second per-I/O ceiling and 16 MiB response cap.",
+  "files_touched": [
+    "apps/desktop/tauri/src-tauri/src/http_helpers.rs",
+    "docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/http_helpers.rs.md",
+    "docs/generated/summaries/docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-010.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_tauri_shell_scaffold.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-010.json",
+    "tests/python/desktop/test_tauri_shell_scaffold.py"
+  ],
+  "tests_added": [
+    "A loopback server drips response bytes faster than the socket timeout and is still rejected by an injected short total deadline.",
+    "The Tauri scaffold requires the five-second total budget, deadline-aware capped reader, and shared deadline argument."
+  ],
+  "manual_validation": [
+    "Focused slow-drip total-deadline Rust test passed.",
+    "cargo test --locked --lib passed: 63 tests.",
+    "cargo fmt --check and cargo check --release --locked passed without warnings.",
+    "Tauri scaffold plus PG-1 adversarial close scaffold passed: 122 tests.",
+    "Tauri production surface audit passed.",
+    "Generated project index and feature/dependency maps passed check mode after targeted refresh.",
+    "Tooling regression suites passed: 30 tests and 70 subtests.",
+    "Risky-file registry, architecture-boundary, and active-document reference checks passed; god-file debt remained at the accepted baseline of 0 errors and 51 warnings.",
+    "Summary freshness reported only the six known unrelated baseline stale summaries.",
+    "git diff --check passed.",
+    "Strict worktree coverage passed: 1152 change packets valid.",
+    "The broader WebView close-readiness contract test exposed an unrelated existing frontend normalization failure; this batch does not modify frontend close-readiness code."
+  ],
+  "rollback_plan": "Revert the deadline helpers, slow-drip regression, generated summary/maps, and this packet together. Preserve a total wall-clock bound if transport code is redesigned.",
+  "related_changes": [
+    "AUDIT-FIND-W09-005"
+  ],
+  "notes": "This changes only loopback shell transport availability and does not alter backend command semantics or media policy. No media is read or mutated, so representative real-media validation is not required."
+}

@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-16
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: 719fe08ab725f96713ceb24d6c6942e19db0d2546d819fa0ae72aae5de451e06
+sha256: bd41ccdf69763202e814ca8865df5509d20c80e506418e6cf9160ef9a59250dd
 ---
 # `tests/python/desktop/test_api_route_inventory.py`
 

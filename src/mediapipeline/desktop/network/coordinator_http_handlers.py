@@ -339,6 +339,53 @@ class CoordinatorHttpHandlersMixin:
                 )
             raise
 
+    def _reject_late_terminal_owner_mismatch(
+        self,
+        handler: _CoordHandler,
+        request: DoneRequest,
+        report: dict[str, object],
+        rollback_snapshot: dict[str, object] | None,
+    ) -> bool:
+        """Persist and reject a reclaimed-job report from a foreign worker."""
+        if report.get("authorization_status") != "rejected_owner_mismatch":
+            return False
+        try:
+            self._registry.save(self._inflight_state_path())
+        except Exception as exc:
+            restorer = getattr(self._registry, "restore_rollback_snapshot", None)
+            if rollback_snapshot is not None and callable(restorer):
+                restorer(rollback_snapshot)
+            _log.warning(
+                "Failed to save rejected late terminal owner mismatch for job %s: %s",
+                request.job_id[:8],
+                redact_network_secret_text(exc),
+            )
+            handler._send_json({"error": "done state unavailable"}, 503)
+            return True
+        reclaimed_worker_id = str(report.get("reclaimed_worker_id", "") or "")
+        self._safe_log_cluster_event(
+            "late-terminal-owner-mismatch",
+            level="WARN",
+            event="late_terminal_owner_mismatch",
+            message=(
+                "Rejected late terminal report because the authenticated worker did not own "
+                f"the reclaimed job (expected worker {reclaimed_worker_id[:32]})."
+            ),
+            worker_id=request.worker_id,
+            role="coordinator",
+            job_id=request.job_id,
+            source_path=str(report.get("source_path", "") or ""),
+        )
+        handler._send_json(
+            {
+                "status": "forbidden",
+                "reason": "worker_id does not match reclaimed job owner",
+                "job_id": request.job_id,
+            },
+            403,
+        )
+        return True
+
     def _http_done(self, handler: _CoordHandler, body: bytes) -> None:
         """Handle ``POST /api/done``."""
         try:
@@ -370,7 +417,7 @@ class CoordinatorHttpHandlersMixin:
                     _existing_owner = _existing.worker_id if _existing else None
                 snapshotter = getattr(self._registry, "rollback_snapshot", None)
                 if callable(snapshotter):
-                    rollback_snapshot = snapshotter()
+                    rollback_snapshot = snapshotter(req.job_id, transition="release")
                 job = self._registry.unclaim(req.job_id, req.worker_id)
             except Exception as exc:
                 _log.exception("Failed to process /api/done release for job %s from worker %s: %s", req.job_id, req.worker_id, exc)
@@ -378,6 +425,47 @@ class CoordinatorHttpHandlersMixin:
                 return
             if job is None:
                 if _existing is None:
+                    recorder = getattr(self._registry, "record_late_terminal_report", None)
+                    late_report = recorder(req) if callable(recorder) else None
+                    if late_report is not None:
+                        if self._reject_late_terminal_owner_mismatch(
+                            handler,
+                            req,
+                            late_report,
+                            rollback_snapshot,
+                        ):
+                            return
+                        try:
+                            self._registry.save(self._inflight_state_path())
+                        except Exception as exc:
+                            restorer = getattr(self._registry, "restore_rollback_snapshot", None)
+                            if rollback_snapshot is not None and callable(restorer):
+                                restorer(rollback_snapshot)
+                            _log.warning(
+                                "Failed to save late release report for job %s: %s",
+                                req.job_id[:8],
+                                redact_network_secret_text(exc),
+                            )
+                            handler._send_json({"error": "done state unavailable"}, 503)
+                            return
+                        self._safe_log_cluster_event(
+                            "late-release-recorded",
+                            level="WARN",
+                            event="late_release_recorded",
+                            message="Original worker released a job after stale reclaim; evidence recorded and quarantine retained.",
+                            worker_id=req.worker_id,
+                            role="coordinator",
+                            job_id=req.job_id,
+                            source_path=str(late_report.get("source_path", "") or ""),
+                        )
+                        handler._send_json(
+                            {
+                                "status": "late_recorded",
+                                "job_id": req.job_id,
+                                "source_path": str(late_report.get("source_path", "") or ""),
+                            }
+                        )
+                        return
                     _log.warning(
                         "Release report for unknown job %s from worker '%s' "
                         "(likely already reclaimed or completed).",
@@ -477,7 +565,13 @@ class CoordinatorHttpHandlersMixin:
                 _existing_owner = _existing.worker_id if _existing else None
             snapshotter = getattr(self._registry, "rollback_snapshot", None)
             if callable(snapshotter):
-                rollback_snapshot = snapshotter()
+                rollback_snapshot = snapshotter(
+                    req.job_id,
+                    transition="complete",
+                    success=bool(req.success),
+                    elapsed_seconds=req.elapsed_seconds,
+                    output_size_bytes=req.output_size_bytes,
+                )
 
             final_reason_code, final_reason = classify_failure_reason(
                 success=bool(req.success),
@@ -516,6 +610,15 @@ class CoordinatorHttpHandlersMixin:
 
         if job is None:
             if _existing is None:
+                recorder = getattr(self._registry, "record_late_terminal_report", None)
+                late_report = recorder(req) if callable(recorder) else None
+                if late_report is not None and self._reject_late_terminal_owner_mismatch(
+                    handler,
+                    req,
+                    late_report,
+                    rollback_snapshot,
+                ):
+                    return
                 if req.job_kind == NETWORK_RERUN_ROW_JOB_KIND or (req.rerun_batch_id and req.rerun_row_key):
                     try:
                         if record_late_network_rerun_row_done(
@@ -553,10 +656,6 @@ class CoordinatorHttpHandlersMixin:
                         )
                         handler._send_json({"error": "done state unavailable"}, 503)
                         return
-                recorder = getattr(self._registry, "record_late_terminal_report", None)
-                late_report = None
-                if callable(recorder):
-                    late_report = recorder(req)
                 if late_report is not None:
                     if req.job_kind == NETWORK_RERUN_ROW_JOB_KIND or (req.rerun_batch_id and req.rerun_row_key):
                         try:
@@ -580,6 +679,19 @@ class CoordinatorHttpHandlersMixin:
                                     }
                                 )
                                 return
+                            self._registry.save(self._inflight_state_path())
+                            self._safe_log_cluster_event(
+                                "network-rerun-late-terminal-identity-mismatch",
+                                level="WARN",
+                                event="network_rerun_late_terminal_identity_mismatch",
+                                message="Late Network CSV rerun done report did not match canonical batch, row, and reclaim identity.",
+                                worker_id=req.worker_id,
+                                role="coordinator",
+                                job_id=req.job_id,
+                                source_path=str(late_report.get("source_path", "") or ""),
+                            )
+                            handler._send_json({"error": "network rerun late report identity mismatch"}, 409)
+                            return
                         except Exception as exc:
                             if rollback_snapshot is not None:
                                 restorer = getattr(self._registry, "restore_rollback_snapshot", None)

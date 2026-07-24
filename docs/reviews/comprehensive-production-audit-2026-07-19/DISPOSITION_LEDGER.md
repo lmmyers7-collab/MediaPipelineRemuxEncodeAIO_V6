@@ -173,7 +173,7 @@ repeatable evidence; exclusions are not promoted to passed.
 
 | Reason category | Authored rows | Closure condition |
 | --- | ---: | --- |
-| `automated_passed` | 763 | Closed by the row-linked browser/static evidence |
+| `automated_passed` | 766 | Closed by the row-linked browser/static evidence |
 | `duplicate_coverage_with_traceable_evidence` | 53 | Closed only while the linked applicable test remains current |
 | `missing_fixture_or_backend_state` | 56 | Build disposable route-specific selection, saved-state, CSV, series-scope, or command-effect fixtures and prove the backend result |
 | `intentionally_hidden_or_feature_gated` | 21 | Supply a supported reachability fixture or remove/document the future/derived authored surface |
@@ -181,13 +181,13 @@ repeatable evidence; exclusions are not promoted to passed.
 | `harness_limitation` | 6 | Add isolated full-effect Diagnostics proof/smoke/strict-gate/rerun process harnesses with observable completion |
 | `native_os_tauri_interaction_unavailable` | 41 | Execute the linked isolated Windows/Tauri manual recipe and attach its success/failure artifacts |
 | `unsafe_mutation_excluded_by_no_mutation_policy` | 28 | Retain the exclusion, or authorize an isolated full-effect fixture with rollback and no personal/live media roots |
-| **Total** | **977** | **816 automated passed + 92 legitimately blocked + 41 manual/native-only + 28 intentionally excluded** |
+| **Total** | **980** | **819 automated passed + 92 legitimately blocked + 41 manual/native-only + 28 intentionally excluded** |
 
 Native closure is specifically assigned to `NATIVE-OS-SHELL-OPEN-001` (25
 authored rows) and `NATIVE-PICKER-ISOLATION-001` (16 authored rows) in
 `docs/testing/WEBVIEW_NATIVE_MANUAL_EVIDENCE_RECIPES.md`. Pipeline Log UIA and
 independent-close recipes cover supplemental Tauri-family records outside the
-977 authored denominator. The generated ledger is the complete row table: each
+980 authored denominator. The generated ledger is the complete row table: each
 record contains page/workflow, stable locator/DOM ID, control type, backend or
 local behavior, mutation class, exact prerequisite, owner, evidence state,
 disposition, feasibility, and next evidence action.
@@ -196,9 +196,9 @@ disposition, feasibility, and next evidence action.
 ```json
 {
   "current": {
-    "authored_total": 977,
+    "authored_total": 980,
     "evidence_state": {
-      "passed": 816,
+      "passed": 819,
       "failed": 0,
       "flaky": 0,
       "blocked": 133,
@@ -206,7 +206,7 @@ disposition, feasibility, and next evidence action.
       "not_run": 0
     },
     "closure": {
-      "automated_passed": 816,
+      "automated_passed": 819,
       "automated_but_failing": 0,
       "legitimately_blocked": 92,
       "manual_native_only": 41,

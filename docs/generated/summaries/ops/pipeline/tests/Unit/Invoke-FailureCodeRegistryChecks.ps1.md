@@ -6,15 +6,15 @@ file_type: PowerShell
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-19
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: 6c56f02cb2509611bdf4ba59738957592c71abf407e9554eb27d7e1198f09819
+sha256: 3de9082ad908b8c0a9cba84bb70ee36d5cb5d6a2ab0a44ab13ef799fb63f05ee
 ---
 # `ops/pipeline/tests/Unit/Invoke-FailureCodeRegistryChecks.ps1`
 
-**Purpose:** PowerShell implementation for invoke failure code registry checks.
+**Purpose:** PowerShell implementation for invoke failure code registry checks; exposes Get-EmittedOutcomeCodesFromLines, Get-OutcomeTokenPattern.
 
+**Public symbols:** `Get-EmittedOutcomeCodesFromLines`, `Get-OutcomeTokenPattern`
 **Invoked stages:** `remux-av`
-**Invoked tools:** `ffmpeg`, `mkvmerge`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/pipeline/tests/Unit/Invoke-FailureCodeRegistryChecks.ps1`._

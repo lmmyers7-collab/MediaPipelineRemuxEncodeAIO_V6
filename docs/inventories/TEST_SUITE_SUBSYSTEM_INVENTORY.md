@@ -57,6 +57,21 @@ Run a full subsystem via discovery:
 & $py -m unittest discover -s tests\python\desktop -p "<pattern>" -q
 ```
 
+Module-level `def test_*` and `async def test_*` functions are collected by
+pytest rather than unittest. The canonical AST-backed inventory discovers them
+under `tests/python` and non-browser `tests/webview` files, then runs exactly
+those files without duplicating the full unittest suite:
+
+```powershell
+& $py -m mediapipeline.tools.dev.pytest_style_tests --collect-only
+& $py -m mediapipeline.tools.dev.pytest_style_tests --run
+```
+
+Both required CI workflows and `ops/scripts/release/test.ps1 -RequireTests`
+invoke the same runner. `requirements/dev.txt` declares pytest, inventory or
+parse failures are hard failures, and browser smoke modules remain owned by the
+isolated browser matrix.
+
 ---
 
 ## PowerShell Guard Checks
@@ -94,6 +109,7 @@ These focused PowerShell checks sit outside `tests\python\desktop` and guard cro
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-RerunCooperativeStopChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-RerunNestedConfigChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-RerunPlanOnlyChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-RerunPublicationTransactionChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-RerunRecoveryChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-RerunSourceIdentityChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-ReleasePackagePolicyChecks.ps1
@@ -162,6 +178,8 @@ scanning operator media or starting a live library audit. The active
 
 `Invoke-RerunAutoDestinationChecks.ps1` guards the CSV rerun auto-return contract with a mocked nested pipeline: clean verified outputs replace the existing final target through the confirmed replacement path, outputs with remaining issue evidence are parked in Pending Publish with auto-review evidence, and original source media remains present.
 
+`Invoke-RerunPublicationTransactionChecks.ps1` guards final-library rerun publication as one recoverable media-plus-companion transaction. It covers non-overlap sidecar/SRT/completion parity, same-volume staging, replacement rollback at media/SRT/pipeline-sidecar/completion boundaries, exact hashes, idempotent completion replay, abandoned completion-mutex ownership, and distinct-process recovery after hard termination both before and after completion evidence. All fixtures are generated under the temporary directory; source fixture bytes must remain unchanged. `-RepresentativeMedia` additionally generates distinct source, prior-final, and replacement MKVs with bundled FFmpeg, publishes an external SRT, probes the committed media with bundled ffprobe, and rechecks the source SHA-256.
+
 `Invoke-ReleasePackagePolicyChecks.ps1` guards release packaging policy: rebuildable/vendor/runtime/local-state/personal-config paths remain excluded by default, release hygiene rules stay aligned with the policy manifest, and `Backup-PreOverhaul.ps1` continues to delegate release copy creation to the canonical release builder.
 
 ## Python Tooling Guard Checks
@@ -181,10 +199,13 @@ These repository-level Python tests sit outside `tests\python\desktop` and guard
 | `tests/python/tooling/test_code_context_benchmark.py` | Versioned 48-case retrieval fixture integrity and quality/performance acceptance thresholds |
 | `tests/python/tooling/test_code_context_mcp.py` | Read-only MCP path policy, atomic index reload, normalized caches, aggregate-metric privacy, context/lookup/search/read/bundle bounds, live search, SDK stdio contract, client bootstrap preview, dependency isolation, and token ceilings |
 | `tests/python/tooling/test_dependency_boundaries.py` | App import-edge collection, module/package cycle detection, hard-boundary violations, allowlist staleness, and current-repo dependency check |
+| `tests/python/tooling/test_pytest_style_tests.py` | AST-backed module-level pytest discovery, browser exclusion, fail-closed inventory behavior, dependency declaration, and required CI/release-gate wiring |
 | `tests/python/tooling/test_godfile_guard.py` | God-file policy validation, allowlisted thresholds, new/existing oversized file warnings, growth warnings, and git-status rename parsing |
 | `tests/python/tooling/test_lifecycle_map.py` | Lifecycle state/transition integrity and generated lifecycle-map rendering |
 | `tests/python/tooling/test_lint_naming.py` | Deprecated flat facade/service/payload names, dotted `Pipeline\Modules` files, root status docs, root launcher callers, and rename-destination parsing |
 | `tests/python/tooling/test_risky_file_registry.py` | Risky-file registry validation and path classification into validation requirements |
+| `tests/python/tooling/test_tauri_updater_channel_pointer.py` | Stable updater-channel release routing, pointer-release policy, versioned installer provenance, exact public-endpoint byte verification, and stale-response refusal |
+| `tests/python/tooling/test_tracked_office_documents.py` | Fail-closed Git enumeration and source-intake rejection of Office working documents under `docs/` |
 | `tests/python/tooling/test_summary_integrity.py` | Summary freshness orphan detection, summary pruning, and project-index orphan-summary refusal |
 
 ---

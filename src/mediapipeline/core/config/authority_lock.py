@@ -77,16 +77,39 @@ def settings_authority_lock(
     *,
     timeout_seconds: float = SETTINGS_AUTHORITY_LOCK_TIMEOUT_SECONDS,
     poll_seconds: float = SETTINGS_AUTHORITY_LOCK_POLL_SECONDS,
+    read_only: bool = False,
 ) -> Iterator[Path]:
-    """Hold one OS-released lock across authority compare, validation, and replacement."""
+    """Hold one OS-released lock across authority access.
+
+    Read-only callers must use an already initialized lock file so acquiring
+    the lock cannot create directories, files, or bytes as a side effect.
+    """
 
     lock_path = settings_authority_lock_path(store_path)
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    if read_only:
+        if not lock_path.is_file():
+            raise SettingsAuthorityLockError(
+                "Settings authority read lock is not initialized; run the explicit settings repair/import flow first."
+            )
+        try:
+            if lock_path.stat().st_size < 1:
+                raise SettingsAuthorityLockError(
+                    "Settings authority read lock is invalid; run the explicit settings repair/import flow first."
+                )
+        except OSError as exc:
+            raise SettingsAuthorityLockError("Settings authority read lock could not be inspected.") from exc
+    else:
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
     deadline = time.monotonic() + max(0.0, float(timeout_seconds))
-    handle = lock_path.open("a+b", buffering=0)
+    try:
+        handle = lock_path.open("rb" if read_only else "a+b", buffering=0)
+    except OSError as exc:
+        action = "opened for read-only verification" if read_only else "opened"
+        raise SettingsAuthorityLockError(f"Settings authority lock could not be {action}.") from exc
     acquired = False
     try:
-        _ensure_lock_byte(handle)
+        if not read_only:
+            _ensure_lock_byte(handle)
         while True:
             try:
                 acquired = _try_lock(handle)

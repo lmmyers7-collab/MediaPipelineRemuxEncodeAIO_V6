@@ -6,15 +6,15 @@ file_type: PowerShell
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-07-20
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: 5137250a323721feae146f1094b1618446bf670710b41e9a9567899531683de6
+sha256: a516f378027919c71531140d2ffddd6c552729aa35c4f8018cbf65eaa4c2b3c3
 ---
 # `ops/scripts/release/release_policy.ps1`
 
 **Purpose:** PowerShell implementation for release policy; exposes Find-MediaPipelineReleaseContentFinding, Get-MediaPipelineReleaseExclusionReason, Get-MediaPipelineReleaseHygieneRules.
 
-**Public symbols:** `Find-MediaPipelineReleaseContentFinding`, `Get-MediaPipelineReleaseExclusionReason`, `Get-MediaPipelineReleaseHygieneRules`, `Get-MediaPipelineReleasePolicyManifest`, `New-MediaPipelineReleaseHygieneRule`, `Normalize-MediaPipelineReleaseRelativePath`, `Test-MediaPipelineReleaseContentAllowed`, `Test-MediaPipelineReleaseContentScanEligible`
+**Public symbols:** `Find-MediaPipelineReleaseContentFinding`, `Get-MediaPipelineReleaseExclusionReason`, `Get-MediaPipelineReleaseHygieneRules`, `Get-MediaPipelineReleaseJsonStringValues`, `Get-MediaPipelineReleasePolicyManifest`, `New-MediaPipelineReleaseHygieneRule`, `Normalize-MediaPipelineReleaseRelativePath`, `Test-MediaPipelineReleaseContentAllowed`, `Test-MediaPipelineReleaseContentScanEligible`
 **State/config identifiers:** `.state.json`, `MediaPipeline_config.psd1`, `MediaPipeline_config_chatgpt.psd1`
 **Invoked tools:** `ffmpeg`, `mkvextract`, `mkvpropedit`
 

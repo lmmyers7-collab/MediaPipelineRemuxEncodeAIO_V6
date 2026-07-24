@@ -100,6 +100,118 @@ function Exit-PendingPublishTransactionLock {
     } catch {}
 }
 
+function Get-PendingPublishDestinationIdentity {
+    param([Parameter(Mandatory)] [string] $ServerOut)
+
+    if ([string]::IsNullOrWhiteSpace($ServerOut)) { return '' }
+    try {
+        $identity = if (Get-Command -Name Normalize-MediaPipelinePathForBoundary -ErrorAction SilentlyContinue) {
+            Normalize-MediaPipelinePathForBoundary $ServerOut
+        } else {
+            [System.IO.Path]::GetFullPath($ServerOut).TrimEnd('\', '/').Replace('/', '\')
+        }
+        if ($IsWindows -or $env:OS -eq 'Windows_NT') {
+            return $identity.ToLowerInvariant()
+        }
+        return $identity
+    } catch {
+        return ''
+    }
+}
+
+function Get-PendingPublishDestinationLockPath {
+    param(
+        [Parameter(Mandatory)] [string] $ManifestPath,
+        [Parameter(Mandatory)] [string] $ServerOut
+    )
+
+    $identity = Get-PendingPublishDestinationIdentity -ServerOut $ServerOut
+    if ([string]::IsNullOrWhiteSpace($identity)) { return '' }
+    $lockRoot = [string]$script:LocalPendingPush
+    if ([string]::IsNullOrWhiteSpace($lockRoot)) {
+        $lockRoot = Split-Path -Parent $ManifestPath
+    }
+    if ([string]::IsNullOrWhiteSpace($lockRoot)) { return '' }
+
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $identityBytes = [System.Text.Encoding]::UTF8.GetBytes($identity)
+        $hash = [System.BitConverter]::ToString($sha256.ComputeHash($identityBytes)).Replace('-', '').ToLowerInvariant()
+    } finally {
+        $sha256.Dispose()
+    }
+    return (Join-Path (Join-Path $lockRoot '.destination-locks') "$hash.lock")
+}
+
+function Enter-PendingPublishDestinationLock {
+    param(
+        [Parameter(Mandatory)] [string] $ManifestPath,
+        [Parameter(Mandatory)] [string] $ServerOut
+    )
+
+    $lockPath = Get-PendingPublishDestinationLockPath -ManifestPath $ManifestPath -ServerOut $ServerOut
+    if ([string]::IsNullOrWhiteSpace($lockPath)) { return $null }
+    try {
+        [System.IO.Directory]::CreateDirectory((Split-Path -Parent $lockPath)) | Out-Null
+        $stream = [System.IO.File]::Open(
+            $lockPath,
+            [System.IO.FileMode]::OpenOrCreate,
+            [System.IO.FileAccess]::ReadWrite,
+            [System.IO.FileShare]::None
+        )
+        return [pscustomobject]@{
+            Stream = $stream
+            Path = $lockPath
+            Identity = Get-PendingPublishDestinationIdentity -ServerOut $ServerOut
+        }
+    } catch {
+        return $null
+    }
+}
+
+function Exit-PendingPublishDestinationLock {
+    param($Lock)
+
+    if ($null -eq $Lock) { return }
+    try { if ($Lock.Stream) { $Lock.Stream.Dispose() } } catch {}
+    # Keep the empty hashed sentinel. Unlinking a just-released lock file can
+    # split lock identity on hosts that permit deleting an open inode.
+}
+
+function Get-PendingPublishDuplicateDestinationManifestPaths {
+    param(
+        [Parameter(Mandatory)] [string] $ManifestPath,
+        [Parameter(Mandatory)] [string] $ServerOut
+    )
+
+    $destinationIdentity = Get-PendingPublishDestinationIdentity -ServerOut $ServerOut
+    if ([string]::IsNullOrWhiteSpace($destinationIdentity)) { return @() }
+    $pendingRoot = [string]$script:LocalPendingPush
+    if ([string]::IsNullOrWhiteSpace($pendingRoot)) {
+        $pendingRoot = Split-Path -Parent $ManifestPath
+    }
+    if ([string]::IsNullOrWhiteSpace($pendingRoot) -or -not (Test-Path -LiteralPath $pendingRoot -PathType Container -ErrorAction SilentlyContinue)) {
+        return @()
+    }
+
+    $manifestIdentity = Get-PendingManifestPathKey -Path $ManifestPath
+    $duplicates = [System.Collections.Generic.List[string]]::new()
+    foreach ($candidate in @(Get-ChildItem -LiteralPath $pendingRoot -File -Filter '*.manifest.json' -ErrorAction SilentlyContinue)) {
+        if ((Get-PendingManifestPathKey -Path $candidate.FullName) -eq $manifestIdentity) { continue }
+        try {
+            $candidateManifest = Read-PendingManifestFile -Path $candidate.FullName
+            $candidateServer = [string](Get-PendingObjectProperty -Object $candidateManifest -Name 'server_out')
+            if ((Get-PendingPublishDestinationIdentity -ServerOut $candidateServer) -eq $destinationIdentity) {
+                $duplicates.Add($candidate.FullName) | Out-Null
+            }
+        } catch {
+            # Unreadable manifests are surfaced by the normal trust/index path;
+            # they cannot provide a destination identity for this comparison.
+        }
+    }
+    return @($duplicates)
+}
+
 function New-PublishTransactionId {
     return [guid]::NewGuid().ToString("N")
 }

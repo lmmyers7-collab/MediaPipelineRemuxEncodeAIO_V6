@@ -7,6 +7,11 @@ from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any, Protocol
 
+try:
+    import psutil
+except ImportError:  # pragma: no cover - exercised by packaged-runtime validation
+    psutil = None
+
 from mediapipeline.core.kernel.contracts import ActiveJobRecord, ContractError
 from mediapipeline.core.paths.contracts import ResolvedPaths
 from mediapipeline.core.processes.constants import ACTIVE_JOB_SCHEMA_VERSION, ACTIVE_JOB_STALE_VALIDATE_HEARTBEAT_SECONDS
@@ -54,6 +59,15 @@ def write_active_job_payload(record_path: Path, payload: dict[str, Any]) -> None
     atomic_write_text(record_path, json.dumps(normalized, indent=2, sort_keys=True) + "\n")
 
 
+def _capture_process_create_time(pid: int) -> float | None:
+    if psutil is None:
+        return None
+    try:
+        return float(psutil.Process(pid).create_time())
+    except Exception:
+        return None
+
+
 def write_active_job_launch_record(
     proc: Any,
     *,
@@ -79,6 +93,7 @@ def write_active_job_launch_record(
     launch_id = requested_launch_id or f"{safe_stamp}_{job_kind}_{proc.pid}_{uuid.uuid4().hex[:8]}"
     launch_id = "".join(character if character.isalnum() or character in "-_." else "-" for character in launch_id)
     record_path = active_jobs_dir / f"{launch_id}.json"
+    process_create_time = _capture_process_create_time(int(proc.pid))
     payload = {
         "schema_version": ACTIVE_JOB_SCHEMA_VERSION,
         "launch_id": launch_id,
@@ -86,6 +101,7 @@ def write_active_job_launch_record(
         "mode": mode,
         "status": "launching",
         "pid": proc.pid,
+        "process_create_time": process_create_time,
         "app_pid": os.getpid() if app_pid is None else app_pid,
         "command_line": command_line,
         "args": [str(arg) for arg in args],
@@ -103,6 +119,11 @@ def write_active_job_launch_record(
     proc._mediapipeline_launch_id = launch_id
     if logger is not None:
         logger.info("Wrote active job launch record: %s", record_path)
+        if process_create_time is None:
+            logger.warning(
+                "ActiveJobs launch %s could not capture process creation time; destructive stale cleanup will fail closed.",
+                launch_id,
+            )
     return record_path
 
 
@@ -226,6 +247,30 @@ def _process_cwd_matches_record(process: Any, record: ActiveJobRecord) -> bool |
     return _normalize_process_path(actual_cwd) == _normalize_process_path(record.cwd)
 
 
+def _process_create_time_matches_record(process: Any, record: ActiveJobRecord) -> bool | None:
+    if record.process_create_time is None:
+        return None
+    try:
+        actual_create_time = float(process.create_time())
+    except Exception:
+        return None
+    return abs(actual_create_time - record.process_create_time) <= 0.000001
+
+
+def _process_identity_matches_record(process: Any, record: ActiveJobRecord) -> bool | None:
+    creation_time_match = _process_create_time_matches_record(process, record)
+    identity_checks = [
+        creation_time_match,
+        _process_cwd_matches_record(process, record),
+        _process_cmdline_matches_record(process, record),
+    ]
+    if any(result is False for result in identity_checks):
+        return False
+    if creation_time_match is not True:
+        return None
+    return True
+
+
 def active_job_pid_matches_record(record: ActiveJobRecord, psutil_module: Any) -> bool | None:
     """Return whether the recorded PID still appears to be this launch.
 
@@ -246,17 +291,7 @@ def active_job_pid_matches_record(record: ActiveJobRecord, psutil_module: Any) -
     if not is_alive:
         return False
 
-    identity_checks = [
-        _process_cwd_matches_record(process, record),
-        _process_cmdline_matches_record(process, record),
-    ]
-    if any(result is True for result in identity_checks):
-        return True
-    if any(result is None for result in identity_checks):
-        return None
-    if record.cwd.strip() or record.args:
-        return False
-    return True
+    return _process_identity_matches_record(process, record)
 
 
 def reconcile_active_job_records(
@@ -416,6 +451,30 @@ def cleanup_stale_validate_active_jobs(
 
         try:
             process = psutil_module.Process(record.pid)
+            final_identity = _process_identity_matches_record(process, record)
+            if final_identity is False:
+                reason = f"{stale_reason}; pid {record.pid} no longer matches the launch record"
+                _write_reconciled_active_job_record(
+                    record_path,
+                    record,
+                    status="orphaned",
+                    reason=reason,
+                    now_text=now_text,
+                )
+                message = f"Marked stale validate-only ActiveJobs record {record_path.name} orphaned: {reason}."
+                if logger is not None:
+                    logger.warning(message)
+                messages.append(message)
+                continue
+            if final_identity is None:
+                message = (
+                    f"Stale validate-only ActiveJobs record {record_path.name} was left blocking because "
+                    f"PID {record.pid} identity could not be reverified before termination."
+                )
+                if logger is not None:
+                    logger.warning(message)
+                messages.append(message)
+                continue
             kill_psutil_process_tree(
                 process,
                 "stale validate-only launch",

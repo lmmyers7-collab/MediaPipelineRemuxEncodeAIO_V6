@@ -248,8 +248,8 @@ Bitrate route decisions use bitrate estimated from `file_size_bytes` and `durati
 | `WorkerName` | Identifier for this worker in coordinator logs | Useful for multi-worker environments | Builder |
 | `WorkerSourcePathMap` | JSON map of coordinator source paths to local worker equivalents | Network builder JSON text field; backend Preview/Save validates the config shape | Builder |
 | `WorkerConfigOverrides` | Compatibility-only legacy per-worker override JSON; backend network workers no longer apply it at claim time | Network builder labels this backend-disabled compatibility surface; use current worker policy keys for supported execution behavior | Compatibility (backend-disabled) |
-| `CoordinatorAuthToken` | **Raw/Advanced** — coordinator auth secret | Must not appear in WebView builder; edit only via raw JSON or config file directly | Raw (intentionally hidden from WebView) |
-| `WorkerAuthToken` | **Raw/Advanced** — worker auth secret | Same as CoordinatorAuthToken | Raw (intentionally hidden from WebView) |
+| `CoordinatorAuthToken` | **Backend-only secret** — coordinator auth credential | Ordinary Settings Preview/Save rejects this key; use the backend coordinator join/rotation workflow | Hidden from WebView settings mutation |
+| `WorkerAuthToken` | **Backend-only secret** — worker auth credential | Ordinary Settings Preview/Save rejects this key; use the backend worker join/import workflow | Hidden from WebView settings mutation |
 
 ---
 

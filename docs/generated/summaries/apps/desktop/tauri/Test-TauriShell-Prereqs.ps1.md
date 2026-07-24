@@ -6,9 +6,9 @@ file_type: PowerShell
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: shell
-last_modified: 2026-06-04
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: 33a182e78bd5472ca376d507e6e27dece3b9c17cb11cda1cc1f52e786dc02120
+sha256: e12f85b936a6cdfbf62fe6ee75615c8378d316fe18e08d6d63341356d51ae8c2
 ---
 # `apps/desktop/tauri/Test-TauriShell-Prereqs.ps1`
 

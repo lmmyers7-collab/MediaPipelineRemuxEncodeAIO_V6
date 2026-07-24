@@ -76,4 +76,4 @@ Validation: targeted coordinator, worker, identity, and recovery tests
 
 ## Secondary evidence
 
-Counts only (request explicitly when needed): test=34, documentation=2, generated=0, change_evidence=1, archive=0, runtime_artifact=0.
+Counts only (request explicitly when needed): test=36, documentation=2, generated=0, change_evidence=1, archive=0, runtime_artifact=0.

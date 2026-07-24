@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-20
+last_modified: 2026-07-23
 last_reviewed: 2026-07-20
-sha256: 6e2458953a95c908622ea79b7fa1a4e3444f01eadd74a33a1853f434e9c795f6
+sha256: 1c8652a7f9c7ab5a3e230c410861e3bc17134543845c76ee0c4518aaed5ca2b9
 ---
 # `tests/python/desktop/test_queue_snapshot_launch_policy.py`
 

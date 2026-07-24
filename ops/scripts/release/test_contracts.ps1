@@ -175,6 +175,7 @@ function Test-ReleaseManifestHygiene {
 
     $summary = Get-ObjectPropertyValue -Object $manifest -Name 'summary'
     $personalConfigIncluded = ConvertTo-ReleaseBool -Value (Get-ObjectPropertyValue -Object $summary -Name 'personal_config_included') -Default $false
+    $testsIncluded = ConvertTo-ReleaseBool -Value (Get-ObjectPropertyValue -Object $summary -Name 'tests_included') -Default $false
     $devDocsIncluded = ConvertTo-ReleaseBool -Value (Get-ObjectPropertyValue -Object $summary -Name 'dev_docs_included') -Default $false
     $optionalToolsIncluded = ConvertTo-ReleaseBool -Value (Get-ObjectPropertyValue -Object $summary -Name 'optional_tools_included') -Default $false
     $toolDocsIncluded = ConvertTo-ReleaseBool -Value (Get-ObjectPropertyValue -Object $summary -Name 'tool_docs_included') -Default $false
@@ -207,6 +208,7 @@ function Test-ReleaseManifestHygiene {
     $rules = @(
         Get-MediaPipelineReleaseHygieneRules `
             -PersonalConfigIncluded:$personalConfigIncluded `
+            -TestsIncluded:$testsIncluded `
             -DevDocsIncluded:$devDocsIncluded `
             -OptionalToolsIncluded:$optionalToolsIncluded `
             -ToolDocsIncluded:$toolDocsIncluded `

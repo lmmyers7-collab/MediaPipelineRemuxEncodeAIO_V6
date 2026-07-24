@@ -1,0 +1,59 @@
+{
+  "id": "MP-CHANGE-2026-0723-011",
+  "title": "Bound Tauri backend process output capture",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": "2026-07-23",
+  "summary": "Bound physical-line retention and diagnostic emission while continuously draining Tauri-managed backend stdout and stderr.",
+  "reason": "Remediate P2 AUDIT-FIND-W09-004. BufRead::lines allocated and logged arbitrarily large physical lines from the managed backend process.",
+  "affected_areas": [
+    "Tauri backend process lifecycle",
+    "backend bootstrap discovery",
+    "child stdout and stderr diagnostics"
+  ],
+  "behavior_before": "Backend stdout and stderr used BufRead::lines, so an unterminated or flooding stream could allocate an arbitrary physical line and emit unbounded diagnostic output.",
+  "behavior_after": "Backend pipes are incrementally drained with fixed per-line retention, overflow counters, bounded diagnostic previews, and time-limited aggregate suppression summaries while bootstrap discovery remains bounded and lossless for valid payloads within the documented limit.",
+  "files_touched": [
+    "apps/desktop/tauri/src-tauri/src/backend_process.rs",
+    "apps/desktop/tauri/src-tauri/src/backend_process/tests.rs",
+    "docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/backend_process.rs.md",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/backend_process/tests.rs.md",
+    "docs/generated/summaries/docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-011.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_tauri_shell_scaffold.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-011.json",
+    "tests/python/desktop/test_tauri_shell_scaffold.py"
+  ],
+  "tests_added": [
+    "Multi-megabyte unterminated physical lines retain only the configured byte budget and report discarded bytes.",
+    "Flooding output keeps draining while diagnostic previews remain bounded and suppression counters remain content-free.",
+    "Bootstrap parsing accepts a valid payload split across incremental reader buffers."
+  ],
+  "manual_validation": [
+    "Focused Rust adversarial tests passed for a three-MiB unterminated physical line, split-buffer bootstrap payload, and 100,000-line flood with bounded previews and content-free counters.",
+    "cargo fmt --all --check, cargo test --locked --lib, and cargo check --release --locked passed; 66 Rust tests passed without release warnings.",
+    "Full Tauri scaffold passed: 96 tests.",
+    "Canonical dev-mode Tauri launch/close smoke passed in 29.1 seconds and verified cleanup of shell PID 41612 and backend PID 59344.",
+    "Tauri production surface audit passed.",
+    "Generated project index, dependency graph, feature file map, feature cards, and five targeted summaries were refreshed; project-index and feature-map check modes passed.",
+    "Summary-integrity, feature-card, and risky-registry tooling passed: 30 tests and 70 subtests.",
+    "Architecture guardrails and risky-file registry passed; god-file debt remained at the accepted baseline of 0 errors and 51 warnings.",
+    "Summary freshness reported only five unrelated baseline stale summaries after this packet refreshed backend_process/tests.rs.",
+    "The dependency-boundary check retained the unrelated AUDIT-FIND-DEP-001 package-cycle baseline, and the active-document reference check reported unrelated DOC005 in docs/reviews/comprehensive-production-audit-2026-07-19/evidence/BASELINE.md.",
+    "git diff --check passed.",
+    "Strict worktree coverage passed: 1153 change packets valid."
+  ],
+  "rollback_plan": "Revert the bounded reader, output limiter, regression tests, lifecycle documentation, generated artifacts, and this packet together. Do not restore BufRead::lines on child-controlled streams.",
+  "related_changes": [
+    "AUDIT-FIND-W09-004"
+  ],
+  "notes": "This batch changes only shell-side child-process output availability and diagnostics. It does not alter backend media policy or close-readiness semantics, so representative real-media validation is not required."
+}

@@ -69,6 +69,52 @@
     return explicitMode === "once" && explicitScope === "backend_queue" && Boolean(explicitRunId);
   }
 
+  function topbarRouteCategory(value) {
+    const route = String(value || "").trim().toLowerCase().replace(/_/g, "-");
+    if (route === "remux") return "remux";
+    if ([
+      "encode",
+      "transcode",
+      "encode-hardware",
+      "hardware-encode",
+      "encode-cpu-fallback",
+      "cpu-encode-fallback",
+      "encode-safe-retry",
+      "safe-hardware-retry",
+    ].includes(route)) return "encode";
+    return "";
+  }
+
+  function topbarRouteCategories(values = []) {
+    return [...new Set(values.map(topbarRouteCategory).filter(Boolean))];
+  }
+
+  function replaceTopbarActivityContent(node, primaryText, metaText, routeCategories = []) {
+    const primary = document.createElement("span");
+    primary.className = "activity-primary";
+    primary.textContent = primaryText;
+    primary.title = primaryText;
+
+    const primaryRow = document.createElement("span");
+    primaryRow.className = "activity-primary-row";
+    primaryRow.append(primary);
+    routeCategories.forEach((route) => {
+      const badge = document.createElement("span");
+      badge.className = "activity-route-badge";
+      badge.dataset.route = route;
+      badge.textContent = route === "remux" ? "REMUX" : "ENCODE";
+      badge.title = `Backend-confirmed active route: ${badge.textContent}`;
+      primaryRow.append(badge);
+    });
+
+    const meta = document.createElement("span");
+    meta.className = "activity-meta";
+    meta.textContent = metaText;
+    if (metaText) meta.title = metaText;
+    node.replaceChildren(primaryRow, meta);
+    return { primary, meta };
+  }
+
   function topbarBackendQueueMonitorContext(snapshot = {}) {
     const correlation = window.mediaPipelineRunMonitor?.backendQueueCorrelationContext?.() || {};
     const expectedRunId = String(correlation.requested_run_id || "").trim();
@@ -114,6 +160,7 @@
       accepted: Number.isFinite(accepted) && accepted >= 0 ? accepted : null,
       workers: currentWorkers.length,
       activeFiles,
+      routeCategories: topbarRouteCategories(currentWorkers.map((worker) => worker?.route)),
     };
   }
 
@@ -128,6 +175,7 @@
         primary: `${activeFiles[0]}${additionalCount ? ` + ${additionalCount} more` : ""}`,
         primaryTitle: activeFiles.join("\n"),
         meta: `${context.displayMode} · ${context.lifecycleLabel}`,
+        routeCategories: context.routeCategories,
       };
     }
     const primary = `${context.displayMode} · ${context.lifecycleLabel}`;
@@ -197,15 +245,13 @@
     const payload = snapshot && typeof snapshot === "object" ? snapshot : {};
     const monitorText = topbarBackendQueueMonitorText(topbarBackendQueueMonitorContext(payload));
     if (monitorText) {
-      const primary = document.createElement("span");
-      primary.className = "activity-primary";
-      primary.textContent = monitorText.primary;
+      const { primary } = replaceTopbarActivityContent(
+        node,
+        monitorText.primary,
+        monitorText.meta,
+        monitorText.routeCategories,
+      );
       primary.title = monitorText.primaryTitle || monitorText.primary;
-      const meta = document.createElement("span");
-      meta.className = "activity-meta";
-      meta.textContent = monitorText.meta;
-      meta.title = monitorText.meta;
-      node.replaceChildren(primary, meta);
       node.title = `${monitorText.primaryTitle || monitorText.primary}\n${monitorText.meta}`;
       node.dataset.authority = "run_monitor";
       return;
@@ -231,16 +277,10 @@
       ? topbarTickerCompactText(pendingLaunch.waitLabel || "", 64)
       : topbarCurrentWorkMeta(currentWork, progress) || topbarStageContext(progress);
     const primaryText = cleanName || activeSummary || activity || "No active work reported.";
-
-    const primary = document.createElement("span");
-    primary.className = "activity-primary";
-    primary.textContent = primaryText;
-    primary.title = primaryText;
-    const meta = document.createElement("span");
-    meta.className = "activity-meta";
-    meta.textContent = metaText;
-    if (metaText) meta.title = metaText;
-    node.replaceChildren(primary, meta);
+    const routeCategories = topbarSnapshotIsFreshlyActive(payload)
+      ? topbarRouteCategories([progress.CurrentRoute || progress.Route])
+      : [];
+    replaceTopbarActivityContent(node, primaryText, metaText, routeCategories);
     node.title = [phaseLabel, primaryText, metaText].filter(Boolean).join("\n");
   }
 

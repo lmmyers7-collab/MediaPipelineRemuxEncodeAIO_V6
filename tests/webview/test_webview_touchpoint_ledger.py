@@ -170,3 +170,28 @@ def test_future_network_controls_remain_explicitly_unreachable() -> None:
     assert all(record["action"]["route"] is None for record in future_network)
     assert all(record["audit"]["status"] == "blocked" for record in future_network)
     assert all(record["disposition"]["closure_class"] == "legitimately_blocked" for record in future_network)
+
+
+def test_priority_export_controls_keep_distinct_staging_and_command_semantics() -> None:
+    authored = _authored_records(_load_ledger())
+    launch_scope = next(
+        record
+        for record in authored
+        if record["locator"]["selector"]
+        == 'button[data-pipeline-scope-preset="priority_export"]'
+    )
+    queue_export = next(
+        record
+        for record in authored
+        if record["locator"]["dom_id"] == "queue-priority-export-btn"
+    )
+
+    assert launch_scope["action"]["kind"] == "local_staging"
+    assert (
+        launch_scope["action"]["ownership_classification"]
+        == "local-launch-intent-staging"
+    )
+    assert launch_scope["action"]["route"] is None
+    assert queue_export["action"]["kind"] == "api_command"
+    assert queue_export["action"]["method"] == "POST"
+    assert queue_export["action"]["route"] == "/api/queue/priority-export"

@@ -94,7 +94,7 @@ Most contracts are Python dataclasses. All timestamps use ISO 8601 strings. Sche
 
 ## PendingPushManifest
 
-**Contract file**: `src/mediapipeline/desktop/contracts/pending_publish.py`
+**Contract file**: `src/mediapipeline/core/kernel/contracts/pending_publish.py`
 **Artifact**: `State\PendingServerPush\*.manifest.json` — one JSON object per parked output
 **Schema version**: `pending_push_manifest.v1`
 
@@ -124,6 +124,8 @@ Most contracts are Python dataclasses. All timestamps use ISO 8601 strings. Sche
 | `source_size` | `int` | `0` | Source file size in bytes |
 | `source_mtime_utc` | `str` | `""` | Source file modified time at parking |
 | `output_size` | `int` | — | Output file size in bytes (required, non-negative) |
+| `output_sha256` | `str` | — | Exact parked output SHA-256 digest (required, 64 hexadecimal characters) |
+| `output_hash_algorithm` | `str` | — | Required literal `"SHA256"` |
 | `publish_mode` | `str` | `""` | Publishing mode |
 | `rerun_auto_destination_policy` | `str` | `""` | CSV rerun policy that parked the output, currently `auto_replace_clean_else_pending_review` when remaining issue evidence requires Pending Publish review |
 | `rerun_auto_destination_decision` | `str` | `""` | Backend/PowerShell auto-return decision such as `pending_publish_review` |
@@ -131,7 +133,7 @@ Most contracts are Python dataclasses. All timestamps use ISO 8601 strings. Sche
 | `audio_decisions` | `list[dict]` | `[]` | Terminal per-source-track audio policy evidence captured at park time. Current records use stable track identity/source stream index so the Run Monitor can reconcile exact tracks without guessing; absence in an older manifest remains unknown. |
 | `subtitle_decisions` | `list[dict]` | `[]` | Terminal per-source-track subtitle policy evidence captured at park time. Current records carry stable `track_id` values; older records without exact identity remain terminally unknown rather than being matched by language, filename, or ordinal similarity. |
 | `subtitle_conversion_results` | `list[dict]` | `[]` | Correlated conversion/OCR outcome evidence, including output or review/failure detail when produced by the subtitle tools. |
-| `sidecar_files` | `list` | — | Associated sidecar file list (required; empty list allowed) |
+| `sidecar_files` | `list` | — | Associated sidecar file list (required; empty list allowed). Every entry requires non-empty `local_file`/`server_out`, non-negative `output_size`, exact `output_sha256`, and `output_hash_algorithm = "SHA256"`. |
 | `tx3g_srt_tracks` | `list` | — | TX3G SRT sidecar evidence carried into drain (required; empty list allowed) |
 | `tx3g_srt_failures` | `list` | — | TX3G SRT publish/conversion failures (required; empty list allowed) |
 | `bdpgs_srt_failures` | `list` | — | BDPGS SRT conversion/OCR failures (required; empty list allowed) |
@@ -166,8 +168,10 @@ Most contracts are Python dataclasses. All timestamps use ISO 8601 strings. Sche
 
 - The Pending Publish Manifest is evidence for parked outputs, not standalone mutation authority. The WebView Pending Publish page reads this via `GET /api/pending-publish`.
 - `audio_decisions`, `subtitle_decisions`, and `subtitle_conversion_results` provide track-level terminal proof for new manifests. They are additive for backward compatibility: their absence never permits the Run Monitor or WebView to infer a decision from route text, filenames, neighboring tracks, or runtime history.
-- Current manifests must use `schema_version = "pending_push_manifest.v1"` and carry non-empty `pipeline_version`, `publish_transaction_id`, `manifest_state`, `local_file`, `server_out`, `route`, `source_identity_v2`, `source_identity_v2_algorithm`, and `source_path`, plus non-negative `output_size` and the required sidecar/subtitle arrays. Legacy manifests remain scan-visible for operator review but are not auto-drainable or auto-repairable.
+- Current manifests must use `schema_version = "pending_push_manifest.v1"` and carry non-empty `pipeline_version`, `publish_transaction_id`, `manifest_state`, `local_file`, `server_out`, `route`, `source_identity_v2`, `source_identity_v2_algorithm`, and `source_path`, plus non-negative `output_size`, exact SHA-256 output proof, and the required sidecar/subtitle arrays. Sidecar entries carry the same size/SHA-256 proof contract. Legacy or weak-proof manifests remain scan-visible for operator review but are not auto-drainable or auto-repairable.
 - Auto-drain requires a trusted manifest file under `State\PendingServerPush`, a present `local_file` and sidecar payloads under the pending root, and a `server_out` under the configured output root, not under local state or pending roots. Source-root destinations are trusted only when `confirm_source_overwrite` is boolean `true` and `server_out` resolves to the same path as `source_path`; sidecars are limited to files beside that confirmed target.
+- Drain and stale-attempt recovery retain the per-manifest transaction lock, then acquire `State\PendingServerPush\.destination-locks\<canonical-destination-sha256>.lock` before re-reading the manifest. That exclusive cross-process destination lock is held through duplicate-target checks, final media and sidecar placement, verification, rollback, completion evidence, and pending cleanup. Empty lock sentinels persist intentionally; only their open exclusive handle represents ownership.
+- Two readable manifests naming the same canonical `server_out` are not drain candidates. Each attempted manifest moves to `review_duplicate_destination`, retains its parked payload and sidecars, and requires reconcile/review before either can publish.
 - `do_not_drain` guidance in the Pending Publish table derives from `manifest_state` combined with backend safety analysis, not from a dedicated field.
 - The drain operation (`POST /api/pipeline/start` with `mode: drain_pending_pushes`) consumes only trusted `parked`, `parked_recovered`, `missing_payload`, or retry-state manifests with a present parked payload. `pending_move` is repair-only after strict crash-recovery proof; `complete`, `published`, blank, unknown, legacy, malformed, or outside-root manifests are blocked.
 
@@ -229,6 +233,22 @@ mutate it.
   path proved absent. Files, directories, broken links/reparse points, and
   metadata-access failures remain fail-closed.
 
+### Startup Reconciliation Summary
+
+**Artifact**: `State\Rerun\StartupReconciliation\latest.json` under `LocalBase`.
+**Schema version**: `desktop_rerun_startup_reconciliation.v1`.
+
+The summary records startup-only reconciliation outcomes and never authorizes
+media replay. Its `candidate_scan` object uses
+`rerun_enrollment_candidate_scan.v1` and reports `available`, `complete`,
+`scanned_count`, `candidate_count`, `error_count`, `metadata_error_count`,
+`fallback_count`, `skipped_count`, and at most ten `recent_errors`. Each recent error identifies
+the affected path, stable reason code, error class, and whether readable JSON
+allowed deterministic fallback despite unavailable modification metadata.
+Valid siblings remain eligible when another enrollment disappears or cannot be
+statted; incomplete scan evidence remains visible instead of being represented
+as an empty enrollment directory.
+
 ---
 
 ## CsvRerunManifest
@@ -266,7 +286,24 @@ mutate it.
 
 ### Row Fields
 
-Rows commonly include `source_path`, `media_kind`, `stage_mode`, `original_mode`, `return_mode`, `stage_path`, `planned_output_path`, `final_output_path`, `status`, `lifecycle_state`, `reason`, `reason_code`, `source_size`, `source_mtime_utc`, sampled `source_identity_v2`, additive `source_content_sha256` / `planned_source_content_sha256` / `staged_source_content_sha256`, `audit_issue_codes`, and a nested `queue_item` record when planning succeeded. Recoverable rows also retain `attempt_count`, `max_attempts`, `stage_attempt_id`, `stage_attempt_count`, `nested_launch_id`, `nested_launch_count`, `rerun_chunk_index`, first/last failure evidence, `next_retry_at`, operator guidance, and a per-row `timeline`. Runtime/result rows may also include `verified_output_path`, `review_output_path`, Pending Publish/final-placement evidence, and `updated_at`. Scoped CSVs written by the backend preserve the strong content hash and may also carry backend rerun-rule columns. Legacy offline rows without a persisted strong hash fail closed to review rather than establishing a new identity baseline after reconnect.
+Rows commonly include `source_path`, `media_kind`, `stage_mode`, `original_mode`, `return_mode`, `stage_path`, `planned_output_path`, `final_output_path`, `status`, `lifecycle_state`, `reason`, `reason_code`, `source_size`, `source_mtime_utc`, sampled `source_identity_v2`, additive `source_content_sha256` / `planned_source_content_sha256` / `staged_source_content_sha256`, `audit_issue_codes`, and a nested `queue_item` record when planning succeeded. Recoverable rows also retain `attempt_count`, `max_attempts`, `stage_attempt_id`, `stage_attempt_count`, `nested_launch_id`, `nested_launch_count`, `rerun_chunk_index`, first/last failure evidence, `next_retry_at`, operator guidance, and a per-row `timeline`. Runtime/result rows may also include `verified_output_path`, `review_output_path`, Pending Publish/final-placement evidence, `publication_transaction_id`, `publication_transaction_manifest_path`, `publication_transaction_state`, and `updated_at`. Scoped CSVs written by the backend preserve the strong content hash and may also carry backend rerun-rule columns. Legacy offline rows without a persisted strong hash fail closed to review rather than establishing a new identity baseline after reconnect.
+
+### Final Publication Transaction
+
+Confirmed `publish_replace_final`, clean auto-replacement, and `publish_non_overlap` outcomes use `rerun_publication_transaction.v1` evidence under `State\Rerun\FinalReplaced\<batch_id>\PublicationTransactions\*.publication.json`. The PowerShell rerun authority writes this manifest before final-library mutation and records `prepared`, `media_staged`, `companions_staged`, `commit_started`, `artifacts_committed`, `committed`, `rolled_back`, or `rollback_required`.
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `transaction_id` / `transaction_path` | `str` | — | Unique publication attempt and its durable recovery manifest |
+| `batch_id` / `row_index` | mixed | — | Correlation back to the authoritative CSV rerun row |
+| `destination_policy` / `success_status` | `str` | — | Requested final-library policy and terminal row status used only after verified commit |
+| `verified_output` / `destination` | `str` | — | Scratch-produced media and final-library target; the original source path is never a transaction artifact |
+| `artifacts[]` | `list[dict]` | `[]` | Media, canonical pipeline sidecar, and declared SRT entries with source, destination-volume stage/backup paths, original-existence flag, size, and SHA-256 |
+| `completed_manifest_path` / `completed_manifest_append` | `str` | — | Completion-mirror authority and pending/appended state; the transaction ID makes replay idempotent |
+| `backup_hold_paths[]` | `list[str]` | `[]` | Post-commit operator-held prior final/companion paths |
+| `last_error` / `created_at` / `updated_at` | `str` | — | Recovery and timing evidence |
+
+Before commit, new artifacts and existing-final backups remain hidden beside the destination so every reveal/restore is same-volume. Completion evidence is appended only after exact final artifact identities pass. A failure without completion evidence restores all prior artifacts and retains verified scratch output; unreadable completion evidence, unknown destination bytes, or a missing required backup becomes `rollback_required` instead of guessing. Restart recovery finalizes only when both completion transaction identity and all final hashes match.
 
 ### Queue Read Model
 
@@ -492,7 +529,7 @@ Notes:
 | `schema_version` | `str` | Yes | Must be `"desktop_settings_store.v1"` |
 | `config_schema_version` | `int` | Yes | Active desktop config contract version |
 | `settings` | `dict` | Yes | Full canonical known-key settings dictionary validated through the Python config contract |
-| `legacy_extras` | `dict` | Yes | Unknown imported PSD1 keys preserved for projection/recovery only; not runtime policy authority |
+| `legacy_extras` | `dict` | Yes | Unknown imported PSD1 keys preserved only as archival recovery evidence; excluded from active PSD1 and runtime policy |
 | `migrations_applied` | `list[str]` | Yes | Import and alias migration journal |
 | `source_psd1_path` | `str` | Yes | PSD1 path used during initial or explicit import |
 | `source_psd1_sha256` | `str` | Yes | SHA-256 of the source PSD1 at import/save time |
@@ -510,13 +547,13 @@ Notes:
 | `generated_at_utc` | `str` | Yes | ISO 8601 UTC timestamp |
 | `config_schema_version` | `int` | Yes | Config contract version represented by the projection |
 | `known_key_count` | `int` | Yes | Count of canonical settings keys in the projection |
-| `legacy_extras_count` | `int` | Yes | Count of inert legacy extras preserved in the projection |
+| `legacy_extras_count` | `int` | Yes | Count of archival legacy extras retained in the JSON authority but excluded from the active PSD1 projection |
 
 ### Notes
 
 - After `settings.v1.json` exists, the Python backend treats it as the settings authority and regenerates/verifies the PSD1 projection instead of silently importing later manual PSD1 edits.
 - If the JSON authority is invalid, the backend restores the verified last-good JSON when available; otherwise settings save and launch paths fail closed.
-- PowerShell still reads the PSD1 for runtime compatibility, but `MediaPipeline.ps1` validates the projection manifest hash before importing the PSD1 when a matching manifest is present.
+- PowerShell still reads the PSD1 for runtime compatibility, but `MediaPipeline.ps1` validates the projection manifest hash before importing the PSD1 when a matching manifest is present. Runtime merge independently accepts only exact canonical keys from the shared registry.
 - LocalBase mirrors are diagnostics/recovery snapshots only. They are not authoritative and should not be edited by operators or tests as runtime policy input.
 
 ---
@@ -835,6 +872,50 @@ Worker children use equivalent slot-local paths under `State\Workers\slot-<n>`. 
 - `data` is event-type specific and not schema-validated beyond being a dict.
 - FFmpeg `tool_started` and `tool_completed` events add `diagnostic_log_path` and `diagnostic_log_disposition`; these fields describe the native-tool log lifecycle without changing `pipeline_event.v1`.
 - Pipeline events are read-only from the WebView perspective. They are not editable or deletable through any API route.
+
+---
+
+## TauriNativeUpdaterEvent
+
+**Contract file**: `apps/desktop/tauri/src-tauri/src/updater_controller.rs`
+**Artifact**: `<Tauri app-local data>\UpdateState\NativeUpdater\update-event-*.json`,
+where Tauri resolves the app-local root for identifier
+`com.mediapipeline.remuxencodeaio`
+**Schema version**: `tauri_native_updater_event.v1`
+**Authority**: Bounded native-shell lifecycle and recovery evidence only. It does
+not authorize an update, replace the signed channel document, override backend
+close-readiness, or prove installer success.
+
+### Fields
+
+| Field | Type | Notes |
+|---|---|---|
+| `schema_version` | `str` | Exact value `tauri_native_updater_event.v1` |
+| `event_id` | `str` | Process-, time-, and sequence-scoped event identity; also used in the immutable event filename |
+| `recorded_at_unix_ms` | `int` | Local shell recording time in Unix milliseconds |
+| `state` | `str` | Bounded state such as `check_started`, `no_update`, `update_available`, `download_started`, `download_verified`, `close_readiness_blocked`, `install_close_ready`, `backend_shutdown_blocked`, `install_started`, `install_applied`, `install_recovery_required`, or `install_failed` |
+| `current_version` | `str` | Bounded installed application version |
+| `target_version` | `str \| None` | Bounded channel-advertised version when an update is available |
+| `safe_to_close` | `bool \| None` | Fresh close-readiness result when the event is at the installation boundary; absence means no close decision was made |
+| `detail` | `str` | Bounded, control-character-stripped operator detail; raw remote errors and endpoint values are deliberately omitted |
+
+### Notes
+
+- The Tauri shell writes a temporary file, flushes it, and atomically renames it
+  to the final immutable event name. The newest 64 JSON events are retained.
+- Required evidence failure stops the update workflow. If the backend has
+  already completed safe-only shutdown, the shell restarts the current version
+  instead of attempting an unevidenced install.
+- On the launch after installer handoff, an exact target/current-version match
+  records `install_applied`. If the version did not advance, the shell records
+  `install_recovery_required`, warns the operator, and keeps the current version
+  running so the signed manual-install or rollback path remains available.
+- Download completes and the Tauri updater verifies the package signature
+  before the installation prompt. Installation then requires a fresh backend
+  `desktop_close_readiness.v1` response and a successful `SafeOnly` shutdown;
+  there is no force-close updater path.
+- Network/channel, signature-verification, and other updater failures are
+  recorded by bounded class without persisting remote error strings.
 
 ---
 

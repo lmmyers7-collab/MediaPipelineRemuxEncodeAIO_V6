@@ -1,0 +1,68 @@
+{
+  "id": "MP-CHANGE-2026-0723-020",
+  "title": "Bundle sanitized backend tree and require release acceptance",
+  "version_target": "2026.06.04.001",
+  "status": "in_progress",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": null,
+  "summary": "Require the canonical full release self-test before signing or publication, stage the existing sanitized release tree as explicit Tauri resources, and verify the built NSIS installer contains the backend runtime contract.",
+  "reason": "AUDIT-FIND-W09-001 showed that the NSIS bundle contained only the shell executable and NSIS support files, so an installed shell could not locate the backend WebView, Python package, PowerShell engine, or required tools. AUDIT-FIND-W10-012 showed that the same publish lane could expose signing and publication without the repository's strict release acceptance for that workflow run.",
+  "affected_areas": [
+    "ci",
+    "packaging",
+    "release",
+    "tauri",
+    "tests"
+  ],
+  "behavior_before": "The private-beta workflow ran only scoped productization checks plus a dry-run release build, then generated a Tauri config without bundle.resources, leaving strict release acceptance unenforced and backend files outside the installer.",
+  "behavior_after": "Before staging, signing, or publication, the workflow runs the full release self-test with -Verify -IncludeTests; it then builds and verifies a sanitized manifest-backed resource tree, maps it into the Tauri NSIS bundle root, and fails artifact verification unless required backend/runtime files are present and mutable or personal state is absent.",
+  "files_touched": [
+    ".github/workflows/private-beta-windows.yml",
+    "docs/change_control/CHANGE_INDEX.md",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-020.json.md",
+    "docs/generated/summaries/ops/scripts/release/New-TauriProductizationConfig.ps1.md",
+    "docs/generated/summaries/ops/scripts/release/Test-PrivateBetaReleaseArtifact.ps1.md",
+    "docs/generated/summaries/ops/scripts/release/Test-PrivateBetaReleasePreflight.ps1.md",
+    "docs/generated/summaries/ops/scripts/release/Test-PrivateBetaWorkflowDryRun.ps1.md",
+    "docs/generated/summaries/tests/python/tooling/test_private_beta_release_artifact.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_private_beta_release_preflight.py.md",
+    "docs/operator/PRIVATE_BETA_INSTALL_UPDATE_RUNBOOK.md",
+    "docs/testing/PRIVATE_BETA_RELEASE_CHECKLIST.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-020.json",
+    "ops/scripts/release/New-TauriProductizationConfig.ps1",
+    "ops/scripts/release/Test-PrivateBetaReleaseArtifact.ps1",
+    "ops/scripts/release/Test-PrivateBetaReleasePreflight.ps1",
+    "ops/scripts/release/Test-PrivateBetaWorkflowDryRun.ps1",
+    "tests/python/tooling/test_private_beta_release_artifact.py",
+    "tests/python/tooling/test_private_beta_release_preflight.py"
+  ],
+  "tests_added": [
+    "Generated productization config maps only a validated external sanitized release root to the Tauri resource root.",
+    "Productization config generation rejects missing runtime payloads and mutable/personal state.",
+    "NSIS artifact verification accepts a complete 7-Zip inventory and rejects missing backend resources or forbidden state.",
+    "Private-beta workflow statically requires the full -Verify -IncludeTests release gate before resource staging, signing, and publication.",
+    "Private-beta workflow statically requires verified staging before config generation and installer payload inventory after build."
+  ],
+  "manual_validation": [
+    "PowerShell parser accepted all four changed release scripts.",
+    "Full private-beta tooling plus desktop productization/Tauri contract slice passed: 138 tests; targeted Ruff and workflow YAML parsing passed.",
+    "A real sanitized release tree was staged with 17,894 copied files and mediapipeline_release_manifest.v1; copied-package verification reached known global package-cycle and inventory baselines after layout/hygiene checks passed.",
+    "Tauri accepted the eight-entry explicit resource map and built an unsigned local NSIS installer containing 16,475 payload paths.",
+    "Exact 7-Zip artifact verification passed with all 11 required payloads and zero forbidden mutable, personal, or repository-development paths.",
+    "A fresh NSIS extraction launched the packaged Tauri shell and bundled Python backend with isolated temporary AppData; both exited cleanly.",
+    "Test-PrivateBetaInstalledLayout.ps1 passed the extracted immutable-root and isolated-AppData checks with only the expected warning that no saved productization route response was supplied.",
+    "Generated project index, dependency graph, feature map, change index, and seven targeted source summaries were refreshed."
+  ],
+  "rollback_plan": "Revert the workflow staging/resource arguments and the generated-config and installer-inventory gates; no source media or operator runtime state is changed by this packet.",
+  "related_changes": [
+    "AUDIT-FIND-W09-001",
+    "AUDIT-FIND-W10-012"
+  ],
+  "notes": "High-risk release boundary. Representative real media is not required. Local unsigned package construction, exact payload inventory, extracted-layout launch/close, and installed-layout validation passed. The workflow now runs the canonical full -Verify -IncludeTests release self-test in the same job before staging, signing-secret access, and publication. Status remains in_progress until the protected Windows release workflow proves that gate at the exact GITHUB_SHA together with updater signing, Authenticode signing, and a genuinely clean-account install/open/close. Known repository-wide package-cycle/inventory baselines prevented local full release acceptance. Host policy blocked recursive deletion of the exact verified packet020 temp evidence roots, so recoverable temp-only residue remains outside the repository."
+}

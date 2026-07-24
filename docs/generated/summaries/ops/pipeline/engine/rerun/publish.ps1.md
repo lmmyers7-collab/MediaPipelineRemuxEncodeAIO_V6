@@ -6,9 +6,9 @@ file_type: PowerShell
 pipeline_stage: publish
 token_priority: medium
 owner_domain: rerun
-last_modified: 2026-07-15
+last_modified: 2026-07-23
 last_reviewed: 2026-07-11
-sha256: 62d6fa994c5f06f542196c4369bb7ed73e4b49d35d4d52d346bee4bb02e88fcd
+sha256: 131c0b73d096c312f4926b073f894078ed6fbe98b667c175b7e361ac16b0ff18
 ---
 # `ops/pipeline/engine/rerun/publish.ps1`
 

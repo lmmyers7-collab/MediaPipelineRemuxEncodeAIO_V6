@@ -9,7 +9,11 @@ if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine') -Pa
 }
 . (Join-Path $repoRoot 'ops\pipeline\engine\config\config_keys.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\config\config_schema.ps1')
+. (Join-Path $repoRoot 'ops\pipeline\engine\config\runtime_merge.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\paths\output_path_planning.ps1')
+. (Join-Path $repoRoot 'ops\pipeline\config\setup\Dependencies.ps1')
+. (Join-Path $repoRoot 'ops\pipeline\config\setup\UserInteraction.ps1')
+. (Join-Path $repoRoot 'ops\pipeline\config\setup\ConfigFile.ps1')
 
 $entrypointText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline.ps1') -Raw
 $moduleLoaderText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline\module_loader.ps1') -Raw
@@ -304,6 +308,73 @@ $strictDefaultSchemaCheck = & {
     Set-StrictMode -Version 2.0
     Test-MediaPipelineConfigSchema -Config (Get-MediaPipelineConfigDefaultValues)
 }
+
+$script:InvariantCulture = [System.Globalization.CultureInfo]::InvariantCulture
+$script:ConfigOrder = @(Get-MediaPipelineConfigOrderedKeys)
+$script:UseAcceptDefaults = $true
+$setupIntegerDefault = Read-PositiveInteger -Prompt 'Setup integer fixture' -Default '8'
+if ($setupIntegerDefault -isnot [int] -or $setupIntegerDefault -ne 8) {
+    throw "Setup integer reader must preserve canonical integer types; actual type=$($setupIntegerDefault.GetType().FullName), value=$setupIntegerDefault."
+}
+$setupVideoProfiles = @(Get-SetupVideoProfiles)
+$noGpuDefaultIndex = Get-SetupVideoProfileDefaultIndex -Existing @{} -Gpu @{ Vendor = 'None'; Name = 'fixture' }
+if ([int]$noGpuDefaultIndex -ne 4) {
+    throw "No-GPU first-run setup must default to the CPU profile; actual index=$noGpuDefaultIndex."
+}
+$cpuSetupProfile = @($setupVideoProfiles | Where-Object { [string]$_.Codec -eq 'libx265' })
+if ($cpuSetupProfile.Count -ne 1) {
+    throw "Setup must expose exactly one CPU/libx265 profile; found $($cpuSetupProfile.Count)."
+}
+$cpuSetupConfig = Get-MediaPipelineConfigDefaultValues
+Set-SetupVideoProfileConfig -Config $cpuSetupConfig -Profile $setupVideoProfiles[[int]$noGpuDefaultIndex - 1]
+if ([string]$cpuSetupConfig['VideoPreset'] -notin @(Get-MediaPipelineVideoPresetNames)) {
+    throw "CPU setup emitted noncanonical VideoPreset '$($cpuSetupConfig['VideoPreset'])'."
+}
+if ([string]$cpuSetupConfig['CpuEncodePreset'] -ne [string](Get-MediaPipelineCpuEncodePresetDefault)) {
+    throw "CPU setup must emit the canonical CpuEncodePreset default."
+}
+if (-not (Test-VideoPresetCompatibility -Config $cpuSetupConfig)) {
+    throw 'Setup compatibility must accept the canonical CPU profile key mapping.'
+}
+$invalidCpuSetupConfig = @{
+    VideoCodec = 'libx265'
+    VideoPreset = [string](Get-MediaPipelineCpuEncodePresetDefault)
+}
+if (Test-VideoPresetCompatibility -Config $invalidCpuSetupConfig) {
+    throw 'Setup compatibility must reject libx265 speed names stored in VideoPreset.'
+}
+$cpuPresetSelection = Get-SetupPresetSelection -Config $cpuSetupConfig
+if ([string]$cpuPresetSelection.ConfigKey -ne 'CpuEncodePreset') {
+    throw 'CPU manual setup must write CpuEncodePreset, not VideoPreset.'
+}
+Assert-StringSequenceEqual -Actual @($cpuPresetSelection.Options) -Expected @(Get-MediaPipelineCpuEncodePresetNames) -Label 'CPU setup preset registry'
+$gpuSetupConfig = Get-MediaPipelineConfigDefaultValues
+$gpuSetupConfig['VideoCodec'] = 'hevc_nvenc'
+$gpuPresetSelection = Get-SetupPresetSelection -Config $gpuSetupConfig
+if ([string]$gpuPresetSelection.ConfigKey -ne 'VideoPreset') {
+    throw 'GPU manual setup must retain the VideoPreset key.'
+}
+Assert-StringSequenceEqual -Actual @($gpuPresetSelection.Options) -Expected @(Get-MediaPipelineVideoPresetNames) -Label 'GPU setup preset registry'
+
+$setupEmissionRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("mp-setup-cpu-contract-" + [guid]::NewGuid().ToString('N'))
+try {
+    New-Item -ItemType Directory -Path $setupEmissionRoot -Force | Out-Null
+    $setupEmissionPath = Join-Path $setupEmissionRoot 'MediaPipeline_config.psd1'
+    [System.IO.File]::WriteAllText(
+        $setupEmissionPath,
+        (Format-ConfigFile -Config $cpuSetupConfig),
+        [System.Text.UTF8Encoding]::new($false)
+    )
+    $emittedCpuConfig = Import-PowerShellDataFile -LiteralPath $setupEmissionPath
+    $emittedCpuSchemaCheck = Test-MediaPipelineConfigSchema -Config $emittedCpuConfig
+    if (-not [bool]$emittedCpuSchemaCheck.Ok) {
+        throw "CPU setup emitted a config rejected by the canonical schema: $(@($emittedCpuSchemaCheck.Errors) -join '; ')"
+    }
+} finally {
+    if (Test-Path -LiteralPath $setupEmissionRoot) {
+        Remove-Item -LiteralPath $setupEmissionRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
 if (-not [bool]$strictDefaultSchemaCheck.Ok) {
     throw "PowerShell default config failed schema validation under StrictMode: $(@($strictDefaultSchemaCheck.Errors) -join '; ')"
 }
@@ -352,6 +423,59 @@ if (-not [bool](Get-ConfigBool 'ConvertBdpgsToSrt' $true)) {
 $config = @{ ConvertBdpgsToSrt = $false }
 if ([bool](Get-ConfigBool 'ConvertBdpgsToSrt' $true)) {
     throw 'An explicitly saved ConvertBdpgsToSrt=false must survive default resolution.'
+}
+
+$script:RuntimeMergeWarnings = New-Object System.Collections.Generic.List[string]
+function Add-StartupWarning {
+    param([string]$Message)
+    $script:RuntimeMergeWarnings.Add([string]$Message)
+}
+$runtimeMergeConfig = [hashtable]::new([System.StringComparer]::Ordinal)
+$runtimeMergeConfig['VideoQuality'] = 23
+$runtimeMergeConfig['videoquality'] = 99
+$runtimeMergeConfig['AudioMaxChannels'] = 6
+$runtimeMergeConfig['ConvertBdpgsToSrt'] = $true
+$runtimeMergeConfig['PendingPublishDrainMode'] = 'manual'
+$runtimeMergeConfig['SubKeepLanguages'] = 'eng'
+$runtimeMergeConfig['LegacyLabOnlyToggle'] = 'must-remain-inert'
+$runtimeMergeConfig['FutureAudioPolicyOverride'] = 'must-remain-inert'
+try {
+    Set-MediaPipelineRuntimeConfigVariables -Config $runtimeMergeConfig -ArrayKeys @('SubKeepLanguages')
+    if ([int]$script:VideoQuality -ne 23) {
+        throw "Runtime merge must apply only the canonical-cased VideoQuality key. Actual=$script:VideoQuality"
+    }
+    if ([int]$script:AudioMaxChannels -ne 6 -or -not [bool]$script:ConvertBdpgsToSrt) {
+        throw 'Runtime merge did not apply representative canonical audio/subtitle policy values.'
+    }
+    if ([string]$script:PendingPublishDrainMode -ne 'manual') {
+        throw 'Runtime merge did not apply the representative canonical pending-publish policy value.'
+    }
+    if ($script:SubKeepLanguages -isnot [array] -or @($script:SubKeepLanguages).Count -ne 1 -or [string]$script:SubKeepLanguages[0] -ne 'eng') {
+        throw 'Runtime merge did not preserve canonical array coercion.'
+    }
+    foreach ($unknownVariable in @('LegacyLabOnlyToggle', 'FutureAudioPolicyOverride')) {
+        if (Get-Variable -Name $unknownVariable -Scope Script -ErrorAction SilentlyContinue) {
+            throw "Runtime merge created an executable script variable for unregistered key '$unknownVariable'."
+        }
+    }
+    $runtimeMergeWarningText = @($script:RuntimeMergeWarnings) -join "`n"
+    foreach ($unknownKey in @('videoquality', 'LegacyLabOnlyToggle', 'FutureAudioPolicyOverride')) {
+        if ($runtimeMergeWarningText -notmatch [regex]::Escape("Unregistered config key '$unknownKey' was ignored")) {
+            throw "Runtime merge did not report rejected unregistered key '$unknownKey'."
+        }
+    }
+} finally {
+    foreach ($runtimeVariable in @(
+        'VideoQuality',
+        'AudioMaxChannels',
+        'ConvertBdpgsToSrt',
+        'PendingPublishDrainMode',
+        'SubKeepLanguages',
+        'LegacyLabOnlyToggle',
+        'FutureAudioPolicyOverride'
+    )) {
+        Remove-Variable -Name $runtimeVariable -Scope Script -Force -ErrorAction SilentlyContinue
+    }
 }
 $expectedAudioPassthroughProfile = Get-MediaPipelineAudioPassthroughProfileDefault
 $expectedAudioPassthroughCodecs = @(Get-MediaPipelineAudioPassthroughProfileCodecs -Profile $expectedAudioPassthroughProfile)

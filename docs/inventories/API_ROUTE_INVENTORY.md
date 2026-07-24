@@ -8,9 +8,21 @@ Total: 174 routes — 56 GET (read) + 118 POST (command).
 
 All routes require the bootstrap token (`Authorization: Bearer` or `X-MediaPipeline-Token`) except `GET /api/health`.
 
+Every route in the backend `STRICT_DURABLE_COMMAND_ROUTES` set additionally
+requires `X-MediaPipeline-Command-ID`. The backend-served WebView bootstrap
+exposes that exact set as `durableCommandRoutes`; the shared API client owns
+identity creation/retention, while the backend journal owns atomic reservation,
+route-plus-payload conflict detection, in-progress rejection, and durable
+terminal replay without a second dispatch. Strict dispatch exceptions are also
+terminalized through that authority: explicitly pre-mutation operator failures
+become replayable `failed` results, unclassified exceptions become replayable
+`indeterminate` results, and a terminal-write failure reports verified fallback
+marker proof or `command_evidence_unresolved` while retaining the accepted
+reservation.
+
 ---
 
-## GET Routes (Read — 55 routes)
+## GET Routes (Read — 56 routes)
 
 All GET routes return data only. None launch pipeline work, write config, drain pending outputs, rename files, or mutate queue or manifest state.
 
@@ -97,7 +109,7 @@ Network lifecycle start/stop now has backend-owned dry-run and confirmed command
 
 ---
 
-## POST Routes (Command — 116 routes)
+## POST Routes (Command — 118 routes)
 
 All POST routes require auth. File-open routes pass row keys or allowlisted target keys. Queue state routes accept only absolute paths under backend-configured `SourceMovies`/`SourceTV` roots and write non-destructive state manifests. Queue source scan is backend-owned and writes scan evidence plus an authoritative queue snapshot through the existing queue-plan dry run.
 
@@ -260,7 +272,7 @@ Audit source commands are backend-owned. Source updates write only the Reports a
 | `POST /api/settings/preset-library/apply` | `config-write` | `id`, `preset_v2`, `confirm_apply` | Settings | **High** — converts PresetV2 to a legacy settings patch and saves through the existing backend settings save path for future launches | `test_preset_library.py`, `test_api_command_contracts.py` |
 | `POST /api/settings/save-patch` | `config-write` | `changes`, `remove_keys`, `library_profile_resets`, `review_confirmation`, `confirm_save` | Settings; Network Worker Mode Settings delegates through Settings view | **High** — writes JSON settings authority and generated PSD1 projection together; save requires `confirm_save: true` plus `review_confirmation` from the matching backend preview | `test_facade_settings_patch_policy.py`, `test_application_facade_settings_patch.py`, `test_settings_store.py`, `test_service_config_save_runner.py` |
 | `POST /api/settings/import-psd1-preview` | `none` | *(none)* | Settings | None — previews explicit PSD1 recovery import into JSON authority without writing | `test_api_command_contracts.py`, `test_settings_store.py` |
-| `POST /api/settings/import-psd1` | `config-write` | `confirm_import` | Settings | **High** — imports active PSD1 into JSON authority, preserves legacy extras inertly, and regenerates PSD1 projection | `test_api_command_contracts.py`, `test_settings_store.py` |
+| `POST /api/settings/import-psd1` | `config-write` | `confirm_import` | Settings | **High** — imports active PSD1 into JSON authority, archives unknown keys only under `legacy_extras`, records their count in projection evidence, and regenerates an active PSD1 containing canonical registered settings only | `test_api_command_contracts.py`, `test_settings_store.py`, `Invoke-ConfigKeyRegistryChecks.ps1` |
 | `POST /api/settings/wizard/validate-paths` | `none` | `wizard` | Settings Wizard | None — validation only | `test_api_command_contracts.py` |
 | `POST /api/settings/wizard/validate-tools` | `none` | `wizard` | Settings Wizard | None — validation only | `test_api_command_contracts.py` |
 | `POST /api/settings/wizard/probe-hardware` | `none` | `wizard` | Settings Wizard | None — bounded probe evidence only | `test_api_command_contracts.py` |
@@ -323,7 +335,7 @@ for preview and `/api/rerun/start` for execution.
 
 Network lifecycle dry-runs, worker test-connection, and mDNS discovery are no-mutation evidence/setup routes. Confirmed start/stop routes require confirmation fields and backend provider preconditions. They do not use normal Launch, do not scan the full queue, do not silently release claims, and do not mutate source media. If the provider hook is unavailable, the route returns a blocked command result rather than starting a fake local run.
 
-### Process Commands (18 routes)
+### Process Commands (19 routes)
 
 | Route | Effect | Key Request Keys / Allowed Values | Frontend Caller | Mutation Risk | Backend Test Coverage |
 |---|---|---|---|---|---|

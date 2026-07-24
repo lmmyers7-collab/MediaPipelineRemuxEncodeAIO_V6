@@ -6,14 +6,13 @@ file_type: PowerShell
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-07-12
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: f66347e9873d6f2b29ca85d99ec5eb8b7d6508c2d878740ecdef782ba7ea49a0
+sha256: 2587122b3ea0e7f1247c6342a115c551a9043324003e4591257ad4b1ce198773
 ---
 # `ops/scripts/smoke/Test-WebViewCommandEvidenceSmoke.ps1`
 
-**Purpose:** PowerShell implementation for test web view command evidence smoke; exposes Resolve-WebViewCommandEvidenceSmokePython.
+**Purpose:** PowerShell implementation for test web view command evidence smoke.
 
-**Public symbols:** `Resolve-WebViewCommandEvidenceSmokePython`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/scripts/smoke/Test-WebViewCommandEvidenceSmoke.ps1`._

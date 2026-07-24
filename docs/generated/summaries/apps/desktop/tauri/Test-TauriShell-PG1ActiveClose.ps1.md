@@ -6,15 +6,15 @@ file_type: PowerShell
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: shell
-last_modified: 2026-06-16
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: fc59f3bdf0b2042d127d4c4913b2bf65188b740659e7966b9dac80edddc7d575
+sha256: 790b9427c39fba95789f7d2cb09b740fc74d65473181f79b340dc6af90433c67
 ---
 # `apps/desktop/tauri/Test-TauriShell-PG1ActiveClose.ps1`
 
 **Purpose:** PowerShell implementation for test tauri shell pg1 active close; exposes Assert-ExplicitPgRuntimeEvidencePath, Get-BackendBootstrapFromIndex, Get-BackendUrlForProcessId.
 
-**Public symbols:** `Assert-ExplicitPgRuntimeEvidencePath`, `Get-BackendBootstrapFromIndex`, `Get-BackendUrlForProcessId`, `Get-LatestActiveJobForSource`, `Get-LaunchPid`, `Get-LocalApiBackendProcesses`, `Get-LogTail`, `Get-ProcessIdSet`, `Get-TauriShellProcesses`, `Invoke-BackendJson`, `Resolve-ToolPath`, `Resolve-VsDevCmd`, `Stop-ProcessIdTree`, `Stop-ProcessTree`, `Wait-BackendTokenCapture`, `Wait-ProcessIdsGone`, `Wait-UnsafeCloseReadiness`
+**Public symbols:** `Assert-ExplicitPgRuntimeEvidencePath`, `Get-BackendBootstrapFromIndex`, `Get-BackendUrlForProcessId`, `Get-LatestActiveJobForSource`, `Get-LaunchPid`, `Get-LogTail`, `Get-TauriShellProcesses`, `Invoke-BackendJson`, `Resolve-ToolPath`, `Resolve-VsDevCmd`, `Stop-ProcessTree`, `Wait-BackendTokenCapture`, `Wait-UnsafeCloseReadiness`
 **HTTP routes:** `/api/backend/close-readiness`, `/api/health`, `/api/pipeline/start`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/tauri/Test-TauriShell-PG1ActiveClose.ps1`._

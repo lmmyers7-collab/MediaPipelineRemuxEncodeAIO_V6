@@ -1,0 +1,57 @@
+{
+  "id": "MP-CHANGE-2026-0723-016",
+  "title": "Make failure and outcome registry metadata authoritative",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": "2026-07-23",
+  "summary": "Register pending-manifest trust outcomes, reconcile shared-code metadata, and make emitted-code completeness checks cover current prefix families and snake_case fields.",
+  "reason": "Remediate P2 AUDIT-FIND-W15-002, AUDIT-FIND-W15-003, and AUDIT-FIND-W15-004. The current registry omits emitted pending trust codes, gives seven shared codes namespace-dependent metadata, and lets unregistered emitted codes escape its static scan.",
+  "affected_areas": [
+    "PowerShell failure and outcome metadata authority",
+    "pending-publish operator reason codes",
+    "emitted-code completeness validation",
+    "fail-closed media verification evidence"
+  ],
+  "behavior_before": "Three emitted pending trust outcomes were unregistered; seven shared codes returned conflicting metadata depending on registry namespace; and the completeness gate missed current prefix families plus snake_case error_code/reason_code fields.",
+  "behavior_after": "Pending trust outcomes have canonical metadata, every shared code resolves to one canonical semantic record, and the completeness gate derives its prefix families from the registry while recognizing both PowerShell and snake_case emitted-code fields.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/ops/pipeline/engine/shared/failure_codes.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-FailureCodeRegistryChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-016.json.md",
+    "ops/pipeline/engine/shared/failure_codes.ps1",
+    "ops/pipeline/tests/Unit/Invoke-FailureCodeRegistryChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-016.json"
+  ],
+  "tests_added": [
+    "The registry gate now asserts exact metadata parity across all seven fields for every code shared by the failure and outcome namespaces, plus explicit canonical-family expectations for the seven audited mismatches.",
+    "Derived-prefix scanner fixtures prove that DYNAMIC, DOVI, DESTINATION, LOCAL, OUTPUT, and SIDECAR unknown codes are detected through ErrorCode, errorCode, error_code, ReasonCode, reasonCode, and reason_code spellings.",
+    "Metadata assertions cover non-retryable pending trust failures, fail-closed media-track verification, local-worker lifecycle outcomes, and subtitle-helper startup self-check failure."
+  ],
+  "manual_validation": [
+    "The pre-change registry check reproduced W15-002 with exactly OUTPUT_HASH_MISSING, SIDECAR_HASH_INVALID, and SIDECAR_SIZE_INVALID missing.",
+    "After broadening the scanner, it correctly exposed seven additional live codes hidden by W15-004: six LOCAL_WORKER outcomes and SUBTITLE_HELPER_SELFCHECK_FAILED. Those codes were registered rather than excluded from the gate.",
+    "The final registry check passed with 46 classifier codes, 226 outcome codes, and 153 emitted codes scanned.",
+    "Pending-publish safety and transaction fault-injection suites passed, including hash-bound sidecars, tamper prevention, crash seams, retry, and idempotency coverage.",
+    "Media-track output verification and media verification safety suites passed without changing verification or publish-blocking behavior.",
+    "Local-worker slot and claim-lifecycle suites passed with the newly registered lifecycle code family.",
+    "Generated-context/tooling validation passed 44 tests with 72 subtests; architecture guardrails, risky-file registry, and naming lint passed.",
+    "The god-file guard reported 0 errors and 58 warnings across 382 candidates, including existing size debt in the touched failure-code module.",
+    "Project-index and feature-map check modes passed; validate_changes --require-worktree-coverage passed with 1,158 valid packets; git diff --check passed with line-ending warnings only.",
+    "Summary freshness remains red only on five unrelated known stale files, and active-doc validation remains red only on unrelated DOC005 in the audit baseline reference.",
+    "No representative real-media validation was run because this change affects metadata and static enforcement only; it does not change FFmpeg commands, media policy, drain execution, or filesystem mutation."
+  ],
+  "rollback_plan": "Revert registry metadata, completeness-test logic, generated context, and this packet together. Do not remove emitted codes or weaken fail-closed verification to make the registry pass.",
+  "related_changes": [
+    "AUDIT-FIND-W15-002",
+    "AUDIT-FIND-W15-003",
+    "AUDIT-FIND-W15-004"
+  ],
+  "notes": "High-risk pending-publish and media-verification boundaries reviewed. This packet does not alter drain execution, FFmpeg/media policy, source files, or final placement. Required validation: focused registry positive and injected-negative tests, affected pending-publish and media-verification PowerShell suites, generated-context checks, and strict packet coverage. Representative real-media validation is not required because execution policy and filesystem mutation are unchanged."
+}

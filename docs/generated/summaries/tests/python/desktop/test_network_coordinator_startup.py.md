@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: network
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-11
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: 83569b1420de7ac3fe31cb1da332565b02a77ac6437901205d2e7ca75a88a35d
+sha256: 90df30df6a4baa7f8583f6e3f789d0fd7567a82d11126937b4cb1db5e4445566
 ---
 # `tests/python/desktop/test_network_coordinator_startup.py`
 

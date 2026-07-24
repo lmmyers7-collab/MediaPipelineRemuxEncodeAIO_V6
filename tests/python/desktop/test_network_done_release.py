@@ -76,6 +76,137 @@ class NetworkDoneReleaseTests(unittest.TestCase):
         self.assertIn("Job job-1 failed report accepted by coordinator.", joined_logs)
         self.assertNotIn("Job job-1 reported failed.", joined_logs)
 
+    def test_worker_mark_done_uses_issuing_coordinator_after_hot_apply(self) -> None:
+        worker = WorkerDispatcher.__new__(WorkerDispatcher)
+        worker._worker_id = "worker-1"
+        worker._base_url = "http://old-coordinator.test:7830"
+        worker._auth_token = "old-token"
+        worker._source_path_map = []
+        worker._active_job_lock = threading.Lock()
+        worker._wakeup = threading.Event()
+        worker._claim_http_contexts = {}
+        worker._stop_heartbeat = lambda: None
+        worker._clear_worker_state = lambda: True
+        worker.log_cluster_event = lambda **_kwargs: None
+        job = SimpleNamespace(
+            job_id="job-affinity",
+            encode_config={},
+            record=SimpleNamespace(source_path=r"C:\Media\movie.mkv"),
+        )
+        worker._active_job = job
+        worker._register_claim_http_context(
+            job.job_id,
+            ("http://old-coordinator.test:7830", "old-token"),
+        )
+        worker.update_auth_token("new-token")
+        worker.update_coordinator_url("http://new-coordinator.test:7830")
+        posts: list[tuple[str, str, str]] = []
+        worker._http_post_with_context = (  # type: ignore[method-assign]
+            lambda path, _data, context: posts.append((path, context[0], context[1])) or {"status": "ok"}
+        )
+
+        WorkerDispatcher.mark_done(worker, job, success=True)
+
+        self.assertEqual(
+            posts,
+            [("/api/done", "http://old-coordinator.test:7830", "old-token")],
+        )
+        self.assertNotIn(job.job_id, worker._claim_http_contexts)
+
+    def test_pending_done_retry_keeps_issuing_coordinator_after_hot_apply(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            worker = WorkerDispatcher.__new__(WorkerDispatcher)
+            worker._state_path = Path(td) / "worker_state.json"
+            worker._worker_id = "worker-1"
+            worker._base_url = "http://old-coordinator.test:7830"
+            worker._auth_token = "old-token"
+            worker._source_path_map = []
+            worker._active_job_lock = threading.Lock()
+            worker._wakeup = threading.Event()
+            worker._claim_http_contexts = {}
+            worker._status_callback = lambda _message: None
+            worker._stop_heartbeat = lambda: None
+            worker.log_cluster_event = lambda **_kwargs: None
+            job = SimpleNamespace(
+                job_id="job-pending-affinity",
+                encode_config={},
+                record=SimpleNamespace(source_path=r"C:\Media\movie.mkv"),
+            )
+            worker._active_job = job
+            worker._register_claim_http_context(
+                job.job_id,
+                ("http://old-coordinator.test:7830", "old-token"),
+            )
+            worker.update_auth_token("new-token")
+            worker.update_coordinator_url("http://new-coordinator.test:7830")
+            posts: list[tuple[str, str, str]] = []
+
+            def post_with_context(path: str, _data: dict, context: tuple[str, str]) -> dict[str, str]:
+                posts.append((path, context[0], context[1]))
+                if len(posts) == 1:
+                    raise RuntimeError("old coordinator temporarily offline")
+                return {"status": "ok"}
+
+            worker._http_post_with_context = post_with_context  # type: ignore[method-assign]
+
+            WorkerDispatcher.mark_done(worker, job, success=True)
+            self.assertIn(job.job_id, worker._claim_http_contexts)
+            self.assertEqual(len(list(pending_done_reports_dir(worker._state_path).glob("*.json"))), 1)
+            self.assertTrue(worker._drain_queued_pending_done_reports())
+
+            self.assertEqual(
+                posts,
+                [
+                    ("/api/done", "http://old-coordinator.test:7830", "old-token"),
+                    ("/api/done", "http://old-coordinator.test:7830", "old-token"),
+                ],
+            )
+            self.assertNotIn(job.job_id, worker._claim_http_contexts)
+            self.assertEqual(list(pending_done_reports_dir(worker._state_path).glob("*.json")), [])
+
+    def test_restart_holds_claim_report_when_saved_connection_identity_changed(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            state_path = Path(td) / "worker_state.json"
+            worker = WorkerDispatcher.__new__(WorkerDispatcher)
+            worker._state_path = state_path
+            worker._active_job_lock = threading.Lock()
+            worker._claim_http_contexts = {}
+            worker._status_callback = lambda _message: None
+            worker.log_cluster_event = lambda **_kwargs: None
+            job = SimpleNamespace(
+                job_id="job-restart-affinity",
+                encode_config={},
+                record=SimpleNamespace(source_path=r"C:\Media\movie.mkv"),
+            )
+            worker._register_claim_http_context(
+                job.job_id,
+                ("http://old-coordinator.test:7830", "old-token"),
+            )
+            worker._save_worker_state(job)
+            persisted_text = state_path.read_text(encoding="utf-8")
+            self.assertIn("http://old-coordinator.test:7830", persisted_text)
+            self.assertNotIn("old-token", persisted_text)
+
+            restarted = WorkerDispatcher.__new__(WorkerDispatcher)
+            restarted._state_path = state_path
+            restarted._worker_id = "worker-1"
+            restarted._base_url = "http://new-coordinator.test:7830"
+            restarted._auth_token = "new-token"
+            restarted._source_path_map = []
+            restarted._active_job_lock = threading.Lock()
+            restarted._claim_http_contexts = {}
+            statuses: list[str] = []
+            restarted._status_callback = statuses.append
+            restarted.log_cluster_event = lambda **_kwargs: None
+            posts: list[tuple[str, dict]] = []
+            restarted._http_post = lambda path, data: posts.append((path, data)) or {"status": "ok"}
+
+            restarted._crash_recover()
+
+            self.assertEqual(posts, [])
+            self.assertTrue(state_path.exists())
+            self.assertTrue(any("issuing coordinator" in status for status in statuses))
+
     def test_worker_mark_done_honors_explicit_retryability(self) -> None:
         posts: list[tuple[str, dict]] = []
         worker = WorkerDispatcher.__new__(WorkerDispatcher)

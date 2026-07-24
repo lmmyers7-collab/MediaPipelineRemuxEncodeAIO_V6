@@ -11,8 +11,8 @@
     "dom": {
       "inventory_path": "docs/inventories/WEBVIEW_DOM_ID_INVENTORY.md",
       "inventory_document_count": 2,
-      "inventory_document_scoped_id_count": 2153,
-      "inventory_globally_unique_id_count": 2153,
+      "inventory_document_scoped_id_count": 2158,
+      "inventory_globally_unique_id_count": 2158,
       "authored_control_id_count": 667,
       "authored_control_ids_missing_from_inventory": 0
     },
@@ -82,8 +82,8 @@
       "static_control": 980
     },
     "by_classification": {
-      "safe_reversible": 99,
-      "safe": 885,
+      "safe_reversible": 100,
+      "safe": 884,
       "unreachable": 10,
       "destructive": 3
     },
@@ -2563,6 +2563,13 @@
           "binding_scope": "markup"
         },
         {
+          "path": "apps/desktop/webview/static/assets/apiClient.js",
+          "line": 0,
+          "event": null,
+          "handler": null,
+          "binding_scope": "source-reference"
+        },
+        {
           "path": "apps/desktop/webview/static/assets/app.js",
           "line": 0,
           "event": null,
@@ -2708,27 +2715,6 @@
           "event": null,
           "handler": null,
           "binding_scope": "source-reference"
-        },
-        {
-          "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
-          "line": 2,
-          "event": "DOMContentLoaded",
-          "handler": "inline@2",
-          "binding_scope": "delegated-source"
-        },
-        {
-          "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
-          "line": 23,
-          "event": "mediapipeline:backend-lifecycle",
-          "handler": "handleTauriBackendLifecycleEvent",
-          "binding_scope": "delegated-source"
-        },
-        {
-          "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
-          "line": 25,
-          "event": "beforeunload",
-          "handler": "inline@25",
-          "binding_scope": "delegated-source"
         }
       ],
       "bindings": [
@@ -2814,24 +2800,6 @@
           "event": "keydown",
           "handler": "inline@504",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "scope": "delegated-source"
-        },
-        {
-          "event": "DOMContentLoaded",
-          "handler": "inline@2",
-          "delegated_by": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
-          "scope": "delegated-source"
-        },
-        {
-          "event": "mediapipeline:backend-lifecycle",
-          "handler": "handleTauriBackendLifecycleEvent",
-          "delegated_by": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
-          "scope": "delegated-source"
-        },
-        {
-          "event": "beforeunload",
-          "handler": "inline@25",
-          "delegated_by": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
           "scope": "delegated-source"
         }
       ],
@@ -16432,6 +16400,13 @@
           "binding_scope": "markup"
         },
         {
+          "path": "apps/desktop/webview/static/assets/apiClient.js",
+          "line": 0,
+          "event": null,
+          "handler": null,
+          "binding_scope": "source-reference"
+        },
+        {
           "path": "apps/desktop/webview/static/assets/app.js",
           "line": 0,
           "event": null,
@@ -16510,13 +16485,6 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/topbar.js",
-          "line": 0,
-          "event": null,
-          "handler": null,
-          "binding_scope": "source-reference"
-        },
-        {
-          "path": "apps/desktop/webview/static/assets/completed/openActions.js",
           "line": 0,
           "event": null,
           "handler": null,
@@ -19464,13 +19432,6 @@
           "binding_scope": "source-reference"
         },
         {
-          "path": "apps/desktop/webview/static/assets/launchView.preflight.js",
-          "line": 0,
-          "event": null,
-          "handler": null,
-          "binding_scope": "source-reference"
-        },
-        {
           "path": "apps/desktop/webview/static/assets/queue/sourceModel.js",
           "line": 0,
           "event": null,
@@ -19493,6 +19454,13 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/queueView.summary.js",
+          "line": 0,
+          "event": null,
+          "handler": null,
+          "binding_scope": "source-reference"
+        },
+        {
+          "path": "apps/desktop/webview/static/assets/reports/auditModel.js",
           "line": 0,
           "event": null,
           "handler": null,
@@ -37179,13 +37147,6 @@
           "binding_scope": "source-reference"
         },
         {
-          "path": "apps/desktop/webview/static/assets/launchView.preflight.js",
-          "line": 0,
-          "event": null,
-          "handler": null,
-          "binding_scope": "source-reference"
-        },
-        {
           "path": "apps/desktop/webview/static/assets/queue/sourceModel.js",
           "line": 0,
           "event": null,
@@ -37208,6 +37169,13 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/queueView.summary.js",
+          "line": 0,
+          "event": null,
+          "handler": null,
+          "binding_scope": "source-reference"
+        },
+        {
+          "path": "apps/desktop/webview/static/assets/reports/auditModel.js",
           "line": 0,
           "event": null,
           "handler": null,
@@ -41377,6 +41345,13 @@
           "binding_scope": "markup"
         },
         {
+          "path": "apps/desktop/webview/static/assets/apiClient.js",
+          "line": 0,
+          "event": null,
+          "handler": null,
+          "binding_scope": "source-reference"
+        },
+        {
           "path": "apps/desktop/webview/static/assets/app.js",
           "line": 0,
           "event": null,
@@ -41522,27 +41497,6 @@
           "event": null,
           "handler": null,
           "binding_scope": "source-reference"
-        },
-        {
-          "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
-          "line": 2,
-          "event": "DOMContentLoaded",
-          "handler": "inline@2",
-          "binding_scope": "delegated-source"
-        },
-        {
-          "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
-          "line": 23,
-          "event": "mediapipeline:backend-lifecycle",
-          "handler": "handleTauriBackendLifecycleEvent",
-          "binding_scope": "delegated-source"
-        },
-        {
-          "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
-          "line": 25,
-          "event": "beforeunload",
-          "handler": "inline@25",
-          "binding_scope": "delegated-source"
         }
       ],
       "bindings": [
@@ -41628,24 +41582,6 @@
           "event": "keydown",
           "handler": "inline@504",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "scope": "delegated-source"
-        },
-        {
-          "event": "DOMContentLoaded",
-          "handler": "inline@2",
-          "delegated_by": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
-          "scope": "delegated-source"
-        },
-        {
-          "event": "mediapipeline:backend-lifecycle",
-          "handler": "handleTauriBackendLifecycleEvent",
-          "delegated_by": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
-          "scope": "delegated-source"
-        },
-        {
-          "event": "beforeunload",
-          "handler": "inline@25",
-          "delegated_by": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
           "scope": "delegated-source"
         }
       ],
@@ -41763,6 +41699,13 @@
           "binding_scope": "markup"
         },
         {
+          "path": "apps/desktop/webview/static/assets/apiClient.js",
+          "line": 0,
+          "event": null,
+          "handler": null,
+          "binding_scope": "source-reference"
+        },
+        {
           "path": "apps/desktop/webview/static/assets/app.js",
           "line": 0,
           "event": null,
@@ -41908,27 +41851,6 @@
           "event": null,
           "handler": null,
           "binding_scope": "source-reference"
-        },
-        {
-          "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
-          "line": 2,
-          "event": "DOMContentLoaded",
-          "handler": "inline@2",
-          "binding_scope": "delegated-source"
-        },
-        {
-          "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
-          "line": 23,
-          "event": "mediapipeline:backend-lifecycle",
-          "handler": "handleTauriBackendLifecycleEvent",
-          "binding_scope": "delegated-source"
-        },
-        {
-          "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
-          "line": 25,
-          "event": "beforeunload",
-          "handler": "inline@25",
-          "binding_scope": "delegated-source"
         }
       ],
       "bindings": [
@@ -42014,24 +41936,6 @@
           "event": "keydown",
           "handler": "inline@504",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "scope": "delegated-source"
-        },
-        {
-          "event": "DOMContentLoaded",
-          "handler": "inline@2",
-          "delegated_by": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
-          "scope": "delegated-source"
-        },
-        {
-          "event": "mediapipeline:backend-lifecycle",
-          "handler": "handleTauriBackendLifecycleEvent",
-          "delegated_by": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
-          "scope": "delegated-source"
-        },
-        {
-          "event": "beforeunload",
-          "handler": "inline@25",
-          "delegated_by": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
           "scope": "delegated-source"
         }
       ],
@@ -43760,12 +43664,12 @@
         }
       ],
       "action": {
-        "kind": "local_or_read_only",
+        "kind": "local_staging",
         "method": null,
         "route": null,
         "command": null,
         "effect": null,
-        "ownership_classification": "local-or-read-only"
+        "ownership_classification": "local-launch-intent-staging"
       },
       "conditions": {
         "visibility": [
@@ -43778,11 +43682,13 @@
         "status": "safe",
         "reason": "Read-only, navigation, display, or local staging interaction."
       },
-      "expected_transition": "Perform the authored local/read-only interaction and keep backend-owned mutation boundaries intact.",
+      "expected_transition": "Update staged operator intent and dependent preview/validation state without committing backend mutation.",
       "required_evidence": [
         "physical DOM event",
         "visible/enabled-state assertion",
-        "stable final UI assertion"
+        "stable final UI assertion",
+        "staged-value assertion",
+        "reset/revisit assertion where persistence applies"
       ],
       "audit": {
         "status": "passed",
@@ -43829,7 +43735,7 @@
         "selector": "button[data-pipeline-scope-preset=\"priority_export\"]",
         "control_type": "button",
         "backend_route": null,
-        "local_only_behavior": "local_or_read_only",
+        "local_only_behavior": "local_staging",
         "mutation_classification": "safe",
         "expected_prerequisite": "The cited rerunnable test completed the control's authored visibility, enabled-state, activation, and final-evidence prerequisites without a skip.",
         "test_owner": "webview-browser-qa",
@@ -51416,14 +51322,14 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/runMonitorView.js",
-          "line": 1074,
+          "line": 1079,
           "event": "mediapipeline:focus-current-work",
-          "handler": "inline@1074",
+          "handler": "inline@1079",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/runMonitorView.js",
-          "line": 1103,
+          "line": 1108,
           "event": "DOMContentLoaded",
           "handler": "init",
           "binding_scope": "delegated-source"
@@ -51439,7 +51345,7 @@
       "bindings": [
         {
           "event": "mediapipeline:focus-current-work",
-          "handler": "inline@1074",
+          "handler": "inline@1079",
           "delegated_by": "apps/desktop/webview/static/assets/runMonitorView.js",
           "scope": "delegated-source"
         },
@@ -52256,14 +52162,14 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/runMonitorView.js",
-          "line": 1074,
+          "line": 1079,
           "event": "mediapipeline:focus-current-work",
-          "handler": "inline@1074",
+          "handler": "inline@1079",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/runMonitorView.js",
-          "line": 1103,
+          "line": 1108,
           "event": "DOMContentLoaded",
           "handler": "init",
           "binding_scope": "delegated-source"
@@ -52298,7 +52204,7 @@
         },
         {
           "event": "mediapipeline:focus-current-work",
-          "handler": "inline@1074",
+          "handler": "inline@1079",
           "delegated_by": "apps/desktop/webview/static/assets/runMonitorView.js",
           "scope": "delegated-source"
         },
@@ -52490,14 +52396,14 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/runMonitorView.js",
-          "line": 1074,
+          "line": 1079,
           "event": "mediapipeline:focus-current-work",
-          "handler": "inline@1074",
+          "handler": "inline@1079",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/runMonitorView.js",
-          "line": 1103,
+          "line": 1108,
           "event": "DOMContentLoaded",
           "handler": "init",
           "binding_scope": "delegated-source"
@@ -52532,7 +52438,7 @@
         },
         {
           "event": "mediapipeline:focus-current-work",
-          "handler": "inline@1074",
+          "handler": "inline@1079",
           "delegated_by": "apps/desktop/webview/static/assets/runMonitorView.js",
           "scope": "delegated-source"
         },
@@ -73017,12 +72923,12 @@
       ],
       "bindings": [],
       "action": {
-        "kind": "local_or_read_only",
-        "method": null,
-        "route": null,
+        "kind": "api_command",
+        "method": "POST",
+        "route": "/api/queue/priority-export",
         "command": null,
-        "effect": null,
-        "ownership_classification": "local-or-read-only"
+        "effect": "queue-state-write",
+        "ownership_classification": "backend-owned-route"
       },
       "conditions": {
         "visibility": [
@@ -73032,14 +72938,16 @@
         "configuration": []
       },
       "classification": {
-        "status": "safe",
-        "reason": "Read-only, navigation, display, or local staging interaction."
+        "status": "safe_reversible",
+        "reason": "Backend-owned queue-state-write command is reversible only inside a verified disposable root."
       },
-      "expected_transition": "Perform the authored local/read-only interaction and keep backend-owned mutation boundaries intact.",
+      "expected_transition": "Submit POST /api/queue/priority-export through the owning WebView handler and render backend result/status evidence.",
       "required_evidence": [
         "physical DOM event",
         "visible/enabled-state assertion",
-        "stable final UI assertion"
+        "stable final UI assertion",
+        "backend route observation",
+        "command journal or response evidence"
       ],
       "audit": {
         "status": "passed",
@@ -73085,9 +72993,9 @@
         "dom_id": "queue-priority-export-btn",
         "selector": "#queue-priority-export-btn",
         "control_type": "button",
-        "backend_route": null,
-        "local_only_behavior": "local_or_read_only",
-        "mutation_classification": "safe",
+        "backend_route": "/api/queue/priority-export",
+        "local_only_behavior": null,
+        "mutation_classification": "safe_reversible",
         "expected_prerequisite": "The cited rerunnable test completed the control's authored visibility, enabled-state, activation, and final-evidence prerequisites without a skip.",
         "test_owner": "webview-browser-qa",
         "current_evidence_state": "passed",
@@ -91190,14 +91098,14 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/runMonitorView.js",
-          "line": 1074,
+          "line": 1079,
           "event": "mediapipeline:focus-current-work",
-          "handler": "inline@1074",
+          "handler": "inline@1079",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/runMonitorView.js",
-          "line": 1103,
+          "line": 1108,
           "event": "DOMContentLoaded",
           "handler": "init",
           "binding_scope": "delegated-source"
@@ -91213,7 +91121,7 @@
       "bindings": [
         {
           "event": "mediapipeline:focus-current-work",
-          "handler": "inline@1074",
+          "handler": "inline@1079",
           "delegated_by": "apps/desktop/webview/static/assets/runMonitorView.js",
           "scope": "delegated-source"
         },
@@ -103379,14 +103287,14 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/runMonitorView.js",
-          "line": 1074,
+          "line": 1079,
           "event": "mediapipeline:focus-current-work",
-          "handler": "inline@1074",
+          "handler": "inline@1079",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/runMonitorView.js",
-          "line": 1103,
+          "line": 1108,
           "event": "DOMContentLoaded",
           "handler": "init",
           "binding_scope": "delegated-source"
@@ -103395,7 +103303,7 @@
       "bindings": [
         {
           "event": "mediapipeline:focus-current-work",
-          "handler": "inline@1074",
+          "handler": "inline@1079",
           "delegated_by": "apps/desktop/webview/static/assets/runMonitorView.js",
           "scope": "delegated-source"
         },
@@ -103830,9 +103738,9 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/runMonitorView.js",
-          "line": 757,
+          "line": 760,
           "event": "click",
-          "handler": "inline@757",
+          "handler": "inline@760",
           "binding_scope": "exact"
         }
       ],
@@ -103857,7 +103765,7 @@
         },
         {
           "event": "click",
-          "handler": "inline@757",
+          "handler": "inline@760",
           "delegated_by": "apps/desktop/webview/static/assets/runMonitorView.js",
           "scope": "exact"
         }
@@ -103971,14 +103879,14 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/runMonitorView.js",
-          "line": 1074,
+          "line": 1079,
           "event": "mediapipeline:focus-current-work",
-          "handler": "inline@1074",
+          "handler": "inline@1079",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/runMonitorView.js",
-          "line": 1103,
+          "line": 1108,
           "event": "DOMContentLoaded",
           "handler": "init",
           "binding_scope": "delegated-source"
@@ -103987,7 +103895,7 @@
       "bindings": [
         {
           "event": "mediapipeline:focus-current-work",
-          "handler": "inline@1074",
+          "handler": "inline@1079",
           "delegated_by": "apps/desktop/webview/static/assets/runMonitorView.js",
           "scope": "delegated-source"
         },
@@ -147070,14 +146978,14 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/runMonitorView.js",
-          "line": 1074,
+          "line": 1079,
           "event": "mediapipeline:focus-current-work",
-          "handler": "inline@1074",
+          "handler": "inline@1079",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/runMonitorView.js",
-          "line": 1103,
+          "line": 1108,
           "event": "DOMContentLoaded",
           "handler": "init",
           "binding_scope": "delegated-source"
@@ -147093,7 +147001,7 @@
       "bindings": [
         {
           "event": "mediapipeline:focus-current-work",
-          "handler": "inline@1074",
+          "handler": "inline@1079",
           "delegated_by": "apps/desktop/webview/static/assets/runMonitorView.js",
           "scope": "delegated-source"
         },

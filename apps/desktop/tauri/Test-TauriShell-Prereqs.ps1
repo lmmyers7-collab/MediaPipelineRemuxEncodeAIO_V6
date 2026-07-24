@@ -8,6 +8,8 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 
+. (Join-Path $PSScriptRoot '..\..\..\ops\scripts\dev\tauri-prerequisite-tools.ps1')
+
 function Write-Check {
     param(
         [Parameter(Mandatory)][string]$Label,
@@ -42,17 +44,6 @@ function Resolve-CommandPath {
         $extraCandidates += Get-ChildItem -Path (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Packages') -Recurse -Filter 'npm.cmd' -ErrorAction SilentlyContinue |
             Where-Object { $_.FullName -notmatch '\\node_modules\\corepack\\' } |
             ForEach-Object { $_.FullName }
-    }
-    if ($Name -eq 'link') {
-        $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
-        if (Test-Path -LiteralPath $vswhere -PathType Leaf) {
-            $installPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2>$null | Select-Object -First 1
-            if ($installPath) {
-                $extraCandidates += Get-ChildItem -Path (Join-Path $installPath 'VC\Tools\MSVC') -Recurse -Filter 'link.exe' -ErrorAction SilentlyContinue |
-                    Where-Object { $_.FullName -match '\\bin\\Hostx64\\x64\\link\.exe$' } |
-                    ForEach-Object { $_.FullName }
-            }
-        }
     }
     foreach ($candidate in $extraCandidates) {
         if ($candidate -and (Test-Path -LiteralPath $candidate -PathType Leaf)) {
@@ -99,6 +90,7 @@ Write-Host "Desktop root: $desktopRoot"
 $requiredFiles = @(
     'package.json',
     'package-lock.json',
+    '..\..\..\ops\scripts\dev\tauri-prerequisite-tools.ps1',
     'Test-TauriShell-Build.ps1',
     'Test-TauriShell-Launch.ps1',
     'frontend\index.html',
@@ -148,17 +140,19 @@ $node = Resolve-CommandPath node
 $npm = Resolve-CommandPath npm
 $cargo = Resolve-CommandPath cargo
 $rustc = Resolve-CommandPath rustc
-$link = Resolve-CommandPath link
+$msvc = Resolve-MsvcBuildTools
 Write-Check -Label 'Node.js' -Ok ([bool]$node) -Detail $(if ($node) { $node } else { 'not found on PATH' })
 Write-Check -Label 'npm' -Ok ([bool]$npm) -Detail $(if ($npm) { $npm } else { 'not found on PATH' })
 Write-Check -Label 'cargo' -Ok ([bool]$cargo) -Detail $(if ($cargo) { $cargo } else { 'not found on PATH' })
 Write-Check -Label 'rustc' -Ok ([bool]$rustc) -Detail $(if ($rustc) { $rustc } else { 'not found on PATH' })
-Write-Check -Label 'MSVC linker' -Ok ([bool]$link) -Detail $(if ($link) { $link } else { 'link.exe not found; install Visual Studio C++ Build Tools before cargo check/build' })
+Write-Check -Label 'Visual Studio C++ workload' -Ok $msvc.WorkloadFound -Detail $(if ($msvc.WorkloadFound) { $msvc.InstallPath } else { $msvc.Detail })
+Write-Check -Label 'Visual Studio developer environment' -Ok $msvc.VsDevCmdFound -Detail $(if ($msvc.VsDevCmdFound) { $msvc.VsDevCmdPath } else { 'VsDevCmd.bat not found' })
+Write-Check -Label 'MSVC x64 linker provenance' -Ok $msvc.Valid -Detail $(if ($msvc.Valid) { "$($msvc.LinkerPath) ($($msvc.LinkerVersion))" } else { $msvc.Detail })
 
 if ($RequireToolchain -and (-not $node -or -not $npm -or -not $cargo -or -not $rustc)) {
     $failed = $true
 }
-if ($RequireBuildTools -and (-not $link)) {
+if ($RequireBuildTools -and (-not $msvc.Valid)) {
     $failed = $true
 }
 

@@ -11,6 +11,7 @@ from mediapipeline.core.kernel.dto_commands import CommandResult
 RESOLVED_PIPELINE_PATHS_UNAVAILABLE_MESSAGE = "Resolved pipeline paths are unavailable."
 BACKEND_SHUTDOWN_UNAVAILABLE_MESSAGE = "Backend shutdown is not available for this server instance."
 BACKEND_SHUTDOWN_BLOCKED_MESSAGE = "Backend shutdown blocked because active work may still be running."
+BACKEND_SHUTDOWN_SCHEDULING_FAILED_MESSAGE = "Backend shutdown could not be scheduled; the backend remains available."
 CLOSE_READINESS_UNAVAILABLE_REASON = "Close readiness is unknown because resolved paths are unavailable."
 CLOSE_READINESS_UNAVAILABLE_WARNING = "Resolved paths were unavailable while evaluating close readiness."
 SETTINGS_RELOAD_UNAVAILABLE_MESSAGE = "Settings reload is not available for this server instance."
@@ -242,6 +243,7 @@ def backend_shutdown_success_payload(
             data["forced_active_work_shutdown"] = True
             data["cleanup_messages"] = cleanup
             data["cleanup_verified"] = True
+            data["shutdown_scheduled"] = True
             if post_cleanup_readiness is not None:
                 data["post_cleanup_readiness"] = dict(post_cleanup_readiness)
         return command_result_payload(
@@ -259,6 +261,48 @@ def backend_shutdown_success_payload(
         message="Backend shutdown requested.",
         severity="info",
         refresh_hint="shutdown",
+        data={"shutdown_scheduled": True},
+    )
+
+
+def backend_shutdown_scheduling_failure_payload(
+    readiness: Mapping[str, Any] | None,
+    *,
+    scheduling_error: object,
+    force_active_work_shutdown: bool = False,
+    cleanup_messages: list[str] | None = None,
+    post_cleanup_readiness: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    error_detail = bounded_error_text(scheduling_error, limit=500)
+    data: dict[str, Any] = {
+        "shutdown_scheduled": False,
+        "backend_ownership_retained": True,
+        "shutdown_retry_allowed": True,
+        "close_readiness": dict(readiness or {}),
+    }
+    cleanup = [bounded_error_text(item) for item in cleanup_messages or [] if str(item).strip()]
+    if force_active_work_shutdown:
+        data.update(
+            {
+                "forced_active_work_shutdown": True,
+                "cleanup_messages": cleanup,
+                "cleanup_verified": True,
+            }
+        )
+        if post_cleanup_readiness is not None:
+            data["post_cleanup_readiness"] = dict(post_cleanup_readiness)
+    error = BACKEND_SHUTDOWN_SCHEDULING_FAILED_MESSAGE
+    if error_detail:
+        error = f"{error} Scheduling error: {error_detail}"
+    return command_result_payload(
+        command="backend.shutdown",
+        ok=False,
+        message=BACKEND_SHUTDOWN_SCHEDULING_FAILED_MESSAGE,
+        severity="error",
+        errors=[error],
+        warnings=cleanup,
+        refresh_hint="close-readiness",
+        data=data,
     )
 
 

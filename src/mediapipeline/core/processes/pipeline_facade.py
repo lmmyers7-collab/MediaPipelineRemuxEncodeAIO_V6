@@ -163,7 +163,16 @@ class PipelineLaunchFacadeMixin:
                 route="/api/pipeline/start",
                 request=recovery_request,
             )
-            block_message = self._active_work_block_message(resolved, "Pipeline start")
+            normal_backend_queue_once = (
+                actual_mode == "once"
+                and not single_file
+                and not priority_only
+            )
+            block_message = self._active_work_block_message(
+                resolved,
+                "Pipeline start",
+                ignore_queue_source_scan=normal_backend_queue_once,
+            )
             if block_message:
                 return pipeline_start_active_work_result(block_message)
             expected_queue_plan_fingerprint = ""
@@ -254,6 +263,15 @@ class PipelineLaunchFacadeMixin:
                     and str((autonomy_health or {}).get("overall_status") or "").casefold() == "blocked"
                 ):
                     return pipeline_start_autonomy_blocked_result(autonomy_health)
+            if normal_backend_queue_once:
+                block_message = self._active_work_block_message(
+                    resolved,
+                    "Pipeline start",
+                    ignore_queue_source_scan=True,
+                    preempt_queue_source_scan=True,
+                )
+                if block_message:
+                    return pipeline_start_active_work_result(block_message)
             if run_monitor_launch:
                 monitor_state_root = getattr(resolved, "state_root", None)
                 if monitor_state_root is None and getattr(resolved, "run_monitor_path", None) is not None:

@@ -651,6 +651,30 @@ function Get-RerunResumeDisposition {
     )
     $status = [string](Get-RerunRecoveryValue -Object $Plan -Name 'status' -Default '')
     $state = [string](Get-RerunRecoveryValue -Object $Plan -Name 'lifecycle_state' -Default $status)
+    $publicationTransactionPath = [string](Get-RerunRecoveryValue -Object $Plan -Name 'publication_transaction_manifest_path' -Default '')
+    if (-not [string]::IsNullOrWhiteSpace($publicationTransactionPath)) {
+        if (-not (Get-Command Repair-RerunFinalPublicationTransaction -ErrorAction SilentlyContinue)) {
+            return [pscustomobject]@{ Action = 'review'; Reason = 'Publication transaction recovery helper is unavailable.' }
+        }
+        try {
+            $publicationRepair = Repair-RerunFinalPublicationTransaction -TransactionPath $publicationTransactionPath
+            Set-RerunRecoveryValue -Object $Plan -Name 'publication_transaction_state' -Value ([string]$publicationRepair.Status)
+            if ([string]$publicationRepair.Status -eq 'committed') {
+                Set-RerunPlanFromCommittedPublication -Plan $Plan -Transaction $publicationRepair.Transaction
+                return [pscustomobject]@{ Action = 'terminal'; Reason = 'Committed final-publication evidence was verified after restart.' }
+            }
+            if ([string]$publicationRepair.Status -eq 'rolled_back') {
+                $verifiedOutput = [string](Get-RerunRecoveryValue -Object $Plan -Name 'verified_output_path' -Default '')
+                if (-not [string]::IsNullOrWhiteSpace($verifiedOutput) -and (Test-Path -LiteralPath $verifiedOutput -PathType Leaf)) {
+                    return [pscustomobject]@{ Action = 'resume_publication'; Reason = 'Interrupted final publication was rolled back and verified output remains available.' }
+                }
+                return [pscustomobject]@{ Action = 'review'; Reason = 'Interrupted final publication rolled back, but verified output is unavailable for retry.' }
+            }
+            return [pscustomobject]@{ Action = 'review'; Reason = "Publication transaction requires review: $([string]$publicationRepair.Status)" }
+        } catch {
+            return [pscustomobject]@{ Action = 'review'; Reason = "Publication transaction recovery failed: $($_.Exception.Message)" }
+        }
+    }
     if ($state -eq 'terminal' -or $status -in @('complete','completed','published','parked','pending_publish','review','failed','retry_exhausted','skipped')) {
         return [pscustomobject]@{ Action = 'terminal'; Reason = 'Row is already terminal.' }
     }
@@ -828,6 +852,12 @@ function Merge-RerunResumePlans {
 
         $disposition = Get-RerunResumeDisposition -Plan $existing -BatchScratchRoot $BatchScratchRoot -FfprobePath $FfprobePath
         switch ([string]$disposition.Action) {
+            'resume_publication' {
+                Add-RerunLifecycleTransition -Target $existing -State 'destination_policy' -What 'Interrupted final publication was restored to a safe retry boundary.' -Why $disposition.Reason -Next 'Retry destination publication without re-reading source media or rerunning the nested pipeline.' -ReasonCode 'publication_transaction_rolled_back'
+                Set-RerunRecoveryValue -Object $existing -Name 'status' -Value 'publication_retry'
+                Set-RerunRecoveryValue -Object $existing -Name 'retryable' -Value $true
+                [void]$merged.Add($existing)
+            }
             'resume_staged' {
                 Add-RerunLifecycleTransition -Target $existing -State 'staged' -What 'Verified staged scratch was accepted for resume.' -Why $disposition.Reason -Next 'Continue nested processing without re-reading the source.' -ReasonCode 'staged_scratch_verified'
                 Set-RerunRecoveryValue -Object $existing -Name 'status' -Value 'staged'

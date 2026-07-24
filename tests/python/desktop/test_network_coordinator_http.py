@@ -567,6 +567,91 @@ class NetworkCoordinatorHttpTests(unittest.TestCase):
             self.assertEqual(len(sent), 1)
             self.assertGreaterEqual(sent[0][1], 400)
 
+    def test_network_done_rollback_preserves_concurrent_claim_and_completion(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            registry = InFlightRegistry()
+            self.assertTrue(
+                registry.claim(
+                    job_id="job-network-done",
+                    worker_id="worker-target",
+                    worker_name="Target Worker",
+                    source_path=str(root / "Target.mkv"),
+                    encode_config={},
+                    job_kind="csv_rerun_row",
+                    claim_metadata={"rerun_batch_id": "batch-1", "rerun_row_key": "row-1"},
+                )
+            )
+            self.assertTrue(
+                registry.claim(
+                    job_id="job-finished",
+                    worker_id="worker-finished",
+                    worker_name="Finished Worker",
+                    source_path=str(root / "Finished.mkv"),
+                    encode_config={},
+                )
+            )
+            sent: list[tuple[dict[str, object], int]] = []
+            dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+            dispatcher._app = SimpleNamespace(resolved=SimpleNamespace(state_root=root / "State"))
+            dispatcher._registry = registry
+            state_path = root / "State" / "coordinator_inflight.json"
+            dispatcher._inflight_state_path = lambda: state_path  # type: ignore[method-assign]
+            dispatcher._safe_log_cluster_event = lambda *_args, **_kwargs: None  # type: ignore[method-assign]
+            handler = SimpleNamespace(_send_json=lambda response, status=200: sent.append((response, status)))
+            payload = {
+                "job_id": "job-network-done",
+                "worker_id": "worker-target",
+                "success": True,
+                "job_kind": "csv_rerun_row",
+                "rerun_batch_id": "batch-1",
+                "rerun_row_key": "row-1",
+            }
+            mutate_unrelated = threading.Event()
+            unrelated_done = threading.Event()
+
+            def mutate_unrelated_registry() -> None:
+                mutate_unrelated.wait(timeout=5)
+                registry.complete("job-finished", "worker-finished", success=True)
+                registry.claim(
+                    job_id="job-new",
+                    worker_id="worker-new",
+                    worker_name="New Worker",
+                    source_path=str(root / "New.mkv"),
+                    encode_config={},
+                )
+                unrelated_done.set()
+
+            mutation_thread = threading.Thread(target=mutate_unrelated_registry)
+            mutation_thread.start()
+
+            def reject_after_concurrent_mutation(**_kwargs) -> bool:
+                mutate_unrelated.set()
+                self.assertTrue(unrelated_done.wait(timeout=5))
+                return False
+
+            try:
+                with patch(
+                    "mediapipeline.desktop.network.coordinator_http_handlers.update_network_rerun_row_done",
+                    side_effect=reject_after_concurrent_mutation,
+                ):
+                    CoordinatorDispatcher._http_done(dispatcher, handler, json.dumps(payload).encode("utf-8"))
+            finally:
+                mutate_unrelated.set()
+                mutation_thread.join(timeout=5)
+
+            with registry._lock:
+                self.assertEqual(set(registry._jobs), {"job-network-done", "job-new"})
+                self.assertEqual(registry.session_completed, 1)
+                self.assertEqual(registry._worker_stats["worker-finished"]["files"], 1)
+            recovered = InFlightRegistry()
+            self.assertTrue(recovered.load(state_path))
+            with recovered._lock:
+                self.assertEqual(set(recovered._jobs), {"job-network-done", "job-new"})
+                self.assertEqual(recovered.session_completed, 1)
+            self.assertEqual(len(sent), 1)
+            self.assertEqual(sent[0][1], 409)
+
     def test_coordinator_logs_cluster_log_missing_event_rejection(self) -> None:
         sent: list[tuple[dict[str, object], int]] = []
         dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)

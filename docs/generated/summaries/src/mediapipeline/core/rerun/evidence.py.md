@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-14
+last_modified: 2026-07-23
 last_reviewed: 2026-07-14
-sha256: 777be2cb43618a9b6d64a00c332aab39b40f91cd09a6d7089c323bb86c2ca584
+sha256: 032c23639c0d83e2ee8c9becc1b42c3a2a1590d43004334208078c1c38c4a56d
 ---
 # `src/mediapipeline/core/rerun/evidence.py`
 

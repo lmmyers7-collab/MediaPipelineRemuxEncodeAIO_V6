@@ -1,0 +1,57 @@
+{
+  "id": "MP-CHANGE-2026-0722-027",
+  "title": "Fail closed on unreadable local-worker claims",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-22",
+  "date_completed": "2026-07-22",
+  "summary": "Fail closed when an existing local-worker claim authority cannot be read or validated, preserving duplicate-work protection until explicit recovery.",
+  "reason": "Remediate P1 AUDIT-FIND-W03-007. The local-worker claim loader converts any read or JSON failure into a fresh empty store, allowing a second worker to claim a source whose existing ownership evidence became unreadable.",
+  "affected_areas": [
+    "local-worker claim-store loading and validation",
+    "duplicate-source admission",
+    "worker claim lifecycle recovery",
+    "PowerShell queue lifecycle tests"
+  ],
+  "behavior_before": "Missing, corrupt, unreadable, wrong-schema, and structurally invalid claim authority all converge on an empty store, so synchronized claim decisions can still admit duplicate work after authority loss.",
+  "behavior_after": "Only a genuinely missing store initializes empty. Existing stores must be readable current-schema objects with an array of internally consistent current-schema claims; every untrusted store blocks mutation with a stable recovery error while preserving its bytes.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/feature-cards/network-mode.md",
+    "docs/generated/summaries/ops/pipeline/engine/queue/worker_claim_store.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-LocalWorkerSlotChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0722-027.json.md",
+    "ops/pipeline/engine/queue/worker_claim_store.ps1",
+    "ops/pipeline/tests/Unit/Invoke-LocalWorkerSlotChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0722-027.json"
+  ],
+  "tests_added": [
+    "Malformed JSON, locked-file read failure, wrong-schema/root, non-array claims, and invalid claim-record fixtures prove admission fails closed with stable errors and byte preservation.",
+    "Two independent worker processes contend for the same source and persist exactly one winning claim."
+  ],
+  "manual_validation": [
+    "Pre-fix Invoke-LocalWorkerSlotChecks.ps1 - expected red: malformed JSON authority admitted a new claim instead of throwing, proving the fail-open path.",
+    "Post-fix Invoke-LocalWorkerSlotChecks.ps1 - passed; the completed wrapper was repeated five times and consistently admitted exactly one of two concurrent same-source processes.",
+    "Invoke-LocalWorkerClaimLifecycleChecks.ps1 - passed, preserving stale-result release, PID-reuse repair, verified live-claim protection, and child failure cleanup behavior.",
+    "Invoke-PipelineQueueEngineChecks.ps1 - passed the full PowerShell queue-engine regression wrapper.",
+    "Launch-preflight and Web-static desktop modules - passed: 64 tests and 28 subtests.",
+    "PowerShell parser and git diff whitespace checks passed for both changed source/test scripts.",
+    "Failure-code registry check remains red only on pre-existing OUTPUT_HASH_MISSING, SIDECAR_HASH_INVALID, and SIDECAR_SIZE_INVALID drift; this packet emits no new structured outcome code.",
+    "Summary integrity, risky-file registry, lifecycle-map, feature-card, and AI-guardrail unit set - passed: 35 tests and 72 subtests.",
+    "Targeted refresh_summaries wrote three summaries; generate_project_index regenerated 2,477 typed records and the dependency graph; feature-file map and 15 feature cards regenerated.",
+    "Project-index, feature-map, lifecycle-map, risky-file registry, and architecture guardrails passed.",
+    "Global summary freshness reports only the same six pre-existing stale files outside this packet; every touched summary is current.",
+    "God-file guard completed with zero errors and one warning for the previously oversized local-worker slot wrapper, now 559 lines.",
+    "validate_changes --require-worktree-coverage - passed with 1,142 valid packets before completion."
+  ],
+  "rollback_plan": "Revert the strict claim-store reader, focused lifecycle fixtures, generated context, and packet metadata together; retain this packet as incomplete evidence if rollback occurs.",
+  "related_changes": [
+    "AUDIT-FIND-W03-007"
+  ],
+  "notes": "High-risk duplicate-work/queue lifecycle boundary. Required validation is focused claim-store negative-path tests plus local-worker lifecycle/concurrency coverage. No FFmpeg command generation, source mutation, publish behavior, or media policy changes; representative real media is not required."
+}

@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: orchestration
-last_modified: 2026-07-20
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: 25fe92be19d2ed457340962aefe3fe2437520fe927d8a5bdfa2985cb90d48f80
+sha256: dbd4174dde868487d7b6b0961140049a282ed920740d068492923f9d9a8145aa
 ---
 # `src/mediapipeline/core/orchestration/settings_patch_facade.py`
 

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import re
+import shutil
+import subprocess
 import sys
+import textwrap
 import unittest
 from pathlib import Path
 
@@ -182,6 +185,74 @@ def _settings_library_layout_keys() -> set[str]:
 
 
 class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
+    def test_settings_commands_block_network_credentials_before_api_dispatch(self) -> None:
+        node = shutil.which("node")
+        if not node:
+            raise unittest.SkipTest("Node.js is required for the WebView settings command boundary smoke.")
+
+        script = textwrap.dedent(
+            r"""
+            const fs = require("fs");
+            const vm = require("vm");
+
+            const source = fs.readFileSync(
+              "apps/desktop/webview/static/assets/settings/view/commands.js",
+              "utf8"
+            );
+            const sandbox = { window: {} };
+            vm.runInNewContext(source, sandbox, { filename: "settings/view/commands.js" });
+
+            const posts = [];
+            const results = [];
+            const status = {};
+            const input = { value: "{}" };
+            const commands = sandbox.window.__settingsViewCommandsModule.createSettingsViewCommandsModule({
+              apiPost: async (...args) => { posts.push(args); return { ok: true }; },
+              appendCommandResult: (result) => results.push(result),
+              byId: (id) => id === "settings-patch-json" ? input : null,
+              flushDirtySettingsBuilders: () => ({ ok: true }),
+              markSettingsPatchTouched: () => {},
+              rejectSettingsCommandWhileBusy: () => false,
+              renderAllLaunchPreflights: () => {},
+              setText: (id, value) => { status[id] = value; },
+              state: {},
+            });
+
+            (async () => {
+              const coordinatorSecret = "browser-coordinator-secret";
+              input.value = JSON.stringify({ CoordinatorAuthToken: coordinatorSecret });
+              await commands.previewSettingsPatch();
+
+              const workerSecret = "browser-worker-secret";
+              input.value = JSON.stringify({ workerauthtoken: workerSecret });
+              await commands.saveSettingsPatch();
+
+              if (posts.length !== 0) throw new Error("credential-bearing settings request reached apiPost");
+              if (results.length !== 2 || results.some((result) => result.ok !== false)) {
+                throw new Error("credential attempts were not rejected as command failures");
+              }
+              if (status["settings-patch-status"] !== "Credential blocked") {
+                throw new Error("credential block status was not rendered");
+              }
+              const evidence = JSON.stringify({ results, status });
+              if (evidence.includes(coordinatorSecret) || evidence.includes(workerSecret)) {
+                throw new Error("credential value leaked into WebView command evidence");
+              }
+            })().catch((error) => {
+              console.error(error.stack || error.message || String(error));
+              process.exit(1);
+            });
+            """
+        )
+        result = subprocess.run(
+            [node, "-e", script],
+            cwd=find_repo_root(Path(__file__)),
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+
     def test_settings_save_review_dialog_is_global_shell_partial(self) -> None:
         index_html = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
         settings_partial = _settings_markup()
@@ -982,6 +1053,11 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             "function reportSettingsPostSaveRefreshFailure(error)",
             'setText("settings-patch-status", "Saved; refresh failed");',
             "handleSettingsPostSaveRefreshFailure",
+            "SETTINGS_PATCH_NETWORK_CREDENTIAL_KEYS",
+            "function blockSettingsPatchNetworkCredentials(command, changes)",
+            "Authentication tokens cannot be staged through WebView Settings.",
+            'blockSettingsPatchNetworkCredentials("settings.preview_patch", changes)',
+            'blockSettingsPatchNetworkCredentials("settings.save_patch", changes)',
         ):
             self.assertIn(token, settings_js)
         self.assertNotIn("[object Object]", settings_js)
@@ -990,6 +1066,15 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         self.assertLess(
             settings_js.index("const requestExtras = settingsPatchRequestExtras();", save_start),
             settings_js.index("if (!keys.length && !hasLibraryProfileResets)", save_start),
+        )
+        preview_start = settings_js.index("async function previewSettingsPatch()")
+        self.assertLess(
+            settings_js.index('blockSettingsPatchNetworkCredentials("settings.preview_patch", changes)', preview_start),
+            settings_js.index('apiPost("/api/settings/preview-patch"', preview_start),
+        )
+        self.assertLess(
+            settings_js.index('blockSettingsPatchNetworkCredentials("settings.save_patch", changes)', save_start),
+            settings_js.index('apiPost("/api/settings/preview-patch"', save_start),
         )
 
     def test_settings_libraries_asset_preserves_unsaved_cards_during_refresh(self) -> None:

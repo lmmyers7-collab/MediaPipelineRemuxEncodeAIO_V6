@@ -6,9 +6,9 @@ file_type: Markdown
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-20
+last_modified: 2026-07-23
 last_reviewed: 2026-06-02
-sha256: 8c23f976f2bb27aac9fe0f0b5e33f903699e316b877fd6edb7612c28598ad2c5
+sha256: 9cf42202e4afb5986d0d9352ed2d027e668c3cb48abe1ff1c2c06832d969ff19
 ---
 # `docs/architecture/MODULE_MAP.md`
 

@@ -1,0 +1,51 @@
+{
+  "id": "MP-CHANGE-2026-0723-050",
+  "title": "Fail closed on malformed preset libraries",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-07-23",
+  "date_completed": "2026-07-23",
+  "summary": "Remediate AUDIT-FIND-W02-009 by rejecting malformed persisted preset-library state before any replacement write.",
+  "reason": "The loader silently converts malformed records to an empty collection, allowing the next ordinary save to atomically erase prior preset content.",
+  "affected_areas": [
+    "preset-library persistence",
+    "settings Local API error evidence",
+    "state JSON recovery",
+    "temporary-state regression tests"
+  ],
+  "behavior_before": "Unsupported records shapes and non-object entries are silently discarded, and save trusts the lossy normalized result as complete authority.",
+  "behavior_after": "Unsupported library versions, malformed records collections or entries, invalid record payloads, and duplicate IDs block reads and writes with actionable recovery evidence while preserving the exact existing bytes.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/src/mediapipeline/core/config/preset_library.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_preset_library.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-050.json",
+    "src/mediapipeline/core/config/preset_library.py",
+    "tests/python/desktop/test_preset_library.py"
+  ],
+  "tests_added": [
+    "atomic replacement failure preserves the existing library and removes its temporary file",
+    "invalid persisted PresetV2 and duplicate IDs fail closed",
+    "malformed records object blocks list/save and preserves exact bytes",
+    "mixed invalid record entries cannot be silently dropped",
+    "unsupported schema version blocks mutation"
+  ],
+  "manual_validation": [
+    "Architecture guardrails passed across 218 creation candidates",
+    "Bundled Ruff on both Batch 050 Python paths: passed",
+    "Focused preset-library and WebView integration-static tests: 12 passed, 5 subtests passed",
+    "Generated project-index and feature-map checks: passed; summary check reports only the two documented pre-existing stale summaries",
+    "Preset/config/settings store regression selection: 77 passed, 131 subtests passed",
+    "Strict validate_changes --require-worktree-coverage: 1192 packets valid"
+  ],
+  "rollback_plan": "Revert only the strict preset-library parser, focused temporary-state tests, and generated artifacts; no stored library migration is performed by this batch.",
+  "related_changes": [
+    "AUDIT-FIND-W02-009"
+  ],
+  "notes": "The persistence and settings boundaries were reviewed before editing. This batch intentionally provides no automatic migration: unknown bytes remain untouched for operator recovery. No real media is required. Existing Batch 002 partial-preset-apply changes in the same source and test paths are preserved.\nBoth implementation and test paths already contain preserved Batch 002 partial-preset-apply changes; Batch 050 changes only persisted-library parsing, recovery evidence, and malformed-state/atomic-write coverage."
+}

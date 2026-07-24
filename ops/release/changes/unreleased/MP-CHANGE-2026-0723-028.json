@@ -1,0 +1,48 @@
+{
+  "id": "MP-CHANGE-2026-0723-028",
+  "title": "Show active encode or remux route in top bar",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-07-23",
+  "date_completed": "2026-07-23",
+  "summary": "Add a compact active-route badge to the top-bar activity card using the established green remux and blue encode semantic colors.",
+  "reason": "The compact activity card identifies the current title and run state but does not make the backend-confirmed remux-versus-encode route visible at a glance.",
+  "affected_areas": [
+    "test",
+    "webview"
+  ],
+  "behavior_before": "The top-bar activity card showed the current title and run metadata without an encode or remux label.",
+  "behavior_after": "Fresh backend-confirmed current work shows a REMUX or ENCODE badge beside the title. Mixed concurrent routes show both badges, while stale, unavailable, or route-undecided evidence shows no badge.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app/lifecycle/topbar.js",
+    "apps/desktop/webview/static/assets/styles.components.css",
+    "apps/desktop/webview/static/assets/styles/components/topbar-activity.css",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app/lifecycle/topbar.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.components.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles/components/topbar-activity.css.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-028.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_run_monitor_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_run_monitor_static.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-028.json",
+    "tests/webview/test_webview_browser_run_monitor_smoke.py",
+    "tests/webview/test_webview_run_monitor_static.py"
+  ],
+  "tests_added": [
+    "Added static coverage for the backend-route badge projection and semantic remux/encode styling.",
+    "Extended the browser Run Monitor smoke to verify remux, hardware encode, and CPU fallback routes render the expected badge category."
+  ],
+  "manual_validation": [
+    "All eight Rung 1 non-browser WebView smoke wrappers passed.",
+    "Bundled-Python tests.webview.test_webview_browser_run_monitor_smoke - 1 passed in Chrome, including undecided-route suppression, distinct remux/encode computed colors, encode aliases, and mixed concurrent routes.",
+    "Bundled-Python tests.webview.test_webview_run_monitor_static - 14 passed.",
+    "Test-WebViewBrowserHomeLiveStateSmoke did not reach badge rendering because the current broader worktree is missing the pre-existing renderCloseReadiness global expected by that smoke; no packet-owned file defines or exports that function.",
+    "The repository-wide release self-test exceeded the 120-second capture window, continued through desktop/tooling/generated checks, and later exited without a recoverable exit code; it is not counted as a pass.",
+    "node --check apps/desktop/webview/static/assets/app/lifecycle/topbar.js - passed.",
+    "node syntax, 14 static Run Monitor tests, targeted Chrome Run Monitor smoke, and all eight non-browser WebView smokes passed; strict worktree coverage passed"
+  ],
+  "rollback_plan": "Remove the top-bar route categorization and badge renderer, remove the activity-route badge CSS, and revert the matching static and browser assertions.",
+  "related_changes": [],
+  "notes": "Read-only WebView projection only. No FFmpeg, route-decision, media-policy, queue, process-lifecycle, source, scratch, publish, subtitle, audio, or backend behavior changes. No Python production files changed. Representative real-media validation is not required for this display-only change."
+}

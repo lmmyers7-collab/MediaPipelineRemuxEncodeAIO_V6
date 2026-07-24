@@ -6,9 +6,9 @@ file_type: Markdown
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-22
+last_modified: 2026-07-23
 last_reviewed: 2026-06-02
-sha256: a95e8a0b40a3a3132246ade2bc11510df27c9d219422c0b0394c33db326eb725
+sha256: 1ebd45f5f64e11a1b492661aa9dc51f48e4afd22ff38a958e1e833ff8f88f92b
 ---
 # `docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md`
 

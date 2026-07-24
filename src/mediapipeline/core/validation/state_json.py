@@ -49,6 +49,8 @@ class StateSchemaVersionError(StateJsonError):
 
 
 def _bounded_positive_int(value: object, default: int) -> int:
+    if not isinstance(value, (str, bytes, bytearray, int, float)):
+        return default
     try:
         normalized = int(value)
     except (TypeError, ValueError, OverflowError):

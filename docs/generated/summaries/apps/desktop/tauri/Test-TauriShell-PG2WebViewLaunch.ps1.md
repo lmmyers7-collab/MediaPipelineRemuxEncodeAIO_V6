@@ -6,15 +6,15 @@ file_type: PowerShell
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: shell
-last_modified: 2026-06-16
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: d22184291a6352112c1722ccc6008b20c5ba581c17317d9e15422320dad70228
+sha256: 31f487d19dad3194eb535f87525f518015526a41b743cbbcfa60b9de21cb3021
 ---
 # `apps/desktop/tauri/Test-TauriShell-PG2WebViewLaunch.ps1`
 
 **Purpose:** PowerShell implementation for test tauri shell pg2 web view launch; exposes Assert-ExplicitPgRuntimeEvidencePath, Get-BackendBootstrapFromIndex, Get-BackendUrlForProcessId.
 
-**Public symbols:** `Assert-ExplicitPgRuntimeEvidencePath`, `Get-BackendBootstrapFromIndex`, `Get-BackendUrlForProcessId`, `Get-LatestActiveJobForSource`, `Get-LocalApiBackendProcesses`, `Get-LogTail`, `Get-TauriShellProcesses`, `Invoke-BackendJson`, `Resolve-ToolPath`, `Resolve-VsDevCmd`, `Stop-ProcessIdTree`, `Stop-ProcessTree`, `Wait-ActiveJobForSource`, `Wait-BackendTokenCapture`, `Wait-ProcessIdsGone`
+**Public symbols:** `Assert-ExplicitPgRuntimeEvidencePath`, `Get-BackendBootstrapFromIndex`, `Get-BackendUrlForProcessId`, `Get-LatestActiveJobForSource`, `Get-LogTail`, `Get-TauriShellProcesses`, `Invoke-BackendJson`, `Resolve-ToolPath`, `Resolve-VsDevCmd`, `Stop-ProcessTree`, `Wait-ActiveJobForSource`, `Wait-BackendTokenCapture`
 **HTTP routes:** `/api/backend/close-readiness`, `/api/commands?limit=15`, `/api/completed?limit=30`, `/api/health`, `/api/pending-publish`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/tauri/Test-TauriShell-PG2WebViewLaunch.ps1`._

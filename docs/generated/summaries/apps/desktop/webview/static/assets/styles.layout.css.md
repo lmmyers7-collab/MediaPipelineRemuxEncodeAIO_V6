@@ -6,9 +6,9 @@ file_type: CSS
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-20
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: c5ec006ccccdde14db7131ae21a35970947722f0970ebbd5a22060080a323ef2
+sha256: ce8217eade2d33bf0225abdf40671e36b9cdf528f036f8bbce8f7a6a60fdd809
 ---
 # `apps/desktop/webview/static/assets/styles.layout.css`
 

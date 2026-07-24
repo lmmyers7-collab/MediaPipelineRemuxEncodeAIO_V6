@@ -103,6 +103,7 @@ Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-EncodeRuntimeRouteEv
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-PipelineProcessingPreflightChecks.ps1' -Label 'pipeline processing preflight checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-RerunPlanOnlyChecks.ps1' -Label 'rerun PlanOnly no-write checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-RerunSourceIdentityChecks.ps1' -Label 'rerun source identity checks'
+Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-RerunPublicationTransactionChecks.ps1' -Label 'rerun final-publication transaction and recovery checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-SubtitleBuilderDecisionChecks.ps1' -Label 'subtitle builder decision checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-VobSubSubtitleChecks.ps1' -Label 'VobSub subtitle checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-SubtitleLongWorkHeartbeatChecks.ps1' -Label 'subtitle long-work heartbeat checks'

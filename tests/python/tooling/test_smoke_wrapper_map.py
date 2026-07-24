@@ -17,6 +17,22 @@ def _write(path: Path, text: str) -> None:
 
 
 class SmokeWrapperMapTests(unittest.TestCase):
+    def test_direct_shared_runner_invocation_is_parsed(self) -> None:
+        invocation = (
+            "Invoke-WebViewDirectSmokeUnittest -ProjectRoot $projectRoot "
+            "-Module 'tests.webview.test_webview_direct_smoke'"
+        )
+
+        self.assertEqual(
+            generate_smoke_wrapper_map.extract_invocation(invocation),
+            (
+                "unittest",
+                "tests.webview.test_webview_direct_smoke",
+                "tests.webview.test_webview_direct_smoke",
+                ["tests.webview.test_webview_direct_smoke"],
+            ),
+        )
+
     def test_browser_suite_inventory_derives_wrapper_backed_and_direct_only_modules(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

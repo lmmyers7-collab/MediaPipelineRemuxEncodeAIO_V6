@@ -11,10 +11,12 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.core.api.command_results import (
     BACKEND_SHUTDOWN_BLOCKED_MESSAGE,
+    BACKEND_SHUTDOWN_SCHEDULING_FAILED_MESSAGE,
     BACKEND_SHUTDOWN_UNAVAILABLE_MESSAGE,
     RESOLVED_PIPELINE_PATHS_UNAVAILABLE_MESSAGE,
     SETTINGS_RELOAD_MISSING_RESOLVED_MESSAGE,
     SETTINGS_RELOAD_UNAVAILABLE_MESSAGE,
+    backend_shutdown_scheduling_failure_payload,
     backend_shutdown_success_payload,
     backend_shutdown_unavailable_payload,
     resolved_paths_unavailable_payload,
@@ -51,7 +53,22 @@ class LocalApiCommandResultsPolicyTests(unittest.TestCase):
         self.assertEqual(success["severity"], "info")
         self.assertEqual(success["warnings"], [])
         self.assertEqual(success["errors"], [])
-        self.assertEqual(success["data"], {})
+        self.assertEqual(success["data"], {"shutdown_scheduled": True})
+
+    def test_backend_shutdown_scheduling_failure_retains_ownership_and_retry(self) -> None:
+        payload = backend_shutdown_scheduling_failure_payload(
+            {"safe_to_close": True, "active_work": False, "reason": "No active work."},
+            scheduling_error=RuntimeError("timer unavailable"),
+        )
+
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["message"], BACKEND_SHUTDOWN_SCHEDULING_FAILED_MESSAGE)
+        self.assertEqual(payload["refresh_hint"], "close-readiness")
+        self.assertFalse(payload["data"]["shutdown_scheduled"])
+        self.assertTrue(payload["data"]["backend_ownership_retained"])
+        self.assertTrue(payload["data"]["shutdown_retry_allowed"])
+        self.assertTrue(payload["data"]["close_readiness"]["safe_to_close"])
+        self.assertIn("timer unavailable", payload["errors"][0])
 
     def test_backend_shutdown_payload_blocks_when_close_readiness_is_not_safe(self) -> None:
         payload = backend_shutdown_success_payload(

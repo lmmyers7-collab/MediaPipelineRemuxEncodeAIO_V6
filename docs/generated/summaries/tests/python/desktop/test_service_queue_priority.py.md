@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-19
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: 8375d12fc7dde0df13a9e45741e0774a79a3d171aa00090d8e907c7fd27e5018
+sha256: 3dd2ebab7016baa86fe6de870d37093d157bbd62dc8568e67fb138efd8e6d9e7
 ---
 # `tests/python/desktop/test_service_queue_priority.py`
 

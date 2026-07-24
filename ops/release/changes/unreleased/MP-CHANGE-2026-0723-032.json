@@ -1,0 +1,66 @@
+{
+  "id": "MP-CHANGE-2026-0723-032",
+  "title": "Sanitize release evidence packaging",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-07-23",
+  "date_completed": "2026-07-23",
+  "summary": "Replace an operational screenshot containing private machine details with sanitized text proof and exclude raw evidence screenshots from portable releases.",
+  "reason": "Remediate AUDIT-FIND-W13-001. The default portable package included a binary screenshot containing operator, host/share, local-path, process, run, and timestamp identifiers while binary media bypassed the text content scanner.",
+  "affected_areas": [
+    "change-control",
+    "documentation",
+    "generated-context",
+    "privacy",
+    "release",
+    "release-validation",
+    "tests"
+  ],
+  "behavior_before": "The tracked CSV-rerun PNG was included in portable releases, and release policy had no general exclusion for raw image evidence below ops/release/evidence/.",
+  "behavior_after": "The repository keeps a sanitized, content-scanned proof under docs/testing instead of the raw PNG, and release policy excludes common raw screenshot formats below ops/release/evidence/ with matching hygiene assertions.",
+  "files_touched": [
+    "docs/DOCS_INDEX.md",
+    "docs/change_control/CHANGELOG.md",
+    "docs/change_control/CHANGE_INDEX.md",
+    "docs/generated/DOC_ARCHIVE_CANDIDATE_SCAN.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/docs/DOCS_INDEX.md.md",
+    "docs/generated/summaries/docs/change_control/CHANGELOG.md.md",
+    "docs/generated/summaries/docs/change_control/CHANGE_INDEX.md.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-ReleasePackagePolicyChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0704-002.json.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-032.json.md",
+    "docs/generated/summaries/ops/scripts/release/release_policy.ps1.md",
+    "docs/testing/CSV_RERUN_PIPELINE_LOG_PROOF_20260704.md",
+    "ops/pipeline/tests/Unit/Invoke-ReleasePackagePolicyChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0704-002.json",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-032.json",
+    "ops/release/evidence/csv-rerun-pipeline-log-proof-20260704.png",
+    "ops/scripts/release/release_policy.ps1"
+  ],
+  "tests_added": [
+    "Raw PNG and case-varied JPEG release evidence receive the privacy exclusion reason.",
+    "Release hygiene rules require raw PNG/JPEG evidence to be absent.",
+    "Sanitized Markdown evidence remains included and content-scan eligible."
+  ],
+  "manual_validation": [
+    "Built payload/manifest proof passed: sanitized Markdown present and hash-identical, raw screenshot and raw evidence images absent, manifest lists only sanitized proof.",
+    "Change index, changelog, targeted summaries, project index, and feature map regenerated.",
+    "Direct policy assertions and PowerShell parser checks passed.",
+    "Focused release package policy suite passed.",
+    "Full release build with -Verify -IncludeTests completed in 926.9 seconds; package-local tool integration and end-to-end smoke passed, while the global gate retained known generated/active-doc/Ruff/downshift baselines and exited 1.",
+    "Generated project and feature map checks passed; global summary drift remains at the same three unrelated files.",
+    "Isolated release package removed after inspection.",
+    "Raw PNG deletion and sanitized-proof privacy scan passed.",
+    "Strict worktree coverage passed with 1,174 valid packets."
+  ],
+  "rollback_plan": "Revert the policy/test/text-evidence changes and packet metadata together. Do not restore the raw screenshot unless it is redacted and independently reviewed for all operator, topology, path, process, run, and timestamp identifiers.",
+  "related_changes": [
+    "AUDIT-FIND-W13-001",
+    "MP-CHANGE-2026-0704-002"
+  ],
+  "notes": "The original screenshot was visually reviewed before removal. Pre-removal identity: 190,276 bytes; SHA-256 dbc75c46c993f25cb1af8cef1c92c2fd0d15fd5eee3c4a22de75d20d111d2218; Git blob 1cff32e0ce638863da92573abb77d260de7058a7. Immutable audit evidence is unchanged. No media-processing behavior or source media is touched, and representative real-media validation is not required. Full release self-test is required because the release exclusion boundary changes.\nReplaced private screenshot with sanitized text proof and excluded raw evidence images from portable packages.\nIncludeTests-wide identifier scan also found unrelated existing source/test fixture literals; packet acceptance was scoped to the audited screenshot evidence surface."
+}

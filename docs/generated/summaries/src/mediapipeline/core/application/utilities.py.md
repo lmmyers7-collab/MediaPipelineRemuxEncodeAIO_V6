@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-01
+last_modified: 2026-07-22
 last_reviewed: 2026-06-04
-sha256: b3e7ed547c57986b6931e497bb039c6d7ec033fdf30eba9e37d8cd6648ca4a26
+sha256: 8d1e3a85cdc09e23ea0250b3f84047601c46997e94f5ebc6ed9e13220b212ff2
 ---
 # `src/mediapipeline/core/application/utilities.py`
 

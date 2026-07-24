@@ -49,4 +49,4 @@ Validation: targeted tooling tests and generated-output --check modes
 
 ## Secondary evidence
 
-Counts only (request explicitly when needed): test=48, documentation=1, generated=4, change_evidence=0, archive=0, runtime_artifact=0.
+Counts only (request explicitly when needed): test=55, documentation=1, generated=4, change_evidence=0, archive=0, runtime_artifact=0.

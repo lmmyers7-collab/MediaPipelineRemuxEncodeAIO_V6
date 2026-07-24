@@ -149,6 +149,14 @@ release history:
 under `ops/release/metadata/history/<version>/`. `list_releases.py` regenerates
 `docs/change_control/RELEASE_HISTORY.md`.
 
+Version-history directories are immutable. Finalization refuses a version when
+`ops/release/metadata/history/<version>/` already exists, including a partial
+directory from an interrupted or manually copied release. Inspect and preserve
+that evidence, then either finish recovery under incident/change control or use
+a new version label; do not delete or overwrite history merely to retry. New
+history is assembled in an owned sibling staging directory and published only
+after every metadata file and `RELEASE_SUMMARY.md` is complete.
+
 ## Rule
 
 Every meaningful code, config, UI, deployment, documentation, schema, test, or

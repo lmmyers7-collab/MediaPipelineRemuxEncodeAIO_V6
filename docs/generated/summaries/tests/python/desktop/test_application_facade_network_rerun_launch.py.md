@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: network
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-20
+last_modified: 2026-07-22
 last_reviewed: 2026-07-20
-sha256: 6c9e3ff088db140a1985de5846d5ecca6f3c6019115097a2121640156af918ed
+sha256: 520ae03d69efd3b3692eb7604e1748116ec846469e3541d6dabe4affbe63b490
 ---
 # `tests/python/desktop/test_application_facade_network_rerun_launch.py`
 

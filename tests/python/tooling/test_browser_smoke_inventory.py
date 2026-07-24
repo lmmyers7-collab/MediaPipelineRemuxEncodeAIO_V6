@@ -118,8 +118,8 @@ class BrowserSmokeInventoryTests(unittest.TestCase):
             "tests.webview.test_webview_browser_evidence_control_census.WebViewBrowserEvidenceControlCensus.test_disposable_backend_rendered_control_census",
             "tests.webview.test_webview_browser_root_control_census.WebViewBrowserRootControlCensus.test_root_surface_controls_have_zero_unclassified_and_safe_local_controls_activate",
             "tests.webview.test_webview_browser_run_monitor_smoke.WebViewBrowserRunMonitorSmoke.test_backend_queue_run_monitor_states_focus_and_narrow_layout",
-            "tests.webview.test_webview_browser_settings_generated_control_census.WebViewBrowserSettingsGeneratedControlCensus.test_generated_settings_controls_have_zero_unclassified_and_expected_activation",
-            "tests.webview.test_webview_browser_shell_launch_queue_rename_control_census.WebViewBrowserShellLaunchQueueRenameControlCensus.test_shell_launch_queue_rename_controls_have_zero_unclassified",
+            "tests.webview.test_webview_browser_settings_generated_control_census.WebViewBrowserSettingsGeneratedControlCensus.test_generated_controls_are_fully_classified_and_safe_instances_activate",
+            "tests.webview.test_webview_browser_shell_launch_queue_rename_control_census.WebViewBrowserShellLaunchQueueRenameControlCensus.test_backend_served_control_census_is_complete_and_non_mutating",
         }
         self.assertTrue(required.issubset(inventory.selectors), sorted(required - set(inventory.selectors)))
 

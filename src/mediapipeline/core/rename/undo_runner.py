@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 from datetime import datetime
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +11,7 @@ from mediapipeline.core.paths.layout import ensure_path_boundary_safe_for_mutati
 from mediapipeline.core.rename.file_io import atomic_write_text
 
 RENAME_UNDO_SCHEMA_VERSION = "rename_undo.v1"
+RENAME_UNDO_PROGRESS_SCHEMA_VERSION = "rename_undo_progress.v1"
 
 
 def _now() -> str:
@@ -83,10 +85,81 @@ def _manifest_metadata_backups(manifest: dict[str, Any]) -> list[dict[str, Any]]
     return [item for item in raw_backups if isinstance(item, dict) and str(item.get("path") or "").strip()]
 
 
-def _preflight_undo_operations(service: Any, operations: list[dict[str, Any]]) -> list[str]:
+def _operation_id(operation: dict[str, Any]) -> str:
+    payload = json.dumps(operation, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _undo_progress_operations(
+    manifest: dict[str, Any],
+    operations: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], bool]:
+    raw_progress = manifest.get("undo_progress")
+    if raw_progress is None:
+        entries = [
+            {
+                "operation_index": index,
+                "operation_id": _operation_id(operation),
+                "status": "prepared",
+            }
+            for index, operation in enumerate(operations)
+        ]
+        manifest["undo_progress"] = {
+            "schema_version": RENAME_UNDO_PROGRESS_SCHEMA_VERSION,
+            "operations": entries,
+        }
+        return entries, True
+    if not isinstance(raw_progress, dict):
+        raise RuntimeError("Rename undo progress must contain an object.")
+    if str(raw_progress.get("schema_version") or "") != RENAME_UNDO_PROGRESS_SCHEMA_VERSION:
+        raise RuntimeError("Rename undo progress schema is not rename_undo_progress.v1.")
+    raw_entries = raw_progress.get("operations")
+    if not isinstance(raw_entries, list) or len(raw_entries) != len(operations):
+        raise RuntimeError("Rename undo progress operation count does not match the manifest.")
+    validated_entries: list[dict[str, Any]] = []
+    for index, (raw_entry, operation) in enumerate(zip(raw_entries, operations, strict=True)):
+        if not isinstance(raw_entry, dict):
+            raise RuntimeError(f"Rename undo progress operation {index + 1} is not an object.")
+        if raw_entry.get("operation_index") != index or str(raw_entry.get("operation_id") or "") != _operation_id(
+            operation
+        ):
+            raise RuntimeError(f"Rename undo progress identity mismatch for operation {index + 1}.")
+        status = str(raw_entry.get("status") or "")
+        if status not in {"prepared", "committed"}:
+            raise RuntimeError(f"Rename undo progress operation {index + 1} has invalid status: {status or '<empty>'}.")
+        validated_entries.append(dict(raw_entry))
+    manifest["undo_progress"] = {
+        "schema_version": RENAME_UNDO_PROGRESS_SCHEMA_VERSION,
+        "operations": validated_entries,
+    }
+    return validated_entries, False
+
+
+def _operation_layout_state(service: Any, operation: dict[str, Any]) -> str:
+    original = Path(operation["source"])
+    current = Path(operation["destination"])
+    original_exists = original.exists()
+    current_exists = current.exists()
+    if original_exists and current_exists:
+        if service._resolve_same_file(original, current):
+            return "same_file"
+        return "collision"
+    if current_exists:
+        return "forward"
+    if original_exists:
+        return "reversed"
+    return "missing"
+
+
+def _preflight_undo_operations(
+    service: Any,
+    operations: list[dict[str, Any]],
+    progress: list[dict[str, Any]],
+) -> tuple[list[str], bool]:
     errors: list[str] = []
     restore_targets: set[str] = set()
-    for operation in operations:
+    progress_changed = False
+    for index, operation in enumerate(operations):
         original = Path(operation["source"])
         current = Path(operation["destination"])
         boundary_root_text = str(operation.get("boundary_root") or "").strip()
@@ -101,11 +174,20 @@ def _preflight_undo_operations(service: Any, operations: list[dict[str, Any]]) -
         if target_key in restore_targets:
             errors.append(f"duplicate undo target: {original}")
         restore_targets.add(target_key)
-        if not current.exists():
-            errors.append(f"cannot undo {current}; renamed path is missing")
-        elif original.exists() and not service._resolve_same_file(original, current):
+        layout = _operation_layout_state(service, operation)
+        status = str(progress[index]["status"])
+        if layout == "collision":
             errors.append(f"cannot undo {current}; original path already exists: {original}")
-    return errors
+        elif layout == "missing":
+            errors.append(f"cannot undo {current}; renamed path is missing")
+        elif status == "committed" and layout == "forward":
+            errors.append(f"cannot resume undo {current}; committed original path is missing: {original}")
+        elif status == "prepared" and layout in {"reversed", "same_file"}:
+            progress[index]["status"] = "committed"
+            progress[index]["reconciled_at"] = _now()
+            progress[index]["reconciled_from_layout"] = True
+            progress_changed = True
+    return errors, progress_changed
 
 
 def _metadata_backup_operation(
@@ -214,35 +296,54 @@ def undo_rename_manifest_for_service(
     if str(manifest.get("undo_status") or "") == "completed":
         raise RuntimeError("This rename manifest has already been undone.")
     operations = _manifest_operations(manifest)
-    preflight_errors = _preflight_undo_operations(service, operations)
+    progress, progress_created = _undo_progress_operations(manifest, operations)
+    preflight_errors, progress_reconciled = _preflight_undo_operations(service, operations, progress)
     preflight_errors.extend(_preflight_metadata_backups(manifest, operations))
     if preflight_errors:
         raise RuntimeError("Rename undo blocked: " + " | ".join(preflight_errors[:6]))
 
+    previous_undo_status = str(manifest.get("undo_status") or "")
     manifest["undo_status"] = "undoing"
-    manifest["undo_started_at"] = _now()
+    if not str(manifest.get("undo_started_at") or ""):
+        manifest["undo_started_at"] = _now()
+    elif previous_undo_status in {"failed", "undoing"} or progress_reconciled:
+        manifest["undo_resumed_at"] = _now()
     manifest["undo_errors"] = []
+    if progress_created:
+        manifest["undo_progress_created_at"] = _now()
     _write_manifest(manifest_path, manifest)
 
     rows: list[dict[str, Any]] = []
     warnings: list[str] = []
     try:
-        for operation in reversed(operations):
+        for operation_index in reversed(range(len(operations))):
+            operation = operations[operation_index]
+            progress_entry = progress[operation_index]
             original = Path(operation["source"])
             current = Path(operation["destination"])
             boundary_root_text = str(operation.get("boundary_root") or "").strip()
             boundary_root = Path(boundary_root_text) if boundary_root_text else original.parent
-            if original.exists() and current.exists() and service._resolve_same_file(original, current):
+            resume_state = ""
+            if progress_entry["status"] == "committed":
                 status = "skipped"
+                resume_state = (
+                    "reconciled_from_layout"
+                    if progress_entry.get("reconciled_from_layout")
+                    else "previously_committed"
+                )
             else:
                 service._rename_path_case_safe(current, original, boundary_root=boundary_root)
                 status = "undone"
+                progress_entry["status"] = "committed"
+                progress_entry["committed_at"] = _now()
+                _write_manifest(manifest_path, manifest)
             rows.append(
                 {
                     "kind": operation["kind"],
                     "source": str(current),
                     "destination": str(original),
                     "status": status,
+                    **({"resume_state": resume_state} if resume_state else {}),
                     **(
                         {"parsed_identity": dict(operation["parsed_identity"])}
                         if isinstance(operation.get("parsed_identity"), dict)

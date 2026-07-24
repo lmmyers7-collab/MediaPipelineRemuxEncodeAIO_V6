@@ -6,9 +6,9 @@ file_type: Rust
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: shell
-last_modified: 2026-07-16
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: 41772f1a8d9f3ce7a2fc7b2b51347f2fc5e997302cf027e01fb574b09c375f10
+sha256: 5e1a94511bfcc4388decb02055e44466225ef8abfe2eab54efe3d253df3f94b9
 ---
 # `apps/desktop/tauri/src-tauri/src/backend_contract/routes.rs`
 

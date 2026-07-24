@@ -6,9 +6,9 @@ file_type: PowerShell
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-10
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: fa59960f77f29b6e1e32fa2d01d595df9a5c8186249a7a64c348725d6e55afea
+sha256: aff75a7bcdeffcbe37d7909452048618a99681d0276684c18fde24ab5ce3abc4
 ---
 # `ops/pipeline/tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1`
 

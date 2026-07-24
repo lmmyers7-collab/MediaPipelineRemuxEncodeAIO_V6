@@ -33,6 +33,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\engine\rerun\evidence.ps1')
 . (Join-Path $PSScriptRoot '..\engine\rerun\recovery.ps1')
 . (Join-Path $PSScriptRoot '..\engine\rerun\planning.ps1')
+. (Join-Path $PSScriptRoot '..\engine\rerun\publication_transaction.ps1')
 . (Join-Path $PSScriptRoot '..\engine\rerun\publish.ps1')
 
 
@@ -499,6 +500,26 @@ try {
         Assert-RerunScratchPathBoundary -Path $workspacePath -Root $localBaseParent | Out-Null
     }
 
+    $publicationRecoveryPlans = @($plans | Where-Object { [string]$_.status -eq 'publication_retry' })
+    $publicationRecoveredTerminalPlans = @($plans | Where-Object {
+        [string]$_.publication_transaction_state -eq 'committed' -and
+        [string]$_.status -in @('published_non_overlap','published_replace_final')
+    })
+    if ($publicationRecoveryPlans.Count -gt 0) {
+        Write-RerunLog "Retrying $($publicationRecoveryPlans.Count) rolled-back final publication transaction(s) without rerunning nested media work."
+        foreach ($plan in $publicationRecoveryPlans) {
+            Set-RerunRecoveryValue -Object $plan -Name 'status' -Value 'complete'
+            Set-RerunRecoveryValue -Object $plan -Name 'publication_transaction_manifest_path' -Value ''
+            Set-RerunRecoveryValue -Object $plan -Name 'publication_transaction_id' -Value ''
+        }
+        Invoke-RerunDestinationPolicy -Plans $publicationRecoveryPlans -BatchId $batchId -PendingRoot $pendingRoot -FinalHoldRoot $finalHoldRoot -OriginalHoldRoot $originalHoldRoot -ExecutionManifest $manifest -ExecutionManifestPath $manifestPath
+        foreach ($plan in $publicationRecoveryPlans) {
+            $terminalStatus = [string]$plan.status
+            $terminalCode = [string](Get-RerunRecoveryValue -Object $plan -Name 'failure_code' -Default '')
+            Set-RerunPlanLifecycle -Plan $plan -State 'terminal' -Status $terminalStatus -What 'The recovered publication row reached a durable destination outcome.' -Why ([string]$plan.reason) -Next 'No nested media replay was required.' -ReasonCode $terminalCode -Retryable $false -OperatorActionRequired ($terminalStatus -in @('failed','review')) -Manifest $manifest -ManifestPath $manifestPath -Persist
+        }
+    }
+
     if ($DryRun) {
         Set-RerunManifestLifecycle -Manifest $manifest -State 'terminal' -Status 'dry_run_complete' -Phase 'terminal' -What 'Dry-run planning completed.' -Why 'No media was staged or processed.' -Next 'Review the plan or start a live correlated rerun.' -ReasonCode 'dry_run_complete' -ManifestPath $manifestPath -Persist
         Write-RerunLog "DRY RUN complete. Manifest: $manifestPath"
@@ -514,7 +535,7 @@ try {
     }
 
     $pendingPlans = @(Get-RerunSourceWorkOrder -Plans @($plans | Where-Object { [string]$_.status -in @('pending','waiting','retry_scheduled','staging','staged') }))
-    if ($pendingPlans.Count -eq 0) { throw 'No CSV rows are executable for rerun.' }
+    if ($pendingPlans.Count -eq 0 -and $publicationRecoveryPlans.Count -eq 0 -and $publicationRecoveredTerminalPlans.Count -eq 0) { throw 'No CSV rows are executable for rerun.' }
 
     $chunkSize = if ($ExecutionMode -eq 'batch_stage_all') { [math]::Max(1, $pendingPlans.Count) } elseif ($ExecutionMode -eq 'windowed') { [math]::Max(1, [int]$WindowSize) } else { 1 }
     for ($offset = 0; $offset -lt $pendingPlans.Count; $offset += $chunkSize) {
@@ -609,7 +630,7 @@ try {
         foreach ($plan in @($runnable | Where-Object { $_.status -eq 'complete' })) {
             Set-RerunPlanLifecycle -Plan $plan -State 'destination_policy' -Status 'complete' -What 'Verified output is ready for destination policy.' -Why ([string]$plan.reason) -Next 'Publish, park, or route to review according to backend-owned policy.' -ReasonCode 'destination_policy_started' -Retryable $false -OperatorActionRequired $false -Manifest $manifest -ManifestPath $manifestPath -Persist
         }
-        Invoke-RerunDestinationPolicy -Plans $runnable -BatchId $batchId -PendingRoot $pendingRoot -FinalHoldRoot $finalHoldRoot -OriginalHoldRoot $originalHoldRoot
+        Invoke-RerunDestinationPolicy -Plans $runnable -BatchId $batchId -PendingRoot $pendingRoot -FinalHoldRoot $finalHoldRoot -OriginalHoldRoot $originalHoldRoot -ExecutionManifest $manifest -ExecutionManifestPath $manifestPath
         foreach ($plan in $runnable) {
             $terminalStatus = [string]$plan.status
             $terminalCode = [string](Get-RerunRecoveryValue -Object $plan -Name 'failure_code' -Default '')

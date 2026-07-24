@@ -32,6 +32,8 @@ This document does not change settings behavior. Changes to builder coverage req
 
 **Update (2026-06-04, MP-CHANGE-2026-0604-047):** Raw JSON may still stage unknown keys for backend Preview/Save, but keys that case-insensitively match a known persisted key must use the exact canonical spelling. Preview/Save now reject non-canonical spellings such as `routingprofile` with a canonical-key message instead of preserving an inert duplicate. Missing `ConvertBdpgsToSrt` is displayed as disabled, matching the config contract.
 
+**Update (2026-07-23, MP-CHANGE-2026-0723-033):** Ordinary Settings Preview/Save now rejects `CoordinatorAuthToken` and `WorkerAuthToken` keys, including removal requests, before config mutation. The WebView also blocks those keys before API dispatch. Backend-owned coordinator rotation and worker join/import use a separate internal credential capability that is not represented by a request-body flag or Local API settings route.
+
 ---
 
 ## Known Advanced / Direct-Config Keys
@@ -73,8 +75,8 @@ These keys are present in `CONFIG_FIELD_DEFINITIONS` and visible in backend risk
 
 | Key | Why Hidden | Operator Action |
 |---|---|---|
-| `CoordinatorAuthToken` | Network auth secret — must not appear in browser storage, dev tools, or JS heap snapshots | Edit the config `.psd1` directly; use a secure credential management practice |
-| `WorkerAuthToken` | Network auth secret — same as above | Edit the config `.psd1` directly |
+| `CoordinatorAuthToken` | Network auth secret — must not appear in browser storage, dev tools, or JS heap snapshots | Use the backend-owned coordinator join/rotation workflow; ordinary Settings Preview/Save rejects this key |
+| `WorkerAuthToken` | Network auth secret — same as above | Use the backend-owned worker join/import workflow; ordinary Settings Preview/Save rejects this key |
 
 Auth tokens must not be added to the WebView builder without a design that prevents browser exposure.
 
@@ -134,7 +136,7 @@ The Settings page now includes a read-only **Raw-Key Action Plan**. It does not 
 | Schema drift | Unknown keys are blocked/review and require backend Preview Patch before any save. |
 | BDPGS OCR paths | `BdpgsOcrToolPath` and `BdpgsOcrTessdataPath` are Subtitle builder fields, and their saved backend path evidence is shown directly in the action plan. Backend-owned allowlisted path-picker badges may stage values only. |
 | Subtitle keyword lists | `SubSDHTitleKeywords` and `SubSupplementalKeywords` are covered by the Subtitle builder as staged list fields; backend subtitle classification remains authoritative. |
-| Network auth secrets | `CoordinatorAuthToken` and `WorkerAuthToken` remain intentionally excluded from builders; backend redaction and placeholder rejection remain mandatory. |
+| Network auth secrets | `CoordinatorAuthToken` and `WorkerAuthToken` remain intentionally excluded from builders and are rejected by ordinary Settings Preview/Save; only backend-owned network credential workflows may persist them. |
 | Remaining advanced raw | Valid but non-routine raw keys are grouped behind a backend-preview-before-save action. |
 | Mutation boundary | The action plan cannot stage JSON, save config, edit secrets, run OCR/FFmpeg, launch, publish/drain, rename, rewrite manifests/sidecars, or touch media. |
 

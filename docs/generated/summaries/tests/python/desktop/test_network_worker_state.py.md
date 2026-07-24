@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: network
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-02
+last_modified: 2026-07-22
 last_reviewed: 2026-06-04
-sha256: c3937ae46f001bd1690d434f57ad5a7e32a5082cf715a787f4e6bcf71a9c5844
+sha256: 827fca1c9b2ce24b95416019168ebcf844c87c101fc4e7d8e758696e4aa000ee
 ---
 # `tests/python/desktop/test_network_worker_state.py`
 

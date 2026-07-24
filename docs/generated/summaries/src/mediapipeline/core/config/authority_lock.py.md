@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-07-20
+last_modified: 2026-07-22
 last_reviewed: 2026-07-20
-sha256: 4cea2d52711a827ca5d0b30a7792bc7ab609538d8daf3b5abeed9b9c343aba2a
+sha256: 48392bb401ee28a88760cf0b3dc70e39b9a530cf94ff587f60c5b14005dba0b2
 ---
 # `src/mediapipeline/core/config/authority_lock.py`
 

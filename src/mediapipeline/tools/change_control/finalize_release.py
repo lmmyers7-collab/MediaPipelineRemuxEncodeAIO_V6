@@ -6,6 +6,7 @@ import json
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 from mediapipeline.tools.paths import find_repo_root
@@ -99,6 +100,31 @@ def _remove_created_dir(path: Path, *, existed_before: bool) -> None:
     if existed_before or not path.exists():
         return
     shutil.rmtree(path)
+
+
+def _publish_history_archive(
+    archive_dir: Path,
+    *,
+    version: str,
+    channel: str,
+    release_date: str,
+    packets: list[dict[str, Any]],
+) -> None:
+    """Build a new immutable history directory and publish it atomically."""
+
+    if archive_dir.exists() or archive_dir.is_symlink():
+        raise FileExistsError(f"release history already exists: {archive_dir}")
+    HISTORY_ROOT.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix=f".{version}.", dir=HISTORY_ROOT) as temporary_dir:
+        staged_dir = Path(temporary_dir)
+        for source in ARCHIVE_FILES:
+            if source.exists():
+                shutil.copy2(source, staged_dir / source.name)
+        (staged_dir / "RELEASE_SUMMARY.md").write_text(
+            _summary_markdown(version, channel, release_date, packets),
+            encoding="utf-8",
+        )
+        staged_dir.rename(archive_dir)
 
 
 def _dedupe_sorted(values: list[Any]) -> list[str]:
@@ -215,6 +241,8 @@ def _finalize(
     archive_dir = HISTORY_ROOT / version
     release_date = dt.date.today().isoformat()
     target_paths = [(source_path, release_dir / source_path.name) for source_path, _packet in packets]
+    if archive_dir.exists() or archive_dir.is_symlink():
+        raise SystemExit(f"Refusing to overwrite existing release history: {_relative(archive_dir)}")
     for _source_path, target_path in target_paths:
         if target_path.exists():
             raise SystemExit(f"Refusing to overwrite existing packet: {_relative(target_path)}")
@@ -222,7 +250,6 @@ def _finalize(
     packet_snapshots = _snapshot_files([source_path for source_path, _target_path in target_paths])
     metadata_snapshots = _snapshot_files(list(ARCHIVE_FILES))
     release_dir_existed = release_dir.exists()
-    archive_dir_existed = archive_dir.exists()
     moved_targets: list[Path] = []
 
     try:
@@ -255,13 +282,12 @@ def _finalize(
             "released",
         )
 
-        archive_dir.mkdir(parents=True, exist_ok=True)
-        for source in ARCHIVE_FILES:
-            if source.exists():
-                shutil.copy2(source, archive_dir / source.name)
-        (archive_dir / "RELEASE_SUMMARY.md").write_text(
-            _summary_markdown(version, channel, release_date, moved_packets),
-            encoding="utf-8",
+        _publish_history_archive(
+            archive_dir,
+            version=version,
+            channel=channel,
+            release_date=release_date,
+            packets=moved_packets,
         )
     except Exception:
         for target_path in moved_targets:
@@ -269,7 +295,6 @@ def _finalize(
                 target_path.unlink()
         _restore_file_snapshots(packet_snapshots)
         _restore_file_snapshots(metadata_snapshots)
-        _remove_created_dir(archive_dir, existed_before=archive_dir_existed)
         _remove_created_dir(release_dir, existed_before=release_dir_existed)
         raise
 

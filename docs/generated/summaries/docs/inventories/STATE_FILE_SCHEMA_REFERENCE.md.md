@@ -6,9 +6,9 @@ file_type: Markdown
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-20
+last_modified: 2026-07-24
 last_reviewed: 2026-06-02
-sha256: cca38e6bd3e63b7258452046fda960ce9680c4e708c8fac6dda755cecd449fba
+sha256: 0655e719def973963a0f4377c3638f507c997bc4162fffb3b48417d7986152c3
 ---
 # `docs/inventories/STATE_FILE_SCHEMA_REFERENCE.md`
 

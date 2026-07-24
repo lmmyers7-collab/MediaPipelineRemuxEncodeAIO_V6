@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-07-02
+last_modified: 2026-07-22
 last_reviewed: 2026-06-04
-sha256: 8cf8b420055193948ad55d061c35cbfa3a29384318697e50510ead95041fca7a
+sha256: ffd019aaf77ee7ae13eab2255e9b7debfdd8da51adab36fec46b2eac21529509
 ---
 # `src/mediapipeline/desktop/network/worker.py`
 

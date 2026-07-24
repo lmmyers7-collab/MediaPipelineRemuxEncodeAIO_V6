@@ -29,6 +29,7 @@ AUTH_NONCE_HEADER = "X-MediaPipeline-Nonce"
 AUTH_SIGNATURE_HEADER = "X-MediaPipeline-Signature"
 AUTH_VERSION_HEADER = "X-MediaPipeline-Auth-Version"
 AUTH_MAX_SKEW_SECONDS = 300
+AUTH_NONCE_CACHE_MAX_ENTRIES = 10_000
 LEGACY_BEARER_ENV_VAR = "MEDIAPIPELINE_ALLOW_LEGACY_COORDINATOR_BEARER"
 AUTH_FAILURE_AUTH_FAILED = "auth_failed"
 AUTH_FAILURE_CLOCK_SKEW = "clock_skew"
@@ -161,6 +162,7 @@ def validate_signed_request(
     nonce_cache: MutableMapping[str, float] | None = None,
     now: float | None = None,
     max_skew_seconds: int = AUTH_MAX_SKEW_SECONDS,
+    max_nonce_cache_entries: int = AUTH_NONCE_CACHE_MAX_ENTRIES,
 ) -> bool:
     return validate_signed_request_result(
         headers,
@@ -171,6 +173,7 @@ def validate_signed_request(
         nonce_cache=nonce_cache,
         now=now,
         max_skew_seconds=max_skew_seconds,
+        max_nonce_cache_entries=max_nonce_cache_entries,
     ).ok
 
 
@@ -184,6 +187,7 @@ def validate_signed_request_result(
     nonce_cache: MutableMapping[str, float] | None = None,
     now: float | None = None,
     max_skew_seconds: int = AUTH_MAX_SKEW_SECONDS,
+    max_nonce_cache_entries: int = AUTH_NONCE_CACHE_MAX_ENTRIES,
 ) -> AuthValidationResult:
     secret = str(expected_token or "").strip()
     if not secret:
@@ -210,7 +214,8 @@ def validate_signed_request_result(
             return AuthValidationResult(False, AUTH_FAILURE_AUTH_FAILED)
     except (TypeError, ValueError):
         return AuthValidationResult(False, AUTH_FAILURE_AUTH_FAILED)
-    if abs(current - float(timestamp)) > int(max_skew_seconds):
+    skew_seconds = max(0, int(max_skew_seconds))
+    if abs(current - float(timestamp)) > skew_seconds:
         return AuthValidationResult(False, AUTH_FAILURE_CLOCK_SKEW)
     if nonce_cache is not None:
         expired = [key for key, expires_at in nonce_cache.items() if float(expires_at) < current]
@@ -218,7 +223,12 @@ def validate_signed_request_result(
             nonce_cache.pop(key, None)
         if nonce in nonce_cache:
             return AuthValidationResult(False, AUTH_FAILURE_AUTH_FAILED)
-        nonce_cache[nonce] = current + int(max_skew_seconds)
+        if len(nonce_cache) >= max(0, int(max_nonce_cache_entries)):
+            return AuthValidationResult(False, AUTH_FAILURE_AUTH_FAILED)
+        # A timestamp at the positive skew boundary remains admissible for a
+        # further full skew interval. Retain the nonce through that entire
+        # interval so the same signed mutation cannot become replayable.
+        nonce_cache[nonce] = max(current, float(timestamp)) + skew_seconds
     return AuthValidationResult(True, "")
 
 

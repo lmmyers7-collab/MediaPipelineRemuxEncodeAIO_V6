@@ -63,7 +63,25 @@ When the dry-run is correct and setup preflight passes, dispatch the first CI ar
 .\ops\scripts\release\Invoke-PrivateBetaWorkflowDispatch.ps1 -Repository owner/repo -Channel beta -Version 2026.6.4+001 -ReleaseTag app-v2026.6.4+001
 ```
 
-The helper defaults `publish_release=false`. Use `-PublishRelease` only after artifact verification and approval.
+The helper defaults `publish_release=false`. Use `-PublishRelease` only after artifact verification and approval. The release tag is an identity, not a label: it must equal `app-v<version>` exactly, and publication binds it to the workflow's full `GITHUB_SHA`, title, channel/prerelease state, and asset set.
+
+Versioned assets are immutable by default. If a release or tag already points to a different commit, create a new version and tag; never reuse or repair the old identity in place. A same-commit rebuild is exceptional: an authorized environment administrator must temporarily set the protected `MEDIAPIPELINE_ALLOW_SAME_COMMIT_REBUILD=true` variable on the selected `beta-release` or `stable-release` environment, and the operator must dispatch with both `-PublishRelease` and `-AllowSameCommitRebuild`. Remove the protected approval immediately after that run. Without both approvals, an existing asset-name collision fails before upload.
+
+```powershell
+.\ops\scripts\release\Invoke-PrivateBetaWorkflowDispatch.ps1 -Repository owner/repo -Channel beta -Version 2026.6.4+001 -ReleaseTag app-v2026.6.4+001 -PublishRelease -AllowSameCommitRebuild
+```
+
+The workflow's publisher resolves the remote tag to a commit and checks existing release target, title, draft/prerelease state, and asset collisions before any create or upload command. `--clobber` is reachable only for the protected, explicitly requested, same-commit rebuild path.
+
+Release workflow runs are serialized by repository and channel. A versioned release is created and uploaded first; only after that succeeds does the workflow advance the channel pointer. Queued duplicate dispatches therefore cannot race release creation or channel metadata, and an unapproved duplicate version still fails on the immutable versioned-asset policy.
+
+The updater endpoint is channel-specific and does not use GitHub's `releases/latest` resolver. Beta clients read `https://github.com/<owner>/<repo>/releases/download/updater-beta/latest-beta.json`; stable clients use the corresponding `updater-stable` tag and `latest-stable.json`. Each dedicated pointer release is itself a prerelease and is explicitly excluded from latest-release selection. It contains only its channel JSON, while that JSON points to the signed installer on the immutable `app-v<version>` release.
+
+After versioned release publication, `Publish-TauriUpdaterChannelPointer.ps1` validates the JSON's version, installer-release URL, and signature; validates the existing pointer release's tag, title, draft/prerelease posture, mutability, and asset scope; advances only that channel asset; then downloads the exact configured public endpoint with cache-busting and compares its SHA-256 with the just-published file. A stale, unreachable, mismatched, immutable, or contaminated pointer fails release acceptance.
+
+The workflow separates unsigned validation from protected signing. `validate-windows` has read-only contents permission, no release environment, and no signing-secret references; it runs dependency installation, tests, the full release self-test, and sanitized resource staging. It archives only that nonsecret resource tree with a schema, source commit, and SHA-256 digest. `sign-windows` downloads the handoff with a pinned action and verifies the schema, commit, archive name, and SHA-256 before any step can receive a signing credential.
+
+Private updater-key and Windows certificate values are scoped only to `Build signed NSIS updater bundle with step-scoped credentials`. That step imports the certificate, generates the final config, runs the signed build, and removes both the certificate-store entry and temporary certificate files in `finally`; cleanup failure fails the job. Dependency installation, preflight, artifact verification, upload, and GitHub publication do not receive those private values. The updater public key is also available to the preflight because it is public verification material, but private-secret presence is deferred to the consuming build step.
 
 After dispatch, verify the completed workflow run and uploaded CI artifact before using or publishing the bundle:
 
@@ -76,10 +94,21 @@ If `-RunId` is omitted, the verifier reads the latest `workflow_dispatch` run fo
 Before dispatching the GitHub Actions release workflow, run:
 
 ```powershell
-.\ops\scripts\release\Test-PrivateBetaReleasePreflight.ps1 -Channel beta -Repository owner/repo -Version 2026.6.4+001 -ReleaseTag app-v2026.6.4+001
+$validationRoot = Join-Path $env:TEMP 'mediapipeline-release-validation'
+$resourceRoot = Join-Path $env:TEMP 'mediapipeline-tauri-resources'
+.\ops\scripts\release\build.ps1 -DestinationRoot $validationRoot -Force -Verify -IncludeTests
+.\ops\scripts\release\build.ps1 -DestinationRoot $resourceRoot -Force
+.\ops\scripts\release\Test-PrivateBetaReleasePreflight.ps1 -Channel beta -Repository owner/repo -Version 2026.6.4+001 -ReleaseTag app-v2026.6.4+001 -ResourceRoot $resourceRoot
 ```
 
-The preflight validates required signing/updater secret presence, workflow wiring, NSIS-only updater config generation, channel endpoint shape, signing digest, and timestamp configuration without printing secret values.
+The first build is the release-boundary self-test. The second produces the lean, sanitized, manifest-backed tree that Tauri embeds at the installer resource root. The preflight validates required backend/runtime files, manifest coverage, exclusion of mutable and personal state, signing/updater secret presence, workflow wiring, NSIS-only updater config generation, stable channel-pointer endpoint shape, signing digest, and timestamp configuration without printing secret values.
+
+When either destination already exists, `-Force` accepts only a partial or
+completed marker bound to that exact destination, repository root, version,
+and source revision. Copied, legacy, mismatched, or reparse-point paths must be
+moved aside manually. A valid prior tree is moved to a sibling `.replaced.*`
+quarantine; a failed rebuild restores it automatically, while a successful
+rebuild leaves it for operator inspection and manual cleanup.
 
 After CI builds the bundle, run the artifact verifier before publishing or handing out the installer:
 
@@ -87,7 +116,7 @@ After CI builds the bundle, run the artifact verifier before publishing or handi
 .\ops\scripts\release\Test-PrivateBetaReleaseArtifact.ps1 -Channel beta -BundleRoot apps\desktop\tauri\src-tauri\target\release\bundle -Repository owner/repo -ReleaseTag app-v2026.6.4+001 -Version 2026.6.4+001
 ```
 
-The verifier checks the NSIS installer, updater `.sig`, `latest-beta.json` or `latest-stable.json`, `SHA256SUMS.txt`, absence of MSI artifacts, and valid Authenticode signature.
+The verifier checks the NSIS installer, updater `.sig`, `latest-beta.json` or `latest-stable.json`, `SHA256SUMS.txt`, absence of MSI artifacts, and valid Authenticode signature. It also uses 7-Zip to inventory the exact installer payload and fails unless the release manifest, `pyproject.toml` runtime root marker, backend WebView, bundled Python, Python package, PowerShell engine, and required media tools are present while mutable runtime roots, personal configuration, and repository-development artifacts are absent.
 
 After dispatching with `-PublishRelease`, verify the published GitHub Release metadata before sharing installer links:
 
@@ -134,10 +163,23 @@ The guarded import must not move, delete, or copy source media, scratch payloads
 
 ## Updates
 
-- `beta` uses `latest-beta.json`.
-- `stable` uses `latest-stable.json`.
+- `beta` uses `https://github.com/<owner>/<repo>/releases/download/updater-beta/latest-beta.json`.
+- `stable` uses `https://github.com/<owner>/<repo>/releases/download/updater-stable/latest-stable.json`.
+- Pointer JSON advances only after its immutable versioned release is published and the public endpoint returns the exact new bytes.
 - Updater artifacts are signed by the Tauri updater private key in CI.
-- The app must check backend close-readiness before applying an update. Active pipeline, audit, queue scan, final-library promotion, or unsafe state blocks update application.
+- A productized app checks its configured signed channel once at startup. Development shells with updater artifacts disabled do not attempt an empty-endpoint check.
+- When a newer version is available, the native shell first asks whether to download it. Download and signature verification complete before a separate installation prompt; declining either prompt leaves the current app and backend running. Restart the app when ready to check again.
+- After installation is confirmed, the shell obtains fresh backend close-readiness and requests only safe-only backend shutdown. Active pipeline, audit, queue scan, final-library promotion, an armed schedule-stop watcher, malformed/unreachable readiness, or failed shutdown blocks installation. The updater never offers force-close.
+- After safe shutdown, the verified package is handed to the Tauri NSIS updater. If handoff returns an error, the current app records failure evidence and restarts to restore its backend. On the next launch, the shell records `install_applied` only when the running version exactly matches the requested target; an unchanged version records `install_recovery_required` and displays the manual-install/rollback recovery path.
+- Native lifecycle evidence is retained under `%LOCALAPPDATA%\com.mediapipeline.remuxencodeaio\UpdateState\NativeUpdater` using `tauri_native_updater_event.v1`. Keep this directory with a support bundle when investigating channel, signature, close-readiness, shutdown, installer handoff, or restart failures. Raw remote errors and secret-bearing endpoint text are not persisted.
+- Until signed updater acceptance is current for the release candidate, use the versioned GitHub Release's signed NSIS installer as the documented recovery/update fallback.
+
+Release acceptance for this flow requires a signed local update-server fixture or
+an isolated signed test release and a clean Windows account. Exercise no-update,
+available-update, operator decline, network failure, corrupt signature, unsafe
+and safe close-readiness, installer handoff/restart, and rollback. An acceptance
+case that starts active media work additionally requires representative media
+and source-hash/scratch-isolation evidence; purely idle/fixture cases do not.
 
 ## Rollback
 

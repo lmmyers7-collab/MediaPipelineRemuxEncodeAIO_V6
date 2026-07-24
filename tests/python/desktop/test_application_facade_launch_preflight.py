@@ -308,6 +308,19 @@ class ApplicationFacadeLaunchPreflightTests(unittest.TestCase):
                 {"target": "pipeline", "mode": "once"},
             )
             write_snapshot(runnable_count=1)
+            (snapshot_path.parent / "queue_scan_status.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": "desktop_queue_scan_status.v1",
+                        "scan_id": "scan-transient-inventory",
+                        "status": "running",
+                        "phase": "inventory",
+                        "mode": "inventory_only",
+                        "queue_preview_request_id": "request-transient-inventory",
+                    }
+                ),
+                encoding="utf-8",
+            )
             service.queue_source_scan_active_block_message = lambda _action: "Queue scan is running."  # type: ignore[method-assign]
             scanning = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "once"})
             service.queue_source_scan_active_block_message = lambda _action: ""  # type: ignore[method-assign]
@@ -330,7 +343,7 @@ class ApplicationFacadeLaunchPreflightTests(unittest.TestCase):
             (legacy_missing_accepted_rows, "blocked", "queue_snapshot_accepted_rows_missing"),
             (fresh_ready, "ready", "queue_plan_fingerprint=test-plan-1"),
             (tampered_accepted_name, "blocked", "queue_snapshot_accepted_fingerprint_mismatch"),
-            (scanning, "blocked", "queue_scan_running"),
+            (scanning, "ready", "queue_plan_fingerprint=test-plan-1"),
         )
         for payload, expected_status, expected_detail in expected:
             with self.subTest(expected_detail=expected_detail):

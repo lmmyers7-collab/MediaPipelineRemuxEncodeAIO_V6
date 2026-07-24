@@ -6,9 +6,9 @@ file_type: PowerShell
 pipeline_stage: publish
 token_priority: high
 owner_domain: tests
-last_modified: 2026-07-20
+last_modified: 2026-07-23
 last_reviewed: 2026-07-09
-sha256: af6c2aa0d29c4cf2025cb5fbd3b4440aad48242f17e9ff9f40de6b314e1e5e0b
+sha256: bbe89763237c109a16cb225b22a8859a583c0853cfbae8c043f26a9eb87fbba0
 ---
 # `ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1`
 

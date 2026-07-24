@@ -157,6 +157,89 @@ class LocalApiRenameTests(LocalApiHttpTestMixin, unittest.TestCase):
         self.assertEqual(history_status, 200)
         self.assertEqual(history["entries"], [])
 
+    def test_backend_generated_filter_cases_round_trip_through_strict_http(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            fixture_path = root / "bad_rename_cases.jsonl"
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+            movie_preview = facade.get_rename_clean_filename_preview(
+                {
+                    "filename": "Scary.Movie.2026.1080p.WEB-DL-GROUP.mkv",
+                    "mode": "movie",
+                    "expected_movie_title": "Scary Movie",
+                    "expected_year": "2026",
+                    "include_case_analysis": True,
+                    "movie_filter_options": {"video_source": True},
+                    "movie_filter_terms": {"release_groups": ["GROUP"]},
+                    "remove_terms": ["sample"],
+                }
+            )
+            tv_preview = facade.get_rename_clean_filename_preview(
+                {
+                    "filename": "S01E01-Pilot.1080p.WEB-DL-GROUP.mkv",
+                    "mode": "tv",
+                    "source_folder": "The Web S01 1080p WEB-DL-GROUP",
+                    "expected_show": "The Web",
+                    "expected_season": 1,
+                    "expected_episode": 1,
+                    "expected_episode_title": "Pilot",
+                    "include_case_analysis": True,
+                    "tv_filter_options": {"video_source": True},
+                    "tv_filter_terms": {"release_groups": ["GROUP"]},
+                    "tv_remove_terms": ["sample"],
+                }
+            )
+            movie_case = dict(movie_preview["case_payload"])
+            tv_case = dict(tv_preview["case_payload"])
+            server = LocalApiServer(facade, token="rename-token")
+            server._rename_bad_case_fixture_path_override = fixture_path  # type: ignore[attr-defined]
+            try:
+                server.start()
+                missing_confirmation = dict(movie_case)
+                missing_confirmation.pop("confirm_append")
+                missing_status, missing_payload = self._post_json(
+                    f"{server.url}/api/rename/filter-cases",
+                    missing_confirmation,
+                    token="rename-token",
+                )
+                unknown_status, unknown_payload = self._post_json(
+                    f"{server.url}/api/rename/filter-cases",
+                    {**movie_case, "fixture_path": "client-owned"},
+                    token="rename-token",
+                )
+                self.assertFalse(fixture_path.exists())
+                movie_status, movie_payload = self._post_json(
+                    f"{server.url}/api/rename/filter-cases",
+                    movie_case,
+                    token="rename-token",
+                )
+                tv_status, tv_payload = self._post_json(
+                    f"{server.url}/api/rename/filter-cases",
+                    tv_case,
+                    token="rename-token",
+                )
+            finally:
+                server.stop()
+
+            self.assertEqual(movie_status, 200)
+            self.assertTrue(movie_payload["ok"], movie_payload)
+            self.assertEqual(tv_status, 200)
+            self.assertTrue(tv_payload["ok"], tv_payload)
+            self.assertEqual(movie_payload["data"]["fixture_path"], str(fixture_path))
+            appended_cases = [json.loads(line) for line in fixture_path.read_text(encoding="utf-8").splitlines() if line]
+
+        self.assertTrue(movie_preview["ok"], movie_preview)
+        self.assertTrue(tv_preview["ok"], tv_preview)
+        self.assertEqual(missing_status, 200)
+        self.assertFalse(missing_payload["ok"])
+        self.assertIn("confirm_append", json.dumps(missing_payload, sort_keys=True))
+        self.assertEqual(unknown_status, 400)
+        self.assertIn("fixture_path", json.dumps(unknown_payload, sort_keys=True))
+        self.assertEqual([case["kind"] for case in appended_cases], ["movie_auto", "tv_auto"])
+        self.assertEqual(appended_cases[0]["movie_filter_terms"], movie_case["movie_filter_terms"])
+        self.assertEqual(appended_cases[1]["tv_filter_terms"], tv_case["tv_filter_terms"])
+
     def test_rename_workbench_route_uses_server_resolved_production_preview_and_policy_fingerprint(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

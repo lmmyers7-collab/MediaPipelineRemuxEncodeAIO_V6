@@ -220,19 +220,115 @@ def rerun_enrollment_candidates(
     resolved: ResolvedPaths,
     *,
     limit: int = 100,
+    scan_health: dict[str, Any] | None = None,
 ) -> list[tuple[Path, dict[str, Any]]]:
     root = rerun_enrollment_root(resolved)
-    if not root.exists():
+    root_available = root.exists()
+    health: dict[str, Any] = {
+        "schema_version": "rerun_enrollment_candidate_scan.v1",
+        "root": str(root),
+        "available": root_available,
+        "complete": True,
+        "scanned_count": 0,
+        "candidate_count": 0,
+        "metadata_error_count": 0,
+        "error_count": 0,
+        "fallback_count": 0,
+        "skipped_count": 0,
+        "recent_errors": [],
+    }
+
+    def publish_health(errors: list[dict[str, Any]]) -> None:
+        health["complete"] = not errors
+        health["error_count"] = len(errors)
+        health["recent_errors"] = errors[-10:]
+        if scan_health is not None:
+            scan_health.clear()
+            scan_health.update(health)
+
+    if not root_available:
+        publish_health([])
         return []
+
+    paths: list[Path] = []
+    errors: list[dict[str, Any]] = []
     try:
-        paths = sorted(root.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True)
-    except OSError:
-        return []
+        iterator = iter(root.glob("*.json"))
+        while True:
+            try:
+                paths.append(next(iterator))
+            except StopIteration:
+                break
+            except OSError as exc:
+                health["skipped_count"] += 1
+                errors.append(
+                    {
+                        "path": str(root),
+                        "reason_code": "ENROLLMENT_ENUMERATION_FAILED",
+                        "error_class": type(exc).__name__,
+                        "fallback_used": False,
+                    }
+                )
+                break
+    except OSError as exc:
+        health["skipped_count"] += 1
+        errors.append(
+            {
+                "path": str(root),
+                "reason_code": "ENROLLMENT_ENUMERATION_FAILED",
+                "error_class": type(exc).__name__,
+                "fallback_used": False,
+            }
+        )
+
+    health["scanned_count"] = len(paths)
+    sortable: list[tuple[float, str, Path]] = []
+    fallback: list[tuple[str, Path, dict[str, Any]]] = []
+    for path in paths:
+        try:
+            modified_at = path.stat().st_mtime
+        except OSError as exc:
+            payload = read_rerun_enrollment(path)
+            fallback_used = payload is not None
+            health["metadata_error_count"] += 1
+            health["fallback_count"] += int(fallback_used)
+            health["skipped_count"] += int(not fallback_used)
+            errors.append(
+                {
+                    "path": str(path),
+                    "reason_code": "ENROLLMENT_METADATA_UNAVAILABLE",
+                    "error_class": type(exc).__name__,
+                    "fallback_used": fallback_used,
+                }
+            )
+            if payload is not None:
+                fallback.append((normalized_rerun_path_text(path), path, payload))
+            continue
+        sortable.append((modified_at, normalized_rerun_path_text(path), path))
+
+    sortable.sort(key=lambda item: (-item[0], item[1]))
+    fallback.sort(key=lambda item: item[0])
+    ordered: list[tuple[Path, dict[str, Any] | None]] = [
+        (path, None) for _, _, path in sortable
+    ] + [(path, payload) for _, path, payload in fallback]
+
     result: list[tuple[Path, dict[str, Any]]] = []
-    for path in paths[: max(1, int(limit))]:
-        payload = read_rerun_enrollment(path)
+    for path, cached_payload in ordered[: max(1, int(limit))]:
+        payload = cached_payload if cached_payload is not None else read_rerun_enrollment(path)
         if payload is not None:
             result.append((path, payload))
+            continue
+        health["skipped_count"] += 1
+        errors.append(
+            {
+                "path": str(path),
+                "reason_code": "ENROLLMENT_READ_UNAVAILABLE",
+                "error_class": "EnrollmentReadUnavailable",
+                "fallback_used": False,
+            }
+        )
+    health["candidate_count"] = len(result)
+    publish_health(errors)
     return result
 
 

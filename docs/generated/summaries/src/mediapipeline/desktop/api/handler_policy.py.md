@@ -6,15 +6,15 @@ file_type: Python
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-07-15
+last_modified: 2026-07-22
 last_reviewed: 2026-06-04
-sha256: d8514e563b676eb39b45482f3dd37a0715c0c1ebf482be3baa02a7afb0239572
+sha256: 7ffbcd32125151e70335cc50890b08c3cbb2d3ff29c3ae71fa7d2ea08f340605
 ---
 # `src/mediapipeline/desktop/api/handler_policy.py`
 
 **Purpose:** Python implementation for handler policy; exposes bounded_error_text, cors_response_headers, not_found_payload.
 
-**Public symbols:** `bounded_error_text`, `cors_response_headers`, `not_found_payload`, `OperatorRouteError`, `options_response_headers`, `requires_strict_durable_command_journal`, `route_exception_journal_payload`, `route_exception_payload`, `route_exception_status`, `route_validation_error_payload`, `route_validation_journal_payload`, `should_record_command_payload`, `should_record_route_exception_journal`, `should_record_validation_failure_journal`, `unauthorized_payload`
+**Public symbols:** `bounded_error_text`, `cors_response_headers`, `not_found_payload`, `OperatorRouteError`, `options_response_headers`, `requires_strict_durable_command_journal`, `route_exception_journal_payload`, `route_exception_payload`, `route_exception_status`, `route_validation_error_payload`, `route_validation_journal_payload`, `should_record_command_payload`, `should_record_route_exception_journal`, `should_record_validation_failure_journal`, `strict_command_fingerprint`, `unauthorized_payload`, `validated_strict_command_id`
 **In-repo imports:** `.command_journal_policy`, `.contract_command`, `.http_helpers`
 **HTTP routes:** `/api/audit/start`, `/api/audit/stop`, `/api/backend/lifecycle/reconcile`, `/api/backend/shutdown`, `/api/completed/reconcile-manifest`, `/api/completed/repair-sidecar-metadata`, `/api/final-library-promotion/promote-queue`, `/api/network/coordinator/start`, `/api/network/coordinator/stop`, `/api/network/worker/start`, `/api/network/worker/stop`, `/api/pending-publish/reconcile-orphan-payloads`, `/api/pending-publish/repair-manifest`, `/api/pipeline/control`, `/api/pipeline/start`, `/api/rename/apply`, `/api/rename/undo`, `/api/rerun/continue`, `/api/rerun/control`, `/api/rerun/network/retry`, `/api/rerun/network/start`, `/api/rerun/promote`, `/api/rerun/start`
 

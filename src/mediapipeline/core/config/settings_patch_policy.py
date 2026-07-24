@@ -101,17 +101,14 @@ def settings_save_review_confirmation(patch: dict[str, Any]) -> dict[str, Any]:
             "entries": list(patch.get("review_entries", [])),
         }
     )
-    preview_id = settings_review_digest(
-        {
-            "schema_version": SETTINGS_SAVE_REVIEW_CONFIRMATION_SCHEMA_VERSION,
-            "request_digest": request_digest,
-            "base_config_digest": base_config_digest,
-            "authority_config_digest": authority_config_digest,
-            "candidate_config_digest": candidate_config_digest,
-            "review_entries_digest": review_entries_digest,
-            "changed_keys": changed_keys,
-            "removed_keys": removed_keys,
-        }
+    preview_id = _settings_save_review_preview_id(
+        request_digest=request_digest,
+        base_config_digest=base_config_digest,
+        authority_config_digest=authority_config_digest,
+        candidate_config_digest=candidate_config_digest,
+        review_entries_digest=review_entries_digest,
+        changed_keys=changed_keys,
+        removed_keys=removed_keys,
     )
     return {
         "schema_version": SETTINGS_SAVE_REVIEW_CONFIRMATION_SCHEMA_VERSION,
@@ -124,6 +121,30 @@ def settings_save_review_confirmation(patch: dict[str, Any]) -> dict[str, Any]:
         "changed_keys": changed_keys,
         "removed_keys": removed_keys,
     }
+
+
+def _settings_save_review_preview_id(
+    *,
+    request_digest: str,
+    base_config_digest: str,
+    authority_config_digest: str,
+    candidate_config_digest: str,
+    review_entries_digest: str,
+    changed_keys: list[str],
+    removed_keys: list[str],
+) -> str:
+    return settings_review_digest(
+        {
+            "schema_version": SETTINGS_SAVE_REVIEW_CONFIRMATION_SCHEMA_VERSION,
+            "request_digest": request_digest,
+            "base_config_digest": base_config_digest,
+            "authority_config_digest": authority_config_digest,
+            "candidate_config_digest": candidate_config_digest,
+            "review_entries_digest": review_entries_digest,
+            "changed_keys": changed_keys,
+            "removed_keys": removed_keys,
+        }
+    )
 
 
 def _submitted_confirmation_preview_id(value: Any) -> str:
@@ -163,6 +184,8 @@ def settings_save_review_confirmation_required_result(
 def settings_save_review_confirmation_error(
     request: dict[str, Any],
     patch: dict[str, Any],
+    *,
+    durable_replay_digest: str = "",
 ) -> CommandResult | None:
     expected = settings_save_review_confirmation(patch)
     submitted = request.get("review_confirmation")
@@ -172,6 +195,57 @@ def settings_save_review_confirmation_error(
             submitted=submitted,
             reason="Settings patch save requires review_confirmation from the backend preview that was reviewed.",
         )
+    if durable_replay_digest:
+        def replay_mismatch(reason: str) -> CommandResult:
+            return settings_save_review_confirmation_required_result(
+                expected=expected,
+                submitted=submitted,
+                reason=reason,
+            )
+
+        required_digest_fields = (
+            "preview_id",
+            "request_digest",
+            "base_config_digest",
+            "authority_config_digest",
+            "candidate_config_digest",
+            "review_entries_digest",
+        )
+        if submitted.get("schema_version") != SETTINGS_SAVE_REVIEW_CONFIRMATION_SCHEMA_VERSION:
+            return replay_mismatch("Settings durable retry requires the complete backend review_confirmation schema.")
+        if any(not str(submitted.get(key) or "") for key in required_digest_fields):
+            return replay_mismatch("Settings durable retry requires every backend review_confirmation digest field.")
+        if not isinstance(submitted.get("changed_keys"), list) or not isinstance(submitted.get("removed_keys"), list):
+            return replay_mismatch("Settings durable retry requires the reviewed changed_keys and removed_keys arrays.")
+        changed_keys = [str(item) for item in submitted["changed_keys"]]
+        removed_keys = [str(item) for item in submitted["removed_keys"]]
+        if changed_keys != sorted_patch_keys(changed_keys) or removed_keys != sorted_patch_keys(removed_keys):
+            return replay_mismatch("Settings durable retry review key arrays are not canonical.")
+        request_digest = settings_review_digest(patch.get("request_evidence", {}))
+        candidate_digest = settings_config_digest(patch.get("merged", {}))
+        if not hmac.compare_digest(str(submitted.get("request_digest") or ""), request_digest):
+            return replay_mismatch("Settings durable retry request_digest does not match the submitted patch.")
+        if not hmac.compare_digest(str(submitted.get("candidate_config_digest") or ""), durable_replay_digest):
+            return replay_mismatch("Settings durable retry candidate_config_digest is not the current authority.")
+        if not hmac.compare_digest(candidate_digest, durable_replay_digest):
+            return replay_mismatch("Settings durable retry patch does not reproduce the current authority.")
+        if not hmac.compare_digest(
+            str(submitted.get("authority_config_digest") or ""),
+            str(submitted.get("base_config_digest") or ""),
+        ):
+            return replay_mismatch("Settings durable retry authority/base review digests do not match.")
+        submitted_preview_id = _settings_save_review_preview_id(
+            request_digest=str(submitted["request_digest"]),
+            base_config_digest=str(submitted["base_config_digest"]),
+            authority_config_digest=str(submitted["authority_config_digest"]),
+            candidate_config_digest=str(submitted["candidate_config_digest"]),
+            review_entries_digest=str(submitted["review_entries_digest"]),
+            changed_keys=changed_keys,
+            removed_keys=removed_keys,
+        )
+        if not hmac.compare_digest(str(submitted.get("preview_id") or ""), submitted_preview_id):
+            return replay_mismatch("Settings durable retry preview_id does not bind the complete reviewed evidence.")
+        return None
     for key in (
         "schema_version",
         "preview_id",
@@ -482,17 +556,35 @@ def settings_save_authority_conflict_result(
 
 
 def settings_save_idempotent_replay_result(
-    result: object,
+    output_path: Path,
     patch: dict[str, Any],
     submitted_confirmation: dict[str, Any],
     warnings: list[str],
 ) -> CommandResult:
-    output_path = Path(result.output_path)
+    output_path = Path(output_path)
     changed_keys = sorted_patch_keys([str(item) for item in submitted_confirmation.get("changed_keys") or []])
     removed_keys = sorted_patch_keys([str(item) for item in submitted_confirmation.get("removed_keys") or []])
     durable_digest = str(submitted_confirmation.get("candidate_config_digest") or "")
     verification_digest = settings_reload_verification_digest(dict(patch["merged"]), changed_keys, removed_keys)
-    progress = settings_save_written_progress_payload(result, patch)
+    progress = settings_save_progress_payload(
+        step_statuses={
+            "preview": "complete",
+            "write_backup": "skipped",
+            "write_config": "skipped",
+            "reload": "skipped",
+            "validate": "complete",
+        },
+        step_details={
+            "preview": "Complete backend review evidence was revalidated for the durable retry.",
+            "write_backup": "No backup was needed because no artifact was rewritten.",
+            "write_config": "The reviewed candidate already equals the locked JSON authority.",
+            "reload": "No reload was needed because no artifact changed.",
+            "validate": "Current authority digest matches the reviewed durable candidate.",
+        },
+        status="complete",
+        detail="Settings save was already durable; retry completed without writing artifacts.",
+        source=SETTINGS_SAVE_PATCH_COMMAND,
+    )
     verification = {
         "schema_version": SETTINGS_SAVE_VERIFICATION_SCHEMA_VERSION,
         "config_digest_before": str(submitted_confirmation.get("base_config_digest") or ""),
@@ -514,7 +606,7 @@ def settings_save_idempotent_replay_result(
         data={
             "schema_version": "desktop_settings_save_replay.v1",
             "config_path": str(output_path),
-            "backup_path": str(getattr(result, "backup_path", None) or ""),
+            "backup_path": "",
             "changed_keys": changed_keys,
             "removed_keys": removed_keys,
             "key_count": len(patch["merged"]),
@@ -530,7 +622,7 @@ def settings_save_idempotent_replay_result(
             "risk_summary": patch["risk_summary"],
             "library_profile_state": patch.get("library_profile_state", []),
             "preserved_unknown_keys": sorted_patch_keys(patch.get("preserved_unknown_keys", [])),
-            "writes_config": True,
+            "writes_config": False,
             "idempotent_replay": True,
             "settings_progress": progress,
             "progress_bars": progress["progress_bars"],

@@ -580,6 +580,10 @@ def _runner_source() -> str:
             requireIncludes("run-monitor-routes", ["Planned route", "Planned reason", "Executed route", "Executed reason", "Awaiting backend evidence", "Final route", "Final reason"]);
             requireVisibleIncludes("run-monitor-route-summary", ["Planned Remux", "Executed Awaiting backend evidence", "Final Unknown"]);
             requireVisibleNotIncludes("run-monitor-detail", ["Advanced route evidence", "Source: route_ledger"]);
+            lifecycle.renderTopbarActivity({});
+            if (byId("activity").querySelector(".activity-route-badge")) {
+              throw new Error("Route-undecided current work exposed an inferred top-bar route badge.");
+            }
 
             monitor.render({
               schema_version: "desktop_run_monitor.v1",
@@ -611,6 +615,7 @@ def _runner_source() -> str:
             monitor.render(projection({ runState: "failed", freshness: "terminal", items: [preRouteFailure], ended: true }));
             requireIncludes("run-monitor-routes", ["Final route", "Unknown", "Final reason", "Source probe failed before route selection.", "SOURCE_PROBE_FAILED", "failure_artifact"]);
 
+            const routeBadgeBackgrounds = {};
             for (const [routeValue, routeReason, stageId, stageLabel] of [["remux", "Runtime remux proof", "mux", "Mux"], ["hardware_encode", "NVENC selected by backend", "transcode", "Encode or remux"], ["cpu_encode_fallback", "Backend confirmed CPU fallback", "transcode", "Encode or remux"]]) {
               const processing = activeItem("job-a", 1, queuedA.display_name, stageId, {
                 parent: "Series Alpha\\\\Season 01",
@@ -620,6 +625,19 @@ def _runner_source() -> str:
               monitor.render(projection({ items: [processing, queuedB], workers: [worker("worker-1", "job-a", stageId, routeValue, determinate(25, 100))] }));
               requireIncludes("run-monitor-routes", ["Planned route", "Executed route", routeValue, routeReason]);
               requireIncludes("run-monitor-stage-list", [stageLabel, "Active"]);
+              lifecycle.renderTopbarActivity({});
+              const routeBadge = byId("activity").querySelector(".activity-route-badge");
+              const expectedCategory = routeValue === "remux" ? "remux" : "encode";
+              if (!routeBadge || routeBadge.dataset.route !== expectedCategory || routeBadge.textContent.trim() !== expectedCategory.toUpperCase()) {
+                throw new Error("Top-bar activity route badge did not reflect backend-confirmed route " + routeValue + ".");
+              }
+              routeBadgeBackgrounds[expectedCategory] = window.getComputedStyle(routeBadge).backgroundColor;
+              if (!routeBadgeBackgrounds[expectedCategory] || routeBadgeBackgrounds[expectedCategory] === "rgba(0, 0, 0, 0)") {
+                throw new Error("Top-bar activity route badge did not load its semantic background color.");
+              }
+            }
+            if (routeBadgeBackgrounds.remux === routeBadgeBackgrounds.encode) {
+              throw new Error("Remux and encode top-bar activity badges did not load distinct semantic colors.");
             }
 
             const audioTracks = [
@@ -675,6 +693,13 @@ def _runner_source() -> str:
             });
             monitor.render(multiActivePayload);
             requireIncludes("run-monitor-workers", ["Worker worker-multi-a", "Worker worker-multi-b", "Series Alpha", "Series Beta"]);
+            lifecycle.renderTopbarActivity({});
+            const mixedRouteBadges = Array.from(byId("activity").querySelectorAll(".activity-route-badge"))
+              .map((badge) => badge.dataset.route)
+              .sort();
+            if (JSON.stringify(mixedRouteBadges) !== JSON.stringify(["encode", "remux"])) {
+              throw new Error("Mixed active routes did not expose both top-bar route badges: " + JSON.stringify(mixedRouteBadges));
+            }
             const activeFileButtons = Array.from(byId("run-monitor-items").querySelectorAll(".run-monitor-item-button"))
               .filter((button) => button.getAttribute("aria-label")?.includes("Current backend worker item"));
             if (activeFileButtons.length !== 2) throw new Error("Two distinct active jobs did not expose two truthful active-file labels.");

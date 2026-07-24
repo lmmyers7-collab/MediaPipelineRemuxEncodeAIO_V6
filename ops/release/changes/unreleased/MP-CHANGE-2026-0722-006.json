@@ -1,0 +1,58 @@
+{
+  "id": "MP-CHANGE-2026-0722-006",
+  "title": "Fail closed on pending publish scan health",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-22",
+  "date_completed": "2026-07-22",
+  "summary": "Fail closed when pending-publish backlog authority cannot be enumerated or parsed.",
+  "reason": "Remediate P1 AUDIT-FIND-W03-009. A bundled-PowerShell reproduction with a malformed manifest returned Blocked=false, ManifestCount=1, and no read-health evidence.",
+  "affected_areas": [
+    "PowerShell engine",
+    "pending publish",
+    "queue admission",
+    "runtime health",
+    "validation"
+  ],
+  "behavior_before": "Pending-root enumeration and manifest JSON failures are logged or skipped, after which queue admission sees a healthy zero-like backlog and continues.",
+  "behavior_after": "Backpressure will expose stable read-health/error evidence and block new queue work whenever enumeration or any discovered manifest cannot be trusted, while retaining normal threshold behavior for healthy scans.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/feature-cards/release-validation.md",
+    "docs/generated/summaries/ops/pipeline/engine/queue/pipeline_engine.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-PendingPublishBackpressureReadHealthChecks.ps1.md",
+    "ops/pipeline/engine/queue/pipeline_engine.ps1",
+    "ops/pipeline/tests/Unit/Invoke-PendingPublishBackpressureReadHealthChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0722-006.json"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-PendingPublishBackpressureReadHealthChecks.ps1: injected enumeration failure, corrupt manifest, read-health/error/count evidence, event/progress propagation, and healthy-empty state."
+  ],
+  "manual_validation": [
+    "Focused read-health check - expected red before implementation: enumeration failure did not block",
+    "Focused read-health check after implementation - passed",
+    "Initial combined pending fixture invocation timed out after 120 seconds only after queue and safety checks passed; remaining fixtures were rerun individually and passed",
+    "Invoke-PendingPublishOwnershipChecks.ps1 - passed",
+    "Invoke-PendingPublishSafetyChecks.ps1 - passed",
+    "Invoke-PendingPublishTransactionFaultInjectionChecks.ps1 - passed: full deterministic park/drain fault matrix",
+    "Invoke-PipelineQueueEngineChecks.ps1 - passed",
+    "PowerShell source/test summaries refreshed; project index, dependency graph, feature map, and release-validation card regenerated and current",
+    "Pre-fix malformed-manifest reproduction - defect confirmed: Blocked=false with no read-health field",
+    "Project index, feature map, lifecycle map, architecture guardrails, and naming lint checks - passed",
+    "Required queue/process Python tests - passed: 68 tests, 17 subtests",
+    "Tooling guardrail tests - passed: 33 tests, 57 subtests",
+    "ai_guardrail postflight - only separate finding-backed failures AUDIT-FIND-COV-001, AUDIT-FIND-DEP-001, and AUDIT-FIND-W12-ACTIVE-001; batch-local checks passed with 0 god-file errors",
+    "git diff --check - passed (line-ending warnings only)",
+    "validate_changes --require-worktree-coverage - passed before completion: 1121 packets valid"
+  ],
+  "rollback_plan": "Revert the backpressure read-health fields, fail-closed reason, event evidence, and focused tests; refresh generated summaries; retain this packet as incomplete evidence if rollback occurs.",
+  "related_changes": [
+    "AUDIT-FIND-W03-009"
+  ],
+  "notes": "Finding disposition before remediation: confirmed. The immutable audit evidence remains unchanged. Invariant: unknown pending-publish authority must never be equivalent to an empty backlog. This batch changes queue admission and evidence only; it does not drain, move, publish, delete, or inspect real media. Required validation: injected enumeration failure, malformed manifest, healthy empty state, queue-round blocking, structured status/event propagation, canonical pending-publish fixture tests, and strict packet coverage. Representative real media is not required because deferred publish/drain behavior is unchanged. PowerShell impact: yes; active queue engine backpressure only.\nPostflight reports a non-blocking size warning for the existing queue-engine module; the remediation adds only bounded backpressure read-health and event fields and introduces no new mutation path."
+}

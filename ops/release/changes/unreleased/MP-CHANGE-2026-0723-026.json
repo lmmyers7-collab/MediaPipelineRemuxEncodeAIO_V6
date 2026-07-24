@@ -1,0 +1,57 @@
+{
+  "id": "MP-CHANGE-2026-0723-026",
+  "title": "Harden repository audit achieved-completion evidence",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": "2026-07-23",
+  "summary": "Make strict repository-audit completion distinguish achieved, blocked, and other incomplete rows in CLI evidence, and exhaustively lock category/status, semantic-obligation, and risky-registry behavior with isolated end-to-end tests.",
+  "reason": "Remediate P1 AUDIT-FIND-W11-001, AUDIT-FIND-W11-002, and AUDIT-FIND-W11-003, while independently revalidating resolved-in-audit AUDIT-FIND-W11-004. The audit tool already contained most semantic enforcement, but strict CLI output did not report blocked-row counts and the required exhaustive compatibility, multi-flag, registry-glob, and CLI round-trip regressions were absent.",
+  "affected_areas": [
+    "generated-context",
+    "tests",
+    "tooling"
+  ],
+  "behavior_before": "Strict --check --require-complete rejected blocked and pending rows individually but did not emit aggregate achieved/blocked/incomplete counts. Tests sampled only one incompatible status, one blocked category, and a few registry paths, and did not drive the complete write/merge/check CLI sequence against an isolated repository.",
+  "behavior_after": "Strict CLI checks always report achieved, blocked, and other-incomplete counts before their result. A hidden --root seam routes every CLI action through an explicitly selected repository for safe isolated testing. The suite checks blocked completion for every category, the full category/achieved-status cross-product, generated/archive/runtime plus binary multi-flag obligations, every high/critical registry glob case-insensitively, mixed achieved/pending/blocked CLI output, and actual isolated --write/--merge-reviews/--merge-findings/--merge-errors/--check --require-complete transitions.",
+  "files_touched": [
+    "docs/change_control/CHANGE_INDEX.md",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-026.json.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/repository_audit_ledger.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_repository_audit_ledger.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-026.json",
+    "src/mediapipeline/tools/dev/repository_audit_ledger.py",
+    "tests/python/tooling/test_repository_audit_ledger.py"
+  ],
+  "tests_added": [
+    "Blocked rows fail achieved completion for every allowed file category.",
+    "Every allowed category is checked against every achieved status, including metadata_verified compatibility.",
+    "Every high/critical risky-file registry glob maps to high risk case-insensitively.",
+    "Generated-binary, archived-binary, and runtime-binary rows must verify every distinct obligation.",
+    "Strict CLI output reports achieved, blocked, and other incomplete counts for a mixed isolated matrix.",
+    "The isolated Git-repository round trip drives CLI write, review/finding/error merge, successful strict check, and blocked strict failure."
+  ],
+  "manual_validation": [
+    "Adjacent audit-check plus repository-audit ledger suites passed: 46 tests and 135 subtests.",
+    "Canonical risky-file registry validation, targeted git diff --check, and strict worktree coverage passed with 1,168 valid packets.",
+    "Focused repository-audit ledger suite passed: 37 tests and 135 subtests.",
+    "Full packaged release self-test was run with required tests. Environment, Tauri prerequisites, package policy, tool integration, and end-to-end smoke passed; the gate remained red only on accumulated unrelated generated-inventory/summary drift, missing packaged active-doc targets, the known package cycle, two unrelated Ruff B023 findings, and the current WebView static-assets assertion.",
+    "Packet-local suites, generated checks, and strict worktree coverage passed; full release gate completed with documented unrelated baseline failures.",
+    "Targeted Ruff validation passed for implementation and tests.",
+    "Targeted summary refresh wrote three current summaries; project-index/dependency-graph and feature-map check modes passed."
+  ],
+  "rollback_plan": "Revert the strict CLI count reporting, the hidden isolated-root test seam, the focused tests, generated summaries/maps, and this packet together. The default repository root and all audit evidence formats remain unchanged.",
+  "related_changes": [
+    "AUDIT-FIND-W11-001",
+    "AUDIT-FIND-W11-002",
+    "AUDIT-FIND-W11-003",
+    "AUDIT-FIND-W11-004"
+  ],
+  "notes": "Tooling-only audit-integrity change; no media, runtime, source-library, or immutable audit-ledger artifacts are touched. The first focused run produced four subtest failures because the new line_reviewed_with_findings fixtures omitted their independently required finding IDs; the fixture was corrected without weakening production validation, after which all focused and adjacent tests passed. AUDIT-FIND-W11-004 was already marked resolved-in-audit; this packet adds exhaustive current-registry verification without modifying the registry. The first release-build wrapper attempt was rejected before execution because its verified temporary destination had been pre-created; the corrected build ran, but its ten-minute outer wrapper timed out while the owned package verifier continued. The verifier completed, and the package test was rerun directly with a longer bound to capture its exact unrelated failure set. The exact temporary package tree was then removed."
+}

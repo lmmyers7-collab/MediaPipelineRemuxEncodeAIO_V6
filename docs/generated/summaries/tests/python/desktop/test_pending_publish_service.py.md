@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: publish
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-26
+last_modified: 2026-07-23
 last_reviewed: 2026-06-04
-sha256: cc7a370e327b915666dc876d11668eaa9ba2761eddd73227b9fe7f56dad72930
+sha256: 82748bec86424e5013abde49ef6c721b0170e4467aa9567c8039b4e1ba3d87e5
 ---
 # `tests/python/desktop/test_pending_publish_service.py`
 
