@@ -1,0 +1,47 @@
+{
+  "id": "MP-CHANGE-2026-0724-001",
+  "title": "Close audit delivery coverage and exclude local attachments",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "low",
+  "date_started": "2026-07-24",
+  "date_completed": "2026-07-24",
+  "summary": "Close strict branch-diff coverage for accumulated audit-remediation paths and exclude Codex-local attachment artifacts from Git delivery.",
+  "reason": "The cumulative remediation branch is otherwise packet-covered, but fourteen previously committed paths lack explicit packet disposition and nine local Codex attachment images must not enter the pull request.",
+  "affected_areas": [
+    "audit-remediation delivery",
+    "change-control coverage",
+    "repository hygiene"
+  ],
+  "behavior_before": "Strict branch-diff validation reports uncovered remediation paths and the cumulative branch carries local Codex attachment images inherited from earlier history.",
+  "behavior_after": "All retained remediation paths have explicit packet coverage, and the attachment directory is removed and ignored for future local sessions.",
+  "files_touched": [
+    ".codex-remote-attachments",
+    ".gitignore",
+    "ops/pipeline/engine/publish/publish_result.ps1",
+    "ops/pipeline/tests/Unit/Invoke-AuditCommandSupportChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0724-001.json",
+    "ops/scripts/dev/check-webview-lint-budget.mjs",
+    "ops/scripts/smoke/Test-WebViewBrowserLifecycleReconciliationSmoke.ps1",
+    "src/mediapipeline/tools/dev/browser_smoke_inventory.py",
+    "src/mediapipeline/tools/dev/generate_webview_inventory_docs.py",
+    "tests/python/desktop/test_evidence_freshness_adversarial.py",
+    "tests/python/desktop/test_lifecycle_reconciliation.py",
+    "tests/python/desktop/test_lifecycle_reconciliation_api.py",
+    "tests/python/desktop/test_lifecycle_recovery_replay.py",
+    "tests/python/desktop/test_state_json_boundary.py",
+    "tests/webview/test_webview_browser_lifecycle_reconciliation_smoke.py",
+    "tests/webview/test_webview_close_readiness_contract_smoke.py",
+    "tests/webview/test_webview_recovery_support_smoke.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "secret-pattern and large-file preflight - passed; attachments excluded",
+    "validate_changes --require-diff-coverage origin/main - 1200 packets valid",
+    "validate_changes --require-staged-coverage - 1200 packets valid"
+  ],
+  "rollback_plan": "Revert this packet and the .gitignore entry only if Codex-local attachments intentionally become repository assets; the removed images remain recoverable from pre-delivery branch history.",
+  "related_changes": [],
+  "notes": "Delivery-only packet. It does not alter media behavior. Retained paths were already part of the accumulated remediation work and are listed here to make branch-diff ownership explicit."
+}

@@ -8,7 +8,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-07-24
 last_reviewed: 2026-06-03
-sha256: d8cb676a11abc8bc9030980d9f79f4bb293dce546ea7e12ac1984b6a7a3b9b88
+sha256: 64570ef5cc7f937d60164604ab9bf83f55b2ef0333a1aae3e7db3cf4f3d10289
 ---
 # `docs/change_control/CHANGE_INDEX.md`
 
