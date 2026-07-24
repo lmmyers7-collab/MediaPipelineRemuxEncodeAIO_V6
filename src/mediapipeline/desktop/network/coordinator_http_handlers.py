@@ -150,11 +150,8 @@ class CoordinatorHttpHandlersMixin:
                     response = network_lease.response
                     job_id = response.job_id
                     source_path = response.source_path
-                    library_id = response.library_id
-                    relative_path = response.relative_path
                     priority = response.priority
                     size_gb = response.estimated_size_gb
-                    encode_config = response.encode_config
                     ok = True
                 else:
                     record, encode_config = _scan_for_next_record_for_claim(

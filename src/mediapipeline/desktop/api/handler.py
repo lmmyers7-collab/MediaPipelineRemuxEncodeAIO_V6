@@ -42,7 +42,7 @@ def build_local_api_handler_class(owner: Any) -> type[http.server.BaseHTTPReques
                 return
             self.send_response(204)
             for name, value in options_response_headers(self._cors_response_origin()):
-                self.send_header(name, value)
+                self.send_header(name, value.replace("\n", "").replace("\r", ""))
             self.end_headers()
 
         def do_GET(self) -> None:
@@ -308,7 +308,7 @@ def build_local_api_handler_class(owner: Any) -> type[http.server.BaseHTTPReques
             resolver = getattr(owner, "_cors_response_origin", None)
             if callable(resolver):
                 return str(resolver(self.headers))
-            return str(self.headers.get("Origin") or "http://127.0.0.1")
+            return "http://127.0.0.1"
 
         def _send_json(self, payload: dict[str, Any], status: int = 200, journal_request: dict[str, Any] | None = None) -> None:
             try:

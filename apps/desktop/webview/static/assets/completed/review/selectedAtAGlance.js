@@ -280,7 +280,7 @@
 
     function completedSelectedSizeDeltaPercent(item) {
       if (typeof item?.size_delta_percent === "number") return Number(item.size_delta_percent);
-      const parsed = Number.parseFloat(String(item?.size_delta_label || "").replace("%", ""));
+      const parsed = Number.parseFloat(String(item?.size_delta_label || "").replaceAll("%", ""));
       return Number.isFinite(parsed) ? parsed : null;
     }
 

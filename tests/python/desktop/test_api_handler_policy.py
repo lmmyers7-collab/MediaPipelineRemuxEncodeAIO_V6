@@ -62,6 +62,15 @@ class LocalApiHandlerPolicyTests(unittest.TestCase):
         self.assertEqual(headers["Access-Control-Allow-Origin"], "tauri://localhost")
         self.assertEqual(headers["Vary"], "Origin")
 
+    def test_cors_header_builders_remove_response_splitting_characters_at_sink(self) -> None:
+        injected = "http://localhost:8765\r\nX-Injected: true"
+
+        for headers in (options_response_headers(injected), cors_response_headers(injected)):
+            origin = dict(headers)["Access-Control-Allow-Origin"]
+            self.assertNotIn("\r", origin)
+            self.assertNotIn("\n", origin)
+            self.assertEqual(origin, "http://127.0.0.1")
+
     def test_cors_origin_is_returned_from_server_authored_allowlist(self) -> None:
         self.assertEqual(
             canonical_local_api_origin(

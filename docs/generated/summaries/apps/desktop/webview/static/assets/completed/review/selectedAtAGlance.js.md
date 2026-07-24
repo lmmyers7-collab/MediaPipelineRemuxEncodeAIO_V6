@@ -6,9 +6,9 @@ file_type: JavaScript
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-11
+last_modified: 2026-07-24
 last_reviewed: 2026-07-11
-sha256: 466198dff060bfceb72ced74c73c1184dd811ea27d64a575d3ed469e191b6e85
+sha256: cdb2d09710e28195a5c570b6da7c51010197cbcdde8ca640756573ba9f6243e7
 ---
 # `apps/desktop/webview/static/assets/completed/review/selectedAtAGlance.js`
 

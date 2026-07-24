@@ -73,7 +73,6 @@ class InFlightRegistryPersistenceMixin:
                     fh.flush()
                     os.fsync(fh.fileno())
                 os.replace(tmp_path, path)
-                tmp_path = None
         except Exception:
             if tmp_path is not None:
                 try:

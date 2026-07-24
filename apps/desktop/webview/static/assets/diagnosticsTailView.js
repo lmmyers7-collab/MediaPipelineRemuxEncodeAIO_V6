@@ -324,6 +324,23 @@
     }
   }
 
+  function currentDiagnosticsTailFeedbackButton(sourceButton) {
+    if (!sourceButton || sourceButton.isConnected !== false || typeof document === "undefined") {
+      return sourceButton;
+    }
+    if (sourceButton.id) {
+      const currentById = document.getElementById(sourceButton.id);
+      if (currentById) return currentById;
+    }
+    const identity = Object.entries(sourceButton.dataset || {}).filter(([key, value]) => (
+      Boolean(value) && (key === "readDiagnosticsTail" || key.endsWith("Action") || key.endsWith("Target"))
+    ));
+    if (!identity.length) return sourceButton;
+    return Array.from(document.querySelectorAll("button")).find((candidate) => (
+      identity.every(([key, value]) => candidate.dataset?.[key] === value)
+    )) || sourceButton;
+  }
+
   async function requestDiagnosticsTail(target = "", sourceButton = null) {
     if (diagnosticsTailInFlight) {
       if (sourceButton && typeof setInlineActionStatus === "function") {
@@ -365,7 +382,7 @@
       const payload = await window.mediaPipelineApi.apiGet(`/api/diagnostics/tail?target=${encodeURIComponent(normalized)}&max_bytes=${encodeURIComponent(maxBytes)}`, { timeoutMs: 15000 });
       renderDiagnosticsTail(payload);
       if (sourceButton && typeof setInlineActionStatus === "function") {
-        setInlineActionStatus(sourceButton, payload?.truncated ? "Tail loaded; truncated." : "Tail loaded.", payload?.truncated ? "warning" : "ready");
+        setInlineActionStatus(currentDiagnosticsTailFeedbackButton(sourceButton), payload?.truncated ? "Tail loaded; truncated." : "Tail loaded.", payload?.truncated ? "warning" : "ready");
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -375,14 +392,14 @@
         setDiagnosticsTailStatus("Read failed");
       }
       if (sourceButton && typeof setInlineActionStatus === "function") {
-        setInlineActionStatus(sourceButton, `Read failed: ${message}`, "blocked");
+        setInlineActionStatus(currentDiagnosticsTailFeedbackButton(sourceButton), `Read failed: ${message}`, "blocked");
       }
       setText("diagnostics-tail-detail", `Diagnostics tail read failed: ${message}`);
       setText("diagnostics-tail-evidence", "Diagnostics tail request failed before backend evidence could be read. Check Local API status and Diagnostics State Artifact Summary.");
       setText("diagnostics-tail-text", "No text was returned.");
     } finally {
       if (sourceButton && typeof setActionBusy === "function") {
-        setActionBusy(sourceButton, false);
+        setActionBusy(currentDiagnosticsTailFeedbackButton(sourceButton), false);
       }
       setDiagnosticsTailBusy(false);
     }

@@ -15,9 +15,11 @@ import shutil
 import subprocess
 from collections import Counter
 from datetime import UTC, datetime
+from fractions import Fraction
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, Callable, Mapping
 
+from mediapipeline.contracts.source_media_streams import bit_depth as source_bit_depth
 from mediapipeline.tools.dev import tdarr_matrix_audit
 from mediapipeline.tools.dev import materialize_tdarr_test_library as materializer
 from mediapipeline.tools.paths import find_repo_root
@@ -33,6 +35,7 @@ REPORT_MARKDOWN_NAME = "policy_proof_report.md"
 REPORT_CSV_NAME = "policy_proof_report.csv"
 DEFAULT_CATALOG = REPO_ROOT / "tests" / "fixtures" / "media_policy" / "policy_proof_catalog.json"
 DEFAULT_FIXTURE_ROOT = Path("E:/Videos/TdarrMatrix/PolicyProofPack")
+DEFAULT_FFPROBE = REPO_ROOT / "ops" / "pipeline" / "tools" / "ffmpeg" / "bin" / "ffprobe.exe"
 
 ProbeSource = Callable[[Path], dict[str, Any]]
 
@@ -138,6 +141,38 @@ def load_source_mapping(fixture_root: Path, *, allowed_root: Path = DEFAULT_FIXT
     return resolved
 
 
+def _is_attached_picture(stream: Mapping[str, Any]) -> bool:
+    disposition = stream.get("disposition")
+    if not isinstance(disposition, Mapping):
+        return False
+    return str(disposition.get("attached_pic") or "").casefold() in {"1", "true"}
+
+
+def _primary_video_streams(streams: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        stream
+        for stream in streams
+        if stream.get("codec_type") == "video" and not _is_attached_picture(stream)
+    ]
+
+
+def _has_hdr10plus_side_data(row: Mapping[str, Any]) -> bool:
+    entries = row.get("side_data_list")
+    if not isinstance(entries, list):
+        return False
+    side_data = " ".join(
+        str(item.get("side_data_type") or "") for item in entries if isinstance(item, Mapping)
+    ).casefold()
+    return "hdr10+" in side_data or "smpte2094-40" in side_data
+
+
+def _stream_index_key(value: object) -> str:
+    text = str(value).strip() if value is not None else ""
+    if not text.isdigit():
+        return ""
+    return str(int(text))
+
+
 def facts_from_ffprobe_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
     """Normalize the stream dimensions that the policy catalog is allowed to assert."""
     streams = [stream for stream in payload.get("streams", []) if isinstance(stream, dict)]
@@ -150,24 +185,43 @@ def facts_from_ffprobe_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
             if stream.get("codec_type") == "audio"
         }
     )
-    video_streams = [stream for stream in streams if stream.get("codec_type") == "video"]
+    video_streams = _primary_video_streams(streams)
     transfers = {str(stream.get("color_transfer") or "").casefold() for stream in video_streams}
-    side_data_entries = [
+    stream_side_data_entries = [
         item
         for stream in video_streams
         for item in (stream.get("side_data_list") or [])
         if isinstance(item, dict)
     ]
-    side_data = " ".join(str(item.get("side_data_type") or "") for item in side_data_entries).casefold()
+    stream_hdr10plus = any(
+        str(stream.get("color_transfer") or "").casefold() == "smpte2084"
+        and _has_hdr10plus_side_data(stream)
+        for stream in video_streams
+    )
+    pq_stream_indexes = {
+        index
+        for stream in video_streams
+        if (index := _stream_index_key(stream.get("index")))
+        and str(stream.get("color_transfer") or "").casefold() == "smpte2084"
+    }
+    frame_hdr10plus = any(
+        _has_hdr10plus_side_data(frame)
+        and (
+            (len(video_streams) == 1 and "smpte2084" in transfers)
+            or _stream_index_key(frame.get("stream_index")) in pq_stream_indexes
+        )
+        for frame in payload.get("frames", [])
+        if isinstance(frame, dict)
+    )
     hdr = ""
-    if "hdr10+" in side_data or "smpte2094-40" in side_data:
+    if stream_hdr10plus or frame_hdr10plus:
         hdr = "hdr10plus"
     elif "arib-std-b67" in transfers:
         hdr = "hlg"
     elif "smpte2084" in transfers:
         hdr = "hdr10"
     dovi_profile = ""
-    for entry in side_data_entries:
+    for entry in stream_side_data_entries:
         if "dovi" not in str(entry.get("side_data_type") or "").casefold() and "dolby vision" not in str(entry.get("side_data_type") or "").casefold():
             continue
         profile = str(entry.get("dv_profile") or "").strip()
@@ -175,15 +229,11 @@ def facts_from_ffprobe_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
         dovi_profile = f"{profile}.{compatibility}" if profile == "8" and compatibility == "1" else profile
         break
     heights = [int(stream["height"]) for stream in video_streams if str(stream.get("height") or "").isdigit()]
-    bit_depths = [int(stream.get("bits_per_raw_sample") or stream.get("bits_per_sample")) for stream in video_streams if str(stream.get("bits_per_raw_sample") or stream.get("bits_per_sample") or "").isdigit()]
+    bit_depths = [depth for stream in video_streams if (depth := source_bit_depth(stream)) > 0]
     audio_channels = [int(stream["channels"]) for stream in streams if stream.get("codec_type") == "audio" and str(stream.get("channels") or "").isdigit()]
     interlaced_or_vfr = any(
         str(stream.get("field_order") or "").casefold() not in {"", "progressive", "unknown"}
-        or (
-            str(stream.get("r_frame_rate") or "")
-            and str(stream.get("avg_frame_rate") or "")
-            and str(stream.get("r_frame_rate")) != str(stream.get("avg_frame_rate"))
-        )
+        or rates_differ(stream.get("r_frame_rate"), stream.get("avg_frame_rate"))
         for stream in video_streams
     )
     return {
@@ -200,20 +250,67 @@ def facts_from_ffprobe_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def probe_source_ffprobe(path: Path, *, ffprobe: str = "ffprobe") -> dict[str, Any]:
-    command = [ffprobe, "-v", "error", "-show_streams", "-show_chapters", "-of", "json", str(path)]
+def positive_rate(value: object) -> Fraction | None:
+    try:
+        rate = Fraction(str(value or ""))
+    except (ValueError, ZeroDivisionError):
+        return None
+    return rate if rate > 0 else None
+
+
+def rates_differ(real_rate: object, average_rate: object) -> bool:
+    normalized_real = positive_rate(real_rate)
+    normalized_average = positive_rate(average_rate)
+    return normalized_real is not None and normalized_average is not None and normalized_real != normalized_average
+
+
+def run_ffprobe_json(command: list[str], *, path: Path, probe_name: str) -> dict[str, Any]:
     try:
         completed = subprocess.run(command, capture_output=True, text=True, timeout=60, check=False)
     except FileNotFoundError as exc:
-        raise RuntimeError(f"ffprobe is unavailable: {ffprobe}") from exc
+        raise RuntimeError(f"ffprobe is unavailable: {command[0]}") from exc
     except subprocess.TimeoutExpired as exc:
-        raise RuntimeError(f"ffprobe timed out for {path}") from exc
+        raise RuntimeError(f"ffprobe {probe_name} timed out for {path}") from exc
     if completed.returncode != 0:
-        raise RuntimeError(f"ffprobe failed for {path}: {(completed.stderr or '').strip()[:1000]}")
+        raise RuntimeError(f"ffprobe {probe_name} failed for {path}: {(completed.stderr or '').strip()[:1000]}")
     try:
         payload = json.loads(completed.stdout or "{}")
     except json.JSONDecodeError as exc:
-        raise RuntimeError(f"ffprobe returned invalid JSON for {path}") from exc
+        raise RuntimeError(f"ffprobe {probe_name} returned invalid JSON for {path}") from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"ffprobe {probe_name} returned a non-object payload for {path}")
+    return payload
+
+
+def probe_source_ffprobe(path: Path, *, ffprobe: str = str(DEFAULT_FFPROBE)) -> dict[str, Any]:
+    inventory_command = [ffprobe, "-v", "error", "-show_streams", "-show_chapters", "-of", "json", str(path)]
+    payload = run_ffprobe_json(inventory_command, path=path, probe_name="inventory probe")
+    streams = [stream for stream in payload.get("streams", []) if isinstance(stream, dict)]
+    video_streams = _primary_video_streams(streams)
+    if any(str(stream.get("color_transfer") or "").casefold() == "smpte2084" for stream in video_streams):
+        frame_command = [
+            ffprobe,
+            "-v",
+            "error",
+            "-select_streams",
+            "V",
+            "-read_intervals",
+            "%+#120",
+            "-show_frames",
+            "-show_entries",
+            "frame=stream_index,side_data_list",
+            "-of",
+            "json",
+            str(path),
+        ]
+        frame_payload = run_ffprobe_json(frame_command, path=path, probe_name="frame metadata probe")
+        frame_rows = frame_payload.get("frames")
+        if not isinstance(frame_rows, list):
+            raise RuntimeError(f"ffprobe frame metadata probe returned invalid frames for {path}")
+        frames = [frame for frame in frame_rows if isinstance(frame, dict)]
+        if not frames:
+            raise RuntimeError(f"ffprobe frame metadata probe returned no video frames for {path}")
+        payload["frames"] = frames
     return facts_from_ffprobe_payload(payload)
 
 
@@ -741,7 +838,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         child = subparsers.add_parser(command)
         child.add_argument("--fixture-root", default=str(DEFAULT_FIXTURE_ROOT))
         child.add_argument("--catalog", default=str(DEFAULT_CATALOG))
-        child.add_argument("--ffprobe", default="ffprobe")
+        child.add_argument("--ffprobe", default=str(DEFAULT_FFPROBE))
         child.add_argument("--report-only", action="store_true")
         if command in {"materialize", "run"}:
             child.add_argument("--run-id", required=True)

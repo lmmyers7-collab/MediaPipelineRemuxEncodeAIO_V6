@@ -6,9 +6,9 @@ file_type: Markdown
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-20
+last_modified: 2026-07-24
 last_reviewed: 2026-06-02
-sha256: 859ee09107f9314f45b9ba14868e963a497ac125cbece912e63ad848e28bc153
+sha256: 37349d3ed839b1999a43a5a78269f24638c127e46d70dd377046fe9788b72c8c
 ---
 # `docs/inventories/PACKAGING_DEPENDENCY_INVENTORY.md`
 

@@ -6,9 +6,9 @@ file_type: JavaScript
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-10
+last_modified: 2026-07-24
 last_reviewed: 2026-07-10
-sha256: 78c65bd03729cf3b1a5a93480ecfa4636ee69c78f0f56ad9622a39ef974be781
+sha256: da1c5c7dc1c23e6449237a3675e104a08712926a1675f95e7b826e748e78eafa
 ---
 # `apps/desktop/webview/static/assets/progress/barPresentation.js`
 

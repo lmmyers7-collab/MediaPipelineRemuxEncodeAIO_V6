@@ -6,9 +6,9 @@ file_type: JavaScript
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-11
+last_modified: 2026-07-24
 last_reviewed: 2026-06-05
-sha256: 7992ce9059ba847faf52b5dcd2c506f8f754c1eab566eb2531213da6ba85ee07
+sha256: 571461c69aab043967f38735cfee51c1b4375bc190df2d0b8a33412913610974
 ---
 # `apps/desktop/webview/static/assets/queue/fileOverrides.drawer.tracks.js`
 

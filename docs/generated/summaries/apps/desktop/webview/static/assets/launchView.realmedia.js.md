@@ -6,9 +6,9 @@ file_type: JavaScript
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-11
+last_modified: 2026-07-24
 last_reviewed: 2026-06-04
-sha256: ba8e4955735778f07ba787d91a3992273e21709b49b107570630b178cf09ccf1
+sha256: cfb43bc0ffb6ba5ff6b6ebb0388e2c5ce9c766a1eb4a6983e5f898d2eac0c665
 ---
 # `apps/desktop/webview/static/assets/launchView.realmedia.js`
 

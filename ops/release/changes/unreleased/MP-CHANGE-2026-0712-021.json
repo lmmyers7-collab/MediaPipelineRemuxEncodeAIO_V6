@@ -1,0 +1,42 @@
+{
+  "id": "MP-CHANGE-2026-0712-021",
+  "title": "Update Tauri to 2.11.5",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "medium",
+  "date_started": "2026-07-12",
+  "date_completed": "2026-07-12",
+  "summary": "Update the locked Tauri runtime from 2.11.3 to the newly available compatible 2.11.5 patch through Cargo resolution.",
+  "reason": "From apps/desktop/tauri/src-tauri with Cargo 1.95, cargo update -p tauri@2.11.3 --precise 2.11.5 --dry-run previewed only the Tauri patch. Running the same Cargo command without --dry-run reproducibly wrote the current lockfile, including nine compatible dependency-edge rebindings to the already locked windows-sys 0.60.2. Cargo.lock was not hand-edited.",
+  "affected_areas": [
+    "tauri",
+    "dependencies",
+    "release"
+  ],
+  "behavior_before": "The desktop shell lockfile selected Tauri 2.11.3.",
+  "behavior_after": "The desktop shell lockfile selects Tauri 2.11.5; the Linux GTK path remains on gtk 0.18.2 and glib 0.18.5, so Dependabot alert 1 remains open.",
+  "files_touched": [
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0712-021.json",
+    "apps/desktop/tauri/src-tauri/Cargo.lock"
+  ],
+  "tests_added": [
+    "No tests added; existing locked Cargo, Tauri, and release/package gates validate the patch update."
+  ],
+  "manual_validation": [
+    "PASS: cargo 1.95.0 reported the narrow tauri 2.11.3 -> 2.11.5 update with cargo update -p tauri@2.11.3 --precise 2.11.5 --dry-run.",
+    "PASS: cargo update -p tauri@2.11.3 --precise 2.11.5 reproducibly wrote the checked-in Cargo.lock delta; git diff -- Cargo.lock matched the PR lockfile and no lockfile content was hand-edited.",
+    "PASS: cargo check --locked.",
+    "PASS: cargo test --locked: 43 tests.",
+    "PASS: optimized Tauri release build with tauri 2.11.5.",
+    "PASS: root and Tauri npm audit reported zero vulnerabilities.",
+    "PASS: strict source release self-test.",
+    "PASS: PR 38 Tauri shell check job 86724611327, Release self-test job 86724611314, and Package Verify job 86724611317 completed successfully.",
+    "BLOCKED LOCALLY: copied-folder package launch was correctly rejected by the global single-instance guard because an unrelated Tauri shell from the user's primary checkout was already running; that process was not terminated or bypassed. GitHub Package Verify remains required."
+  ],
+  "rollback_plan": "Use Cargo to resolve Tauri back to 2.11.3, inspect the lockfile delta, and rerun locked Cargo and Tauri validation.",
+  "related_changes": [
+    "MP-CHANGE-2026-0712-006"
+  ],
+  "notes": "The --dry-run console preview did not disclose serialized dependency-edge rebindings; the non-dry-run Cargo command reproducibly wrote them. The affected packages are dirs-sys, errno, muda, rustix, rustls-platform-verifier, socket2, tempfile, tray-icon, and winapi-util. Cargo accepted windows-sys 0.60.2 for every edge, both 0.60.2 and 0.61.2 remain in the graph, and locked Cargo checks/tests plus the release build passed. The Linux graph remains gtk 0.18.2 -> glib 0.18.5, so issue #15 remains blocked."
+}

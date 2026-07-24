@@ -58,7 +58,7 @@ graph LR
   webview["webview"]
   tests -->|374| scripts
   tests -->|172| api
-  tests -->|158| network
+  tests -->|159| network
   tests -->|129| desktop
   tests -->|105| application
   tests -->|77| process
@@ -90,6 +90,7 @@ graph LR
   network -->|11| desktop
   rename -->|11| kernel
   tests -->|11| diagnostics
+  api -->|10| queue
   application -->|10| process
   completed -->|10| observability
   config -->|10| paths
@@ -99,7 +100,6 @@ graph LR
   observability -->|10| paths
   queue -->|10| paths
   api -->|9| process
-  api -->|9| queue
   process -->|9| config
   sample_validation -->|9| paths
   application -->|8| config
@@ -139,6 +139,7 @@ graph LR
   failures -->|5| paths
   process -->|5| audit
   sample_validation -->|5| kernel
+  scripts -->|5| contracts
   tests -->|5| core
   audit -->|4| failures
   config -->|4| rename
@@ -152,7 +153,6 @@ graph LR
   queue -->|4| observability
   rename -->|4| paths
   schedule -->|4| kernel
-  scripts -->|4| contracts
   tests -->|4| final_library
   application -->|3| core
   config -->|3| validation
@@ -285,7 +285,7 @@ graph LR
 |---|---|---|
 | tests | scripts | 374 |
 | tests | api | 172 |
-| tests | network | 158 |
+| tests | network | 159 |
 | tests | desktop | 129 |
 | tests | application | 105 |
 | tests | process | 77 |
@@ -317,6 +317,7 @@ graph LR
 | network | desktop | 11 |
 | rename | kernel | 11 |
 | tests | diagnostics | 11 |
+| api | queue | 10 |
 | application | process | 10 |
 | completed | observability | 10 |
 | config | paths | 10 |
@@ -326,7 +327,6 @@ graph LR
 | observability | paths | 10 |
 | queue | paths | 10 |
 | api | process | 9 |
-| api | queue | 9 |
 | process | config | 9 |
 | sample_validation | paths | 9 |
 | application | config | 8 |
@@ -366,6 +366,7 @@ graph LR
 | failures | paths | 5 |
 | process | audit | 5 |
 | sample_validation | kernel | 5 |
+| scripts | contracts | 5 |
 | tests | core | 5 |
 | audit | failures | 4 |
 | config | rename | 4 |
@@ -379,7 +380,6 @@ graph LR
 | queue | observability | 4 |
 | rename | paths | 4 |
 | schedule | kernel | 4 |
-| scripts | contracts | 4 |
 | tests | final_library | 4 |
 | application | core | 3 |
 | config | validation | 3 |

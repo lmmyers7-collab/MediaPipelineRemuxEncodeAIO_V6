@@ -2841,7 +2841,7 @@
       "toggle",
       "visibilitychange"
     ],
-    "top_level_declaration_count": 2975
+    "top_level_declaration_count": 2978
   },
   "scripts": [
     {
@@ -8982,8 +8982,18 @@
       "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.tracks.js",
       "top_level_declarations": [
         {
-          "name": "createFileOverridesDrawerTracksModule",
+          "name": "MAX_TRACK_TITLE_GLOB_LENGTH",
+          "line": 5,
+          "kind": "const"
+        },
+        {
+          "name": "MAX_TRACK_TITLE_VALUE_LENGTH",
           "line": 6,
+          "kind": "const"
+        },
+        {
+          "name": "createFileOverridesDrawerTracksModule",
+          "line": 9,
           "kind": "function"
         }
       ],
@@ -15821,8 +15831,13 @@
           "kind": "function"
         },
         {
-          "name": "requestDiagnosticsTail",
+          "name": "currentDiagnosticsTailFeedbackButton",
           "line": 327,
+          "kind": "function"
+        },
+        {
+          "name": "requestDiagnosticsTail",
+          "line": 344,
           "kind": "function"
         }
       ],

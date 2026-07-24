@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-07-22
+last_modified: 2026-07-24
 last_reviewed: 2026-06-04
-sha256: 7ffbcd32125151e70335cc50890b08c3cbb2d3ff29c3ae71fa7d2ea08f340605
+sha256: 7270f5af50c92afa982920087e080eca0d41193f155cc27534d76aaf983ed2b3
 ---
 # `src/mediapipeline/desktop/api/handler_policy.py`
 

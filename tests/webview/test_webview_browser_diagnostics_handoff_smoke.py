@@ -260,6 +260,27 @@ def _browser_diagnostics_handoff_runner_source() -> str:
                 finishTail();
                 await firstTail;
 
+                const replacedTailContainer = document.createElement("div");
+                const replacedTailButton = document.createElement("button");
+                replacedTailButton.id = "diagnostics-rerendered-tail-fixture";
+                replacedTailButton.type = "button";
+                replacedTailButton.textContent = "Rerendered Tail Fixture";
+                replacedTailButton.dataset.diagnosticsStateTriageAction = "tail";
+                replacedTailButton.dataset.diagnosticsStateTriageTarget = "last_stderr_log";
+                replacedTailContainer.appendChild(replacedTailButton);
+                document.body.appendChild(replacedTailContainer);
+                finishTail = null;
+                const replacedTailRead = window.requestDiagnosticsTail("last_stderr_log", replacedTailButton);
+                await waitFor(() => inlineActionText(replacedTailButton).includes("Reading"), "rerendered tail first busy");
+                const currentTailButton = replacedTailButton.cloneNode(true);
+                currentTailButton.removeAttribute("aria-describedby");
+                replacedTailContainer.replaceChildren(currentTailButton);
+                finishTail();
+                await replacedTailRead;
+                if (!inlineActionText(currentTailButton).includes("Tail loaded")) {
+                  throw new Error("tail completion feedback was lost when its action button rerendered");
+                }
+
                 const duplicateOpenButton = document.createElement("button");
                 duplicateOpenButton.id = "diagnostics-duplicate-open-button";
                 duplicateOpenButton.type = "button";

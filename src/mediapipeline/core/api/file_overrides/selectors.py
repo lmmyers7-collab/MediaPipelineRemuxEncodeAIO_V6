@@ -5,6 +5,11 @@ from fnmatch import fnmatchcase
 from pathlib import Path
 from typing import Any
 
+from mediapipeline.core.queue.file_overrides import (
+    FILE_OVERRIDE_TRACK_TITLE_PATTERN_MAX_LENGTH,
+    FILE_OVERRIDE_TRACK_TITLE_VALUE_MAX_LENGTH,
+)
+
 from .results import _mapping
 from .tracks import _normalize_media_language, _probe_tracks_for_source_path, _track_warning
 
@@ -96,6 +101,10 @@ def _track_title_for_match(track: Mapping[str, Any]) -> str:
 
 
 def _title_matches_glob(title: str, pattern: str) -> bool:
+    if len(pattern) > FILE_OVERRIDE_TRACK_TITLE_PATTERN_MAX_LENGTH:
+        return False
+    if len(title) > FILE_OVERRIDE_TRACK_TITLE_VALUE_MAX_LENGTH:
+        return False
     return fnmatchcase(title.casefold(), pattern.casefold())
 
 

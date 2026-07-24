@@ -757,6 +757,53 @@ class NetworkRerunClaimTests(unittest.TestCase):
             self.assertEqual(row["status"], "pending_claim")
             self.assertTrue(row["claimable"])
 
+    def test_local_claim_next_returns_network_rerun_job(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            source = root / "Movies" / "Movie.mkv"
+            source.parent.mkdir()
+            source.write_bytes(b"source")
+            state_path = _write_batch(root, _state_payload(root, source=source))
+            inflight_path = root / "State" / "coordinator_inflight.json"
+            app = SimpleNamespace(
+                resolved=SimpleNamespace(state_root=root / "State"),
+                _machine_id="coordinator-1",
+            )
+            registry = InFlightRegistry()
+            dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+            dispatcher._app = app
+            dispatcher._registry = registry
+            dispatcher._claim_lock = threading.Lock()
+            dispatcher._config = lambda: {"CoordinatorAlsoEncodeLocally": True}  # type: ignore[method-assign]
+            dispatcher._snapshot_encode_config = (  # type: ignore[method-assign]
+                lambda _worker_name, record=None: {
+                    "preset": "copy",
+                    "source": str(getattr(record, "source_path", "")),
+                }
+            )
+            dispatcher._inflight_state_path = lambda: inflight_path  # type: ignore[method-assign]
+
+            claimed = dispatcher.claim_next()
+
+            self.assertIsNotNone(claimed)
+            assert claimed is not None
+            self.assertEqual(claimed.worker_id, "coordinator-1")
+            self.assertEqual(claimed.record.source_path, source)
+            self.assertEqual(claimed.record.library_id, "movies")
+            self.assertEqual(claimed.record.route_name, "network_csv_rerun_row")
+            self.assertEqual(claimed.encode_config["preset"], "copy")
+            self.assertEqual(claimed.encode_config["source"], str(source))
+            self.assertEqual(claimed.encode_config["__job_kind"], "csv_rerun_row")
+            self.assertTrue(registry.is_in_flight(str(source)))
+            self.assertTrue(inflight_path.exists())
+            self.assertEqual(
+                json.loads(inflight_path.read_text(encoding="utf-8"))["jobs"][0]["job_id"],
+                claimed.job_id,
+            )
+            row = json.loads(state_path.read_text(encoding="utf-8"))["rows"][0]
+            self.assertEqual(row["status"], "claimed")
+            self.assertEqual(row["active_claim"]["worker_id"], "coordinator-1")
+
     def test_remote_claim_skips_local_only_handoff_rows(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

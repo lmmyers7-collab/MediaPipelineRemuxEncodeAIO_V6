@@ -6,9 +6,9 @@ file_type: JSON
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-15
+last_modified: 2026-07-24
 last_reviewed: 2026-06-04
-sha256: d719bbe9cfb320bebef572422a1cd5dd4a161a337bc0775eb02fdbdf023ff619
+sha256: dacac5ab372b3fb9fdca9e522b68af9e8ad8d28710b0b6cfaf43875382f6f78b
 ---
 # `package.json`
 
