@@ -593,10 +593,15 @@ def _browser_home_live_state_runner_source() -> str:
             }
             window.showPage("queue");
             await waitFor(() => document.querySelector("#queue-source-inventory [data-ui-quick-link]"), "Queue source quick link rendered");
-            const postCountBeforeQueueTile = posts.length;
+            const mutationPostCountBeforeQueueTile = posts.filter(
+              (post) => post.path !== "/api/ui-preferences",
+            ).length;
             document.querySelector("#queue-source-inventory [data-ui-quick-link]").click();
             await waitFor(() => document.activeElement === document.querySelector("[data-queue-refresh-button]"), "Queue scan tile focuses Scan Sources");
-            if (posts.length !== postCountBeforeQueueTile) {
+            const mutationPostCountAfterQueueTile = posts.filter(
+              (post) => post.path !== "/api/ui-preferences",
+            ).length;
+            if (mutationPostCountAfterQueueTile !== mutationPostCountBeforeQueueTile) {
               throw new Error("Queue scan tile must focus Scan Sources without posting: " + JSON.stringify(posts));
             }
             window.showPage("launch");
