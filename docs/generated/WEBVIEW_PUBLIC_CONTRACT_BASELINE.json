@@ -2841,7 +2841,7 @@
       "toggle",
       "visibilitychange"
     ],
-    "top_level_declaration_count": 2980
+    "top_level_declaration_count": 2991
   },
   "scripts": [
     {
@@ -8238,8 +8238,23 @@
       "path": "apps/desktop/webview/static/assets/queue/priority.js",
       "top_level_declarations": [
         {
-          "name": "createQueuePriorityModule",
+          "name": "pathKey",
           "line": 5,
+          "kind": "function"
+        },
+        {
+          "name": "normalizedLevel",
+          "line": 6,
+          "kind": "function"
+        },
+        {
+          "name": "controlIds",
+          "line": 10,
+          "kind": "function"
+        },
+        {
+          "name": "createQueuePriorityModule",
+          "line": 14,
           "kind": "function"
         }
       ],
@@ -21035,8 +21050,48 @@
       "path": "apps/desktop/webview/static/assets/app/lifecycle/topbar.js",
       "top_level_declarations": [
         {
-          "name": "createAppLifecycleTopbar",
+          "name": "topbarObject",
           "line": 3,
+          "kind": "function"
+        },
+        {
+          "name": "topbarFirstText",
+          "line": 7,
+          "kind": "function"
+        },
+        {
+          "name": "topbarSnapshotParts",
+          "line": 12,
+          "kind": "function"
+        },
+        {
+          "name": "topbarBackendQueueRun",
+          "line": 23,
+          "kind": "function"
+        },
+        {
+          "name": "topbarRunIsBackendQueueOnce",
+          "line": 28,
+          "kind": "function"
+        },
+        {
+          "name": "topbarMonitorIsTerminal",
+          "line": 33,
+          "kind": "function"
+        },
+        {
+          "name": "topbarCurrentWorkers",
+          "line": 38,
+          "kind": "function"
+        },
+        {
+          "name": "topbarActiveWorkerNames",
+          "line": 44,
+          "kind": "function"
+        },
+        {
+          "name": "createAppLifecycleTopbar",
+          "line": 56,
           "kind": "function"
         }
       ],
@@ -22733,57 +22788,57 @@
       "top_level_declarations": [
         {
           "name": "normalizeRefreshOptions",
-          "line": 2,
+          "line": 3,
           "kind": "function"
         },
         {
           "name": "mergeRefreshOptions",
-          "line": 11,
+          "line": 12,
           "kind": "function"
         },
         {
           "name": "CORE_REFRESH_REQUESTS",
-          "line": 22,
-          "kind": "const"
-        },
-        {
-          "name": "PAGE_REFRESH_REQUESTS",
           "line": 23,
           "kind": "const"
         },
         {
+          "name": "PAGE_REFRESH_REQUESTS",
+          "line": 24,
+          "kind": "const"
+        },
+        {
           "name": "activeRefreshPage",
-          "line": 40,
+          "line": 41,
           "kind": "function"
         },
         {
           "name": "refreshRequestIncluded",
-          "line": 46,
+          "line": 47,
           "kind": "function"
         },
         {
           "name": "refreshGet",
-          "line": 51,
+          "line": 52,
           "kind": "function"
         },
         {
           "name": "refreshLiveRunTail",
-          "line": 62,
+          "line": 63,
           "kind": "function"
         },
         {
           "name": "refreshAll",
-          "line": 82,
+          "line": 83,
           "kind": "function"
         },
         {
           "name": "refreshCurrentOutputStatus",
-          "line": 112,
+          "line": 113,
           "kind": "function"
         },
         {
           "name": "refreshAllNow",
-          "line": 116,
+          "line": 117,
           "kind": "function"
         }
       ],

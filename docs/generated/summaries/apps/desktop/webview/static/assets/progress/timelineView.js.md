@@ -6,9 +6,9 @@ file_type: JavaScript
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-16
+last_modified: 2026-07-26
 last_reviewed: 2026-07-10
-sha256: 6a3a9c4f7089d3c3b2aa60b68f344452d02c60d90cf853cea58e19b4851ab6a9
+sha256: d28a0c37bef3d099fb8a23c8688751ef56c9f8a5a109180d9b61dc7a1878a44c
 ---
 # `apps/desktop/webview/static/assets/progress/timelineView.js`
 

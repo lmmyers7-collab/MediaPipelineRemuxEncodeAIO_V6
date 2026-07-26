@@ -6598,7 +6598,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queue/priority.js",
-      "line": 153,
+      "line": 154,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6613,7 +6613,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queue/priority.js",
-      "line": 167,
+      "line": 168,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6628,7 +6628,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queue/priority.js",
-      "line": 203,
+      "line": 204,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6658,7 +6658,7 @@
       "normalized_route": "/api/queue/priority-export",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queue/priority.js",
-      "line": 216,
+      "line": 217,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"

@@ -6,15 +6,15 @@ file_type: JavaScript
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-23
+last_modified: 2026-07-26
 last_reviewed: 2026-07-11
-sha256: 2ca1a756f1801776fa70f3661034d649ad11c6806f0f0a82d614b2b4e4f4b2f0
+sha256: 6e949210509e6ef6ac23a5b07674c90982da3b452fe64a19ccbe8bd3bcc0e39e
 ---
 # `apps/desktop/webview/static/assets/app/lifecycle/topbar.js`
 
 **Purpose:** JavaScript implementation for topbar; exposes backendLifecycleState, clearTopbarPendingLaunch, closeReadinessWatcherData.
 
-**Public symbols:** `backendLifecycleState`, `clearTopbarPendingLaunch`, `closeReadinessWatcherData`, `closeReadinessWatcherIsArmed`, `closeReadinessWatcherSummary`, `createAppLifecycleTopbar`, `formatCloseReadiness`, `normalizeTauriBackendLifecycleEvent`, `pipelineControlReadinessLines`, `pipelineControlReadinessStatus`, `renderControlReadiness`, `renderTauriBackendLifecycleAlert`, `renderTopbarActivity`, `renderTopbarEventTicker`, `replaceTopbarActivityContent`, `setTopbarPendingLaunch`, `startupProgressLines`, `tauriBackendLifecycleLines`, `tauriBackendLifecycleStatusLabel`, `topbarBackendQueueMonitorContext`, `topbarBackendQueueMonitorText`, `topbarCleanCurrentName`, `topbarCurrentWorkMeta`, `topbarEventData`, `topbarEventDisplayName`, `topbarEventKey`, `topbarEventTickerLine`, `topbarEventTimestampMs`, `topbarLatestEvent`, `topbarPathLeaf`, `topbarPendingLaunchIsValid`, `topbarPendingLaunchLine`, `topbarPipelineState`, `topbarRouteCategories`, `topbarRouteCategory`
+**Public symbols:** `backendLifecycleState`, `clearTopbarPendingLaunch`, `closeReadinessWatcherData`, `closeReadinessWatcherIsArmed`, `closeReadinessWatcherSummary`, `createAppLifecycleTopbar`, `formatCloseReadiness`, `normalizeTauriBackendLifecycleEvent`, `pipelineControlReadinessLines`, `pipelineControlReadinessStatus`, `renderControlReadiness`, `renderTauriBackendLifecycleAlert`, `renderTopbarActivity`, `renderTopbarEventTicker`, `replaceTopbarActivityContent`, `setTopbarPendingLaunch`, `startupProgressLines`, `tauriBackendLifecycleLines`, `tauriBackendLifecycleStatusLabel`, `topbarActiveWorkerNames`, `topbarBackendQueueMonitorContext`, `topbarBackendQueueMonitorText`, `topbarBackendQueueRun`, `topbarCleanCurrentName`, `topbarCurrentWorkers`, `topbarCurrentWorkMeta`, `topbarEventData`, `topbarEventDisplayName`, `topbarEventKey`, `topbarEventTickerLine`, `topbarEventTimestampMs`, `topbarFirstText`, `topbarLatestEvent`, `topbarMonitorIsTerminal`, `topbarObject`
 **In-repo imports:** `window.__appLifecycleTopbarModule`, `window.mediaPipelineFormatters`, `window.mediaPipelineLaunchView`, `window.mediaPipelineRunMonitor`, `window.mediaPipelineScheduleView`
 **HTTP routes:** `/api/pipeline/control`, `/api/pipeline/control.`
 **DOM selectors:** `.tauri-lifecycle-alert`, `.topbar`

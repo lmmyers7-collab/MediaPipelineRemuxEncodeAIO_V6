@@ -2,6 +2,15 @@
 (function () {
   "use strict";
 
+  function pathKey(value) { return String(value || "").trim().replace(/[\\/]+/g, "\\").toLowerCase(); }
+  function normalizedLevel(level) {
+    const normalized = String(level || "normal").trim().toLowerCase();
+    return ["high", "low", "hold"].includes(normalized) ? normalized : "normal";
+  }
+  function controlIds() {
+    return ["queue-priority-promote-btn", "queue-priority-normal-btn", "queue-priority-low-btn", "queue-priority-hold-btn", "queue-priority-promote-movies-btn", "queue-priority-promote-tv-btn", "queue-priority-clear-all-btn", "queue-priority-export-btn"];
+  }
+
   function createQueuePriorityModule(deps = {}) {
     const getRows = typeof deps.getRows === "function" ? deps.getRows : () => [];
     const setRows = typeof deps.setRows === "function" ? deps.setRows : () => {};
@@ -26,11 +35,6 @@
     let inFlight = false;
     let commandSeq = 0;
 
-    function pathKey(value) { return String(value || "").trim().replace(/[\\/]+/g, "\\").toLowerCase(); }
-    function normalizedLevel(level) {
-      const normalized = String(level || "normal").trim().toLowerCase();
-      return ["high", "low", "hold"].includes(normalized) ? normalized : "normal";
-    }
     function rowPath(row) { return row ? (row.source_path || row.relative_path || "") : ""; }
     function rowMatchesPath(row, targetKey) {
       return Boolean(targetKey) && [row?.source_path, row?.relative_path].some((value) => pathKey(value) === targetKey);
@@ -121,9 +125,6 @@
       setRows(rows);
       refreshDisplayedRows();
       return true;
-    }
-    function controlIds() {
-      return ["queue-priority-promote-btn", "queue-priority-normal-btn", "queue-priority-low-btn", "queue-priority-hold-btn", "queue-priority-promote-movies-btn", "queue-priority-promote-tv-btn", "queue-priority-clear-all-btn", "queue-priority-export-btn"];
     }
     function updateControls() {
       const disabled = Boolean(inFlight || getScanLoading());

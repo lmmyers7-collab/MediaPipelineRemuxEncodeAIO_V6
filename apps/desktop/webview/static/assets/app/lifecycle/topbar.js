@@ -1,5 +1,58 @@
 /* global homeProgressPercent, lastCloseReadiness, lastSnapshot, lastStartupProgress, lastTauriBackendLifecycleEvent */
 (function () {
+  function topbarObject(value) {
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  }
+
+  function topbarFirstText(...values) {
+    const value = values.find((candidate) => String(candidate ?? "").trim());
+    return String(value ?? "").trim();
+  }
+
+  function topbarSnapshotParts(snapshot) {
+    const payload = topbarObject(snapshot);
+    return {
+      payload,
+      progress: topbarObject(payload.progress),
+      currentWork: topbarObject(payload.current_work),
+      progressHealth: topbarObject(payload.progress_health),
+      pipelineState: topbarFirstText(payload.pipeline_state).toLowerCase(),
+    };
+  }
+
+  function topbarBackendQueueRun(value) {
+    const run = topbarObject(value);
+    return Object.keys(run).length ? run : null;
+  }
+
+  function topbarRunIsBackendQueueOnce(run) {
+    return topbarFirstText(run?.mode).toLowerCase() === "once"
+      && topbarFirstText(run?.scope).toLowerCase() === "backend_queue";
+  }
+
+  function topbarMonitorIsTerminal(freshness, lifecycleState) {
+    return freshness === "terminal"
+      || ["completed", "failed", "stopped", "force_stopped"].includes(lifecycleState);
+  }
+
+  function topbarCurrentWorkers(projection, freshness) {
+    return freshness === "current" && Array.isArray(projection.current_workers)
+      ? projection.current_workers
+      : [];
+  }
+
+  function topbarActiveWorkerNames(projection, currentWorkers, formatValue) {
+    const items = Array.isArray(projection.items) ? projection.items : [];
+    const itemsByJob = new Map(items.map((item) => [topbarFirstText(item?.job_id), item]));
+    const activeFiles = [];
+    currentWorkers.forEach((worker) => {
+      const item = itemsByJob.get(topbarFirstText(worker?.job_id));
+      const displayName = formatValue(item?.display_name || "").trim();
+      if (displayName && !activeFiles.includes(displayName)) activeFiles.push(displayName);
+    });
+    return activeFiles;
+  }
+
   function createAppLifecycleTopbar() {  const TOPBAR_PENDING_LAUNCH_TTL_MS = 120000;
   const TOPBAR_IDLE_PENDING_GRACE_MS = 45000;
   const COMPLETED_TAB_STORAGE_KEY = "mediapipeline-completed-tab";
@@ -40,22 +93,24 @@
   }
 
   function topbarSnapshotProvesDifferentWorkflow(snapshot = {}, expectedRunId = "") {
-    const payload = snapshot && typeof snapshot === "object" ? snapshot : {};
-    const progress = payload.progress && typeof payload.progress === "object" ? payload.progress : {};
-    const currentWork = payload.current_work && typeof payload.current_work === "object" ? payload.current_work : {};
-    const pipelineState = String(payload.pipeline_state || "").trim().toLowerCase();
+    const {
+      payload,
+      progress,
+      currentWork,
+      progressHealth,
+      pipelineState,
+    } = topbarSnapshotParts(snapshot);
     if (["csv_rerun_active", "audit", "publishing_parked_outputs", "retrying_pending_push"].includes(pipelineState)) return true;
-    const progressHealth = payload.progress_health && typeof payload.progress_health === "object" ? payload.progress_health : {};
     const activeSnapshot = !["", "idle", "completed", "failed", "stopped", "unknown"].includes(pipelineState);
     const currentProgress = progressHealth.available !== false && progressHealth.stale_evidence !== true;
     if (!activeSnapshot || !currentProgress) return false;
-    const explicitMode = String(progress.Mode || progress.RunMode || progress.PipelineMode || currentWork.mode || payload.mode || "").trim().toLowerCase();
+    const explicitMode = topbarFirstText(progress.Mode, progress.RunMode, progress.PipelineMode, currentWork.mode, payload.mode).toLowerCase();
     if (explicitMode && explicitMode !== "once") return true;
-    const explicitScope = String(progress.Scope || currentWork.scope || payload.scope || "").trim().toLowerCase();
+    const explicitScope = topbarFirstText(progress.Scope, currentWork.scope, payload.scope).toLowerCase();
     if (explicitScope && explicitScope !== "backend_queue") return true;
-    const singleFile = String(progress.SingleFile || currentWork.single_file || payload.single_file || "").trim();
+    const singleFile = topbarFirstText(progress.SingleFile, currentWork.single_file, payload.single_file);
     if (singleFile) return true;
-    const explicitRunId = String(progress.RunMonitorRunId || progress.RunId || currentWork.run_id || payload.run_id || "").trim();
+    const explicitRunId = topbarFirstText(progress.RunMonitorRunId, progress.RunId, currentWork.run_id, payload.run_id);
     return Boolean(expectedRunId && explicitRunId && explicitRunId !== expectedRunId);
   }
 
@@ -116,47 +171,39 @@
   }
 
   function topbarBackendQueueMonitorContext(snapshot = {}) {
-    const correlation = window.mediaPipelineRunMonitor?.backendQueueCorrelationContext?.() || {};
-    const expectedRunId = String(correlation.requested_run_id || "").trim();
+    const correlation = topbarObject(window.mediaPipelineRunMonitor?.backendQueueCorrelationContext?.());
+    const expectedRunId = topbarFirstText(correlation.requested_run_id);
     if (topbarSnapshotProvesDifferentWorkflow(snapshot, expectedRunId)) return null;
-    const projection = window.mediaPipelineRunMonitor?.getPayload?.();
-    const run = projection?.run && typeof projection.run === "object" ? projection.run : null;
+    const projection = topbarObject(window.mediaPipelineRunMonitor?.getPayload?.());
+    const run = topbarBackendQueueRun(projection.run);
     if (!run) {
       if (!correlation.expected && !topbarSnapshotDeclaresBackendQueueRun(snapshot)) return null;
       return {
-        freshness: String(projection?.freshness?.state || correlation.freshness || "unavailable").toLowerCase(),
+        freshness: topbarFirstText(projection?.freshness?.state, correlation.freshness, "unavailable").toLowerCase(),
         lifecycleLabel: "Correlated Monitor Unavailable",
         displayMode: "Run Once · Backend Queue",
         accepted: null,
         workers: 0,
       };
     }
-    if (String(run.mode || "").toLowerCase() !== "once" || String(run.scope || "").toLowerCase() !== "backend_queue") return null;
-    const freshness = String(projection?.freshness?.state || "unavailable").toLowerCase();
-    const lifecycle = String(run.lifecycle_state || "unknown").replace(/[_-]+/g, " ");
-    const lifecycleState = String(run.lifecycle_state || "unknown").trim().toLowerCase();
-    const terminalMonitor = freshness === "terminal" || ["completed", "failed", "stopped", "force_stopped"].includes(lifecycleState);
+    if (!topbarRunIsBackendQueueOnce(run)) return null;
+    const freshness = topbarFirstText(projection?.freshness?.state, "unavailable").toLowerCase();
+    const lifecycleState = topbarFirstText(run.lifecycle_state, "unknown").toLowerCase();
+    const terminalMonitor = topbarMonitorIsTerminal(freshness, lifecycleState);
     if (
       terminalMonitor
       && topbarSnapshotIsFreshlyActive(snapshot)
-      && !topbarSnapshotProvesSameBackendQueueRun(snapshot, expectedRunId, String(run.run_id || ""))
+      && !topbarSnapshotProvesSameBackendQueueRun(snapshot, expectedRunId, topbarFirstText(run.run_id))
     ) return null;
-    const lifecycleLabel = lifecycle.replace(/\b\w/g, (letter) => letter.toUpperCase());
-    const counts = run.counts && typeof run.counts === "object" ? run.counts : {};
+    const lifecycleLabel = lifecycleState.replace(/[_-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+    const counts = topbarObject(run.counts);
     const accepted = Number(counts.accepted ?? run.accepted_queue?.accepted_count);
-    const currentWorkers = freshness === "current" && Array.isArray(projection.current_workers) ? projection.current_workers : [];
-    const items = Array.isArray(projection.items) ? projection.items : [];
-    const itemsByJob = new Map(items.map((item) => [String(item?.job_id || "").trim(), item]));
-    const activeFiles = [];
-    currentWorkers.forEach((worker) => {
-      const item = itemsByJob.get(String(worker?.job_id || "").trim());
-      const displayName = formatProgressValue(item?.display_name || "").trim();
-      if (displayName && !activeFiles.includes(displayName)) activeFiles.push(displayName);
-    });
+    const currentWorkers = topbarCurrentWorkers(projection, freshness);
+    const activeFiles = topbarActiveWorkerNames(projection, currentWorkers, formatProgressValue);
     return {
       freshness,
       lifecycleLabel,
-      displayMode: String(run.display_mode || "Run Once · Backend Queue"),
+      displayMode: topbarFirstText(run.display_mode, "Run Once · Backend Queue"),
       accepted: Number.isFinite(accepted) && accepted >= 0 ? accepted : null,
       workers: currentWorkers.length,
       activeFiles,

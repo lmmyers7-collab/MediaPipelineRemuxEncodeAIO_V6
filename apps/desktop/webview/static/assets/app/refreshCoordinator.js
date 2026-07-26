@@ -1,3 +1,4 @@
+/* global lastQueue: writable */
 /* Read-only API refresh coordination, payload shaping, and cross-page rendering handoffs. */
 function normalizeRefreshOptions(options = {}) {
   return {

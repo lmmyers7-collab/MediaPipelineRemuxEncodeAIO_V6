@@ -47,7 +47,6 @@
           stage,
           stageLower,
           route,
-          routeLower,
           file,
           queueIndex,
           queueTotal,
@@ -67,7 +66,6 @@
           "encode", "encoding", "encode_cpu", "encode cpu", "remux", "remux_av", "remux av", "transcode", "transcoding",
         ]);
         const encodeActive = explicitTranscodeStages.has(stageLower);
-        const hasPublishEvidence = Boolean(publishBar || timelineText(progress.PushState, progress.SidecarState));
         const hasRoute = timelineHasMeaningfulText(route);
         const hasFile = timelineHasMeaningfulText(file);
         const backendWorkSummary = timelineText(currentWork.summary_label, currentWork.latest_evidence_label, currentWork.current_stage_label);

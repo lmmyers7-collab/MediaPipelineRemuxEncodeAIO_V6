@@ -22,16 +22,23 @@
   "behavior_after": "Strict rerun manifests include the already-computed SHA-256 proof, journal redaction receives bounded scalar text, quick-link focus stabilizes across queued refreshes, maintenance rendering safely handles absent rows, and CI dependencies, generated contracts, lint accounting, and browser assertions match the implemented behavior.",
   "files_touched": [
     "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
+    "apps/desktop/webview/static/assets/app/lifecycle/topbar.js",
     "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+    "apps/desktop/webview/static/assets/progress/timelineView.js",
+    "apps/desktop/webview/static/assets/queue/priority.js",
     "apps/desktop/webview/static/assets/queueView.launch.js",
     "apps/desktop/webview/static/assets/runMonitorView.js",
     "docs/generated/DEPENDENCY_GRAPH.md",
     "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/WEBVIEW_COMMAND_BOUNDARY_AUDIT.json",
     "docs/generated/WEBVIEW_ESLINT_WARNING_BUDGET.json",
     "docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json",
     "docs/generated/WEBVIEW_TOUCHPOINT_LEDGER.json",
     "docs/generated/summaries/apps/desktop/webview/static/assets/app/lifecycle/navigation.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app/lifecycle/topbar.js.md",
     "docs/generated/summaries/apps/desktop/webview/static/assets/app/refreshCoordinator.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/progress/timelineView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/queue/priority.js.md",
     "docs/generated/summaries/apps/desktop/webview/static/assets/queueView.launch.js.md",
     "docs/generated/summaries/apps/desktop/webview/static/assets/runMonitorView.js.md",
     "docs/generated/summaries/src/mediapipeline/core/processes/pipeline_facade.py.md",
@@ -71,9 +78,10 @@
     "Evidence and root control censuses passed; shell census uses an exact accepted split for timing-dependent controls",
     "Home live-state browser smoke passed twice consecutively",
     "Pending-publish, snapshot, topbar, and cross-page tests passed: 6 tests and 565 subtests",
-    "WebView asset syntax, generated map, DOM gap, routes, commands, script order, public contract, and touchpoint checks passed"
+    "WebView asset syntax, generated map, DOM gap, routes, commands, script order, public contract, and touchpoint checks passed",
+    "npm run webview:prework:check passed at 1380/1387 warnings with zero errors; 107 focused WebView tests and 451 subtests passed"
   ],
   "rollback_plan": "Revert this change as one commit. No persisted state migration is required; pending manifests created after this change retain compatible additive hash fields.",
   "related_changes": [],
-  "notes": "Python impact is limited to bounding rejected command-journal scalar redaction and including existing output-hash evidence in a strict pending-publish manifest. No media policy, source mutation, route contract, or publish/drain decision changed. Representative real-media validation is not required because the pending-publish change is additive manifest evidence covered by hermetic contract tests. The full local WebView prework lint command was not treated as authoritative because the isolated worktree reuses a dependency tree from a dirty configured checkout and reports unrelated warnings absent from the clean GitHub Actions npm-ci run; targeted syntax, lint, contract, and browser checks were used instead.\nPR-added process-to-queue imports were replaced by queue-service capability calls, preserving queue ownership and removing the new package-cycle edge."
+  "notes": "Python impact is limited to bounding rejected command-journal scalar redaction and including existing output-hash evidence in a strict pending-publish manifest. No media policy, source mutation, route contract, or publish/drain decision changed. Representative real-media validation is not required because the pending-publish change is additive manifest evidence covered by hermetic contract tests. The full local WebView prework lint command was not treated as authoritative because the isolated worktree reuses a dependency tree from a dirty configured checkout and reports unrelated warnings absent from the clean GitHub Actions npm-ci run; targeted syntax, lint, contract, and browser checks were used instead.\nPR-added process-to-queue imports were replaced by queue-service capability calls, preserving queue ownership and removing the new package-cycle edge.\nFollow-up removes the clean-CI lint regressions by extracting low-complexity topbar helpers, removing dead timeline locals, moving stateless priority helpers outside the factory, and declaring the shared lastQueue binding writable."
 }
