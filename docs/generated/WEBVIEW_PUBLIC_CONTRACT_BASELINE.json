@@ -2841,7 +2841,7 @@
       "toggle",
       "visibilitychange"
     ],
-    "top_level_declaration_count": 2991
+    "top_level_declaration_count": 2993
   },
   "scripts": [
     {
@@ -14152,18 +14152,28 @@
           "kind": "const"
         },
         {
+          "name": "guidedFocusGeneration",
+          "line": 557,
+          "kind": "let"
+        },
+        {
           "name": "visibleLibraryRouteTarget",
-          "line": 558,
+          "line": 559,
+          "kind": "function"
+        },
+        {
+          "name": "guidedFocusMovedElsewhere",
+          "line": 570,
           "kind": "function"
         },
         {
           "name": "focusLibraryControl",
-          "line": 569,
+          "line": 582,
           "kind": "function"
         },
         {
           "name": "initLibraryRouteMapEvents",
-          "line": 622,
+          "line": 654,
           "kind": "function"
         }
       ],
@@ -21449,42 +21459,42 @@
         },
         {
           "name": "normalizeCloseReadiness",
-          "line": 16,
+          "line": 17,
           "kind": "function"
         },
         {
           "name": "formatCloseReadiness",
-          "line": 32,
+          "line": 47,
           "kind": "function"
         },
         {
           "name": "closeReadinessWatcherData",
-          "line": 36,
+          "line": 51,
           "kind": "function"
         },
         {
           "name": "closeReadinessWatcherSummary",
-          "line": 40,
+          "line": 55,
           "kind": "function"
         },
         {
           "name": "closeReadinessWatcherIsArmed",
-          "line": 44,
+          "line": 59,
           "kind": "function"
         },
         {
           "name": "backendLifecycleState",
-          "line": 48,
+          "line": 63,
           "kind": "function"
         },
         {
           "name": "closeReadinessRequiresWarning",
-          "line": 57,
+          "line": 72,
           "kind": "function"
         },
         {
           "name": "closeReadinessWarningMessage",
-          "line": 63,
+          "line": 78,
           "kind": "function"
         }
       ],

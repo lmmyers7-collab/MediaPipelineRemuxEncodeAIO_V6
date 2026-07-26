@@ -6,9 +6,9 @@ file_type: CSS
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-23
+last_modified: 2026-07-26
 last_reviewed: 2026-07-23
-sha256: f6aa95220c4820c2059b7193323973d184631a573c88f7d5bf9f328dab32748b
+sha256: 56bff5ac1061618b29255d337cc912dd47bfb42604e4e4a8356969996d14d2bc
 ---
 # `apps/desktop/webview/static/assets/styles/components/topbar-activity.css`
 

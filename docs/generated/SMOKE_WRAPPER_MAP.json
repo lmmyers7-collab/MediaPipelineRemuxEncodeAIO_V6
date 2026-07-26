@@ -339,7 +339,7 @@
       {
         "disk_count": 25,
         "kind": "browser_wrapper_count",
-        "line": 161,
+        "line": 164,
         "matched_text": "25 canonical browser wrappers",
         "matches_disk": true,
         "path": "docs/inventories/PACKAGING_DEPENDENCY_INVENTORY.md",
@@ -348,7 +348,7 @@
       {
         "disk_count": 34,
         "kind": "browser_module_count",
-        "line": 161,
+        "line": 164,
         "matched_text": "34 browser-backed Python modules",
         "matches_disk": true,
         "path": "docs/inventories/PACKAGING_DEPENDENCY_INVENTORY.md",
@@ -357,7 +357,7 @@
       {
         "disk_count": 25,
         "kind": "browser_wrapper_count",
-        "line": 165,
+        "line": 168,
         "matched_text": "25 canonical browser wrappers",
         "matches_disk": true,
         "path": "docs/inventories/PACKAGING_DEPENDENCY_INVENTORY.md",
@@ -420,7 +420,7 @@
       {
         "disk_count": 34,
         "kind": "browser_module_count",
-        "line": 800,
+        "line": 821,
         "matched_text": "34 browser Python modules",
         "matches_disk": true,
         "path": "docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md",
@@ -429,7 +429,7 @@
       {
         "disk_count": 25,
         "kind": "browser_wrapper_count",
-        "line": 800,
+        "line": 821,
         "matched_text": "25 canonical browser\nwrappers",
         "matches_disk": true,
         "path": "docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md",
@@ -438,7 +438,7 @@
       {
         "disk_count": 9,
         "kind": "browser_direct_only_module_count",
-        "line": 801,
+        "line": 822,
         "matched_text": "9 direct-only browser Python modules",
         "matches_disk": true,
         "path": "docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md",
@@ -798,6 +798,7 @@
       "webview_non_browser_smoke": 8
     },
     "shared_support_files": [
+      "ops/scripts/smoke/tauri_harness_process_ownership.ps1",
       "ops/scripts/smoke/webview_browser_smoke_common.ps1"
     ],
     "wrapper_count": 37

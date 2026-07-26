@@ -554,6 +554,7 @@
     Route1440pUpperHeightTolerancePercent: "second",
     Route4KLowerHeightTolerancePercent: "second",
   };
+  let guidedFocusGeneration = 0;
 
   function visibleLibraryRouteTarget(target) {
     if (!target) return null;
@@ -566,12 +567,26 @@
       : null;
   }
 
+  function guidedFocusMovedElsewhere(target, focusTarget, focusClaimed) {
+    if (!focusClaimed) return false;
+    const active = document.activeElement;
+    return Boolean(
+      active
+      && active !== document.body
+      && active.isConnected
+      && active !== focusTarget
+      && !target.contains(active)
+    );
+  }
+
   function focusLibraryControl(libraryId, selector) {
+    const focusGeneration = ++guidedFocusGeneration;
     const showPageLocal = typeof window.showPage === "function" ? window.showPage : null;
     setText("settings-libraries-status", "Opening guided route control");
     showPageLocal?.("libraries");
     selectProfile(libraryId, { source: "navigation" });
-    const focusAfterRender = () => {
+    const focusAfterRender = (attemptsRemaining = 40, stableChecks = 0, focusClaimed = false) => {
+      if (focusGeneration !== guidedFocusGeneration) return;
       let sourceTarget = null;
       try {
         sourceTarget = selector ? document.querySelector(selector) : null;
@@ -592,11 +607,22 @@
           target.tabIndex = -1;
           focusTarget = target;
         }
+        if (guidedFocusMovedElsewhere(target, focusTarget, focusClaimed)) return;
         target.scrollIntoView({ behavior: "smooth", block: "center" });
-        target.classList.add("is-selected");
-        window.setTimeout(() => target.classList.remove("is-selected"), 1600);
+        if (!target.classList.contains("is-selected")) {
+          target.classList.add("is-selected");
+          window.setTimeout(() => target.classList.remove("is-selected"), 1600);
+        }
         focusTarget?.focus?.({ preventScroll: true });
         setText("settings-libraries-status", "Guided route control focused");
+        const focused = document.activeElement === focusTarget || target.contains(document.activeElement);
+        const nextStableChecks = focused ? stableChecks + 1 : 0;
+        if (attemptsRemaining > 0) {
+          window.setTimeout(
+            () => focusAfterRender(attemptsRemaining - 1, nextStableChecks, focusClaimed || focused),
+            50,
+          );
+        }
         return;
       }
 
@@ -611,6 +637,12 @@
         "Guided target unavailable. The requested profile is active; inspect its read-only route evidence or choose another guided control.",
         "warning"
       );
+      if (attemptsRemaining > 0) {
+        window.setTimeout(
+          () => focusAfterRender(attemptsRemaining - 1, 0, false),
+          50,
+        );
+      }
     };
     if (typeof window.requestAnimationFrame === "function") {
       window.requestAnimationFrame(focusAfterRender);

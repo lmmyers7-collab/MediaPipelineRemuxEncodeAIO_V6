@@ -6,9 +6,9 @@ file_type: PowerShell
 pipeline_stage: setup
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-07-20
+last_modified: 2026-07-26
 last_reviewed: 2026-07-20
-sha256: 85681af2e218c17851ec4b8d8eca4bf638d999fcb61c007c4e7fd043424e894e
+sha256: 76902fe99d308139c84c5d229b0d1ef05e6955e7791cbdc589f0bd7ee67276de
 ---
 # `ops/scripts/dev/setup-code-context-mcp.ps1`
 

@@ -254,6 +254,8 @@ def _copy_sidecars_to_pending(
                 "parked_file": str(parked),
                 "server_out": str(server_out),
                 "output_size": parked.stat().st_size,
+                "output_sha256": sha256_file(parked),
+                "output_hash_algorithm": "SHA256",
                 "preserve_existing": bool(record.get("preserved_existing") is True) if isinstance(record, Mapping) else False,
                 "tx3g_record": pending_record,
             }

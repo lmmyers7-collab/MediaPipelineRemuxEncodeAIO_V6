@@ -6,9 +6,9 @@ file_type: PowerShell
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-23
+last_modified: 2026-07-26
 last_reviewed: 2026-06-04
-sha256: 9f5caecc8c8b5e3d0418fceb29b3c2d8fd41afce71b22aa8353ad4c5cb490d69
+sha256: 8b8864c84b3e4c1e4cb62670bd2d9c7d6dcbe530ad058a9ec0212bcc00df25a0
 ---
 # `ops/pipeline/tests/Invoke-WebViewReliabilityChecks.ps1`
 

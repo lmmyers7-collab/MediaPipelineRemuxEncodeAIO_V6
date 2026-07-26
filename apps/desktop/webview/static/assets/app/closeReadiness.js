@@ -8,6 +8,7 @@
       state: "unavailable",
       operator_status: "unavailable",
       reason: message,
+      continuous_watcher: { status: "unavailable" },
       warnings: [message],
       evidence_authority: "frontend-fail-closed-sentinel",
     };
@@ -17,16 +18,30 @@
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
       return unavailableCloseReadiness(unavailableReason);
     }
-    if (typeof payload.safe_to_close !== "boolean") {
+    const watcher = payload.continuous_watcher;
+    const validText = (value) => typeof value === "string" && Boolean(value.trim());
+    const validWarnings = Array.isArray(payload.warnings)
+      && payload.warnings.every((warning) => typeof warning === "string");
+    const validWatcher = watcher && typeof watcher === "object" && !Array.isArray(watcher);
+    const validSafeState = ["idle", "completed", "failed", "stale", "stopped"].includes(
+      String(payload.state || "").trim().toLowerCase(),
+    );
+    const watcherStatus = validWatcher ? String(watcher.status || "").trim().toLowerCase() : "";
+    const watcherBlocksClose = ["armed", "error"].includes(watcherStatus);
+    if (
+      payload.schema_version !== "desktop_close_readiness.v1"
+      || typeof payload.safe_to_close !== "boolean"
+      || typeof payload.active_work !== "boolean"
+      || !validText(payload.state)
+      || !validText(payload.reason)
+      || !validWarnings
+      || !validWatcher
+      || payload.safe_to_close === payload.active_work
+      || (payload.safe_to_close && (!validSafeState || watcherBlocksClose))
+    ) {
       return unavailableCloseReadiness(unavailableReason);
     }
-    if (Object.prototype.hasOwnProperty.call(payload, "active_work") && typeof payload.active_work !== "boolean") {
-      return unavailableCloseReadiness(unavailableReason);
-    }
-    return {
-      ...payload,
-      active_work: typeof payload.active_work === "boolean" ? payload.active_work : !payload.safe_to_close,
-    };
+    return { ...payload };
   }
 
   function formatCloseReadiness(closeReadiness) {

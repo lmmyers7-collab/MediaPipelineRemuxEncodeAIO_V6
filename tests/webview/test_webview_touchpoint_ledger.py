@@ -49,6 +49,8 @@ def test_touchpoint_ledger_is_current_and_collision_free() -> None:
     node = shutil.which("node")
     if not node:
         pytest.skip("Node.js is required for the generated WebView touchpoint ledger check.")
+    if not (REPO_ROOT / "node_modules" / "@babel" / "parser" / "package.json").is_file():
+        pytest.skip("WebView generator dependencies are intentionally absent from the portable release package.")
 
     result = subprocess.run(
         [node, str(GENERATOR_PATH), "--check"],
@@ -147,6 +149,8 @@ def test_inventory_and_browser_catalog_reconciliation_are_disk_derived() -> None
 
 
 def test_reported_audit_totals_match_every_authored_row() -> None:
+    if not AUDIT_DISPOSITION_PATH.is_file():
+        pytest.skip("Source audit disposition evidence is intentionally absent from the portable release package.")
     ledger = _load_ledger()
     counts = ledger["counts"]
     report = _reported_closure_summary()["current"]

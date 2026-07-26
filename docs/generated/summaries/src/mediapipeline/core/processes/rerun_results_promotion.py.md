@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-07-11
+last_modified: 2026-07-26
 last_reviewed: 2026-07-11
-sha256: 35e129bef02471b97b325ec229bcdc4c27ba541893b70cc1fcaf435970cd05fa
+sha256: ba9b51a10c8890a3be758879f76719a4358182a7de34d3b825a5152cbb88f5c1
 ---
 # `src/mediapipeline/core/processes/rerun_results_promotion.py`
 

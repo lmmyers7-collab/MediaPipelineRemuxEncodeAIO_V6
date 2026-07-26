@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-23
+last_modified: 2026-07-26
 last_reviewed: 2026-07-14
-sha256: c56083cfda03e1de1743d06695d514bb510609173c3b248a7b6ab3f658f081ce
+sha256: 76b610580fca5f0e1bf97f7ad26002ca0302af49f46dfb956750f16a12cf3217
 ---
 # `tests/webview/test_webview_touchpoint_ledger.py`
 

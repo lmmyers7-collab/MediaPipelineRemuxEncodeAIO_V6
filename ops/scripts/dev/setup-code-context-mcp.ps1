@@ -203,13 +203,6 @@ function Remove-ClaudeRegistration {
 $CodexCli = if ($Clients -in @('Both', 'Codex')) { Resolve-CodexCli } else { $null }
 $ClaudeCli = if ($Clients -in @('Both', 'Claude')) { Resolve-ClaudeCli } else { $null }
 
-if ($Clients -in @('Both', 'Codex') -and -not $CodexCli) {
-    throw 'Codex CLI was not found.'
-}
-if ($Clients -in @('Both', 'Claude') -and -not $ClaudeCli) {
-    throw 'Claude CLI was not found.'
-}
-
 if (-not $Apply -and -not $Remove) {
     [ordered]@{
         action = 'preview'
@@ -218,10 +211,19 @@ if (-not $Apply -and -not $Remove) {
         environment_python = $EnvironmentPython
         runner = $RunnerPath
         module = $ModuleName
-        codex_cli = $CodexCli
-        claude_cli = $ClaudeCli
+        codex_cli = if ($Clients -in @('Both', 'Codex')) { if ($CodexCli) { $CodexCli } else { 'codex (not found)' } } else { $null }
+        claude_cli = if ($Clients -in @('Both', 'Claude')) { if ($ClaudeCli) { $ClaudeCli } else { 'claude (not found)' } } else { $null }
+        codex_cli_available = [bool]$CodexCli
+        claude_cli_available = [bool]$ClaudeCli
     } | ConvertTo-Json -Depth 4
     exit 0
+}
+
+if ($Clients -in @('Both', 'Codex') -and -not $CodexCli) {
+    throw 'Codex CLI was not found.'
+}
+if ($Clients -in @('Both', 'Claude') -and -not $ClaudeCli) {
+    throw 'Claude CLI was not found.'
 }
 
 if ($Apply) {

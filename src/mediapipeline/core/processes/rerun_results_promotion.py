@@ -212,6 +212,8 @@ def rerun_promote_to_pending_publish(
         "source_identity_v2": source_identity,
         "source_identity_v2_algorithm": row.get("source_identity_v2_algorithm") or "rerun_results_v1",
         "output_size": output.stat().st_size,
+        "output_sha256": sha256_file(output),
+        "output_hash_algorithm": "SHA256",
         "publish_mode": "pending_publish",
         "sidecar_files": sidecar_entries,
         "tx3g_srt_tracks": [],

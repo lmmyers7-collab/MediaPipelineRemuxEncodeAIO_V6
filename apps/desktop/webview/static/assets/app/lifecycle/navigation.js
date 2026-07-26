@@ -452,16 +452,17 @@
     return document.activeElement === target;
   }
 
-  function focusUiQuickLinkWhenReady(selector, attemptsRemaining = 40, stableChecks = 0) {
+  function focusUiQuickLinkWhenReady(selector, attemptsRemaining = 40, stableChecks = 0, focusClaimed = false) {
     const target = selector ? document.querySelector(selector) : null;
     const ready = Boolean(target && !target.disabled && target.getAttribute?.("aria-busy") !== "true");
     const active = document.activeElement;
-    if (ready && active !== target && active && active !== document.body && active.isConnected) return;
+    if (ready && focusClaimed && active !== target && active && active !== document.body && active.isConnected) return;
     if (ready && active !== target) focusUiQuickLinkTarget(selector);
     const nextStableChecks = ready && document.activeElement === target ? stableChecks + 1 : 0;
+    const nextFocusClaimed = focusClaimed || nextStableChecks > 0;
     if (nextStableChecks >= 4 || attemptsRemaining <= 0) return;
     window.setTimeout(
-      () => focusUiQuickLinkWhenReady(selector, attemptsRemaining - 1, nextStableChecks),
+      () => focusUiQuickLinkWhenReady(selector, attemptsRemaining - 1, nextStableChecks, nextFocusClaimed),
       50,
     );
   }

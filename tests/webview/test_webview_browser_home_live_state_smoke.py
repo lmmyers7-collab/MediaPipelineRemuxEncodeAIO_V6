@@ -242,7 +242,16 @@ def _browser_home_live_state_runner_source() -> str:
               "renderDiagnosticsProgress",
             ].forEach((name) => requireNamespaceFunction("mediaPipelineProgressView", name));
 
-            window.renderCloseReadiness({ safe_to_close: true, active_work: false, state: "idle", reason: "fixture idle" });
+            const safeCloseFixture = {
+              schema_version: "desktop_close_readiness.v1",
+              safe_to_close: true,
+              active_work: false,
+              state: "idle",
+              reason: "fixture idle",
+              continuous_watcher: { status: "idle" },
+              warnings: [],
+            };
+            window.renderCloseReadiness(safeCloseFixture);
             if (!text("close-readiness").includes("safe")) throw new Error("safe close-readiness fixture did not render safe");
             window.renderCloseReadinessUnavailable("fixture route timeout");
             if (!text("close-readiness").includes("active work")) throw new Error("unavailable close-readiness did not fail closed");
@@ -251,7 +260,7 @@ def _browser_home_live_state_runner_source() -> str:
             if (invalidClose.safe_to_close !== false || invalidClose.operator_status !== "unavailable") {
               throw new Error("non-boolean close-readiness did not normalize unavailable");
             }
-            window.renderCloseReadiness({ safe_to_close: true, active_work: false, state: "idle", reason: "fixture recovered" });
+            window.renderCloseReadiness({ ...safeCloseFixture, reason: "fixture recovered" });
             if (!text("close-readiness").includes("safe")) throw new Error("recovered close-readiness did not render safe");
 
             window.showPage("home");
