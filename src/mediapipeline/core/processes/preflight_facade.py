@@ -14,16 +14,6 @@ from mediapipeline.core.kernel.dto_base import JsonMap, json_safe
 from mediapipeline.core.kernel.contracts import ContractError, QueuePlanSnapshot
 from mediapipeline.core.paths.contracts import ResolvedPaths
 from mediapipeline.core.paths.queue_input_fingerprint import queue_input_consistency, queue_input_fingerprint
-from mediapipeline.core.queue.priority_export import PriorityQueueExportStore
-from mediapipeline.core.queue.freshness import (
-    QUEUE_SNAPSHOT_FRESHNESS_CLOCK_SKEW_SECONDS,
-    QUEUE_SNAPSHOT_FRESHNESS_DEFAULT_SECONDS,
-    QUEUE_SNAPSHOT_FRESHNESS_MAX_SECONDS,
-    QUEUE_SNAPSHOT_FRESHNESS_MIN_SECONDS,
-    evaluate_queue_snapshot_freshness,
-    normalize_queue_snapshot_freshness_seconds,
-)
-
 from mediapipeline.core.config.identity import config_identity_block_reasons
 from mediapipeline.core.processes.audit_policy import AUDIT_LIBRARY_ROOT_ERROR, resolve_audit_library_root
 from mediapipeline.core.processes.file_io import read_json_file
@@ -68,13 +58,6 @@ LAUNCH_PREFLIGHT_TARGETS = frozenset({"pipeline", "audit", "rerun"})
 LAUNCH_PREFLIGHT_PATH_HEALTH_TIMEOUT_SECONDS = LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS
 ENCODER_CAPABILITY_REFRESH_MAX_AGE_SECONDS = 7 * 24 * 60 * 60
 ENCODER_CAPABILITY_REFRESH_TIMEOUT_SECONDS = 60.0
-QUEUE_LAUNCH_SNAPSHOT_FRESHNESS_DEFAULT_SECONDS = QUEUE_SNAPSHOT_FRESHNESS_DEFAULT_SECONDS
-QUEUE_LAUNCH_SNAPSHOT_FRESHNESS_MIN_SECONDS = QUEUE_SNAPSHOT_FRESHNESS_MIN_SECONDS
-QUEUE_LAUNCH_SNAPSHOT_FRESHNESS_MAX_SECONDS = QUEUE_SNAPSHOT_FRESHNESS_MAX_SECONDS
-QUEUE_LAUNCH_SNAPSHOT_CLOCK_SKEW_SECONDS = QUEUE_SNAPSHOT_FRESHNESS_CLOCK_SKEW_SECONDS
-
-
-
 from mediapipeline.core.processes import preflight_support as _preflight_support
 from mediapipeline.core.processes.preflight_support import *  # noqa: F403
 
@@ -271,7 +254,21 @@ class ProcessFacadeMixin:
                 "Configure LocalBase, then create a new priority export from Queue.",
                 detail=["priority_export_state_root_missing"],
             )
-        validation = PriorityQueueExportStore(resolved.state_root).validate_for_launch(export_id=export_id)
+        priority_export_validator = getattr(
+            self.service,
+            "validate_priority_queue_export_for_launch",
+            None,
+        )
+        if not callable(priority_export_validator):
+            return _preflight_check(
+                "priority_export_scope",
+                "Priority export scope",
+                "blocked",
+                "Priority Export launch validation is unavailable.",
+                "Restart the desktop backend before creating a new priority export.",
+                detail=["priority_export_validation_unavailable"],
+            )
+        validation = priority_export_validator(resolved, export_id=export_id)
         if str(validation.get("status") or "").casefold() != "ready":
             return _preflight_check(
                 "priority_export_scope",
@@ -314,11 +311,13 @@ class ProcessFacadeMixin:
         retain_accepted_rows: bool = False,
     ) -> dict[str, Any]:
         """Validate the backend Queue plan accepted by standard Run Once."""
-        raw_freshness = (resolved.config_data or {}).get(
-            "QueueLaunchSnapshotFreshnessSeconds",
-            QUEUE_LAUNCH_SNAPSHOT_FRESHNESS_DEFAULT_SECONDS,
+        raw_freshness = (resolved.config_data or {}).get("QueueLaunchSnapshotFreshnessSeconds")
+        freshness_normalizer = getattr(
+            self.service,
+            "normalize_queue_snapshot_freshness_seconds",
+            None,
         )
-        freshness_seconds = normalize_queue_snapshot_freshness_seconds(raw_freshness)
+        freshness_seconds = freshness_normalizer(raw_freshness) if callable(freshness_normalizer) else 60
         preview_age_detail: list[Any] = []
 
         snapshot_path = resolved.queue_snapshot_path
@@ -410,7 +409,21 @@ class ProcessFacadeMixin:
         # advisory age calculation so a newer inventory scan cannot invalidate
         # an otherwise current executable plan.
         scan_status: Mapping[str, Any] = {}
-        freshness = evaluate_queue_snapshot_freshness(
+        freshness_evaluator = getattr(
+            self.service,
+            "evaluate_queue_snapshot_freshness_for_launch",
+            None,
+        )
+        if not callable(freshness_evaluator):
+            return _preflight_check(
+                "normal_queue_scope",
+                "Normal queue scope",
+                "blocked",
+                "Queue snapshot freshness validation is unavailable.",
+                "Restart the desktop backend, then refresh the Main Queue before Run Once.",
+                detail=["queue_snapshot_freshness_validation_unavailable"],
+            )
+        freshness = freshness_evaluator(
             snapshot_path,
             snapshot,
             scan_status,

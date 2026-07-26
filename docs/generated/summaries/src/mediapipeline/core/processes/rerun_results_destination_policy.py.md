@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-07-15
+last_modified: 2026-07-26
 last_reviewed: 2026-07-11
-sha256: 16e99d470f38230ad5adf1c862569dc7af151d0a176938fcb67f1930d6a86eae
+sha256: 13f2898597307ff3217ad8c67bbc276a1a58536b65e7949397766788eeeabc09
 ---
 # `src/mediapipeline/core/processes/rerun_results_destination_policy.py`
 

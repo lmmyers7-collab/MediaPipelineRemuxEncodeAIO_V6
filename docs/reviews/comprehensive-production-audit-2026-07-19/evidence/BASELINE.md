@@ -12,8 +12,8 @@ Time zone: US Eastern Standard Time, Indiana (East), active offset `-04:00`
 - Exact HEAD: `a8bf6e1dda9629e6f818ba12f2c8274362923372`.
 - Upstream: `origin/codex/ci-browser-shards`.
 - Ahead/behind: `0/0` from local refs only; no fetch was performed.
-- Remote recorded by Git: `https://github.com/lmmyers7-collab/MediaPipelineRemuxEncodeAIO_V6.git`.
-- Latest commit: `fix(queue): harden rerun evidence and freshness`, dated 2026-07-16.
+- Remote recorded by Git: the GitHub repository for this project, using its legacy generation 6 name.
+- Captured commit subject: `fix(queue): harden rerun evidence and freshness`, dated 2026-07-16.
 - Recent history was captured with
   `git log -n 15 --date=iso-strict --pretty=format:%H%x09%ad%x09%an%x09%s`.
 
@@ -144,4 +144,3 @@ git lfs ls-files
 - Concurrent user work means later snapshots must be timestamped and compared,
   not substituted silently for the initial baseline.
 - Dirty-state volume does not establish a defect or behavioral delta.
-

@@ -449,7 +449,21 @@
       && target.matches("a[href], button, input, select, textarea, summary, [tabindex]");
     if (!focusable && typeof target.setAttribute === "function") target.setAttribute("tabindex", "-1");
     if (typeof target.focus === "function") target.focus({ preventScroll: true });
-    return true;
+    return document.activeElement === target;
+  }
+
+  function focusUiQuickLinkWhenReady(selector, attemptsRemaining = 40, stableChecks = 0) {
+    const target = selector ? document.querySelector(selector) : null;
+    const ready = Boolean(target && !target.disabled && target.getAttribute?.("aria-busy") !== "true");
+    const active = document.activeElement;
+    if (ready && active !== target && active && active !== document.body && active.isConnected) return;
+    if (ready && active !== target) focusUiQuickLinkTarget(selector);
+    const nextStableChecks = ready && document.activeElement === target ? stableChecks + 1 : 0;
+    if (nextStableChecks >= 4 || attemptsRemaining <= 0) return;
+    window.setTimeout(
+      () => focusUiQuickLinkWhenReady(selector, attemptsRemaining - 1, nextStableChecks),
+      50,
+    );
   }
 
   function activateUiQuickLinkModule(moduleName, action, trigger) {
@@ -469,10 +483,17 @@
   function activateUiQuickLink(trigger) {
     const dataset = trigger?.dataset || {};
     const page = String(dataset.quickLinkPage || "").trim();
-    if (page) navigateToPage(page, {
-      focusSelector: dataset.quickLinkFocus || "",
-      restoreFocus: !dataset.quickLinkFocus,
-    });
+    if (page) {
+      const current = document.querySelector("[data-page-panel].is-visible")?.dataset?.pagePanel || "";
+      if (current === page && dataset.quickLinkFocus) {
+        window.setTimeout(() => focusUiQuickLinkWhenReady(dataset.quickLinkFocus), 0);
+      } else {
+        navigateToPage(page, {
+          focusSelector: dataset.quickLinkFocus || "",
+          restoreFocus: !dataset.quickLinkFocus,
+        });
+      }
+    }
     if (dataset.quickLinkReportsTab) {
       window.mediaPipelineReportsView?.activateReportsTab?.(dataset.quickLinkReportsTab);
     }
@@ -488,7 +509,7 @@
       activateUiQuickLinkModule(dataset.quickLinkModule, dataset.quickLinkAction, trigger);
     }
     if (dataset.quickLinkFocus && !page) {
-      window.setTimeout(() => focusUiQuickLinkTarget(dataset.quickLinkFocus), 0);
+      window.setTimeout(() => focusUiQuickLinkWhenReady(dataset.quickLinkFocus), 0);
     }
   }
 

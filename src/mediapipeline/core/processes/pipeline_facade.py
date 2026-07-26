@@ -12,8 +12,6 @@ from mediapipeline.core.kernel.contracts.queue_snapshot import QueueAcceptedRunR
 from mediapipeline.core.schedule.stop_watcher import schedule_stop_deadline_from_gate
 from mediapipeline.core.paths.contracts import ResolvedPaths
 from mediapipeline.core.paths.queue_input_fingerprint import queue_input_fingerprint
-from mediapipeline.core.queue.priority_export import PriorityQueueExportStore
-
 from mediapipeline.core.processes.pipeline_policy import (
     coordinator_also_encode_locally_enabled,
     is_supported_pipeline_start_mode,
@@ -184,7 +182,19 @@ class PipelineLaunchFacadeMixin:
                             "status": "blocked",
                             "message": "Priority Export scope requires LocalBase/State to be configured.",
                         })
-                    export_validation = PriorityQueueExportStore(resolved.state_root).validate_for_launch(
+                    priority_export_validator = getattr(
+                        self.service,
+                        "validate_priority_queue_export_for_launch",
+                        None,
+                    )
+                    if not callable(priority_export_validator):
+                        return pipeline_start_queue_scope_blocked_result({
+                            "status": "blocked",
+                            "message": "Priority Export launch validation is unavailable.",
+                            "reason_code": "priority_export_validation_unavailable",
+                        })
+                    export_validation = priority_export_validator(
+                        resolved,
                         export_id=intent.priority_export_id,
                     )
                     if str(export_validation.get("status") or "").casefold() != "ready":

@@ -6,15 +6,15 @@ file_type: JavaScript
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-21
+last_modified: 2026-07-26
 last_reviewed: 2026-07-16
-sha256: e3157ae054b387c486e7d21d99ca0913f0806764f9e688b72014c6b92a847b87
+sha256: 876b5583cb5407fb426787ba94cddbff6a2b60a25aabdfd0ae88042019da1f3e
 ---
 # `apps/desktop/webview/static/assets/runMonitorView.js`
 
 **Purpose:** JavaScript implementation for run monitor view; exposes acceptLaunchResult, activeJobIdentity, announce.
 
-**Public symbols:** `acceptLaunchResult`, `activeJobIdentity`, `announce`, `backendQueueCorrelationContext`, `byId`, `clearBackendQueueContext`, `enforceSingleHomeLiveRegion`, `init`, `meaningfulAnnouncement`, `observeHomeLiveRegions`, `refresh`, `render`, `renderCompactItems`, `renderDetail`, `renderItems`, `renderLastKnown`, `renderOutput`, `renderStopAfterCurrentControl`, `renderSummary`, `renderWorkers`, `setFreshness`, `setStopCommandBusy`, `setText`, `updateWorkloadDisclosure`, `updateWorkloadNameHelp`, `workerRenderSignature`, `workloadRenderSignature`
+**Public symbols:** `acceptLaunchResult`, `activeJobIdentity`, `announce`, `backendQueueCorrelationContext`, `byId`, `clearBackendQueueContext`, `enforceSingleHomeLiveRegion`, `init`, `meaningfulAnnouncement`, `observeHomeLiveRegions`, `refresh`, `render`, `renderCompactItems`, `renderDetail`, `renderItems`, `renderLastKnown`, `renderOutput`, `renderOutputFacts`, `renderStopAfterCurrentControl`, `renderSummary`, `renderSuppressedOutput`, `renderWorkers`, `setFreshness`, `setStopCommandBusy`, `setText`, `updateWorkloadDisclosure`, `updateWorkloadNameHelp`, `workerRenderSignature`, `workloadRenderSignature`
 **In-repo imports:** `window.__runMonitorFormatters`, `window.__runMonitorInteractionModule`, `window.__runMonitorNormalizationModule`, `window.__runMonitorRenderingModule`, `window.addEventListener`, `window.apiGet`, `window.dispatchEvent`, `window.mediaPipelineAppLifecycle`, `window.mediaPipelineRunMonitor`, `window.setTimeout`, `window.showPage`
 **HTTP routes:** `/api/run-monitor`
 **DOM selectors:** `summary`

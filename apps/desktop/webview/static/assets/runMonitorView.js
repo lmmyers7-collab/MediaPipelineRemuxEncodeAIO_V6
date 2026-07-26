@@ -617,37 +617,37 @@
 
 
 
-  function renderOutput(item, freshnessState) {
-    const output = object(item?.output);
+  function renderSuppressedOutput(freshnessState) {
     const list = byId("run-monitor-output");
     const evidenceList = byId("run-monitor-output-evidence");
     const sidecars = byId("run-monitor-sidecars");
     const recovery = byId("run-monitor-recovery");
     const links = byId("run-monitor-terminal-links");
-    if (!itemEvidenceAllowed(item, freshnessState)) {
-      if (list) {
-        list.replaceChildren();
-        appendFact(list, "Output evidence", `Suppressed while freshness is ${humanize(freshnessState).toLowerCase()}.`);
-      }
-      if (evidenceList) {
-        evidenceList.replaceChildren();
-        appendFact(evidenceList, "Output evidence", `Suppressed while freshness is ${humanize(freshnessState).toLowerCase()}.`);
-      }
-      if (sidecars) {
-        sidecars.replaceChildren();
-        const suppressed = document.createElement("p");
-        suppressed.textContent = `Current sidecar claims are suppressed while freshness is ${humanize(freshnessState).toLowerCase()}.`;
-        sidecars.appendChild(suppressed);
-      }
-      if (recovery) {
-        recovery.replaceChildren();
-        const suppressed = document.createElement("p");
-        suppressed.textContent = `Current recovery guidance is suppressed while freshness is ${humanize(freshnessState).toLowerCase()}.`;
-        recovery.appendChild(suppressed);
-      }
-      if (links) links.replaceChildren();
-      return;
+    if (list) {
+      list.replaceChildren();
+      appendFact(list, "Output evidence", `Suppressed while freshness is ${humanize(freshnessState).toLowerCase()}.`);
     }
+    if (evidenceList) {
+      evidenceList.replaceChildren();
+      appendFact(evidenceList, "Output evidence", `Suppressed while freshness is ${humanize(freshnessState).toLowerCase()}.`);
+    }
+    if (sidecars) {
+      sidecars.replaceChildren();
+      const suppressed = document.createElement("p");
+      suppressed.textContent = `Current sidecar claims are suppressed while freshness is ${humanize(freshnessState).toLowerCase()}.`;
+      sidecars.appendChild(suppressed);
+    }
+    if (recovery) {
+      recovery.replaceChildren();
+      const suppressed = document.createElement("p");
+      suppressed.textContent = `Current recovery guidance is suppressed while freshness is ${humanize(freshnessState).toLowerCase()}.`;
+      recovery.appendChild(suppressed);
+    }
+    if (links) links.replaceChildren();
+  }
+
+  function renderOutputFacts(output) {
+    const list = byId("run-monitor-output");
     if (list) {
       list.replaceChildren();
       appendFact(list, "Output state", humanize(output.state));
@@ -662,6 +662,7 @@
         appendFact(list, "Intended destination", output.intended_final_path);
       }
     }
+    const evidenceList = byId("run-monitor-output-evidence");
     if (evidenceList) {
       evidenceList.replaceChildren();
       const sizeBytes = output.size_bytes;
@@ -673,6 +674,18 @@
       appendFact(evidenceList, "Intended final destination", text(output.intended_final_path, "Not reported"));
       appendFact(evidenceList, "Output evidence", evidenceLabel(output.evidence));
     }
+  }
+
+  function renderOutput(item, freshnessState) {
+    const output = object(item?.output);
+    const sidecars = byId("run-monitor-sidecars");
+    const recovery = byId("run-monitor-recovery");
+    const links = byId("run-monitor-terminal-links");
+    if (!itemEvidenceAllowed(item, freshnessState)) {
+      renderSuppressedOutput(freshnessState);
+      return;
+    }
+    renderOutputFacts(output);
     if (sidecars) {
       sidecars.replaceChildren();
       const heading = document.createElement("h4");

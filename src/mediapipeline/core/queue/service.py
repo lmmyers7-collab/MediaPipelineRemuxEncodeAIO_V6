@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import datetime, UTC
 from pathlib import Path
 import threading
@@ -14,6 +15,7 @@ from mediapipeline.core.queue.dry_run_runner import (
 from mediapipeline.core.queue.preview_builder import build_queue_preview_for_service
 from mediapipeline.core.queue.freshness import (
     QueueSnapshotFreshnessAnchor,
+    QueueSnapshotFreshnessResult,
     build_queue_snapshot_freshness_anchor,
     evaluate_queue_snapshot_freshness,
     normalize_queue_snapshot_freshness_seconds,
@@ -176,6 +178,44 @@ class QueueServiceMixin:
             except OSError:
                 pass
         return artifact
+
+    def validate_priority_queue_export_for_launch(
+        self,
+        resolved: ResolvedPaths,
+        *,
+        export_id: str,
+    ) -> dict[str, Any]:
+        if resolved.state_root is None:
+            return {
+                "status": "blocked",
+                "reason_code": "priority_export_state_root_missing",
+                "message": "Priority Export requires LocalBase/State to be configured.",
+            }
+        return PriorityQueueExportStore(resolved.state_root).validate_for_launch(export_id=export_id)
+
+    def normalize_queue_snapshot_freshness_seconds(self, value: object) -> int:
+        return normalize_queue_snapshot_freshness_seconds(value)
+
+    def evaluate_queue_snapshot_freshness_for_launch(
+        self,
+        snapshot_path: Path,
+        snapshot: Mapping[str, Any],
+        scan_status: Mapping[str, Any],
+        *,
+        freshness_seconds: float,
+        wall_now: datetime | None = None,
+        monotonic_now: float | None = None,
+        anchor: QueueSnapshotFreshnessAnchor | None = None,
+    ) -> QueueSnapshotFreshnessResult:
+        return evaluate_queue_snapshot_freshness(
+            snapshot_path,
+            snapshot,
+            scan_status,
+            freshness_seconds=freshness_seconds,
+            wall_now=wall_now,
+            monotonic_now=monotonic_now,
+            anchor=anchor,
+        )
 
     def _queue_scan_lock(self) -> threading.Lock:
         lock = getattr(self, "_queue_source_scan_lock", None)

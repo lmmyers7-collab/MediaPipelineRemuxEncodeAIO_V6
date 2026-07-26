@@ -2841,7 +2841,7 @@
       "toggle",
       "visibilitychange"
     ],
-    "top_level_declaration_count": 2978
+    "top_level_declaration_count": 2980
   },
   "scripts": [
     {
@@ -4848,58 +4848,68 @@
           "kind": "function"
         },
         {
-          "name": "renderOutput",
+          "name": "renderSuppressedOutput",
           "line": 620,
           "kind": "function"
         },
         {
+          "name": "renderOutputFacts",
+          "line": 649,
+          "kind": "function"
+        },
+        {
+          "name": "renderOutput",
+          "line": 679,
+          "kind": "function"
+        },
+        {
           "name": "renderDetail",
-          "line": 766,
+          "line": 779,
           "kind": "function"
         },
         {
           "name": "renderLastKnown",
-          "line": 804,
+          "line": 817,
           "kind": "function"
         },
         {
           "name": "meaningfulAnnouncement",
-          "line": 869,
+          "line": 882,
           "kind": "function"
         },
         {
           "name": "announce",
-          "line": 915,
+          "line": 928,
           "kind": "function"
         },
         {
           "name": "render",
-          "line": 930,
+          "line": 943,
           "kind": "function"
         },
         {
           "name": "refresh",
-          "line": 968,
+          "line": 981,
           "kind": "function"
         },
         {
           "name": "backendQueueCorrelationContext",
-          "line": 1024,
+          "line": 1037,
           "kind": "function"
         },
         {
           "name": "clearBackendQueueContext",
-          "line": 1033,
+          "line": 1046,
           "kind": "function"
         },
         {
           "name": "acceptLaunchResult",
-          "line": 1039,
+          "line": 1052,
           "kind": "function"
         },
         {
           "name": "init",
-          "line": 1067,
+          "line": 1080,
           "kind": "function"
         }
       ],
@@ -22768,12 +22778,12 @@
         },
         {
           "name": "refreshCurrentOutputStatus",
-          "line": 114,
+          "line": 112,
           "kind": "function"
         },
         {
           "name": "refreshAllNow",
-          "line": 118,
+          "line": 116,
           "kind": "function"
         }
       ],

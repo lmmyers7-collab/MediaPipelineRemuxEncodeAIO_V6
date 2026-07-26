@@ -396,6 +396,8 @@ def _apply_network_pending_publish(
         "source_identity_v2": source_identity,
         "source_identity_v2_algorithm": row.get("source_identity_v2_algorithm") or "network_rerun_destination_v1",
         "output_size": int(output_before.get("size_bytes") or 0),
+        "output_sha256": output_before.get("sha256") or "",
+        "output_hash_algorithm": "SHA256",
         "publish_mode": "pending_publish",
         "sidecar_files": sidecar_entries,
         "tx3g_srt_tracks": [],

@@ -536,7 +536,7 @@ class ApplicationFacadeSnapshotTests(unittest.TestCase):
                     "report_step_total": 5,
                     "report_completed_steps": ["classify", "write_json"],
                     "latest_json_path": str(root / "audit_summary.json"),
-                    "last_update": (datetime.now() + timedelta(seconds=60)).isoformat(timespec="seconds"),
+                    "last_update": datetime.now().isoformat(timespec="seconds"),
                 },
                 latest_failure_report=None,
                 latest_failure_json=None,

@@ -6,9 +6,9 @@ file_type: JavaScript
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-23
+last_modified: 2026-07-26
 last_reviewed: 2026-07-11
-sha256: c9ea1a418525403e90ce4bf90ffedef8540d5a9952c4883407f04b4bb83fc839
+sha256: 68343ae7c150aa41544754564607961f980be30adf7063ed9accba7342a33db9
 ---
 # `apps/desktop/webview/static/assets/app/refreshCoordinator.js`
 

@@ -84,9 +84,7 @@ async function refreshAll(options = {}) {
   if (refreshInFlight) {
     if (refreshOptions.automatic && !refreshOptions.queueRefresh) return;
     refreshQueued = true;
-    refreshQueuedOptions = refreshQueuedOptions
-      ? mergeRefreshOptions(refreshQueuedOptions, refreshOptions)
-      : refreshOptions;
+    refreshQueuedOptions = mergeRefreshOptions(refreshQueuedOptions || {}, refreshOptions);
     return;
   }
   refreshInFlight = true;

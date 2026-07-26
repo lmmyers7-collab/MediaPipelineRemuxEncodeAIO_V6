@@ -314,11 +314,6 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
-      "identifier": "lastQueue",
-      "warnings": 3
-    },
-    {
-      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
       "identifier": "lastRefreshCompletedAt",
       "warnings": 1
     },
@@ -411,11 +406,6 @@
       "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
       "identifier": "renderExternalDependencyDigest",
       "warnings": 1
-    },
-    {
-      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
-      "identifier": "renderHomeNextQueue",
-      "warnings": 2
     },
     {
       "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",

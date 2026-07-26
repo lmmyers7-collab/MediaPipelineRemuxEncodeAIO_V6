@@ -173,6 +173,12 @@ def _browser_home_live_state_runner_source() -> str:
               throw new Error("Timed out waiting for " + label + (lastError ? ": " + lastError.message : "") + "\\nState:\\n" + [
                 "activePage=" + activePage(),
                 "homePanelChecks=" + JSON.stringify(homePanelChecks),
+                "queueRefreshButton=" + JSON.stringify({
+                  disabled: Boolean(document.querySelector("[data-queue-refresh-button]")?.disabled),
+                  ariaBusy: document.querySelector("[data-queue-refresh-button]")?.getAttribute("aria-busy") || "",
+                  activeTag: document.activeElement?.tagName || "",
+                  activeId: document.activeElement?.id || "",
+                }),
                 "statePill=" + text("state-pill"),
                 "homeReadiness=" + text("home-readiness-summary"),
                 "nextQueue=" + text("home-next-queue-list"),

@@ -234,7 +234,16 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
               console,
               document: {
                 createElement() {
-                  return { className: "", textContent: "", title: "", dataset: {} };
+                  return {
+                    className: "",
+                    textContent: "",
+                    title: "",
+                    dataset: {},
+                    append(...children) {
+                      this.children = [...(this.children || []), ...children];
+                      this.textContent = this.children.map((child) => child.textContent || "").join(" ");
+                    },
+                  };
                 },
               },
               Date,

@@ -1542,7 +1542,7 @@ class WebViewBrowserRootControlCensus(unittest.TestCase):
 
         generated = census["generated"]
         self.assertEqual(generated["discovered_count"], 87)
-        self.assertEqual(generated["raw_instance_count"], 1134)
+        self.assertEqual(generated["raw_instance_count"], 1136)
         self.assertEqual(generated["activated_count"], 80)
         self.assertEqual(generated["blocked_count"], 7)
         self.assertEqual(generated["skipped_count"], 0)
@@ -1553,12 +1553,12 @@ class WebViewBrowserRootControlCensus(unittest.TestCase):
         self.assertEqual(
             generated["inventory_counts"],
             {
-                "raw_instances": 1134,
+                "raw_instances": 1136,
                 "page_owned_records": 78,
-                "page_owned_instances": 234,
+                "page_owned_instances": 235,
                 "row_families": 19,
                 "shared_families": 9,
-                "shared_instances": 900,
+                "shared_instances": 901,
             },
         )
         self.assertEqual(generated["failed_count"], 0, generated["failed_ids"])

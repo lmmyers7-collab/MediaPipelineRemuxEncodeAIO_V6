@@ -503,7 +503,8 @@
       const history = Array.isArray(entries) ? entries : [];
       const counts = queueCounts(payload, rowList);
       const warnings = Array.isArray(payload.warnings) ? payload.warnings.filter(Boolean) : [];
-      const reviewRows = queueReviewRows(payload, rowList);
+      const rawReviewRows = queueReviewRows(payload, rowList);
+      const reviewRows = Array.isArray(rawReviewRows) ? rawReviewRows : [];
       const selected = getSelectedQueueRow();
       const selectedSummary = queueLaunchDecisionSelectedRowSummary(selected);
       const latestCommand = queueLaunchDecisionLatestCommand(history);

@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-20
+last_modified: 2026-07-26
 last_reviewed: 2026-07-14
-sha256: 10b44f5be3a43d6a31b230db796d2795354efdcbe446ae3ff7a8749e49558866
+sha256: 271475a570b33bbc44b1ef9ff0042f6f899864f116b90fbc7ed7f1b821ca81dd
 ---
 # `tests/webview/test_webview_browser_root_control_census.py`
 

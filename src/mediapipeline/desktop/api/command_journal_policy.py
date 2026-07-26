@@ -36,8 +36,10 @@ def is_command_result_payload(payload: Mapping[str, Any]) -> bool:
 def scalar_text(value: Any, *, limit: int) -> str:
     if value is None:
         return ""
-    text = redact_network_secret_text(value).replace("\r\n", "\n").replace("\r", "\n")
-    if len(text) <= limit:
+    raw_text = str(value)
+    redaction_scan_limit = max(2048, limit * 4)
+    text = redact_network_secret_text(raw_text[:redaction_scan_limit]).replace("\r\n", "\n").replace("\r", "\n")
+    if len(raw_text) <= redaction_scan_limit and len(text) <= limit:
         return text
     return text[: max(0, limit - 1)] + "..."
 

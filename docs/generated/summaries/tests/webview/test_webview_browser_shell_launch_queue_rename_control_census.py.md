@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: rename
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-20
+last_modified: 2026-07-26
 last_reviewed: 2026-07-14
-sha256: 1872dc031bc7dd2ed076f365d6df0268e16e213f0b7cacfcc9fa3d352023bfe7
+sha256: 8d44d391605b989c097f646d6f1f0603e557af3ef3422649e170d7684fbd2507
 ---
 # `tests/webview/test_webview_browser_shell_launch_queue_rename_control_census.py`
 

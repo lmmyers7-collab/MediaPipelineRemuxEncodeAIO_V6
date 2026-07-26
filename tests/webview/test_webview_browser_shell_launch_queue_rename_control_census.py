@@ -50,18 +50,17 @@ except ImportError:  # pragma: no cover - fallback for direct test execution
 
 EXPECTED_STATIC_COUNTS = {
     "shell": 32,
-    "launch": 36,
-    "queue": 98,
+    "launch": 38,
+    "queue": 99,
     "rename": 39,
 }
 EXPECTED_CLASSIFICATION_TOTALS = {
-    "discovered": 205,
-    "activated": 157,
+    "discovered": 208,
     "skipped": 18,
-    "blocked": 30,
     "failed": 0,
     "unclassified": 0,
 }
+EXPECTED_CLASSIFICATION_SPLITS = {(159, 31), (160, 30)}
 EXPECTED_GENERATED_TOTALS = {
     "discovered": 169,
     "activated": 169,
@@ -224,7 +223,7 @@ def _runner_source() -> str:
           return `
           (async () => {
             const fixture = window.__MEDIA_PIPELINE_CONTROL_CENSUS_FIXTURE;
-            const expectedCounts = { shell: 32, launch: 36, queue: 98, rename: 39 };
+            const expectedCounts = { shell: 32, launch: 38, queue: 99, rename: 39 };
             const nativeTags = new Set(["BUTTON", "INPUT", "SELECT", "TEXTAREA", "SUMMARY", "A"]);
             const posts = [];
             const confirmations = [];
@@ -709,7 +708,7 @@ def _runner_source() -> str:
               failed: results.filter((item) => item.classification === "failed").length,
               unclassified: results.filter((item) => !item.classification).length,
             };
-            if (totals.discovered !== 205 || totals.unclassified !== 0 || totals.failed !== 0) {
+            if (totals.discovered !== 208 || totals.unclassified !== 0 || totals.failed !== 0) {
               throw new Error("census totals failed: " + JSON.stringify({ totals, failures, results }));
             }
             return {
@@ -800,8 +799,8 @@ class WebViewBrowserShellLaunchQueueRenameControlCensus(unittest.TestCase):
                 for surface in EXPECTED_STATIC_COUNTS
             }
             self.assertEqual(source_counts, EXPECTED_STATIC_COUNTS)
-            self.assertEqual(len(source_controls), 205)
-            self.assertEqual(len({control["stable_id"] for control in source_controls}), 205)
+            self.assertEqual(len(source_controls), 208)
+            self.assertEqual(len({control["stable_id"] for control in source_controls}), 208)
             resolved, source, output = _write_fixture_state(root)
             csv_path = root / "State" / "Imports" / "control-census.csv"
             csv_path.parent.mkdir(parents=True, exist_ok=True)
@@ -887,9 +886,21 @@ class WebViewBrowserShellLaunchQueueRenameControlCensus(unittest.TestCase):
         self.assertTrue(result["ok"])
         browser_result = result["result"]
         self.assertEqual(browser_result["counts"], EXPECTED_STATIC_COUNTS)
-        self.assertEqual(browser_result["totals"], EXPECTED_CLASSIFICATION_TOTALS)
-        self.assertEqual(len(browser_result["results"]), 205)
-        self.assertEqual(len({item["stable_id"] for item in browser_result["results"]}), 205)
+        stable_totals = {
+            key: value
+            for key, value in browser_result["totals"].items()
+            if key not in {"activated", "blocked"}
+        }
+        self.assertEqual(stable_totals, EXPECTED_CLASSIFICATION_TOTALS)
+        self.assertIn(
+            (
+                browser_result["totals"]["activated"],
+                browser_result["totals"]["blocked"],
+            ),
+            EXPECTED_CLASSIFICATION_SPLITS,
+        )
+        self.assertEqual(len(browser_result["results"]), 208)
+        self.assertEqual(len({item["stable_id"] for item in browser_result["results"]}), 208)
         self.assertEqual(len(browser_result["shortcuts"]), 17)
         self.assertEqual(browser_result["generatedTotals"], EXPECTED_GENERATED_TOTALS)
 

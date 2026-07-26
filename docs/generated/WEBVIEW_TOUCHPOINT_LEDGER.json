@@ -1982,16 +1982,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         }
       ],
@@ -2010,13 +2010,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -2697,16 +2697,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -2792,13 +2792,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -3336,16 +3336,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -3429,13 +3429,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -3630,16 +3630,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -3693,13 +3693,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -3950,16 +3950,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -4073,13 +4073,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -4439,16 +4439,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -4523,13 +4523,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -4664,16 +4664,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -4776,13 +4776,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -5145,16 +5145,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -5229,13 +5229,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -5417,16 +5417,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -5487,13 +5487,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -5730,16 +5730,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -5795,13 +5795,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -5950,16 +5950,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -6041,13 +6041,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -6284,16 +6284,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -6407,13 +6407,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -6562,16 +6562,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -6653,13 +6653,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -6924,16 +6924,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -7019,13 +7019,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -7701,16 +7701,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 552,
+          "line": 573,
           "event": "click",
-          "handler": "inline@552",
+          "handler": "inline@573",
           "binding_scope": "exact"
         }
       ],
       "bindings": [
         {
           "event": "click",
-          "handler": "inline@552",
+          "handler": "inline@573",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "exact"
         }
@@ -11630,16 +11630,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -11728,13 +11728,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -11882,16 +11882,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -11980,13 +11980,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -14137,16 +14137,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         }
       ],
@@ -14189,13 +14189,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -15700,16 +15700,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -15823,13 +15823,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -16672,16 +16672,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -16728,13 +16728,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -16850,16 +16850,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -16950,13 +16950,13 @@
       "bindings": [
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -18049,16 +18049,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -18133,13 +18133,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -20069,16 +20069,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         }
       ],
@@ -20157,13 +20157,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -20296,16 +20296,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -20375,13 +20375,13 @@
       "bindings": [
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -20597,16 +20597,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -20690,13 +20690,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -20921,16 +20921,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -21014,13 +21014,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -21245,16 +21245,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -21338,13 +21338,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -21569,16 +21569,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -21662,13 +21662,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -24188,16 +24188,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -24251,13 +24251,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -24738,16 +24738,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         }
       ],
@@ -24766,13 +24766,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -31129,16 +31129,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -31238,13 +31238,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -31477,16 +31477,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -31586,13 +31586,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -31813,16 +31813,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -31878,13 +31878,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -32554,16 +32554,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -32647,13 +32647,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -33205,16 +33205,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -33298,13 +33298,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -33492,16 +33492,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -33562,13 +33562,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -34120,16 +34120,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -34213,13 +34213,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -34407,16 +34407,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -34477,13 +34477,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -35068,16 +35068,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -35191,13 +35191,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -35448,16 +35448,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -35571,13 +35571,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -35767,16 +35767,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -35837,13 +35837,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -36082,16 +36082,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -36147,13 +36147,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -37754,16 +37754,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -37863,13 +37863,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -38410,16 +38410,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -38496,13 +38496,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -38732,16 +38732,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -38818,13 +38818,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -39019,16 +39019,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -39082,13 +39082,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -39285,16 +39285,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -39348,13 +39348,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -39544,16 +39544,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -39614,13 +39614,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -39817,16 +39817,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -39880,13 +39880,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -40499,29 +40499,29 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         }
       ],
       "bindings": [
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -40784,16 +40784,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -40882,13 +40882,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -41120,16 +41120,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -41206,13 +41206,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -41479,16 +41479,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -41574,13 +41574,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -41833,16 +41833,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -41928,13 +41928,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -42185,16 +42185,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -42280,13 +42280,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -42439,16 +42439,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -42530,13 +42530,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -42728,16 +42728,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -42798,13 +42798,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -43881,16 +43881,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -43946,13 +43946,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -44344,16 +44344,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -44430,13 +44430,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -44689,16 +44689,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -44812,13 +44812,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -45092,16 +45092,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         }
       ],
@@ -45180,13 +45180,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -45442,16 +45442,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         }
       ],
@@ -45530,13 +45530,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -45715,16 +45715,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -45778,13 +45778,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -48465,16 +48465,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -48542,13 +48542,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -48731,16 +48731,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -48808,13 +48808,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -48969,16 +48969,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -49081,13 +49081,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -49260,16 +49260,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -49372,13 +49372,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -49768,16 +49768,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -49854,13 +49854,13 @@
       "bindings": [
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -49983,16 +49983,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -50069,13 +50069,13 @@
       "bindings": [
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -50551,16 +50551,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -50658,13 +50658,13 @@
       "bindings": [
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -50841,16 +50841,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -50925,13 +50925,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -51074,16 +51074,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -51172,13 +51172,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -51322,14 +51322,14 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/runMonitorView.js",
-          "line": 1079,
+          "line": 1092,
           "event": "mediapipeline:focus-current-work",
-          "handler": "inline@1079",
+          "handler": "inline@1092",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/runMonitorView.js",
-          "line": 1108,
+          "line": 1121,
           "event": "DOMContentLoaded",
           "handler": "init",
           "binding_scope": "delegated-source"
@@ -51345,7 +51345,7 @@
       "bindings": [
         {
           "event": "mediapipeline:focus-current-work",
-          "handler": "inline@1079",
+          "handler": "inline@1092",
           "delegated_by": "apps/desktop/webview/static/assets/runMonitorView.js",
           "scope": "delegated-source"
         },
@@ -51467,16 +51467,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -51560,13 +51560,13 @@
       "bindings": [
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -51884,16 +51884,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -51970,13 +51970,13 @@
       "bindings": [
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -52162,14 +52162,14 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/runMonitorView.js",
-          "line": 1079,
+          "line": 1092,
           "event": "mediapipeline:focus-current-work",
-          "handler": "inline@1079",
+          "handler": "inline@1092",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/runMonitorView.js",
-          "line": 1108,
+          "line": 1121,
           "event": "DOMContentLoaded",
           "handler": "init",
           "binding_scope": "delegated-source"
@@ -52204,7 +52204,7 @@
         },
         {
           "event": "mediapipeline:focus-current-work",
-          "handler": "inline@1079",
+          "handler": "inline@1092",
           "delegated_by": "apps/desktop/webview/static/assets/runMonitorView.js",
           "scope": "delegated-source"
         },
@@ -52396,14 +52396,14 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/runMonitorView.js",
-          "line": 1079,
+          "line": 1092,
           "event": "mediapipeline:focus-current-work",
-          "handler": "inline@1079",
+          "handler": "inline@1092",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/runMonitorView.js",
-          "line": 1108,
+          "line": 1121,
           "event": "DOMContentLoaded",
           "handler": "init",
           "binding_scope": "delegated-source"
@@ -52438,7 +52438,7 @@
         },
         {
           "event": "mediapipeline:focus-current-work",
-          "handler": "inline@1079",
+          "handler": "inline@1092",
           "delegated_by": "apps/desktop/webview/static/assets/runMonitorView.js",
           "scope": "delegated-source"
         },
@@ -58731,16 +58731,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -58815,13 +58815,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -58999,16 +58999,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -59090,13 +59090,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -59541,16 +59541,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -59657,13 +59657,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -59925,16 +59925,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -60041,13 +60041,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -60253,16 +60253,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -60353,13 +60353,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -60547,16 +60547,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -60647,13 +60647,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -61146,16 +61146,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -61230,13 +61230,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -61697,16 +61697,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         }
       ],
@@ -61785,13 +61785,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -64906,16 +64906,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -64976,13 +64976,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -66014,16 +66014,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -66084,13 +66084,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -66463,16 +66463,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -66547,13 +66547,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -66822,16 +66822,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -66917,13 +66917,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -67095,16 +67095,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -67165,13 +67165,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -67368,16 +67368,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -67431,13 +67431,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -70046,16 +70046,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -70137,13 +70137,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -74378,16 +74378,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -74471,13 +74471,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -74646,16 +74646,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -74704,13 +74704,13 @@
       "bindings": [
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -77141,16 +77141,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -77206,13 +77206,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -77570,9 +77570,9 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 550,
+          "line": 571,
           "event": "click",
-          "handler": "inline@550",
+          "handler": "inline@571",
           "binding_scope": "exact"
         },
         {
@@ -77586,7 +77586,7 @@
       "bindings": [
         {
           "event": "click",
-          "handler": "inline@550",
+          "handler": "inline@571",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "exact"
         }
@@ -82131,16 +82131,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -82222,13 +82222,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -84906,16 +84906,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -85013,13 +85013,13 @@
       "bindings": [
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -87497,16 +87497,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -87590,13 +87590,13 @@
       "bindings": [
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -87960,16 +87960,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -88051,13 +88051,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -89103,16 +89103,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -89161,13 +89161,13 @@
       "bindings": [
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -89417,16 +89417,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -89512,13 +89512,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -89943,16 +89943,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -90073,13 +90073,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -91098,14 +91098,14 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/runMonitorView.js",
-          "line": 1079,
+          "line": 1092,
           "event": "mediapipeline:focus-current-work",
-          "handler": "inline@1079",
+          "handler": "inline@1092",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/runMonitorView.js",
-          "line": 1108,
+          "line": 1121,
           "event": "DOMContentLoaded",
           "handler": "init",
           "binding_scope": "delegated-source"
@@ -91121,7 +91121,7 @@
       "bindings": [
         {
           "event": "mediapipeline:focus-current-work",
-          "handler": "inline@1079",
+          "handler": "inline@1092",
           "delegated_by": "apps/desktop/webview/static/assets/runMonitorView.js",
           "scope": "delegated-source"
         },
@@ -91469,16 +91469,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -91599,13 +91599,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -91851,16 +91851,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -91981,13 +91981,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -92233,16 +92233,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -92363,13 +92363,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -92622,16 +92622,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -92731,13 +92731,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -92972,16 +92972,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -93081,13 +93081,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -93322,16 +93322,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -93431,13 +93431,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -93672,16 +93672,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -93781,13 +93781,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -94022,16 +94022,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -94131,13 +94131,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -94372,16 +94372,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -94481,13 +94481,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -94722,16 +94722,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -94831,13 +94831,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -95072,16 +95072,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -95181,13 +95181,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -95422,16 +95422,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -95531,13 +95531,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -95772,16 +95772,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -95881,13 +95881,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -96122,16 +96122,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -96231,13 +96231,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -96472,16 +96472,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -96581,13 +96581,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -96808,16 +96808,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -96931,13 +96931,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -97172,16 +97172,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -97295,13 +97295,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -97554,16 +97554,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -97677,13 +97677,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -98742,16 +98742,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -98833,13 +98833,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -99570,16 +99570,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -99700,13 +99700,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -103287,14 +103287,14 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/runMonitorView.js",
-          "line": 1079,
+          "line": 1092,
           "event": "mediapipeline:focus-current-work",
-          "handler": "inline@1079",
+          "handler": "inline@1092",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/runMonitorView.js",
-          "line": 1108,
+          "line": 1121,
           "event": "DOMContentLoaded",
           "handler": "init",
           "binding_scope": "delegated-source"
@@ -103303,7 +103303,7 @@
       "bindings": [
         {
           "event": "mediapipeline:focus-current-work",
-          "handler": "inline@1079",
+          "handler": "inline@1092",
           "delegated_by": "apps/desktop/webview/static/assets/runMonitorView.js",
           "scope": "delegated-source"
         },
@@ -103532,16 +103532,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -103597,13 +103597,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -103738,9 +103738,9 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/runMonitorView.js",
-          "line": 760,
+          "line": 773,
           "event": "click",
-          "handler": "inline@760",
+          "handler": "inline@773",
           "binding_scope": "exact"
         }
       ],
@@ -103765,7 +103765,7 @@
         },
         {
           "event": "click",
-          "handler": "inline@760",
+          "handler": "inline@773",
           "delegated_by": "apps/desktop/webview/static/assets/runMonitorView.js",
           "scope": "exact"
         }
@@ -103879,14 +103879,14 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/runMonitorView.js",
-          "line": 1079,
+          "line": 1092,
           "event": "mediapipeline:focus-current-work",
-          "handler": "inline@1079",
+          "handler": "inline@1092",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/runMonitorView.js",
-          "line": 1108,
+          "line": 1121,
           "event": "DOMContentLoaded",
           "handler": "init",
           "binding_scope": "delegated-source"
@@ -103895,7 +103895,7 @@
       "bindings": [
         {
           "event": "mediapipeline:focus-current-work",
-          "handler": "inline@1079",
+          "handler": "inline@1092",
           "delegated_by": "apps/desktop/webview/static/assets/runMonitorView.js",
           "scope": "delegated-source"
         },
@@ -106975,16 +106975,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -107066,13 +107066,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -107241,16 +107241,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -107332,13 +107332,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -107507,16 +107507,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -107598,13 +107598,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -107773,16 +107773,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -107864,13 +107864,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -116992,16 +116992,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -117099,13 +117099,13 @@
       "bindings": [
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -117882,16 +117882,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -117989,13 +117989,13 @@
       "bindings": [
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -118807,16 +118807,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -118914,13 +118914,13 @@
       "bindings": [
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -119316,16 +119316,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -119423,13 +119423,13 @@
       "bindings": [
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -120355,16 +120355,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -120462,13 +120462,13 @@
       "bindings": [
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -122350,16 +122350,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -122387,13 +122387,13 @@
       "bindings": [
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -123423,16 +123423,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -123460,13 +123460,13 @@
       "bindings": [
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -136489,16 +136489,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -136533,13 +136533,13 @@
       "bindings": [
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -137591,16 +137591,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -137682,13 +137682,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -137960,16 +137960,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -138067,13 +138067,13 @@
       "bindings": [
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -141981,16 +141981,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -142072,13 +142072,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -146051,16 +146051,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -146135,13 +146135,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -146304,16 +146304,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -146395,13 +146395,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -146646,16 +146646,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -146669,13 +146669,13 @@
       "bindings": [
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -146978,14 +146978,14 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/runMonitorView.js",
-          "line": 1079,
+          "line": 1092,
           "event": "mediapipeline:focus-current-work",
-          "handler": "inline@1079",
+          "handler": "inline@1092",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/runMonitorView.js",
-          "line": 1108,
+          "line": 1121,
           "event": "DOMContentLoaded",
           "handler": "init",
           "binding_scope": "delegated-source"
@@ -147001,7 +147001,7 @@
       "bindings": [
         {
           "event": "mediapipeline:focus-current-work",
-          "handler": "inline@1079",
+          "handler": "inline@1092",
           "delegated_by": "apps/desktop/webview/static/assets/runMonitorView.js",
           "scope": "delegated-source"
         },
@@ -147832,16 +147832,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         }
       ],
@@ -147890,13 +147890,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         }
@@ -153976,16 +153976,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -154067,13 +154067,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -154378,16 +154378,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -154469,13 +154469,13 @@
         },
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -155564,16 +155564,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -155671,13 +155671,13 @@
       "bindings": [
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
@@ -157324,16 +157324,16 @@
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 498,
+          "line": 519,
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "binding_scope": "delegated-source"
         },
         {
           "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
-          "line": 504,
+          "line": 525,
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "binding_scope": "delegated-source"
         },
         {
@@ -157431,13 +157431,13 @@
       "bindings": [
         {
           "event": "click",
-          "handler": "inline@498",
+          "handler": "inline@519",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },
         {
           "event": "keydown",
-          "handler": "inline@504",
+          "handler": "inline@525",
           "delegated_by": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
           "scope": "delegated-source"
         },

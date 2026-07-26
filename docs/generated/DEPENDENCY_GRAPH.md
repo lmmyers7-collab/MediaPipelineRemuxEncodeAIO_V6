@@ -168,7 +168,6 @@ graph LR
   orchestration -->|3| decide
   paths -->|3| kernel
   process -->|3| core
-  process -->|3| queue
   publish -->|3| paths
   tests -->|3| files
   tests -->|3| schedule
@@ -395,7 +394,6 @@ graph LR
 | orchestration | decide | 3 |
 | paths | kernel | 3 |
 | process | core | 3 |
-| process | queue | 3 |
 | publish | paths | 3 |
 | tests | files | 3 |
 | tests | schedule | 3 |
@@ -483,3 +481,4 @@ graph LR
 | orchestration | paths | 1 |
 | orchestration | rename | 1 |
 | orchestration | scripts | 1 |
+| orchestration | storage | 1 |
