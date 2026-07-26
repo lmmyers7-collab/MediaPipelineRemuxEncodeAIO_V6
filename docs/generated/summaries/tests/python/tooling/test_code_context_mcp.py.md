@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-20
+last_modified: 2026-07-26
 last_reviewed: 2026-07-20
-sha256: 0e2e0c6bb383d9ba1090199514d6c68cb4aade1ff7f5207fc168f657d81f7ec2
+sha256: f486bb0adae74f20b3163549d43edd64ff1cc1416d6a761d45851020dd0e1eb8
 ---
 # `tests/python/tooling/test_code_context_mcp.py`
 

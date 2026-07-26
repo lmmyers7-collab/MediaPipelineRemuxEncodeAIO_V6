@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-23
+last_modified: 2026-07-26
 last_reviewed: 2026-07-23
-sha256: 0d66a9245dd47d7060cfff3a1fdd8bc866bf867b2ccaf93a63bd3ee28b68823e
+sha256: 0d5a1b4658565a058ee5cb9b8070d57c1d450f41a5f189ce958ca742bbb6db50
 ---
 # `tests/python/tooling/test_pytest_style_tests.py`
 

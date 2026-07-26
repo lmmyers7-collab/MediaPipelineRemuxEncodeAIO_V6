@@ -311,6 +311,8 @@ Invoke-WebViewBrowserSmokeUnittest -ProjectRoot $projectRoot -Module 'tests.webv
         )
 
     def test_current_generated_map_matches_renderer(self) -> None:
+        if not (REPO_ROOT / "docs" / "inventories" / "TEST_SUITE_SUBSYSTEM_INVENTORY.md").is_file():
+            self.skipTest("source test inventory is unavailable in the release package")
         expected, _findings = generate_smoke_wrapper_map.render_smoke_wrapper_map(REPO_ROOT)
         actual = generate_smoke_wrapper_map.OUTPUT_PATH.read_text(encoding="utf-8")
 

@@ -404,6 +404,8 @@ class CodeContextMcpProtocolTests(unittest.IsolatedAsyncioTestCase):
 class CodeContextMcpProcessTests(unittest.TestCase):
     def test_single_startup_workflow_and_bootstrap_token_ceiling(self) -> None:
         root = Path(__file__).resolve().parents[3]
+        if not (root / ".claude" / "CLAUDE.md").is_file():
+            self.skipTest("source assistant guidance is unavailable in the release package")
         agents = (root / "AGENTS.md").read_text(encoding="utf-8")
         claude = (root / ".claude" / "CLAUDE.md").read_text(encoding="utf-8")
         guide = (root / "docs" / "generated" / "FILE_SUMMARIES.md").read_text(encoding="utf-8")

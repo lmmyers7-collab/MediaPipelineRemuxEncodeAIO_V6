@@ -31,6 +31,10 @@ def _python_step(path: Path) -> str:
     return text[start:end]
 
 
+@unittest.skipUnless(
+    all(path.is_file() for path in WORKFLOWS),
+    "source CI workflows are unavailable in the release package",
+)
 class CiPythonSuiteFailurePropagationTests(unittest.TestCase):
     def test_each_native_exit_is_captured_before_another_process_can_overwrite_it(self) -> None:
         for path in WORKFLOWS:

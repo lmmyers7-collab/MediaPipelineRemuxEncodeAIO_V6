@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-22
+last_modified: 2026-07-26
 last_reviewed: 2026-07-22
-sha256: 9fda801bc475459e9f40fa77c82e5d603d5cc3e9bf12b4eafa6422d5af8d509b
+sha256: 43f6932f1c4cb597e2b0c9572edadfd855863daeb2904dbeae7ec6b895d152f0
 ---
 # `tests/python/tooling/test_ci_python_suite_failure_propagation.py`
 

@@ -131,6 +131,10 @@ class BrowserSmokeInventoryTests(unittest.TestCase):
                 unresolved.append(selector)
         self.assertEqual(unresolved, [])
 
+    @unittest.skipUnless(
+        all(path.is_file() for path in WORKFLOWS),
+        "source CI workflows are unavailable in the release package",
+    )
     def test_workflows_consume_the_complete_discovered_matrix_through_strict_wrapper(self) -> None:
         discovery_command = "python -m mediapipeline.tools.dev.browser_smoke_inventory --format github-matrix"
         dynamic_matrix = "matrix: ${{ fromJSON(needs.browser-test-inventory.outputs.matrix) }}"

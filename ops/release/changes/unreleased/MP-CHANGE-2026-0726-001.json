@@ -33,6 +33,7 @@
     "apps/desktop/webview/static/assets/styles/components/topbar-activity.css",
     "docs/generated/DEPENDENCY_GRAPH.md",
     "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
     "docs/generated/SMOKE_WRAPPER_MAP.json",
     "docs/generated/WEBVIEW_COMMAND_BOUNDARY_AUDIT.json",
     "docs/generated/WEBVIEW_ESLINT_WARNING_BUDGET.json",
@@ -60,6 +61,11 @@
     "docs/generated/summaries/tests/python/desktop/test_application_facade_snapshot.py.md",
     "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static.py.md",
     "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static_cross_page.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_browser_smoke_inventory.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_ci_python_suite_failure_propagation.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_code_context_mcp.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_pytest_style_tests.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_smoke_wrapper_map.py.md",
     "docs/generated/summaries/tests/webview/test_webview_browser_evidence_control_census.py.md",
     "docs/generated/summaries/tests/webview/test_webview_browser_home_live_state_smoke.py.md",
     "docs/generated/summaries/tests/webview/test_webview_browser_root_control_census.py.md",
@@ -80,6 +86,11 @@
     "tests/python/desktop/test_application_facade_snapshot.py",
     "tests/python/desktop/test_application_facade_web_static.py",
     "tests/python/desktop/test_application_facade_web_static_cross_page.py",
+    "tests/python/tooling/test_browser_smoke_inventory.py",
+    "tests/python/tooling/test_ci_python_suite_failure_propagation.py",
+    "tests/python/tooling/test_code_context_mcp.py",
+    "tests/python/tooling/test_pytest_style_tests.py",
+    "tests/python/tooling/test_smoke_wrapper_map.py",
     "tests/webview/test_webview_browser_evidence_control_census.py",
     "tests/webview/test_webview_browser_home_live_state_smoke.py",
     "tests/webview/test_webview_browser_root_control_census.py",
@@ -102,9 +113,10 @@
     "Current WebView reliability checks passed, including updated Tauri bootstrap-origin and bounded-output redaction assertions",
     "Library Route Map guided-focus browser smoke passed twice; touchpoint-ledger pytest module passed all 7 tests",
     "Portable-package pytest-style validation passed: 33 passed and 3 expected source-only checks skipped",
-    "Home, Settings/Launch, prose-box audit, and Queue/Launch/Completed browser smokes passed together after the final guided-focus refinement"
+    "Home, Settings/Launch, prose-box audit, and Queue/Launch/Completed browser smokes passed together after the final guided-focus refinement",
+    "Source-tree tooling modules passed all 47 tests with 3 existing environment skips; the portable-package tooling suite passed all 440 tests with 38 expected source-only/environment skips"
   ],
   "rollback_plan": "Revert this change as one commit. No persisted state migration is required; pending manifests created after this change retain compatible additive hash fields.",
   "related_changes": [],
-  "notes": "Python impact is limited to bounding rejected command-journal scalar redaction and including existing output-hash evidence for strict pending-publish media and copied sidecars. No media policy, source mutation, route contract, or publish/drain decision changed. Representative real-media validation is not required because the pending-publish change is additive manifest evidence covered by hermetic contract tests.\nPR-added process-to-queue imports were replaced by queue-service capability calls, preserving queue ownership and removing the new package-cycle edge.\nFollow-up removes the clean-CI lint regressions by extracting low-complexity topbar helpers, removing dead timeline locals, moving stateless priority helpers outside the factory, and declaring the shared lastQueue binding writable.\nThe final CI follow-up makes close-readiness normalization fail closed, stabilizes quick-link and guided-route focus across asynchronous rerenders, keeps setup preview and source-only pytest-style checks portable, aligns release assertions with the hardened Tauri origin and output-log implementations, replaces raw CSS values with design tokens, and refreshes affected generated evidence. Full WebView prework passed locally using the isolated worktree with the configured checkout's dependency tree linked read-only for validation. Full local package verification continued past pytest-style validation and then stopped only because this local worktree did not reproduce CI's provisioned FFmpeg, ffprobe, MKVToolNix, and PgsToSrt tool payloads."
+  "notes": "Python impact is limited to bounding rejected command-journal scalar redaction, including existing output-hash evidence for strict pending-publish media and copied sidecars, and skipping source-only tooling assertions when their deliberately excluded release-package inputs are absent. No media policy, source mutation, route contract, or publish/drain decision changed. Representative real-media validation is not required because the pending-publish change is additive manifest evidence covered by hermetic contract tests.\nPR-added process-to-queue imports were replaced by queue-service capability calls, preserving queue ownership and removing the new package-cycle edge.\nFollow-up removes the clean-CI lint regressions by extracting low-complexity topbar helpers, removing dead timeline locals, moving stateless priority helpers outside the factory, and declaring the shared lastQueue binding writable.\nThe final CI follow-up makes close-readiness normalization fail closed, stabilizes quick-link and guided-route focus across asynchronous rerenders, keeps setup preview and source-only test assertions portable, aligns release assertions with the hardened Tauri origin and output-log implementations, replaces raw CSS values with design tokens, and refreshes affected generated evidence. Full WebView prework passed locally using the isolated worktree with the configured checkout's dependency tree linked read-only for validation. Full local package verification continued past pytest-style validation and then stopped only because this local worktree did not reproduce CI's provisioned FFmpeg, ffprobe, MKVToolNix, and PgsToSrt tool payloads; the complete portable-package tooling unittest suite now passes."
 }
