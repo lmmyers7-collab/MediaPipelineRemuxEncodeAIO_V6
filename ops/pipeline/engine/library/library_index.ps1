@@ -14,7 +14,19 @@
 #   Normalize-MovieName, Get-CleanMovieName, Get-SafeLocalName
 #   Get-OutputPaths, Test-PendingPublishMatch, Test-OutputNeedsReprocess
 # ==============================================================================
+function Resolve-MediaPipelineDiscoveryPollHandler {
+    param([scriptblock] $PollHandler)
+
+    if ($PollHandler) { return $PollHandler }
+    if (Get-Command -Name New-MediaPipelineNativeCommandFallbackPollHandler -ErrorAction SilentlyContinue) {
+        return New-MediaPipelineNativeCommandFallbackPollHandler
+    }
+    return $null
+}
+
 function Build-ProcessedIndex {
+    param([scriptblock] $PollHandler)
+
     # FIX#9: the old version used Wait-Job -Timeout 120 and returned an
     # empty index on timeout, which caused Already-Processed to fall
     # back to "not in index" and skip sidecar version checks entirely -
@@ -24,9 +36,18 @@ function Build-ProcessedIndex {
     Write-Log "Building processed index from outsource..."
     $idx = @{ Movies=@{}; TVShows=@{} }
     $timeout = $script:IndexScanTimeoutSeconds
+    $effectivePollHandler = Resolve-MediaPipelineDiscoveryPollHandler -PollHandler $PollHandler
+    $pollStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+    Invoke-MediaPipelineElapsedPollHandler -PollHandler $effectivePollHandler -Stopwatch $pollStopwatch
     try {
-        $outFiles = @(Invoke-RecursivePathScan -Path $Outsource -ItemType File -TimeoutSeconds $timeout -Label "outsource index scan")
+        $outFiles = @(Invoke-RecursivePathScan `
+            -Path $Outsource `
+            -ItemType File `
+            -TimeoutSeconds $timeout `
+            -Label "outsource index scan" `
+            -PollHandler $effectivePollHandler)
         foreach ($fullName in $outFiles) {
+            Invoke-MediaPipelineElapsedPollHandler -PollHandler $effectivePollHandler -Stopwatch $pollStopwatch
             if ([string]::IsNullOrWhiteSpace([string]$fullName)) { continue }
             $fname   = [System.IO.Path]::GetFileName([string]$fullName)
             $fdir    = [System.IO.Path]::GetDirectoryName([string]$fullName)
@@ -37,6 +58,7 @@ function Build-ProcessedIndex {
                 $mShow = $Matches[1]; $mSeason = $Matches[2]
                 $mStart = [int]$Matches[3]; $mEnd = [int]$Matches[4]
                 for ($mEp = $mStart; $mEp -le $mEnd; $mEp++) {
+                    Invoke-MediaPipelineElapsedPollHandler -PollHandler $effectivePollHandler -Stopwatch $pollStopwatch
                     $idx.TVShows["${mShow}_S${mSeason}E$($mEp.ToString('00'))"] = $true
                 }
             } elseif ($fname -match '(.+?) - S(\d{2})E(\d{2})') {
@@ -156,22 +178,38 @@ function Invalidate-ProcessedIndexCache {
 }
 
 function Get-ChildItemWithRetry {
-    param([string]$Path, [int]$MaxRetries = 2)
+    param(
+        [string]$Path,
+        [int]$MaxRetries = 2,
+        [scriptblock]$PollHandler
+    )
+    $effectivePollHandler = Resolve-MediaPipelineDiscoveryPollHandler -PollHandler $PollHandler
+    $pollStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     for ($i = 0; $i -lt $MaxRetries; $i++) {
+        Invoke-MediaPipelineElapsedPollHandler -PollHandler $effectivePollHandler -Stopwatch $pollStopwatch
         try {
-            $paths = @(Invoke-RecursivePathScan -Path $Path -ItemType File -TimeoutSeconds $script:SourceScanTimeoutSeconds -Label "source scan")
-            return @(
-                $paths | ForEach-Object {
-                    try { Get-Item -LiteralPath ([string]$_) -ErrorAction Stop } catch { $null }
-                } | Where-Object { $null -ne $_ }
-            )
+            $paths = @(Invoke-RecursivePathScan `
+                -Path $Path `
+                -ItemType File `
+                -TimeoutSeconds $script:SourceScanTimeoutSeconds `
+                -Label "source scan" `
+                -PollHandler $effectivePollHandler)
+            $items = [System.Collections.Generic.List[object]]::new()
+            foreach ($pathEntry in $paths) {
+                Invoke-MediaPipelineElapsedPollHandler -PollHandler $effectivePollHandler -Stopwatch $pollStopwatch
+                try {
+                    $item = Get-Item -LiteralPath ([string]$pathEntry) -ErrorAction Stop
+                    if ($null -ne $item) { [void]$items.Add($item) }
+                } catch {}
+            }
+            return @($items.ToArray())
         }
         catch {
             if ($i -eq $MaxRetries - 1) {
                 Write-Log "Failed to scan $Path after $MaxRetries attempts: $_" "ERROR"; return @()
             }
             Write-Log "Scan of $Path failed, retry $($i+1)/$MaxRetries ($_)" "WARN"
-            if (-not (Start-StopAwareSleep 10)) { return @() }
+            if (-not (Start-StopAwareSleep 10 -PollHandler $effectivePollHandler)) { return @() }
         }
     }
     return @()
@@ -181,7 +219,8 @@ function Get-CachedSourceFiles {
     param(
         [ValidateSet('movies', 'tv')] [string] $Kind,
         [string] $Path,
-        [bool] $ForceRefresh = $false
+        [bool] $ForceRefresh = $false,
+        [scriptblock] $PollHandler
     )
 
     $ttl = [int]$script:SourceScanIntervalSeconds
@@ -193,7 +232,7 @@ function Get-CachedSourceFiles {
 
     $shouldRefresh = $ForceRefresh -or -not $stamp -or $ttl -le 0 -or $age -ge $ttl
     if ($shouldRefresh) {
-        $files = @(Get-ChildItemWithRetry $Path)
+        $files = @(Get-ChildItemWithRetry -Path $Path -PollHandler $PollHandler)
         $scanStatus = [string]$script:LastRecursivePathScanStatus
         if ($scanStatus -in @('timeout', 'stopped', 'error') -and $stamp -and @($cached).Count -gt 0) {
             Write-Log ("Source scan {0} for {1}; preserving last-good {2} cache with {3} file(s)" -f $scanStatus, $Kind, $Kind, @($cached).Count) "WARN"
@@ -213,8 +252,13 @@ function Get-MediaQueueDiscoveryPlan {
     param(
         [string] $MovieRoot = $SourceMovies,
         [string] $TVRoot = $SourceTV,
-        [bool] $ForceRefresh = $false
+        [bool] $ForceRefresh = $false,
+        [scriptblock] $PollHandler
     )
+
+    $effectivePollHandler = Resolve-MediaPipelineDiscoveryPollHandler -PollHandler $PollHandler
+    $pollStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+    Invoke-MediaPipelineElapsedPollHandler -PollHandler $effectivePollHandler -Stopwatch $pollStopwatch
 
     $profiles = if (Get-Command -Name Get-MediaPipelineLibraryProfiles -ErrorAction SilentlyContinue) {
         @(Get-MediaPipelineLibraryProfiles)
@@ -226,6 +270,7 @@ function Get-MediaQueueDiscoveryPlan {
         $movieList = [System.Collections.Generic.List[object]]::new()
         $tvList = [System.Collections.Generic.List[object]]::new()
         foreach ($profile in $profiles) {
+            Invoke-MediaPipelineElapsedPollHandler -PollHandler $effectivePollHandler -Stopwatch $pollStopwatch
             $enabled = Get-MediaPipelineProfileProperty -Profile $profile -Name 'enabled' -Default $true
             if ($enabled -is [string]) {
                 $enabled = $enabled.Trim().ToLowerInvariant() -notin @('false','0','no','off','disabled')
@@ -241,9 +286,9 @@ function Get-MediaQueueDiscoveryPlan {
             $kind = if ($isTvProfile) { 'tv' } else { 'movies' }
             $files = @()
             if (-not $isAutoProfile -and (($isTvProfile -and $sourceRoot -eq $TVRoot) -or (-not $isTvProfile -and $sourceRoot -eq $MovieRoot))) {
-                $files = @(Get-CachedSourceFiles -Kind $kind -Path $sourceRoot -ForceRefresh:$ForceRefresh)
+                $files = @(Get-CachedSourceFiles -Kind $kind -Path $sourceRoot -ForceRefresh:$ForceRefresh -PollHandler $effectivePollHandler)
             } else {
-                $files = @(Get-ChildItemWithRetry $sourceRoot)
+                $files = @(Get-ChildItemWithRetry -Path $sourceRoot -PollHandler $effectivePollHandler)
                 Write-Log ("Source scan refreshed (library profile {0}): {1} file(s)" -f ([string](Get-MediaPipelineProfileProperty -Profile $profile -Name 'id' -Default '')), $files.Count) "DEBUG"
             }
             $settingsOverrides = if (Get-Command -Name Get-MediaPipelineLibraryProfileOverrideMap -ErrorAction SilentlyContinue) {
@@ -270,6 +315,7 @@ function Get-MediaQueueDiscoveryPlan {
                 $movieFiles = [System.Collections.Generic.List[object]]::new()
                 $tvFiles = [System.Collections.Generic.List[object]]::new()
                 foreach ($file in @($files)) {
+                    Invoke-MediaPipelineElapsedPollHandler -PollHandler $effectivePollHandler -Stopwatch $pollStopwatch
                     if ($null -eq $file) { continue }
                     $kindInfo = $null
                     if (Get-Command -Name Resolve-SingleFileMediaKind -ErrorAction SilentlyContinue) {
@@ -294,7 +340,8 @@ function Get-MediaQueueDiscoveryPlan {
                         -RootPath $sourceRoot `
                         -IsTV:$false `
                         -LibraryProfileMetadata $libraryMetadata `
-                        -PriorityManifest $priorityManifest
+                        -PriorityManifest $priorityManifest `
+                        -PollHandler $effectivePollHandler
                 )
                 $tvEntries = @(
                     Get-QueuedEntries `
@@ -302,10 +349,17 @@ function Get-MediaQueueDiscoveryPlan {
                         -RootPath $sourceRoot `
                         -IsTV:$true `
                         -LibraryProfileMetadata $libraryMetadata `
-                        -PriorityManifest $priorityManifest
+                        -PriorityManifest $priorityManifest `
+                        -PollHandler $effectivePollHandler
                 )
-                foreach ($entry in $movieEntries) { [void]$movieList.Add($entry) }
-                foreach ($entry in $tvEntries) { [void]$tvList.Add($entry) }
+                foreach ($entry in $movieEntries) {
+                    Invoke-MediaPipelineElapsedPollHandler -PollHandler $effectivePollHandler -Stopwatch $pollStopwatch
+                    [void]$movieList.Add($entry)
+                }
+                foreach ($entry in $tvEntries) {
+                    Invoke-MediaPipelineElapsedPollHandler -PollHandler $effectivePollHandler -Stopwatch $pollStopwatch
+                    [void]$tvList.Add($entry)
+                }
                 continue
             }
             $entries = @(
@@ -313,34 +367,49 @@ function Get-MediaQueueDiscoveryPlan {
                     $files `
                     -RootPath $sourceRoot `
                     -IsTV:$isTvProfile `
-                    -LibraryProfileMetadata $libraryMetadata
+                    -LibraryProfileMetadata $libraryMetadata `
+                    -PollHandler $effectivePollHandler
             )
             if ($isTvProfile) {
-                foreach ($entry in $entries) { [void]$tvList.Add($entry) }
+                foreach ($entry in $entries) {
+                    Invoke-MediaPipelineElapsedPollHandler -PollHandler $effectivePollHandler -Stopwatch $pollStopwatch
+                    [void]$tvList.Add($entry)
+                }
             } else {
-                foreach ($entry in $entries) { [void]$movieList.Add($entry) }
+                foreach ($entry in $entries) {
+                    Invoke-MediaPipelineElapsedPollHandler -PollHandler $effectivePollHandler -Stopwatch $pollStopwatch
+                    [void]$movieList.Add($entry)
+                }
             }
         }
-        return New-MediaQueuePhasePlan -MovieEntries @($movieList.ToArray()) -TVEntries @($tvList.ToArray())
+        return New-MediaQueuePhasePlan `
+            -MovieEntries @($movieList.ToArray()) `
+            -TVEntries @($tvList.ToArray()) `
+            -PollHandler $effectivePollHandler
     }
 
     $movieEntries = @(
         Get-QueuedEntries `
-            (Get-CachedSourceFiles -Kind 'movies' -Path $MovieRoot -ForceRefresh:$ForceRefresh) `
-            -RootPath $MovieRoot
+            (Get-CachedSourceFiles -Kind 'movies' -Path $MovieRoot -ForceRefresh:$ForceRefresh -PollHandler $effectivePollHandler) `
+            -RootPath $MovieRoot `
+            -PollHandler $effectivePollHandler
     )
     $tvEntries = @(
         Get-QueuedEntries `
-            (Get-CachedSourceFiles -Kind 'tv' -Path $TVRoot -ForceRefresh:$ForceRefresh) `
+            (Get-CachedSourceFiles -Kind 'tv' -Path $TVRoot -ForceRefresh:$ForceRefresh -PollHandler $effectivePollHandler) `
             -RootPath $TVRoot `
-            -IsTV
+            -IsTV `
+            -PollHandler $effectivePollHandler
     )
 
-    return New-MediaQueuePhasePlan -MovieEntries $movieEntries -TVEntries $tvEntries
+    return New-MediaQueuePhasePlan -MovieEntries $movieEntries -TVEntries $tvEntries -PollHandler $effectivePollHandler
 }
 
 function Get-ProcessedIndexCached {
-    param([bool]$ForceRefresh = $false)
+    param(
+        [bool]$ForceRefresh = $false,
+        [scriptblock]$PollHandler
+    )
 
     $ttl = [int]$script:ProcessedIndexRefreshSeconds
     $age = Get-CacheAgeSeconds $script:ProcessedIndexCacheAt
@@ -351,7 +420,7 @@ function Get-ProcessedIndexCached {
         $age -ge $ttl
 
     if ($shouldRefresh) {
-        $script:ProcessedIndexCache = Build-ProcessedIndex
+        $script:ProcessedIndexCache = Build-ProcessedIndex -PollHandler $PollHandler
         $script:ProcessedIndexCacheAt = Get-Date
         $script:ForceProcessedIndexRefresh = $false
         return $script:ProcessedIndexCache

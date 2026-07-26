@@ -1,5 +1,8 @@
 ---
 file: src/mediapipeline/core/diagnostics/__init__.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: observability
 token_priority: low
 owner_domain: diagnostics

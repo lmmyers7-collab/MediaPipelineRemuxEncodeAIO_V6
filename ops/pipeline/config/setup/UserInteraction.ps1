@@ -88,19 +88,19 @@ function Read-Choice {
     }
 }
 
-function Read-PositiveNumber {
+function Read-PositiveInteger {
     param([string]$Prompt, [string]$Default)
     while ($true) {
         $raw = Read-WithDefault $Prompt $Default
-        $parsed = 0.0
-        if ([double]::TryParse(
+        $parsed = 0
+        if ([int]::TryParse(
                 $raw,
-                [System.Globalization.NumberStyles]::Float,
+                [System.Globalization.NumberStyles]::Integer,
                 $script:InvariantCulture,
                 [ref]$parsed) -and $parsed -gt 0) {
             return $parsed
         }
-        Write-Warn "Enter a positive number using '.' as the decimal separator."
+        Write-Warn 'Enter a positive whole number.'
     }
 }
 

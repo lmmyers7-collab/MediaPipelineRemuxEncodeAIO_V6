@@ -12,27 +12,27 @@
 <text xml:space="preserve" text-anchor="middle" x="220.73" y="-115" font-family="Segoe UI" font-size="20.00">desktop/priority_markers module detail</text>
 <g id="clust1" class="cluster">
 <title>cluster_focus</title>
-<path fill="white" stroke="#93c5fd" stroke-width="1.2" d="M136.71,-8C136.71,-8 429.46,-8 429.46,-8 435.46,-8 441.46,-14 441.46,-20 441.46,-20 441.46,-83 441.46,-83 441.46,-89 435.46,-95 429.46,-95 429.46,-95 136.71,-95 136.71,-95 130.71,-95 124.71,-89 124.71,-83 124.71,-83 124.71,-20 124.71,-20 124.71,-14 130.71,-8 136.71,-8"/>
-<text xml:space="preserve" text-anchor="middle" x="283.09" y="-72" font-family="Segoe UI" font-size="20.00">desktop/priority_markers modules</text>
+<path fill="white" stroke="#93c5fd" stroke-width="1.2" d="M12,-8C12,-8 304.75,-8 304.75,-8 310.75,-8 316.75,-14 316.75,-20 316.75,-20 316.75,-83 316.75,-83 316.75,-89 310.75,-95 304.75,-95 304.75,-95 12,-95 12,-95 6,-95 0,-89 0,-83 0,-83 0,-20 0,-20 0,-14 6,-8 12,-8"/>
+<text xml:space="preserve" text-anchor="middle" x="158.38" y="-72" font-family="Segoe UI" font-size="20.00">desktop/priority_markers modules</text>
 </g>
 <!-- mediapipeline_desktop_priority_markers -->
 <g id="node1" class="node">
 <title>mediapipeline_desktop_priority_markers</title>
-<path fill="#eff6ff" stroke="#334155" stroke-width="1.1" d="M327.69,-52C327.69,-52 237.48,-52 237.48,-52 231.48,-52 225.48,-46 225.48,-40 225.48,-40 225.48,-28 225.48,-28 225.48,-22 231.48,-16 237.48,-16 237.48,-16 327.69,-16 327.69,-16 333.69,-16 339.69,-22 339.69,-28 339.69,-28 339.69,-40 339.69,-40 339.69,-46 333.69,-52 327.69,-52"/>
-<text xml:space="preserve" text-anchor="middle" x="282.59" y="-31.23" font-family="Segoe UI" font-size="12.00" fill="#111827">priority_markers.py</text>
+<path fill="#eff6ff" stroke="#334155" stroke-width="1.1" d="M202.98,-52C202.98,-52 112.77,-52 112.77,-52 106.77,-52 100.77,-46 100.77,-40 100.77,-40 100.77,-28 100.77,-28 100.77,-22 106.77,-16 112.77,-16 112.77,-16 202.98,-16 202.98,-16 208.98,-16 214.98,-22 214.98,-28 214.98,-28 214.98,-40 214.98,-40 214.98,-46 208.98,-52 202.98,-52"/>
+<text xml:space="preserve" text-anchor="middle" x="157.88" y="-31.23" font-family="Segoe UI" font-size="12.00" fill="#111827">priority_markers.py</text>
 </g>
 <!-- external_core_queue -->
 <g id="node2" class="node">
 <title>external_core_queue</title>
-<path fill="#f8fafc" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M60.21,-52C60.21,-52 12,-52 12,-52 6,-52 0,-46 0,-40 0,-40 0,-28 0,-28 0,-22 6,-16 12,-16 12,-16 60.21,-16 60.21,-16 66.21,-16 72.21,-22 72.21,-28 72.21,-28 72.21,-40 72.21,-40 72.21,-46 66.21,-52 60.21,-52"/>
-<text xml:space="preserve" text-anchor="middle" x="36.11" y="-31.23" font-family="Segoe UI" font-size="12.00" fill="#111827">core/queue</text>
+<path fill="#f8fafc" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M429.46,-52C429.46,-52 381.25,-52 381.25,-52 375.25,-52 369.25,-46 369.25,-40 369.25,-40 369.25,-28 369.25,-28 369.25,-22 375.25,-16 381.25,-16 381.25,-16 429.46,-16 429.46,-16 435.46,-16 441.46,-22 441.46,-28 441.46,-28 441.46,-40 441.46,-40 441.46,-46 435.46,-52 429.46,-52"/>
+<text xml:space="preserve" text-anchor="middle" x="405.36" y="-31.23" font-family="Segoe UI" font-size="12.00" fill="#111827">core/queue</text>
 </g>
-<!-- external_core_queue&#45;&gt;mediapipeline_desktop_priority_markers -->
+<!-- mediapipeline_desktop_priority_markers&#45;&gt;external_core_queue -->
 <g id="edge1" class="edge">
-<title>external_core_queue&#45;&gt;mediapipeline_desktop_priority_markers</title>
-<path fill="none" stroke="#64748b" stroke-width="1.05" stroke-dasharray="5,2" d="M72.65,-34C110.46,-34 171.06,-34 217.29,-34"/>
-<polygon fill="#64748b" stroke="#64748b" stroke-width="1.05" points="217.07,-36.28 223.57,-34 217.07,-31.73 217.07,-36.28"/>
-<text xml:space="preserve" text-anchor="middle" x="102.46" y="-38.2" font-family="Segoe UI" font-size="9.00" fill="#475569">2</text>
+<title>mediapipeline_desktop_priority_markers&#45;&gt;external_core_queue</title>
+<path fill="none" stroke="#9333ea" stroke-width="1.05" d="M215.5,-34C259.75,-34 320.33,-34 360.82,-34"/>
+<polygon fill="#9333ea" stroke="#9333ea" stroke-width="1.05" points="360.81,-36.28 367.31,-34 360.81,-31.73 360.81,-36.28"/>
+<text xml:space="preserve" text-anchor="middle" x="339" y="-38.2" font-family="Segoe UI" font-size="9.00" fill="#7e22ce">1</text>
 </g>
 </g>
 </svg>

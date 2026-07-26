@@ -1,0 +1,50 @@
+{
+  "id": "MP-CHANGE-2026-0720-014",
+  "title": "Deterministic context slice ranking",
+  "version_target": "2026.07.20.005",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "low",
+  "date_started": "2026-07-20",
+  "date_completed": "2026-07-20",
+  "summary": "Make context-slice retrieval strictly token-bounded, intent-aware, precision-ranked, explicitly explainable, and deterministic without external services.",
+  "reason": "The baseline AI-token-cleanup query exceeded its requested budget and elevated incidental cleanup/source/token matches from unrelated WebView, API, PowerShell, network, release, and sample-library domains over direct generated-context tooling.",
+  "affected_areas": [
+    "generated_context",
+    "tests",
+    "tooling"
+  ],
+  "behavior_before": "Capsules could exceed the requested estimate by a tolerance, generic request vocabulary counted as domain evidence, every layer could be force-selected, two-hop relationships spread weak matches, intent classification covered only a few coarse cases, and omissions had only a count.",
+  "behavior_after": "Capsules fit the exact requested estimate, normalize identifiers deterministically, separate stop words and low-information terms, strongly prefer exact paths/symbols/phrases/feature anchors, penalize intent mismatches, avoid forced unrelated layers, and report selected plus aggregated omission reasons.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/context_records.py.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/context_slice.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_context_records.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_context_slice.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0720-014.json",
+    "src/mediapipeline/tools/dev/context_records.py",
+    "src/mediapipeline/tools/dev/context_slice.py",
+    "tests/python/tooling/test_context_records.py",
+    "tests/python/tooling/test_context_slice.py"
+  ],
+  "tests_added": [
+    "tests/python/tooling/test_context_records.py",
+    "tests/python/tooling/test_context_slice.py"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m ruff check scoped source and tests - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.tooling.test_context_slice tests.python.tooling.test_context_records tests.python.tooling.test_feature_context_cards - 29 tests passed",
+    "baseline query repeated three times at budget 2000 - deterministic 1528-token output; direct context tooling occupied the top five paths; no WebView, Local API, or PowerShell records selected",
+    "generate_project_index regeneration - completed from 2444 typed source records",
+    "git diff --check on scoped source, tests, packet, and summaries - passed",
+    "scoped generated hash verification - four PROJECT_INDEX records and four generated summaries match current source hashes"
+  ],
+  "rollback_plan": "Revert only the context ranking/normalization changes, focused tests, regenerated project-index outputs and summaries, then rerun the generated-context tools. Preserve unrelated MCP, audit, release, and application worktree changes.",
+  "related_changes": [
+    "MP-CHANGE-2026-0720-012"
+  ],
+  "notes": "Add deterministic retrieval normalization, low-information terms, and generated-context anchors.\nEnforce hard budgets and improve deterministic intent-aware ranking and omission evidence.\nAdd ranking, intent, tiny-budget, determinism, and strict-limit regressions.\nCover stop-word, low-information, and identifier normalization behavior.\nRegenerate the human project index from the typed source catalog.\nRegenerate the authoritative machine-readable context catalog.\nRegenerate dependency navigation alongside the project index.\nRefresh the context-record summary from source.\nRefresh the context-slice summary from source.\nRefresh the context-record test summary from source.\nRefresh the context-slice test summary from source.\nNo network or nondeterministic embedding dependency was added. Real-media validation is not required because this changes read-only developer navigation tooling. Global summary integrity remained blocked by 21 missing and 58 stale summaries from unrelated concurrent work. Strict worktree coverage remained blocked by 57 unrelated uncovered files. A broader MCP suite also exposed an unrelated pre-existing NameError in the dirty code_context_service.py work."
+}

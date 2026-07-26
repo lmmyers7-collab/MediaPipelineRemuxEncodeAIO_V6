@@ -1,0 +1,55 @@
+{
+  "id": "MP-CHANGE-2026-0722-013",
+  "title": "Prevent signed request replay after nonce eviction",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-22",
+  "date_completed": "2026-07-22",
+  "summary": "Retain authenticated request nonces for the full timestamp-validity window and fail closed when the live nonce cache reaches its fixed capacity.",
+  "reason": "Remediate P1 AUDIT-FIND-W01-010. A request signed at the positive clock-skew boundary could outlive its nonce entry and execute the same coordinator mutation a second time.",
+  "affected_areas": [
+    "network coordinator authentication",
+    "HMAC replay protection",
+    "claim/done/release/heartbeat/register request safety"
+  ],
+  "behavior_before": "Accepted nonces expired at acceptance-time plus one skew interval, even when a future timestamp remained admissible beyond that expiry; the cache also had no fixed admission bound.",
+  "behavior_after": "Accepted nonces expire no earlier than max(acceptance time, signed timestamp) plus the skew interval, expired entries are pruned first, and a full cache rejects new authentication attempts without evicting any still-valid nonce.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0722-013.json.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/auth.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_network_security.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0722-013.json",
+    "src/mediapipeline/desktop/network/auth.py",
+    "tests/python/desktop/test_network_security.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_network_security.py: deterministic future-timestamp nonce retention, capacity fail-closed behavior, and live coordinator HTTP replay rejection for an identical signed mutation."
+  ],
+  "manual_validation": [
+    "Pre-fix focused reproduction - expected red: 3 tests ran with 2 failures and 1 error; the identical future-signed HTTP mutation executed twice and the cache capacity argument did not exist.",
+    "Post-fix focused replay/capacity/HTTP set - passed: 3 tests.",
+    "Full test_network_security module - passed: 37 tests.",
+    "All test_network*.py desktop modules - passed: 441 tests.",
+    "Focused Ruff for changed Python source/test - passed.",
+    "Focused mypy for auth.py - passed.",
+    "Bundled Python py_compile for changed source/test - passed.",
+    "Targeted refresh_summaries wrote 3 summaries; generate_project_index regenerated 2,463 typed records and the dependency graph.",
+    "Summary integrity, risky-file registry, lifecycle-map, feature-card, and AI-guardrail unit set - passed: 35 tests.",
+    "Architecture/compatibility/dependency unit set - 32 of 33 passed; the sole repository check failure is unchanged AUDIT-FIND-DEP-001 (unallowlisted mediapipeline.core.processes -> mediapipeline.core.queue package-cycle edge).",
+    "Full desktop discovery - 2,984 tests: 2,974 passed, 6 failed, 3 errored, 1 skipped. Every non-pass is unchanged pre-existing evidence: AUDIT-FIND-W02-004, AUDIT-FIND-W11-030, AUDIT-FIND-W15-001, AUDIT-FIND-W09-013, and unrelated existing topbar event-ticker assertions.",
+    "validate_changes --require-worktree-coverage - passed with 1,128 valid packets before and after completion.",
+    "git diff --check - passed; Git emitted line-ending conversion warnings only.",
+    "Initial ai_guardrail postflight passed packet-owned summary, project-index, lifecycle, architecture, naming, risky-file, and inventory checks; it identified the packet-owned 2,463-record feature-map refresh, which was regenerated, plus only the separately owned six stale summaries, AUDIT-FIND-W12-ACTIVE-001, and AUDIT-FIND-DEP-001."
+  ],
+  "rollback_plan": "Revert the nonce-expiry and capacity admission logic, focused authentication tests, generated summaries, and packet metadata together; retain this packet as incomplete evidence if rollback occurs.",
+  "related_changes": [
+    "AUDIT-FIND-W01-010"
+  ],
+  "notes": "Finding disposition: AUDIT-FIND-W01-010 is remediated and independently validated against current source, pre-fix red evidence, deterministic clock/cache fixtures, a live localhost coordinator HTTP mutation, the full network suite, and full desktop baseline classification. Python impact: coordinator HMAC authentication only; route payloads and media policy are unchanged. The 10,000-entry bound rejects new unique nonces only after pruning expired entries, so live replay evidence is never discarded to make room. The separate core/network/auth.py duplicate is not on the coordinator request-validation path and remains outside this finding-scoped packet. Representative real-media validation is not required."
+}

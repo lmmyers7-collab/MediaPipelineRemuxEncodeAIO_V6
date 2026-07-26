@@ -155,6 +155,40 @@ function Get-LastSubtitleDecisionRecords {
     return @($script:LastSubtitleDecisionRecords)
 }
 
+function Get-SubtitleRoutingTrackId {
+    param(
+        $Entry = $null,
+        [string] $SourceKind = '',
+        $SubtitleOrdinal = $null,
+        $SourceStreamIndex = $null
+    )
+
+    if ($Entry) {
+        $existingTrackId = [string](Get-SubtitleRoutingEntryValue -Entry $Entry -Name 'TrackId' -Default '')
+        if (-not [string]::IsNullOrWhiteSpace($existingTrackId)) { return $existingTrackId }
+        if ([string]::IsNullOrWhiteSpace($SourceKind)) {
+            $SourceKind = [string](Get-SubtitleRoutingEntryValue -Entry $Entry -Name 'SourceKind' -Default 'embedded')
+        }
+        if ($null -eq $SubtitleOrdinal) {
+            $SubtitleOrdinal = Get-SubtitleRoutingEntryValue -Entry $Entry -Name 'SubtitleOrdinal' -Default $null
+        }
+        if ($null -eq $SourceStreamIndex) {
+            $stream = Get-SubtitleRoutingEntryValue -Entry $Entry -Name 'Stream' -Default $null
+            if ($stream -and $stream.PSObject.Properties['index']) { $SourceStreamIndex = $stream.index }
+        }
+    }
+    if ([string]::IsNullOrWhiteSpace($SourceKind)) { $SourceKind = 'embedded' }
+    $SourceKind = $SourceKind.Trim().ToLowerInvariant()
+    if ($null -ne $SubtitleOrdinal -and "${SubtitleOrdinal}" -ne '' -and [int]$SubtitleOrdinal -ge 0) {
+        return "subtitle:$SourceKind`:$([int]$SubtitleOrdinal)"
+    }
+    if ($SourceKind -eq 'embedded' -and $null -ne $SourceStreamIndex -and
+        "${SourceStreamIndex}" -ne '' -and [int]$SourceStreamIndex -ge 0) {
+        return "subtitle:embedded:stream-$([int]$SourceStreamIndex)"
+    }
+    return ''
+}
+
 function New-SubtitleDecisionRecord {
     param(
         [Parameter(Mandatory)] $Entry,
@@ -162,11 +196,27 @@ function New-SubtitleDecisionRecord {
     )
 
     $stream = $Entry.Stream
+    $sourceKind = if ($Entry.ContainsKey('SourceKind')) { [string]$Entry.SourceKind } else { 'embedded' }
+    $subtitleOrdinal = if ($Entry.ContainsKey('SubtitleOrdinal')) { $Entry.SubtitleOrdinal } else { $null }
+    $sourceStreamIndex = if ($stream -and $null -ne $stream.PSObject.Properties['index']) { $stream.index } else { $null }
+    $trackId = Get-SubtitleRoutingTrackId -Entry $Entry -SourceKind $sourceKind -SubtitleOrdinal $subtitleOrdinal -SourceStreamIndex $sourceStreamIndex
+    if (-not [string]::IsNullOrWhiteSpace($trackId)) { $Entry['TrackId'] = $trackId }
+    $plannedAction = switch ([string]$Decision.Action) {
+        'Keep' { 'preserve_original' }
+        'ConvertAss' { 'convert_ass_to_srt' }
+        'ConvertTx3g' { 'convert_tx3g_to_srt' }
+        'ConvertBdpgs' { 'ocr_bdpgs_to_srt' }
+        'ConvertVobSub' { 'ocr_vobsub_to_srt' }
+        'Drop' { 'drop' }
+        default { ([string]$Decision.Action).Trim().ToLowerInvariant() }
+    }
     [pscustomobject]@{
-        source_stream_index = if ($stream -and $null -ne $stream.PSObject.Properties['index']) { $stream.index } else { $null }
-        source_kind         = if ($Entry.ContainsKey('SourceKind')) { [string]$Entry.SourceKind } else { 'embedded' }
-        subtitle_ordinal    = if ($Entry.ContainsKey('SubtitleOrdinal')) { $Entry.SubtitleOrdinal } else { $null }
+        track_id            = $trackId
+        source_stream_index = $sourceStreamIndex
+        source_kind         = $sourceKind
+        subtitle_ordinal    = $subtitleOrdinal
         action              = ([string]$Decision.Action).ToLowerInvariant()
+        planned_action      = $plannedAction
         reason              = [string]$Decision.Message
         language            = [string]$Entry.Lang
         source_codec        = [string]$Entry.Codec

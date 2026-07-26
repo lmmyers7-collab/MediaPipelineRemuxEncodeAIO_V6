@@ -1,16 +1,20 @@
 ---
 file: ops/pipeline/tests/Unit/Invoke-ProgressStateTelemetryChecks.ps1
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: PowerShell
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-30
+last_modified: 2026-07-20
 last_reviewed: 2026-06-08
-sha256: b136f4b59cf23c6526c60605ec18b5ee5b2ee4956a5a16407b7e8be8275a7f61
+sha256: fb9193febb2acc9ecda0e76805769f7565cfd676a152d1f30ad18c25691ba90d
 ---
 # `ops/pipeline/tests/Unit/Invoke-ProgressStateTelemetryChecks.ps1`
 
-**Purpose:** (no .SYNOPSIS block)
+**Purpose:** PowerShell implementation for invoke progress state telemetry checks; exposes Assert-Equal, Assert-True, ConvertTo-MediaPipelineRunMonitorStageId.
 
-**Functions:** `Assert-Equal`, `Assert-True`, `Write-Log`, `Write-PipelineEvent`
+**Public symbols:** `Assert-Equal`, `Assert-True`, `ConvertTo-MediaPipelineRunMonitorStageId`, `Set-MediaPipelineCurrentRunMonitorStage`, `Set-MediaPipelineRunMonitorRunState`, `Set-MediaPipelineRunMonitorStage`, `Set-MediaPipelineRunMonitorTrackProgress`, `Update-MediaPipelineRunMonitorActiveTrackHeartbeat`, `Write-Log`, `Write-MediaPipelineWorkerChildHeartbeat`, `Write-PipelineEvent`
+**Invoked stages:** `audio_policy`, `convert_ocr`, `copy_to_scratch`, `encode_cpu`, `encode_prepare`, `encode_verify`, `sidecar_write`, `validate`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/pipeline/tests/Unit/Invoke-ProgressStateTelemetryChecks.ps1`._

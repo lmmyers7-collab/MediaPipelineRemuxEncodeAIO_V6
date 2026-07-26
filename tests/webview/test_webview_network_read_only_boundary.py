@@ -260,7 +260,7 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
         self.assertEqual(len(diagnostics_buttons), 8)
         for _label, attrs in diagnostics_buttons:
             self.assertIn("data-open-diagnostics=", attrs)
-            self.assertNotIn("id=", attrs)
+            self.assertNotRegex(attrs, r"(?:^|\s)id\s*=")
         tab_buttons = [(label, attrs) for label, attrs in buttons if "data-network-tab=" in attrs]
         self.assertEqual(tab_buttons, [])
         lifecycle_buttons = [

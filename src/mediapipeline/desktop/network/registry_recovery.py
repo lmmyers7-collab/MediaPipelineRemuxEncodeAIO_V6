@@ -231,6 +231,7 @@ class InFlightRegistryRecoveryMixin:
         reclaimed_at: str,
         quarantine_expires_at: str = "",
     ) -> None:
+        claim_metadata = job.claim_metadata if isinstance(job.claim_metadata, dict) else {}
         self._reclaim_ledger[job.job_id] = {
             "job_id": job.job_id,
             "worker_id": job.worker_id,
@@ -242,6 +243,9 @@ class InFlightRegistryRecoveryMixin:
             "reclaimed_at": reclaimed_at,
             "timeout_mins": float(timeout_mins),
             "quarantine_expires_at": quarantine_expires_at,
+            "job_kind": str(job.job_kind or claim_metadata.get("job_kind") or ""),
+            "rerun_batch_id": str(claim_metadata.get("rerun_batch_id") or ""),
+            "rerun_row_key": str(claim_metadata.get("rerun_row_key") or ""),
         }
         while len(self._reclaim_ledger) > self._MAX_RECLAIM_LEDGER_ENTRIES:
             self._reclaim_ledger.pop(next(iter(self._reclaim_ledger)), None)
@@ -257,12 +261,21 @@ class InFlightRegistryRecoveryMixin:
             reclaim = self._reclaim_ledger.get(job_id)
             if not reclaim:
                 return None
+            reclaimed_worker_id = str(reclaim.get("worker_id", "") or "")
+            owner_matches = bool(reclaimed_worker_id and worker_id == reclaimed_worker_id)
             report = {
                 "job_id": job_id,
                 "worker_id": worker_id,
-                "reclaimed_worker_id": str(reclaim.get("worker_id", "") or ""),
+                "reclaimed_worker_id": reclaimed_worker_id,
+                "accepted": owner_matches,
+                "authorization_status": (
+                    "accepted" if owner_matches else "rejected_owner_mismatch"
+                ),
                 "source_path": str(reclaim.get("source_path", "") or ""),
                 "source_identity": str(reclaim.get("source_identity", "") or ""),
+                "job_kind": str(reclaim.get("job_kind", "") or ""),
+                "rerun_batch_id": str(reclaim.get("rerun_batch_id", "") or ""),
+                "rerun_row_key": str(reclaim.get("rerun_row_key", "") or ""),
                 "reclaimed_at": str(reclaim.get("reclaimed_at", "") or ""),
                 "reported_at": now,
                 "success": bool(getattr(request, "success", False)),
@@ -279,41 +292,223 @@ class InFlightRegistryRecoveryMixin:
                 "queue_terminal": bool(getattr(request, "queue_terminal", False)),
                 "retry_on_failure": bool(getattr(request, "retry_on_failure", True)),
             }
-            report["removes_queue_record"] = bool(report["success"] or report["queue_terminal"])
+            report["removes_queue_record"] = bool(
+                owner_matches and (report["success"] or report["queue_terminal"])
+            )
             self._late_terminal_reports.append(report)
             if len(self._late_terminal_reports) > self._MAX_LATE_TERMINAL_REPORTS:
                 self._late_terminal_reports = self._late_terminal_reports[-self._MAX_LATE_TERMINAL_REPORTS :]
             return dict(report)
 
-    def rollback_snapshot(self) -> dict[str, Any]:
-        """Return an in-memory snapshot for rolling back failed durable transitions."""
+    def rollback_snapshot(
+        self,
+        job_id: str,
+        *,
+        transition: str = "",
+        success: bool = False,
+        elapsed_seconds: float = 0.0,
+        output_size_bytes: int = 0,
+    ) -> dict[str, Any]:
+        """Capture only one job's state for a compare-and-set rollback.
+
+        The receipt deliberately excludes unrelated jobs and collection-wide
+        snapshots. A failed durable transition can therefore be reversed
+        without replacing claims, completions, heartbeats, or recovery
+        evidence committed by another request thread.
+        """
+        safe_job_id = str(job_id or "").strip()
+        if not safe_job_id:
+            raise ValueError("rollback snapshot requires a non-empty job_id")
         with self._lock:
+            job = copy.deepcopy(self._jobs.get(safe_job_id))
+            reclaim = self._reclaim_ledger.get(safe_job_id, {})
+            source_path = str(getattr(job, "source_path", "") or reclaim.get("source_path", "") or "")
+            source_identity = normalize_source_identity(source_path)
+            worker_id = str(getattr(job, "worker_id", "") or "")
+            failure_key = _failure_ledger_key(worker_id, source_path) if worker_id and source_path else ""
             return {
-                "jobs": copy.deepcopy(self._jobs),
-                "claimed_paths": copy.deepcopy(self._claimed_paths),
-                "recent_completions": copy.deepcopy(self._recent_completions),
+                "schema_version": "network_registry_job_rollback.v1",
+                "job_id": safe_job_id,
+                "transition": str(transition or "").strip().casefold(),
+                "success": bool(success),
+                "elapsed_seconds": max(0.0, float(elapsed_seconds or 0.0)),
+                "output_size_bytes": max(0, int(output_size_bytes or 0)),
+                "job_present": job is not None,
+                "job": job,
+                "source_identity": source_identity,
+                "claimed_path_present": bool(source_identity and source_identity in self._claimed_paths),
+                "claimed_path_owner": self._claimed_paths.get(source_identity, "") if source_identity else "",
+                "recent_completion_present": bool(
+                    source_identity and source_identity in self._recent_completions
+                ),
+                "recent_completion": self._recent_completions.get(source_identity) if source_identity else None,
                 "session_completed": self.session_completed,
                 "session_failed": self.session_failed,
-                "worker_stats": copy.deepcopy(self._worker_stats),
-                "failure_ledger": copy.deepcopy(self._failure_ledger),
-                "reclaim_ledger": copy.deepcopy(self._reclaim_ledger),
-                "late_terminal_reports": copy.deepcopy(self._late_terminal_reports),
-                "reclaimed_source_quarantine": copy.deepcopy(self._reclaimed_source_quarantine),
+                "worker_id": worker_id,
+                "worker_stats_present": bool(worker_id and worker_id in self._worker_stats),
+                "worker_stats": copy.deepcopy(self._worker_stats.get(worker_id)) if worker_id else None,
+                "failure_key": failure_key,
+                "failure_entry_present": bool(failure_key and failure_key in self._failure_ledger),
+                "failure_entry": copy.deepcopy(self._failure_ledger.get(failure_key)) if failure_key else None,
+                "late_terminal_reports": copy.deepcopy(
+                    [entry for entry in self._late_terminal_reports if str(entry.get("job_id", "")) == safe_job_id]
+                ),
+                "quarantine_present": bool(
+                    source_identity and source_identity in self._reclaimed_source_quarantine
+                ),
+                "quarantine": copy.deepcopy(
+                    self._reclaimed_source_quarantine.get(source_identity)
+                ) if source_identity else None,
             }
 
-    def restore_rollback_snapshot(self, snapshot: dict[str, Any]) -> None:
-        """Restore a snapshot returned by :meth:`rollback_snapshot`."""
+    def restore_rollback_snapshot(self, snapshot: dict[str, Any]) -> bool:
+        """Merge one failed transition back without replacing unrelated state."""
+        if snapshot.get("schema_version") != "network_registry_job_rollback.v1":
+            raise ValueError("unsupported registry rollback snapshot")
+        job_id = str(snapshot.get("job_id", "") or "").strip()
+        if not job_id:
+            raise ValueError("registry rollback snapshot requires job_id")
+
         with self._lock:
-            self._jobs = copy.deepcopy(snapshot.get("jobs", {}))
-            self._claimed_paths = copy.deepcopy(snapshot.get("claimed_paths", {}))
-            self._recent_completions = copy.deepcopy(snapshot.get("recent_completions", {}))
-            self.session_completed = int(snapshot.get("session_completed", 0) or 0)
-            self.session_failed = int(snapshot.get("session_failed", 0) or 0)
-            self._worker_stats = copy.deepcopy(snapshot.get("worker_stats", {}))
-            self._failure_ledger = copy.deepcopy(snapshot.get("failure_ledger", {}))
-            self._reclaim_ledger = copy.deepcopy(snapshot.get("reclaim_ledger", {}))
-            self._late_terminal_reports = copy.deepcopy(snapshot.get("late_terminal_reports", []))
-            self._reclaimed_source_quarantine = copy.deepcopy(snapshot.get("reclaimed_source_quarantine", {}))
+            original_job = copy.deepcopy(snapshot.get("job")) if snapshot.get("job_present") else None
+            source_identity = str(snapshot.get("source_identity", "") or "")
+            transition_applied = False
+            if original_job is not None:
+                current_job = self._jobs.get(job_id)
+                if current_job is None:
+                    current_owner = self._claimed_paths.get(source_identity) if source_identity else None
+                    if current_owner not in {None, "", job_id}:
+                        _log.error(
+                            "Refusing rollback for job %s because source is now owned by job %s.",
+                            job_id[:8],
+                            str(current_owner)[:8],
+                        )
+                        return False
+                    self._jobs[job_id] = original_job
+                    if source_identity:
+                        self._claimed_paths[source_identity] = str(
+                            snapshot.get("claimed_path_owner", "") or job_id
+                        )
+                    transition_applied = True
+                elif current_job != original_job:
+                    _log.error("Refusing rollback for job %s because its identity changed.", job_id[:8])
+                    return False
+
+                if source_identity:
+                    if snapshot.get("recent_completion_present"):
+                        self._recent_completions[source_identity] = float(
+                            snapshot.get("recent_completion", 0.0) or 0.0
+                        )
+                    else:
+                        self._recent_completions.pop(source_identity, None)
+
+            transition = str(snapshot.get("transition", "") or "")
+            worker_id = str(snapshot.get("worker_id", "") or "")
+            if transition_applied and transition == "complete" and original_job is not None:
+                success = bool(snapshot.get("success", False))
+                if success:
+                    self.session_completed = max(
+                        int(snapshot.get("session_completed", 0) or 0),
+                        self.session_completed - 1,
+                    )
+                else:
+                    self.session_failed = max(
+                        int(snapshot.get("session_failed", 0) or 0),
+                        self.session_failed - 1,
+                    )
+
+                prior_stats = copy.deepcopy(snapshot.get("worker_stats"))
+                current_stats = self._worker_stats.get(worker_id) if worker_id else None
+                if snapshot.get("worker_stats_present") and isinstance(prior_stats, dict):
+                    if not isinstance(current_stats, dict):
+                        self._worker_stats[worker_id] = prior_stats
+                    elif success:
+                        prior_files = int(prior_stats.get("files", 0) or 0)
+                        current_stats["files"] = max(prior_files, int(current_stats.get("files", 0) or 0) - 1)
+                        size_bytes = int(snapshot.get("output_size_bytes", 0) or 0)
+                        size_gb = (
+                            size_bytes / (1024 ** 3)
+                            if size_bytes > 0
+                            else float(getattr(original_job, "estimated_size_gb", 0.0) or 0.0)
+                        )
+                        current_stats["gb"] = max(
+                            float(prior_stats.get("gb", 0.0) or 0.0),
+                            float(current_stats.get("gb", 0.0) or 0.0) - size_gb,
+                        )
+                        elapsed = float(snapshot.get("elapsed_seconds", 0.0) or 0.0)
+                        current_stats["secs"] = max(
+                            float(prior_stats.get("secs", 0.0) or 0.0),
+                            float(current_stats.get("secs", 0.0) or 0.0) - elapsed,
+                        )
+                        reset_values = {
+                            "failure_streak_reason_code": "",
+                            "failure_streak_count": 0,
+                            "worker_misconfigured_reason_code": "",
+                            "worker_misconfigured_at": "",
+                        }
+                        for field_name, target_value in reset_values.items():
+                            if current_stats.get(field_name) == target_value:
+                                current_stats[field_name] = copy.deepcopy(prior_stats.get(field_name, target_value))
+                    elif str(current_stats.get("last_failure_job_id", "") or "") == job_id:
+                        later_success = int(current_stats.get("files", 0) or 0) > int(
+                            prior_stats.get("files", 0) or 0
+                        )
+                        for field_name in (
+                            "last_failure_reason_code",
+                            "last_failure_reason",
+                            "last_failure_job_id",
+                            "last_failure_source_path",
+                            "last_failure_at",
+                        ):
+                            current_stats[field_name] = copy.deepcopy(prior_stats.get(field_name, ""))
+                        if not later_success:
+                            for field_name in ("failure_streak_reason_code", "failure_streak_count"):
+                                current_stats[field_name] = copy.deepcopy(prior_stats.get(field_name, "" if field_name.endswith("code") else 0))
+
+                failure_key = str(snapshot.get("failure_key", "") or "")
+                if failure_key:
+                    current_failure = self._failure_ledger.get(failure_key)
+                    target_owns_failure = bool(
+                        isinstance(current_failure, dict)
+                        and str(current_failure.get("last_job_id", "") or "") == job_id
+                    )
+                    if success:
+                        target_owns_failure = current_failure is None
+                    if target_owns_failure:
+                        if snapshot.get("failure_entry_present"):
+                            self._failure_ledger[failure_key] = copy.deepcopy(snapshot.get("failure_entry"))
+                        else:
+                            self._failure_ledger.pop(failure_key, None)
+
+            prior_reports = copy.deepcopy(snapshot.get("late_terminal_reports", []))
+            current_target_reports = [
+                entry for entry in self._late_terminal_reports if str(entry.get("job_id", "")) == job_id
+            ]
+            # record_late_terminal_report appends one row. Remove only the
+            # first post-snapshot row attributable to this failed transition;
+            # retain later same-job reports that another request may have
+            # committed while external persistence was in progress.
+            if current_target_reports[: len(prior_reports)] == prior_reports and len(
+                current_target_reports
+            ) > len(prior_reports):
+                remove_target_index = len(prior_reports)
+                target_index = 0
+                merged_reports: list[dict[str, Any]] = []
+                for entry in self._late_terminal_reports:
+                    if str(entry.get("job_id", "")) == job_id:
+                        if target_index == remove_target_index:
+                            target_index += 1
+                            continue
+                        target_index += 1
+                    merged_reports.append(entry)
+                self._late_terminal_reports = merged_reports
+            if source_identity:
+                if snapshot.get("quarantine_present"):
+                    current_quarantine = self._reclaimed_source_quarantine.get(source_identity)
+                    prior_quarantine = copy.deepcopy(snapshot.get("quarantine"))
+                    if current_quarantine is None or current_quarantine == prior_quarantine:
+                        self._reclaimed_source_quarantine[source_identity] = prior_quarantine
+            return True
 
     def reclaim_ledger_snapshot(self) -> list[dict[str, Any]]:
         with self._lock:

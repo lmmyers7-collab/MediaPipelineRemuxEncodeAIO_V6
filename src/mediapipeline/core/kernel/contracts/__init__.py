@@ -8,7 +8,15 @@ from .pending_publish import PENDING_PUSH_MANIFEST_STATES, PendingPushManifest
 from .pipeline_events import PipelineEvent
 from .process_result import ProcessFileResult
 from .progress import ProgressState
-from .queue_snapshot import QueuePlanExcludedRow, QueuePlanRow, QueuePlanSnapshot
+from .queue_snapshot import (
+    ACCEPTED_RUN_ROWS_FINGERPRINT_SCHEMA,
+    PLANNED_DISPLAY_NAME_SOURCE,
+    QueueAcceptedRunRow,
+    QueuePlanExcludedRow,
+    QueuePlanRow,
+    QueuePlanSnapshot,
+    accepted_run_rows_fingerprint,
+)
 
 __all__ = [
     "ACTIVE_JOB_SCHEMA_VERSION",
@@ -24,7 +32,11 @@ __all__ = [
     "PipelineEvent",
     "ProcessFileResult",
     "ProgressState",
+    "ACCEPTED_RUN_ROWS_FINGERPRINT_SCHEMA",
+    "PLANNED_DISPLAY_NAME_SOURCE",
+    "QueueAcceptedRunRow",
     "QueuePlanExcludedRow",
     "QueuePlanRow",
     "QueuePlanSnapshot",
+    "accepted_run_rows_fingerprint",
 ]

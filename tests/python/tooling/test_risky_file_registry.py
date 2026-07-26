@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import io
 import importlib.util
+import json
+import subprocess
 import sys
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from unittest import mock
 
 from mediapipeline.tools.paths import find_repo_root
 
@@ -18,6 +23,107 @@ spec.loader.exec_module(registry_check)
 
 
 class RiskyFileRegistryTests(unittest.TestCase):
+    def test_changed_paths_distinguishes_successful_empty_and_nonempty_diffs(self) -> None:
+        completed = subprocess.CompletedProcess(
+            args=["git", "diff"],
+            returncode=0,
+            stdout="src\\mediapipeline\\core\\publish\\pending.py\nREADME.md\n",
+            stderr="",
+        )
+        with mock.patch.object(registry_check.subprocess, "run", return_value=completed) as run:
+            paths = registry_check.changed_paths(staged=True)
+
+        self.assertEqual(paths, ["src/mediapipeline/core/publish/pending.py", "README.md"])
+        self.assertIn("--cached", run.call_args.args[0])
+        self.assertEqual(run.call_args.kwargs["timeout"], registry_check.GIT_ENUMERATION_TIMEOUT_SECONDS)
+
+        completed.stdout = ""
+        with mock.patch.object(registry_check.subprocess, "run", return_value=completed):
+            self.assertEqual(registry_check.changed_paths(staged=False), [])
+
+    def test_changed_paths_raises_for_every_git_failure_class(self) -> None:
+        command = ["git", "diff", "--name-only", "HEAD"]
+        failures = (
+            FileNotFoundError("git missing"),
+            subprocess.TimeoutExpired(command, registry_check.GIT_ENUMERATION_TIMEOUT_SECONDS),
+            subprocess.CalledProcessError(128, command, stderr="bad revision"),
+            PermissionError("repository denied"),
+        )
+        for failure in failures:
+            with self.subTest(failure=type(failure).__name__):
+                with mock.patch.object(registry_check.subprocess, "run", side_effect=failure):
+                    with self.assertRaises(registry_check.PathEnumerationError):
+                        registry_check.changed_paths()
+
+    def test_changed_cli_reports_enumeration_failure_and_exits_nonzero(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with (
+            mock.patch.object(registry_check, "load_registry", return_value={"entries": []}),
+            mock.patch.object(registry_check, "validate_registry", return_value=[]),
+            mock.patch.object(
+                registry_check,
+                "changed_paths",
+                side_effect=registry_check.PathEnumerationError("Git changed-path enumeration failed with exit 128"),
+            ),
+            redirect_stdout(stdout),
+            redirect_stderr(stderr),
+        ):
+            exit_code = registry_check.main(["--changed", "--json"])
+
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(exit_code, 1)
+        self.assertFalse(payload["ok"])
+        self.assertTrue(payload["path_enumeration"]["requested"])
+        self.assertFalse(payload["path_enumeration"]["ok"])
+        self.assertIn("exit 128", payload["path_enumeration"]["error"])
+        self.assertIn("enumeration failed", stderr.getvalue())
+
+    def test_successful_empty_changed_cli_and_explicit_paths_remain_valid(self) -> None:
+        registry = {
+            "entries": [
+                {
+                    "id": "release",
+                    "path_globs": ["ops/scripts/release/*.ps1"],
+                    "risk_level": "high",
+                    "validation_rung": "release",
+                    "required_checks": ["release-test"],
+                    "manual_gates": [],
+                }
+            ]
+        }
+        stdout = io.StringIO()
+        with (
+            mock.patch.object(registry_check, "load_registry", return_value=registry),
+            mock.patch.object(registry_check, "validate_registry", return_value=[]),
+            mock.patch.object(registry_check, "changed_paths", return_value=[]),
+            redirect_stdout(stdout),
+        ):
+            exit_code = registry_check.main(["--changed", "--json"])
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(exit_code, 0)
+        self.assertTrue(payload["ok"])
+        self.assertTrue(payload["path_enumeration"]["ok"])
+        self.assertEqual(payload["path_enumeration"]["path_count"], 0)
+
+        stdout = io.StringIO()
+        with (
+            mock.patch.object(registry_check, "load_registry", return_value=registry),
+            mock.patch.object(registry_check, "validate_registry", return_value=[]),
+            mock.patch.object(
+                registry_check,
+                "changed_paths",
+                side_effect=AssertionError("explicit --paths must not invoke Git"),
+            ),
+            redirect_stdout(stdout),
+        ):
+            exit_code = registry_check.main(["--paths", "ops/scripts/release/build.ps1", "--json"])
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(exit_code, 0)
+        self.assertTrue(payload["ok"])
+        self.assertFalse(payload["path_enumeration"]["requested"])
+        self.assertEqual(len(payload["matches"]), 1)
+
     @unittest.skipIf(
         (REPO_ROOT / "release_manifest.json").is_file(),
         "Complete active-doc and generated-summary registry inputs are omitted from release packages.",

@@ -272,13 +272,10 @@ function Test-VideoPresetCompatibility {
         return $true
     }
 
-    $codec = [string]$Config['VideoCodec']
     $preset = [string]$Config['VideoPreset']
-    $allowed = if ($codec -eq 'libx265') {
-        @('ultrafast','superfast','veryfast','faster','fast','medium','slow','slower','veryslow','placebo')
-    } else {
-        @('p1','p2','p3','p4','p5','p6','p7')
+    if ($preset -notin @(Get-MediaPipelineVideoPresetNames)) { return $false }
+    if ($Config.ContainsKey('CpuEncodePreset')) {
+        return ([string]$Config['CpuEncodePreset'] -in @(Get-MediaPipelineCpuEncodePresetNames))
     }
-
-    return ($allowed -contains $preset)
+    return $true
 }

@@ -42,7 +42,8 @@
       "id": "publish_and_pending_publish",
       "path_globs": [
         "src/mediapipeline/core/publish/**",
-        "ops/pipeline/engine/publish/**"
+        "ops/pipeline/engine/publish/**",
+        "ops/pipeline/engine/rerun/**"
       ],
       "risk_level": "critical",
       "risk_domains": [
@@ -56,6 +57,8 @@
         "tests.python.desktop.test_application_facade_pending_publish",
         "tests.python.desktop.test_service_pending_publish_manifest",
         "ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1",
+        "ops/pipeline/tests/Unit/Invoke-RerunAutoDestinationChecks.ps1",
+        "ops/pipeline/tests/Unit/Invoke-RerunPublicationTransactionChecks.ps1",
         "python -m mediapipeline.tools.dev.generate_lifecycle_map --check"
       ],
       "manual_gates": [
@@ -106,7 +109,8 @@
         "ops/pipeline/config/profiles/*.psd1",
         "ops/pipeline/config/schemas/media_pipeline_config.schema.json",
         "src/mediapipeline/core/config/**",
-        "src/mediapipeline/contracts/schemas/config.v1.schema.json"
+        "src/mediapipeline/contracts/schemas/config.v1.schema.json",
+        "src/mediapipeline/tools/dev/generate_config_schema.py"
       ],
       "risk_level": "high",
       "risk_domains": [
@@ -129,6 +133,37 @@
         "docs/testing/TEST_COVERAGE_MATRIX.md"
       ],
       "rationale": "Config controls roots, cleanup, publish policy, and operator-facing safety defaults."
+    },
+    {
+      "id": "run_monitor_contract",
+      "path_globs": [
+        "src/mediapipeline/contracts/run_monitor.py",
+        "src/mediapipeline/contracts/schemas/run_monitor.v1.schema.json",
+        "ops/pipeline/config/schemas/media_pipeline_run_monitor.schema.json",
+        "src/mediapipeline/tools/dev/generate_run_monitor_schema.py"
+      ],
+      "risk_level": "high",
+      "risk_domains": [
+        "runtime_state",
+        "accepted_workload_identity",
+        "operator_evidence"
+      ],
+      "validation_rung": "targeted-contract-and-powershell-checks",
+      "required_checks": [
+        "tests.python.core.contract.test_run_monitor_contract",
+        "tests.python.desktop.test_service_run_monitor",
+        "ops/pipeline/tests/Unit/Invoke-ContractSchemaChecks.ps1",
+        "python -m mediapipeline.tools.dev.generate_run_monitor_schema --check"
+      ],
+      "manual_gates": [
+        "real-media validation only when accepted membership or runtime evidence behavior changes"
+      ],
+      "owner_docs": [
+        "AGENTS.md",
+        "docs/architecture/ARCHITECTURE.md",
+        "docs/inventories/STATE_FILE_SCHEMA_REFERENCE.md"
+      ],
+      "rationale": "Run Monitor contracts bind accepted Queue membership to backend runtime and terminal evidence; generated mirrors must not drift from the Pydantic authority."
     },
     {
       "id": "queue_and_process_control",

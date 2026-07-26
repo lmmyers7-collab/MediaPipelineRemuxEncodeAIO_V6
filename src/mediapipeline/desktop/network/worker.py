@@ -161,6 +161,7 @@ class WorkerDispatcher(
         # Currently-active job (set while encode is in flight).
         self._active_job: ClaimedJob | None = None
         self._active_job_lock = threading.Lock()
+        self._claim_http_contexts: dict[str, tuple[str, str]] = {}
 
         # Heartbeat thread management.
         self._heartbeat_stop   = threading.Event()

@@ -1249,6 +1249,13 @@
       "title": "Logretentiondays",
       "type": "integer"
     },
+    "InterruptedToolLogRetentionDays": {
+      "default": 3,
+      "maximum": 365,
+      "minimum": 1,
+      "title": "Interruptedtoollogretentiondays",
+      "type": "integer"
+    },
     "PipelineDebugLogMaxBytes": {
       "default": 104857600,
       "maximum": 2147483647,
@@ -1637,6 +1644,13 @@
       "maximum": 1000000,
       "minimum": 1,
       "title": "Queueexecutionmaxrunnableperround",
+      "type": "integer"
+    },
+    "QueueLaunchSnapshotFreshnessSeconds": {
+      "default": 60,
+      "maximum": 3600,
+      "minimum": 15,
+      "title": "Queuelaunchsnapshotfreshnessseconds",
       "type": "integer"
     },
     "StateDbMaintenanceIntervalSeconds": {

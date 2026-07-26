@@ -1,0 +1,50 @@
+{
+  "id": "MP-CHANGE-2026-0723-008",
+  "title": "Require priority-export routes at Tauri startup",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": "2026-07-23",
+  "summary": "Add the backend-owned priority-export read and command routes to the Tauri startup contract gate.",
+  "reason": "Remediate P2 AUDIT-FIND-W09-013. The Python Local API contract and handlers expose both priority-export routes, but the native shell could accept a backend missing that live feature.",
+  "affected_areas": [
+    "Tauri backend compatibility gate",
+    "priority queue export",
+    "Local API route contract"
+  ],
+  "behavior_before": "Tauri startup required queue priority and strategy routes but omitted GET and POST /api/queue/priority-export, so startup validation did not prove the backend supported the complete queue export feature.",
+  "behavior_after": "Tauri startup requires authenticated GET and POST /api/queue/priority-export, and the existing exact Rust-versus-Python contract test prevents future method/path/auth drift.",
+  "files_touched": [
+    "apps/desktop/tauri/src-tauri/src/backend_contract/routes.rs",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/backend_contract/routes.rs.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-008.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-008.json"
+  ],
+  "tests_added": [
+    "The existing Tauri scaffold exact-set assertion now covers both priority-export method rows against the canonical Python Local API contract."
+  ],
+  "manual_validation": [
+    "Exact Tauri-versus-Python Local API route-set assertion plus priority-export service tests passed: 20 tests and 19 subtests.",
+    "Full Tauri shell scaffold passed: 96 tests; the prior AUDIT-FIND-W09-013 baseline is removed.",
+    "cargo test --locked --lib passed: 62 tests.",
+    "cargo fmt --check and cargo check --release --locked passed.",
+    "Tauri production surface audit passed.",
+    "Project index/dependency graph and feature file map checks passed.",
+    "Summary-integrity, feature-card, and risky-registry tooling passed: 30 tests and 70 subtests.",
+    "Risky-file registry and architecture guardrails passed; god-file guard reported the unchanged baseline of 0 errors and 51 warnings.",
+    "Global summary freshness reported only the same six pre-existing stale files outside this packet.",
+    "git diff --check passed.",
+    "validate_changes --require-worktree-coverage passed with 1,150 valid packets before completion."
+  ],
+  "rollback_plan": "Revert the two required-route rows, generated summary/maps, and this packet together. Do not remove the startup requirements unless the backend feature and canonical route inventory are intentionally removed in the same change.",
+  "related_changes": [
+    "AUDIT-FIND-W09-013"
+  ],
+  "notes": "This batch changes only native startup compatibility validation. The backend retains strict empty-object request validation and owns priority-export persistence and queue policy. No media, queue export, launch, or filesystem mutation is executed, so representative real-media validation is not required."
+}

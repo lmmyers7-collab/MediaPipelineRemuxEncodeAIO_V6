@@ -89,6 +89,7 @@ function New-SubtitleBuilderConvertedSrtSidecarTrack {
     $entrySourceKind = Get-SubtitleBuilderObjectText -Object $Entry -Name 'SourceKind' -Default 'embedded'
 
     return @{
+        TrackId = Get-SubtitleBuilderObjectText -Object $Decision -Name 'TrackId' -Default ''
         SrtPath = $SrtPath
         StreamInfo = $Entry
         CueCount = $CueCount
@@ -120,6 +121,7 @@ function New-SubtitleBuilderConvertedSrtCandidateRecord {
     }
 
     return [pscustomobject]@{
+        track_id             = Get-SubtitleBuilderObjectText -Object $Track -Name 'TrackId' -Default (Get-SubtitleBuilderObjectText -Object $entry -Name 'TrackId' -Default '')
         selected             = [bool]$Selected
         output_action        = if ($Selected) { 'selected_external_srt_sidecar' } else { 'not_selected_mp4_reduction' }
         reduction_reason     = $ReductionReason
@@ -234,6 +236,26 @@ function Get-MkvmergeAudioTids {
     return @($tids)
 }
 
+function Publish-SubtitleBuilderRunMonitorPolicy {
+    param([AllowEmptyCollection()] [array] $TrackDecisions = @())
+
+    if ([string]::IsNullOrWhiteSpace([string]$script:PipelineRunId) -or
+        [string]::IsNullOrWhiteSpace([string]$script:CurrentRunMonitorJobId) -or
+        -not (Get-Command -Name Set-MediaPipelineRunMonitorSubtitleRecords -ErrorAction SilentlyContinue)) {
+        return
+    }
+    try {
+        Set-MediaPipelineRunMonitorSubtitleRecords `
+            -RunId ([string]$script:PipelineRunId) `
+            -JobId ([string]$script:CurrentRunMonitorJobId) `
+            -Records @($TrackDecisions) `
+            -FinalPolicy | Out-Null
+    } catch {
+        $script:RunMonitorPersistenceHealthy = $false
+        Write-Log "Run Monitor subtitle policy update failed: $($_.Exception.Message)" 'WARN'
+    }
+}
+
 function Build-SubtitleTracksForMkvmerge {
     param($FilterResult, [string]$DefaultAudioLang, [string]$SourceFile, [string]$Context = "")
 
@@ -248,6 +270,7 @@ function Build-SubtitleTracksForMkvmerge {
     $failures       = [System.Collections.Generic.List[object]]::new()
     $defaultState  = New-SubtitleBuilderDefaultState
     $trackDecisions = Get-SubtitleBuilderTrackDecisionRecords -FilterResult $FilterResult -Builder 'Mkvmerge'
+    Publish-SubtitleBuilderRunMonitorPolicy -TrackDecisions @($trackDecisions)
 
     foreach ($decision in @($trackDecisions | Where-Object { $_.Action -eq 'ConvertAss' })) {
         $entry  = $decision.Entry
@@ -263,12 +286,13 @@ function Build-SubtitleTracksForMkvmerge {
                 IsForced  = $entry.IsForced
                 OutputCodec = [string]$entry.Codec
                 SourceStreamIndex = [int]$s.index
+                TrackId = [string]$decision.TrackId
                 Action = 'preserve_ass'
             }
             $sourceTracks.Add($keptAssTrack)
         }
 
-        $ass = Convert-AssToSrt $SourceFile $s.index $entry
+        $ass = Convert-AssToSrt $SourceFile $s.index $entry -TrackId ([string]$decision.TrackId)
         if (-not $ass.Ok) {
             if ($ass.Failure) { $failures.Add($ass.Failure) }
             if ($keptAssTrack -and -not $entry.IsSupplemental) {
@@ -290,7 +314,7 @@ function Build-SubtitleTracksForMkvmerge {
         $externalTrack = @{
             SrtPath=$srtPath; Lang=$entry.Lang; Title=$entry.Title
             IsDefault=$false; IsForced=$entry.IsForced
-            OutputCodec='subrip'; SourceStreamIndex=[int]$s.index; Action='convert_ass'
+            OutputCodec='subrip'; SourceStreamIndex=[int]$s.index; TrackId=[string]$decision.TrackId; Action='convert_ass'
         }
         $isDefault = Set-SubtitleBuilderBoolDefaultDisposition -Track $externalTrack -DefaultState $defaultState -Decision $decision
         $externalTracks.Add($externalTrack)
@@ -306,7 +330,7 @@ function Build-SubtitleTracksForMkvmerge {
             Write-Log "${Context}$($decision.ContainerLogMessage)" "DEBUG"
         }
         $tempSrt = Join-Path $script:processingDir "sub_tx3g_$([guid]::NewGuid().ToString('N')).srt"
-        $extract = Convert-Tx3gToSrt -SourceFile $SourceFile -StreamIndex ([int]$s.index) -StreamInfo $entry -DestinationPath $tempSrt -Context $Context
+        $extract = Convert-Tx3gToSrt -SourceFile $SourceFile -StreamIndex ([int]$s.index) -StreamInfo $entry -DestinationPath $tempSrt -Context $Context -TrackId ([string]$decision.TrackId)
         if (-not $extract.Ok) {
             if ($extract.Failure) {
                 $failures.Add($extract.Failure)
@@ -321,7 +345,7 @@ function Build-SubtitleTracksForMkvmerge {
         $externalTrack = @{
             SrtPath=$extract.Path; Lang=$entry.Lang; Title=$entry.Title
             IsDefault=$false; IsForced=$entry.IsForced
-            OutputCodec='subrip'; SourceStreamIndex=[int]$s.index; Action='convert_tx3g'
+            OutputCodec='subrip'; SourceStreamIndex=[int]$s.index; TrackId=[string]$decision.TrackId; Action='convert_tx3g'
         }
         $isDefault = Set-SubtitleBuilderBoolDefaultDisposition -Track $externalTrack -DefaultState $defaultState -Decision $decision
         $entry.IsDefault = $isDefault
@@ -346,13 +370,14 @@ function Build-SubtitleTracksForMkvmerge {
                 IsForced  = $entry.IsForced
                 OutputCodec = [string]$entry.Codec
                 SourceStreamIndex = [int]$s.index
+                TrackId = [string]$decision.TrackId
                 Action = 'preserve_bdpgs'
             }
             $sourceTracks.Add($keptBdpgsTrack)
         }
 
         $tempSrt = Join-Path $script:processingDir "sub_bdpgs_$([guid]::NewGuid().ToString('N')).srt"
-        $ocr = Convert-BdpgsToSrt -SourceFile $SourceFile -StreamIndex ([int]$s.index) -StreamInfo $entry -DestinationPath $tempSrt -Context $Context
+        $ocr = Convert-BdpgsToSrt -SourceFile $SourceFile -StreamIndex ([int]$s.index) -StreamInfo $entry -DestinationPath $tempSrt -Context $Context -TrackId ([string]$decision.TrackId)
         if (-not $ocr.Ok) {
             if ($ocr.Failure) { $failures.Add($ocr.Failure) }
             if ($keptBdpgsTrack -and -not $entry.IsSupplemental) {
@@ -371,7 +396,7 @@ function Build-SubtitleTracksForMkvmerge {
         $externalTrack = @{
             SrtPath=$ocr.Path; Lang=$entry.Lang; Title=$entry.Title
             IsDefault=$false; IsForced=$entry.IsForced
-            OutputCodec='subrip'; SourceStreamIndex=[int]$s.index; Action='convert_bdpgs'
+            OutputCodec='subrip'; SourceStreamIndex=[int]$s.index; TrackId=[string]$decision.TrackId; Action='convert_bdpgs'
         }
         $isDefault = Set-SubtitleBuilderBoolDefaultDisposition -Track $externalTrack -DefaultState $defaultState -Decision $decision
         $entry.IsDefault = $isDefault
@@ -398,6 +423,7 @@ function Build-SubtitleTracksForMkvmerge {
                     IsForced  = $entry.IsForced
                     OutputCodec = [string]$entry.Codec
                     SourceStreamIndex = [int]$s.index
+                    TrackId = [string]$decision.TrackId
                     Action = 'preserve_vobsub'
                 }
                 $sourceTracks.Add($keptVobSubTrack)
@@ -405,7 +431,7 @@ function Build-SubtitleTracksForMkvmerge {
         }
 
         $tempSrt = Join-Path $script:processingDir "sub_vobsub_$([guid]::NewGuid().ToString('N')).srt"
-        $ocr = Convert-VobSubToSrt -SourceFile $SourceFile -StreamIndex $(if ($s) { [int]$s.index } else { -1 }) -StreamInfo $entry -DestinationPath $tempSrt -Context $Context
+        $ocr = Convert-VobSubToSrt -SourceFile $SourceFile -StreamIndex $(if ($s) { [int]$s.index } else { -1 }) -StreamInfo $entry -DestinationPath $tempSrt -Context $Context -TrackId ([string]$decision.TrackId)
         if (-not $ocr.Ok) {
             if ($ocr.Failure) { $failures.Add($ocr.Failure) }
             if ($keptVobSubTrack -and -not $entry.IsSupplemental) {
@@ -425,7 +451,7 @@ function Build-SubtitleTracksForMkvmerge {
         $externalTrack = @{
             SrtPath=$ocr.Path; Lang=$entry.Lang; Title=$entry.Title
             IsDefault=$false; IsForced=$entry.IsForced
-            OutputCodec='subrip'; SourceStreamIndex=if ($s) { [int]$s.index } else { -1 }; Action='convert_vobsub'
+            OutputCodec='subrip'; SourceStreamIndex=if ($s) { [int]$s.index } else { -1 }; TrackId=[string]$decision.TrackId; Action='convert_vobsub'
         }
         $isDefault = Set-SubtitleBuilderBoolDefaultDisposition -Track $externalTrack -DefaultState $defaultState -Decision $decision
         $entry.IsDefault = $isDefault
@@ -455,7 +481,7 @@ function Build-SubtitleTracksForMkvmerge {
         $sourceTrack = @{
             MkvTid=$mkvTid; Lang=$entry.Lang; Title=$entry.Title
             IsDefault=$false; IsForced=$entry.IsForced
-            OutputCodec=[string]$entry.Codec; SourceStreamIndex=[int]$s.index; Action='preserve_original'
+            OutputCodec=[string]$entry.Codec; SourceStreamIndex=[int]$s.index; TrackId=[string]$decision.TrackId; Action='preserve_original'
         }
         $isDefault = Set-SubtitleBuilderBoolDefaultDisposition -Track $sourceTrack -DefaultState $defaultState -Decision $decision
         $sourceTracks.Add($sourceTrack)
@@ -466,10 +492,16 @@ function Build-SubtitleTracksForMkvmerge {
 
     Set-SubtitleBuilderFallbackDefault -DefaultState $defaultState -Builder 'Mkvmerge'
 
+    # mkvmerge emits tracks selected from one source input in source-TID
+    # order, regardless of the order in --subtitle-tracks. Generated SRT
+    # inputs follow those source tracks in the order their input arguments
+    # are appended. Build verification evidence in that actual output order.
+    $orderedSourceTracks = @($sourceTracks | Sort-Object { [int]$_.MkvTid })
     $verificationTracks = [System.Collections.Generic.List[object]]::new()
     $subtitleOrdinal = 0
-    foreach ($track in @($sourceTracks) + @($externalTracks)) {
+    foreach ($track in @($orderedSourceTracks) + @($externalTracks)) {
         $verificationTracks.Add([pscustomobject][ordered]@{
+            track_id = [string]$track.TrackId
             ordinal = $subtitleOrdinal
             output_location = 'embedded'
             output_codec = [string]$track.OutputCodec
@@ -483,7 +515,7 @@ function Build-SubtitleTracksForMkvmerge {
     }
 
     return @{
-        SourceTracks   = @($sourceTracks)
+        SourceTracks   = @($orderedSourceTracks)
         ExternalTracks = @($externalTracks)
         Tx3gTracks     = @($tx3gTracks)
         BdpgsTracks    = @($bdpgsTracks)
@@ -605,6 +637,16 @@ function New-SubtitleBurnVideoFilterArgsForFFmpeg {
 function Build-SubtitleArgsForFFmpeg {
     param($FilterResult, [string]$DefaultAudioLang, [string]$SourceFile, [string]$Context = "")
 
+    $canPreserveTx3g = Test-CanPreserveTx3gInFfmpegOutput
+    $canPreserveBdpgs = Test-CanPreserveBdpgsInFfmpegOutput
+    $canPreserveVobSub = if (Get-Command -Name Test-CanPreserveVobSubInFfmpegOutput -ErrorAction SilentlyContinue) {
+        Test-CanPreserveVobSubInFfmpegOutput
+    } else {
+        $false
+    }
+    $trackDecisions = Get-SubtitleBuilderTrackDecisionRecords -FilterResult $FilterResult -Builder 'FFmpeg' -CanPreserveTx3g:$canPreserveTx3g -CanPreserveBdpgs:$canPreserveBdpgs -CanPreserveVobSub:$canPreserveVobSub
+    Publish-SubtitleBuilderRunMonitorPolicy -TrackDecisions @($trackDecisions)
+
     $burnGraph = New-SubtitleBurnVideoFilterArgsForFFmpeg -FilterResult $FilterResult -SourceFile $SourceFile -Context $Context
     if (@($burnGraph.VideoFilterArgs).Count -gt 0 -or @($burnGraph.Failures).Count -gt 0) {
         return @{
@@ -642,14 +684,7 @@ function Build-SubtitleArgsForFFmpeg {
     $allTracks = [System.Collections.Generic.List[hashtable]]::new()
 
     $convertedSrtCodec = Get-ConvertedSrtCodecForFfmpegOutput
-    $canPreserveTx3g = Test-CanPreserveTx3gInFfmpegOutput
-    $canPreserveBdpgs = Test-CanPreserveBdpgsInFfmpegOutput
-    $canPreserveVobSub = if (Get-Command -Name Test-CanPreserveVobSubInFfmpegOutput -ErrorAction SilentlyContinue) {
-        Test-CanPreserveVobSubInFfmpegOutput
-    } else {
-        $false
-    }
-    $trackDecisions = Get-SubtitleBuilderTrackDecisionRecords -FilterResult $FilterResult -Builder 'FFmpeg' -CanPreserveTx3g:$canPreserveTx3g -CanPreserveBdpgs:$canPreserveBdpgs -CanPreserveVobSub:$canPreserveVobSub
+    $convertedSrtExpectedCodec = if (([string]$convertedSrtCodec).Trim().ToLowerInvariant() -eq 'copy') { 'subrip' } else { [string]$convertedSrtCodec }
 
     foreach ($decision in @($trackDecisions | Where-Object { $_.Action -eq 'ConvertAss' })) {
         $entry = $decision.Entry
@@ -667,6 +702,7 @@ function Build-SubtitleArgsForFFmpeg {
                 Codec   = "copy"
                 ExpectedCodec = [string]$entry.Codec
                 SourceStreamIndex = [int]$s.index
+                TrackId = [string]$decision.TrackId
                 Action = 'preserve_ass'
             }
             if (-not $entry.IsSupplemental) {
@@ -680,7 +716,7 @@ function Build-SubtitleArgsForFFmpeg {
             $allTracks.Add($keptAssTrack)
         }
 
-        $ass = Convert-AssToSrt $SourceFile $s.index $entry
+        $ass = Convert-AssToSrt $SourceFile $s.index $entry -TrackId ([string]$decision.TrackId)
         if (-not $ass.Ok) {
             if ($ass.Failure) { $failures.Add($ass.Failure) }
             if ($keptAssTrack -and -not $entry.IsSupplemental) {
@@ -714,8 +750,9 @@ function Build-SubtitleArgsForFFmpeg {
             Disp    = $disp
             SrtPath = $srtPath
             Codec   = $convertedSrtCodec
-            ExpectedCodec = $convertedSrtCodec
+            ExpectedCodec = $convertedSrtExpectedCodec
             SourceStreamIndex = [int]$s.index
+            TrackId = [string]$decision.TrackId
             Action = 'convert_ass'
         }
         $allTracks.Add($track)
@@ -742,6 +779,7 @@ function Build-SubtitleArgsForFFmpeg {
                 Codec   = "copy"
                 ExpectedCodec = [string]$entry.Codec
                 SourceStreamIndex = [int]$s.index
+                TrackId = [string]$decision.TrackId
                 Action = 'preserve_tx3g'
             }
             $allTracks.Add($keptTx3gTrack)
@@ -750,7 +788,7 @@ function Build-SubtitleArgsForFFmpeg {
         }
 
         $tempSrt = Join-Path $script:processingDir "sub_tx3g_$([guid]::NewGuid().ToString('N')).srt"
-        $extract = Convert-Tx3gToSrt -SourceFile $SourceFile -StreamIndex ([int]$s.index) -StreamInfo $entry -DestinationPath $tempSrt -Context $Context
+        $extract = Convert-Tx3gToSrt -SourceFile $SourceFile -StreamIndex ([int]$s.index) -StreamInfo $entry -DestinationPath $tempSrt -Context $Context -TrackId ([string]$decision.TrackId)
         if (-not $extract.Ok) {
             if ($extract.Failure) {
                 $failures.Add($extract.Failure)
@@ -780,8 +818,9 @@ function Build-SubtitleArgsForFFmpeg {
             Disp    = $disp
             SrtPath = $extract.Path
             Codec   = $convertedSrtCodec
-            ExpectedCodec = $convertedSrtCodec
+            ExpectedCodec = $convertedSrtExpectedCodec
             SourceStreamIndex = [int]$s.index
+            TrackId = [string]$decision.TrackId
             Action = 'convert_tx3g'
         }
         $allTracks.Add($track)
@@ -806,6 +845,7 @@ function Build-SubtitleArgsForFFmpeg {
                 Codec   = "copy"
                 ExpectedCodec = [string]$entry.Codec
                 SourceStreamIndex = [int]$s.index
+                TrackId = [string]$decision.TrackId
                 Action = 'preserve_bdpgs'
             }
             $allTracks.Add($keptBdpgsTrack)
@@ -814,7 +854,7 @@ function Build-SubtitleArgsForFFmpeg {
         }
 
         $tempSrt = Join-Path $script:processingDir "sub_bdpgs_$([guid]::NewGuid().ToString('N')).srt"
-        $ocr = Convert-BdpgsToSrt -SourceFile $SourceFile -StreamIndex ([int]$s.index) -StreamInfo $entry -DestinationPath $tempSrt -Context $Context
+        $ocr = Convert-BdpgsToSrt -SourceFile $SourceFile -StreamIndex ([int]$s.index) -StreamInfo $entry -DestinationPath $tempSrt -Context $Context -TrackId ([string]$decision.TrackId)
         if (-not $ocr.Ok) {
             if ($ocr.Failure) { $failures.Add($ocr.Failure) }
             if ($keptBdpgsTrack -and -not $entry.IsSupplemental) {
@@ -840,8 +880,9 @@ function Build-SubtitleArgsForFFmpeg {
             Disp    = $disp
             SrtPath = $ocr.Path
             Codec   = $convertedSrtCodec
-            ExpectedCodec = $convertedSrtCodec
+            ExpectedCodec = $convertedSrtExpectedCodec
             SourceStreamIndex = [int]$s.index
+            TrackId = [string]$decision.TrackId
             Action = 'convert_bdpgs'
         }
         $allTracks.Add($track)
@@ -867,6 +908,7 @@ function Build-SubtitleArgsForFFmpeg {
                 Codec   = "copy"
                 ExpectedCodec = [string]$entry.Codec
                 SourceStreamIndex = if ($s) { [int]$s.index } else { -1 }
+                TrackId = [string]$decision.TrackId
                 Action = 'preserve_vobsub'
             }
             $allTracks.Add($keptVobSubTrack)
@@ -875,7 +917,7 @@ function Build-SubtitleArgsForFFmpeg {
         }
 
         $tempSrt = Join-Path $script:processingDir "sub_vobsub_$([guid]::NewGuid().ToString('N')).srt"
-        $ocr = Convert-VobSubToSrt -SourceFile $SourceFile -StreamIndex $(if ($s) { [int]$s.index } else { -1 }) -StreamInfo $entry -DestinationPath $tempSrt -Context $Context
+        $ocr = Convert-VobSubToSrt -SourceFile $SourceFile -StreamIndex $(if ($s) { [int]$s.index } else { -1 }) -StreamInfo $entry -DestinationPath $tempSrt -Context $Context -TrackId ([string]$decision.TrackId)
         if (-not $ocr.Ok) {
             if ($ocr.Failure) { $failures.Add($ocr.Failure) }
             if ($keptVobSubTrack -and -not $entry.IsSupplemental) {
@@ -902,8 +944,9 @@ function Build-SubtitleArgsForFFmpeg {
             Disp    = $disp
             SrtPath = $ocr.Path
             Codec   = $convertedSrtCodec
-            ExpectedCodec = $convertedSrtCodec
+            ExpectedCodec = $convertedSrtExpectedCodec
             SourceStreamIndex = if ($s) { [int]$s.index } else { -1 }
+            TrackId = [string]$decision.TrackId
             Action = 'convert_vobsub'
         }
         $allTracks.Add($track)
@@ -937,6 +980,7 @@ function Build-SubtitleArgsForFFmpeg {
             Codec   = "copy"
             ExpectedCodec = [string]$entry.Codec
             SourceStreamIndex = [int]$s.index
+            TrackId = [string]$decision.TrackId
             Action = 'preserve_original'
         }
         $allTracks.Add($track)
@@ -983,6 +1027,7 @@ function Build-SubtitleArgsForFFmpeg {
             foreach ($candidate in @($selectedConvertedSrtSidecarTracks)) {
                 $streamInfo = $candidate.StreamInfo
                 [pscustomobject][ordered]@{
+                    track_id = [string]$candidate.TrackId
                     output_location = 'external_sidecar'
                     output_codec = 'subrip'
                     language = ([string]$streamInfo.Lang).Trim().ToLowerInvariant()
@@ -1040,6 +1085,7 @@ function Build-SubtitleArgsForFFmpeg {
         for ($n = 0; $n -lt $allTracks.Count; $n++) {
             $track = $allTracks[$n]
             [pscustomobject][ordered]@{
+                track_id = if ($track.ContainsKey('TrackId')) { [string]$track.TrackId } else { '' }
                 ordinal = $n
                 output_location = 'embedded'
                 output_codec = if ($track.ContainsKey('ExpectedCodec')) { [string]$track.ExpectedCodec } else { [string]$track.Codec }

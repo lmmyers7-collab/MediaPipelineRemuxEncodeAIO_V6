@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import logging
 import os
@@ -17,6 +19,8 @@ from .worker_parts.state_reports import save_active_worker_state, save_pending_w
 
 _log = logging.getLogger(__name__)
 _worker_log = logging.getLogger("mediapipeline.desktop.network.worker")
+_CLAIM_COORDINATOR_URL_KEY = "claim_coordinator_url"
+_CLAIM_AUTH_TOKEN_SHA256_KEY = "claim_auth_token_sha256"
 
 
 def _utc_stamp() -> str:
@@ -75,9 +79,13 @@ def _write_backup(path: Path) -> None:
             tmp_path.unlink(missing_ok=True)
         except OSError:
             pass
+        try:
+            backup_path.unlink(missing_ok=True)
+        except OSError as cleanup_exc:
+            _log.warning("Failed to retire stale worker_state backup %s: %s", backup_path, cleanup_exc)
 
 
-def atomic_write_text(path: Path, text: str) -> None:
+def atomic_write_text(path: Path, text: str, *, refresh_backup: bool = False) -> None:
     """Write text via a same-directory temp file and atomic replace.
 
     The replace is retried with backoff on transient ``PermissionError``
@@ -97,7 +105,6 @@ def atomic_write_text(path: Path, text: str) -> None:
             handle.write(text)
             handle.flush()
             os.fsync(handle.fileno())
-        _write_backup(path)
         delay_seconds = 0.05
         for attempt in range(7):
             try:
@@ -108,6 +115,8 @@ def atomic_write_text(path: Path, text: str) -> None:
                     raise
                 time.sleep(delay_seconds)
                 delay_seconds = min(delay_seconds * 2, 1.0)
+        if refresh_backup:
+            _write_backup(path)
     except Exception:
         try:
             tmp_path.unlink(missing_ok=True)
@@ -128,7 +137,11 @@ def load_worker_state(path: Path) -> dict[str, Any]:
                 _log.warning("worker_state backup %s is not usable: %s", backup_path, backup_exc)
             else:
                 quarantined = quarantine_worker_state(path, "corrupt")
-                atomic_write_text(path, json.dumps(backup_state, indent=2, allow_nan=False) + "\n")
+                atomic_write_text(
+                    path,
+                    json.dumps(backup_state, indent=2, allow_nan=False) + "\n",
+                    refresh_backup=True,
+                )
                 _log.warning(
                     "Recovered worker_state.json from backup %s after quarantining corrupt state at %s.",
                     backup_path,
@@ -145,17 +158,28 @@ def save_worker_state(
     job_id: str,
     source_path: str,
     pending_done_report: dict[str, Any] | None = None,
+    claim_coordinator_url: str = "",
+    claim_auth_token_sha256: str = "",
 ) -> None:
     payload: dict[str, Any] = {
         "job_id": job_id,
         "source_path": source_path,
     }
+    if claim_coordinator_url:
+        payload[_CLAIM_COORDINATOR_URL_KEY] = claim_coordinator_url
+    if claim_auth_token_sha256:
+        payload[_CLAIM_AUTH_TOKEN_SHA256_KEY] = claim_auth_token_sha256
     if pending_done_report is not None:
         payload["pending_done_report"] = dict(pending_done_report)
-    atomic_write_text(path, json.dumps(payload, indent=2, allow_nan=False) + "\n")
+    atomic_write_text(
+        path,
+        json.dumps(payload, indent=2, allow_nan=False) + "\n",
+        refresh_backup=True,
+    )
 
 
 def clear_worker_state(path: Path) -> None:
+    worker_state_backup_path(path).unlink(missing_ok=True)
     path.unlink(missing_ok=True)
 
 
@@ -208,12 +232,56 @@ def quarantine_pending_done_report(report_path: Path, reason: str, payload: dict
 
 def _done_report_for_post(payload: dict[str, Any]) -> dict[str, Any]:
     report = dict(payload)
-    for metadata_key in ("queued_utc", "schema_version", "quarantine_reason"):
+    for metadata_key in (
+        "queued_utc",
+        "schema_version",
+        "quarantine_reason",
+        _CLAIM_COORDINATOR_URL_KEY,
+        _CLAIM_AUTH_TOKEN_SHA256_KEY,
+    ):
         report.pop(metadata_key, None)
     return report
 
 
 class WorkerStateMixin:
+    def _claim_http_context_evidence(self, job_id: str) -> dict[str, str]:
+        context = self._claim_http_context(job_id)
+        if context is None:
+            return {}
+        base_url, auth_token = context
+        return {
+            _CLAIM_COORDINATOR_URL_KEY: base_url,
+            _CLAIM_AUTH_TOKEN_SHA256_KEY: hashlib.sha256(auth_token.encode("utf-8")).hexdigest(),
+        }
+
+    def _restore_claim_http_context_from_evidence(
+        self,
+        job_id: str,
+        payload: dict[str, Any],
+    ) -> bool:
+        if self._claim_http_context(job_id) is not None:
+            return True
+        expected_url = str(payload.get(_CLAIM_COORDINATOR_URL_KEY, "") or "")
+        expected_fingerprint = str(payload.get(_CLAIM_AUTH_TOKEN_SHA256_KEY, "") or "")
+        if not expected_url and not expected_fingerprint:
+            return True
+        current_url, current_token = self._runtime_http_context()
+        current_fingerprint = hashlib.sha256(current_token.encode("utf-8")).hexdigest()
+        if expected_url == current_url and hmac.compare_digest(expected_fingerprint, current_fingerprint):
+            self._register_claim_http_context(job_id, (current_url, current_token))
+            return True
+        self._worker_state_startup_error = "claim_coordinator_identity_mismatch"
+        _worker_log.warning(
+            "Holding report for job %s because its issuing coordinator identity does not match current worker settings.",
+            job_id[:8],
+        )
+        notify_status = getattr(self, "_notify_status", None)
+        if callable(notify_status):
+            notify_status(
+                "⚠ Pending claim report held: saved issuing coordinator identity differs from current settings."
+            )
+        return False
+
     def _quarantine_legacy_pending_report(self, payload: dict[str, Any], reason: str) -> None:
         queued_path = queue_pending_done_report(
             self._state_path,
@@ -233,13 +301,16 @@ class WorkerStateMixin:
                 continue
             payload.setdefault("worker_id", self._worker_id)
             job_id = str(payload.get("job_id", ""))
+            if not self._restore_claim_http_context_from_evidence(job_id, payload):
+                return False
             post_payload = _done_report_for_post(payload)
             try:
-                response = self._http_post("/api/done", post_payload)
+                response = self._http_post_for_claim(job_id, "/api/done", post_payload)
             except Exception as exc:
                 err_text = str(exc)
                 if "HTTP 404 " in err_text or "HTTP Error 404:" in err_text:
                     quarantine_pending_done_report(report_path, "unknown_or_late_job", payload)
+                    self._forget_claim_http_context(job_id)
                     _worker_log.warning(
                         "Pending worker done report for job %s is unknown to coordinator; quarantined for review and continuing claims.",
                         job_id,
@@ -253,6 +324,7 @@ class WorkerStateMixin:
             status = str((response or {}).get("status", "ok") or "ok")
             if status not in {"ok", "late_recorded"}:
                 quarantine_pending_done_report(report_path, f"unaccepted_{_safe_name(status)}", payload)
+                self._forget_claim_http_context(job_id)
                 _worker_log.warning(
                     "Pending worker done report for job %s returned status %r; quarantined for review and continuing claims.",
                     job_id,
@@ -260,6 +332,7 @@ class WorkerStateMixin:
                 )
                 continue
             report_path.unlink(missing_ok=True)
+            self._forget_claim_http_context(job_id)
             self._safe_log_cluster_event(
                 "pending-done-recovered",
                 level="WARN",
@@ -298,6 +371,8 @@ class WorkerStateMixin:
             return
 
         sp = str(state.get("source_path", ""))
+        if not self._restore_claim_http_context_from_evidence(job_id, state):
+            return
         pending_done_report = state.get("pending_done_report")
         if isinstance(pending_done_report, dict) and str(pending_done_report.get("job_id", "") or "").strip():
             payload = dict(pending_done_report)
@@ -307,11 +382,12 @@ class WorkerStateMixin:
                 str(payload.get("job_id", "")),
             )
             try:
-                self._http_post("/api/done", payload)
+                self._http_post_for_claim(job_id, "/api/done", payload)
             except Exception as exc:
                 _worker_log.warning("Crash recovery pending done-report failed: %s", _worker_diagnostic_preview(exc))
                 return
             else:
+                self._forget_claim_http_context(job_id)
                 self._safe_log_cluster_event(
                     "pending-done-recovered",
                     level="WARN",
@@ -339,7 +415,8 @@ class WorkerStateMixin:
             "Crash recovery: reporting job_id=%s as failed to coordinator.", job_id
         )
         try:
-            self._http_post(
+            self._http_post_for_claim(
+                job_id,
                 "/api/done",
                 build_crash_recovery_done_request(job_id, self._worker_id).to_dict(),
             )
@@ -347,6 +424,7 @@ class WorkerStateMixin:
             _worker_log.warning("Crash recovery done-report failed: %s", _worker_diagnostic_preview(exc))
             return
         else:
+            self._forget_claim_http_context(job_id)
             # Only log success to the cluster — if the POST itself failed
             # the cluster log POST will fail too and we'll have nothing to
             # show.  The local Python log carries the failure.
@@ -412,13 +490,16 @@ class WorkerStateMixin:
         payload = dict(pending)
         payload.setdefault("worker_id", self._worker_id)
         job_id = str(payload.get("job_id", ""))
+        if not self._restore_claim_http_context_from_evidence(job_id, payload):
+            return False
         try:
-            response = self._http_post("/api/done", payload)
+            response = self._http_post_for_claim(job_id, "/api/done", payload)
         except Exception as exc:
             err_text = str(exc)
             if "HTTP 404 " in err_text or "HTTP Error 404:" in err_text:
                 self._quarantine_legacy_pending_report(payload, "unknown_or_late_job")
                 self._clear_worker_state()
+                self._forget_claim_http_context(job_id)
                 _worker_log.warning(
                     "Pending done report for job %s was not accepted by the coordinator; quarantined for review and continuing claims.",
                     job_id,
@@ -433,12 +514,14 @@ class WorkerStateMixin:
         if status not in {"ok", "late_recorded"}:
             self._quarantine_legacy_pending_report(payload, f"unaccepted_{_safe_name(status)}")
             self._clear_worker_state()
+            self._forget_claim_http_context(job_id)
             _worker_log.warning(
                 "Pending done report for job %s returned unaccepted coordinator status %r; quarantined for review and continuing claims.",
                 job_id,
                 status,
             )
             return True
+        self._forget_claim_http_context(job_id)
         self._safe_log_cluster_event(
             "pending-done-recovered",
             level="WARN",
@@ -459,6 +542,7 @@ class WorkerStateMixin:
             notify_status=self._notify_status,
             safe_log_cluster_event=self._safe_log_cluster_event,
             log=_worker_log,
+            claim_context_evidence=self._claim_http_context_evidence(job.job_id),
         )
 
     def _save_pending_done_report(self, job: ClaimedJob, payload: dict[str, Any]) -> bool:
@@ -471,6 +555,7 @@ class WorkerStateMixin:
             notify_status=self._notify_status,
             safe_log_cluster_event=self._safe_log_cluster_event,
             log=_worker_log,
+            claim_context_evidence=self._claim_http_context_evidence(job.job_id),
         )
         if saved:
             self._clear_worker_state()

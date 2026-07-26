@@ -1,143 +1,119 @@
 # Settings Builder Coverage Matrix
 
-Maps every known `CONFIG_FIELD_DEFINITIONS` key to its WebView settings builder coverage, as of the current state. This is a read-only audit document. It does not implement builder changes.
+Current inventory of backend configuration metadata, structured WebView builder bindings, dedicated editors, and intentionally direct-only fields. Backend metadata and validation remain authoritative; frontend arrays define display/order bindings and stage patches for backend Preview/Save.
 
-Total backend metadata keys: 172 (from `CONFIG_FIELD_DEFINITIONS` and the config contract).
-Covered by structured WebView builder arrays: 141.
-Handled by the dedicated Library Profiles editor: 1 (`LibraryProfiles`).
-Known advanced/direct-config metadata without a routine structured builder: 28.
-Intentionally hidden auth secrets: 2.
+Last verified: 2026-07-15.
 
----
+## Coverage Summary
+
+| Measure | Count | Meaning |
+|---|---:|---|
+| Backend metadata keys | 205 | Keys in `CONFIG_FIELD_DEFINITIONS` / the config contract |
+| Structured builder bindings | 156 | Entries across the ten builder arrays in `settingsMetadata.js` |
+| Unique structured builder keys | 146 | Distinct backend keys represented by those bindings |
+| Duplicate bindings | 10 | Deliberate File Safety / Pending Publish workflow overlap |
+| Library Profile override-capable keys | 77 | Keys supported by the dedicated inheritance/override editor |
+| Override-only keys | 0 | Every override-capable key also exists in backend metadata |
+| No routine structured builder | 59 | 1 dedicated `LibraryProfiles` editor + 56 advanced/direct keys + 2 hidden secrets |
+
+The arithmetic is intentional: `146` structured keys + `59` keys without a routine structured builder = `205` backend metadata keys. Binding count is higher than unique-key count because ten keys appear in two workflow-specific builders.
 
 ## Builder Groups
 
-| Builder name | Fields covered | Purpose |
-|---|---|---|
-| Routing / Size | `RoutingProfile`, `RouteThresholdMode`, `SizeGuardMode`, `EncodeTuningPreset`, `EncodeLadder`, `VideoCodec`, `OutputContainer`, `MaxEncodeGrowthPercent`, `CompatibilityEncodeGrowthPercent`, `MovieRoute1080pTargetSizeGB`, `MovieRoute1440pTargetSizeGB`, `MovieRoute4KTargetSizeGB`, `TVRoute1080pTargetSizeGB`, `TVRoute1440pTargetSizeGB`, `TVRoute4KTargetSizeGB`, `Route1080pUpperHeightTolerancePercent`, `Route1080pMaxVideoBitrateMbps`, `Route1440pLowerHeightTolerancePercent`, `Route1440pUpperHeightTolerancePercent`, `Route1440pMaxVideoBitrateMbps`, `Route4KLowerHeightTolerancePercent`, `Route4KMaxVideoBitrateMbps` | High-level route, per-height target, resolution-selected bitrate, and size policy |
-| Video Detail | `VideoPreset`, `VideoQuality`, `AllowH264RemuxIfPlexCompatible`, `H264RemuxMaxBitrateMbps`, `H264RemuxMaxHeight`, `RemuxSafeVideoCodecs`, `FallbackCpuQuality`, `CpuEncodePreset`, `CpuEncodeProcessPriority`, `CpuEncodeMaxThreads`, `ExtraVideoFlags` | NVENC/CPU encoder precision and copy policy |
-| Quality Verification | `EnableQualityVerification`, `QualityMetric`, `QualitySampleMode`, `QualitySampleSeconds`, `QualitySampleCount`, `QualityWarnThreshold`, `QualityFailThreshold`, `QualityFailAction`, `QualityVerifyTimeoutSeconds` | Post-encode objective metric, sampling window, warning/failure thresholds, review action, and verification timeout |
-| File Safety / Publish | `SourceMovies`, `SourceTV`, `Outsource`, `LocalBase`, `MinFreeSpaceGB`, `OutsourceMinFreeSpaceGB`, `FileStabilityWait`, `WatchDebounceSeconds`, `WatchFolderRoots`, `WatchAction`, `EnableWatchFolders`, `WatchRespectScheduleWindow`, `CleanupStaleAgeHours`, `OutputSizeMultiplier`, `ValidExtensions`, `RobocopyFlags`, `DeferredPublish`, `PendingPublishDrainMode`, `PendingPublishDrainBatchSize`, `AggressiveEpisodeParsing`, `SkipStabilityCheck`, `EnableIntegrityCheck`, `CreateTVSubfolder`, `CleanupRemoteStaging` | Source/output/scratch paths, stability, watch-folder intake, integrity, deferred publish |
-| Pending Publish / Recovery | `DeferredPublish`, `PendingPublishDrainMode`, `PendingPublishDrainBatchSize`, `CleanupRemoteStaging`, `TransientFailureRetryLimit`, `CleanupStaleAgeHours`, `RobocopyTimeoutSeconds`, `RobocopyFlags`, `OutsourceMinFreeSpaceGB`, `OutputSizeMultiplier`, `EnableIntegrityCheck`, `SkipStabilityCheck` | Drain behavior and recovery tuning |
-| Audio | `AudioPassthroughProfile`, `CompatibleAudioCodecs`, `PreferredDefaultAudioLanguages`, `AudioTranscodeCodec`, `AudioTranscodeBitrate`, `AudioTranscodeAutoBitrateByChannels`, `AudioDownmixMode`, `AudioMaxChannels`, `AllowNoAudio` | Passthrough, transcode, channel, language policy |
-| Subtitle | `SubKeepLanguages`, `AllowSubtitleHelperFallback`, `Tx3gExtractLanguages`, `BdpgsExtractLanguages`, `MergeThresholdMs`, `SubtitleExtractTimeoutSeconds`, `SubtitleProbeTimeoutSeconds`, `BdpgsOcrTimeoutSeconds`, `BdpgsOcrToolPath`, `BdpgsOcrTessdataPath`, `SubSDHTitleKeywords`, `SubSupplementalKeywords`, `ExcludeSubtitleStyles`, `IncludeSubtitleStyles`, `ConvertTx3gToSrt`, `DropTx3gAfterConversion`, `CreateExternalTx3gSrtSidecars`, `Tx3gPreserveExistingSrt`, `Tx3gTreatForcedAsSeparate`, `TreatTx3gSignsSongsAsForced`, `ConvertBdpgsToSrt`, `DropBdpgsAfterConversion`, `TreatBdpgsSignsSongsAsForced`, `DropAssAfterConversion`, `RemoveKaraoke`, `StripFormatting`, `MergeAdjacent`, `KeepSignsAndSongs`, `TreatAssSignsSongsAsForced` | TX3G, BDPGS OCR, ASS/SSA drop/convert/preserve, SDH/supplemental keyword classification inputs |
-| Runtime / Diagnostics | `DebugMode`, `ConsoleLogLevel`, `FileLogLevel`, `LogRetentionDays`, `PipelineDebugLogMaxBytes`, `FailureArtifactWarningThresholdGB`, `FailureArtifactRetentionDays`, `FailureArtifactCleanupTargetGB`, `FFmpegEncodeTimeoutSeconds`, `FFmpegRemuxTimeoutSeconds`, `FFmpegCpuEncodeTimeoutSeconds`, `RobocopyTimeoutSeconds`, `SourceScanIntervalSeconds`, `SourceScanTimeoutSeconds`, `IndexScanTimeoutSeconds`, `CleanupScanTimeoutSeconds`, `TransientFailureRetryLimit`, `AllowSystemTools`, `MkvmergeRemuxTimeoutSeconds` | Logging, scan cadence, timeout, retry, PATH fallback, failure-artifact warning and cleanup thresholds |
-| Queue / Reprocess | `PriorityMarkers`, `ProcessedIndexRefreshSeconds`, `MinPipelineVersion`, `ReprocessAll` | Priority markers, index refresh, reprocess mode |
-| Network | `NetworkRole`, `CoordinatorPort`, `CoordinatorBindAddress`, `CoordinatorAlsoEncodeLocally`, `CoordinatorHeartbeatTimeoutMins`, `NetworkRerunHandoffRoot`, `WorkerCoordinatorUrl`, `WorkerName`, `WorkerPollIntervalSecs`, `WorkerSourcePathMap`, `WorkerConfigOverrides` | Non-secret network role/coordinator/worker settings |
+| Builder group | Binding count | Primary purpose |
+|---|---:|---|
+| Routing / Size | 18 | Route profile, size guard, movie/TV targets, height tolerances, and route bitrate ceilings |
+| Video Detail | 17 | Encode ladder/backend/container, preset/quality, remux compatibility, CPU fallback, and extra flags |
+| Quality Verification | 9 | Metric, sampling, thresholds, action, and timeout |
+| File Safety / Publish | 22 | Source/output/scratch paths, free-space/stability/watch policy, integrity, and deferred-publish posture |
+| Network | 12 | Coordinator/worker non-secret configuration; rendered on the separate Network page while using the same backend patch contract |
+| Queue / Reprocess | 4 | Priority markers, processed-index refresh, version floor, and reprocess mode |
+| Runtime / Diagnostics | 19 | Logging, active/interrupted tool diagnostics, artifact retention, FFmpeg/tool/copy/scan timeouts, retry, and system-tool fallback |
+| Pending Publish / Recovery | 12 | Deferred publish, retry/copy/cleanup policy, free-space and size policy, integrity/stability, and review/block budgets |
+| Subtitle | 34 | TX3G, BDPGS, VobSub, ASS/SSA language, OCR, preservation, conversion, and classification policy |
+| Audio | 9 | Passthrough profile, codec/language policy, transcode bitrate, downmix, channels, and no-audio posture |
+| **Total** | **156** | 146 unique keys plus 10 deliberate duplicate bindings |
 
----
+### Deliberate Duplicate Bindings
 
-## Known Advanced / Direct-Config Metadata
+These ten keys appear in both File Safety / Publish and Pending Publish / Recovery because each page supports a distinct operator workflow over the same backend-owned value:
 
-These keys are valid backend metadata and config-contract keys, but they do not have routine structured WebView builder controls. They are not schema drift. Use raw JSON/direct config plus backend Preview Patch before Save, and review the owning page before relying on changed behavior.
+`DeferredPublish`, `CleanupRemoteStaging`, `TransientFailureRetryLimit`, `CleanupStaleAgeHours`, `RobocopyTimeoutSeconds`, `RobocopyFlags`, `OutsourceMinFreeSpaceGB`, `OutputSizeMultiplier`, `EnableIntegrityCheck`, and `SkipStabilityCheck`.
 
-| Key | Category | Why no routine builder |
-|---|---|---|
-| `ConfigSchemaVersion` | Runtime / migration | Backend schema marker; editing is migration work |
-| `MaxParallelEncodes` | Runtime / parallelism | Local parallel encode capacity needs deliberate validation |
-| `ParallelEncodeMode` | Runtime / parallelism | Coupled to `MaxParallelEncodes` and local worker-slot validation |
-| `MixPriorityPhase` | Queue planning | Advanced queue phase behavior; inspect Queue preview after changes |
-| `QueueOrderingStrategy` | Queue planning | Backend queue sort preset; inspect Queue preview after changes |
-| `FinalLibraryPromotionEnabled` | Final library promotion | Manual promotion workflow enable flag; review Completed/Output promotion workflow before use |
-| `FinalLibraryPromotionRules` | Final library promotion | Source-to-final-library mapping; wrong roots can promote to the wrong final destination |
-| `FinalLibraryPromotionVerificationMode` | Final library promotion | Promotion verification strictness; cautious hashes, fast checks size/existence |
-| `FinalLibraryPromotionCleanupAfterVerified` | Final library promotion | Removes verified publish-output files after promotion; review cleanup boundary first |
-| `FinalLibraryPromotionOverwriteExisting` | Final library promotion | Allows staged replacement of existing final files; high-impact publish behavior |
-| `RenameMovieFilterOptions` | Rename planning | Movie rename cleaning options; inspect Rename preview before applying |
-| `RenameMovieFilterTerms` | Rename planning | Movie rename term filters; inspect Rename preview before applying |
-| `RenameMovieRemoveTerms` | Rename planning | Movie rename removal terms; inspect Rename preview before applying |
-| `OutputValidationProbeTimeoutSeconds` | Output validation | Advanced completed-output validation threshold |
-| `OutputValidationMinSizeBytes` | Output validation | Advanced completed-output acceptance threshold |
-| `OutputValidationDurationToleranceSeconds` | Output validation | Advanced completed-output duration tolerance |
-| `ConsecutiveRoundFailureBlockLimit` | Long-run reliability | Backend continuous-mode watchdog threshold; read-only evidence is shown in Diagnostics/Home |
-| `ConsecutiveRoundFailureProbeBackoffSeconds` | Long-run reliability | Backend continuous-mode recovery-probe cadence; read-only evidence is shown in Diagnostics/Home |
-| `PendingPublishBacklogBlockThreshold` | Pending publish backpressure | Backend queue-work backpressure threshold; not a frontend drain policy |
-| `PendingPublishDeferredBlockThreshold` | Pending publish backpressure | Backend deferred-publish backpressure threshold; pending publish remains manifest-backed |
-| `PauseFlagReviewSeconds` | Runtime control flags | Backend health age threshold; runtime pause flags are never auto-cleared |
-| `PauseFlagBlockSeconds` | Runtime control flags | Backend health block threshold; runtime pause flags are never auto-cleared |
-| `LocalWorkerHeartbeatGraceSeconds` | Local worker lifecycle | Backend worker-slot stale-heartbeat grace; no frontend claim release policy |
-| `QueueExecutionMaxRunnablePerRound` | Queue planning | Backend per-round execution cap; queue snapshot display cap remains separate |
-| `StateDbMaintenanceIntervalSeconds` | SQLite mirror observability | Backend best-effort mirror maintenance interval; JSON state remains authoritative |
-| `StateDbWalReviewBytes` | SQLite mirror observability | Backend WAL review/maintenance threshold; JSON state remains authoritative |
-| `StateDbCompletedJobsMaxRows` | SQLite mirror observability | Completed-job mirror row bound; JSONL completed manifests remain authoritative |
-| `AutonomyPendingReviewSeconds` | Autonomy diagnostics policy | Backend-only pending-publish review threshold; no Settings builder control in this pass |
-| `AutonomyPendingBlockSeconds` | Autonomy diagnostics policy | Backend-only pending-publish block threshold; pending publish remains manifest-backed |
-| `AutonomyPendingRetryBlockCount` | Autonomy diagnostics policy | Backend-only pending-publish retry threshold; no frontend drain policy |
-| `AutonomyPendingTotalReviewBytes` | Autonomy diagnostics policy | Publish & Recovery builder GiB control for pending-publish review evidence |
-| `AutonomyPendingTotalBlockBytes` | Autonomy diagnostics policy | Publish & Recovery builder GiB control for pending-publish launch blocking |
-| `AutonomyFailureOperatorRequiredBlockSeconds` | Autonomy diagnostics policy | Backend-only failure age block threshold |
-| `AutonomyFailureOperatorRequiredBlockCount` | Autonomy diagnostics policy | Backend-only failure count block threshold |
-| `AutonomyFailureInfrastructureBlockCount` | Autonomy diagnostics policy | Backend-only infrastructure failure count block threshold |
-| `AutonomyActiveJobTimeoutGraceSeconds` | Autonomy diagnostics policy | Backend-only passive ActiveJobs stale grace; review-only liveness evidence |
-| `AutonomyActiveJobNoTimeoutBlockSeconds` | Autonomy diagnostics policy | Backend-only passive ActiveJobs stale threshold without native timeout |
-| `AutonomyStorageMinFreeGB` | Autonomy diagnostics policy | Backend-only storage floor for diagnostics budget evidence |
-| `AutonomyStateFileReviewBytes` | Autonomy diagnostics policy | Backend-only state/journal file review threshold |
-| `AutonomyStateFileBlockBytes` | Autonomy diagnostics policy | Backend-only state/journal file block threshold |
-| `AutonomyScanLimit` | Autonomy diagnostics policy | Backend-only file enumeration cap with truncation metadata |
-| `AutonomyGrowthSnapshotMaxCount` | Autonomy diagnostics policy | Backend-only retained growth snapshot count |
-| `AutonomyWatchdogRecordLimit` | Autonomy diagnostics policy | Backend-only returned passive watchdog record cap |
-| `ShowOverrides` | Per-show media policy | Direct-config mapping for show-specific routing/video/audio/subtitle overrides |
+They are not independent values. Either builder stages the same config key, and backend Preview/Save remains authoritative.
 
-`LibraryProfiles` is handled by the dedicated Library Profiles editor rather than the static builder arrays.
+## Settings Page Placement
 
----
+The Settings surface has ten operator panes. These are navigation/placement groupings, not ten additional sources of config truth.
+
+| Pane | Role |
+|---|---|
+| `status` | Saved/staged posture, backend evidence, and command result visibility |
+| `guided-setup` | Guided entry points and readiness explanations |
+| `paths-safety` | Source/output/scratch and file-safety controls |
+| `routing-size` | Routing, size guard, target, and quality controls |
+| `media-output` | Video, audio, and subtitle output policy |
+| `publish-recovery` | Deferred publish and recovery controls |
+| `naming` | Naming/rename-related settings guidance |
+| `queue-runtime` | Queue/reprocess and runtime/diagnostics controls |
+| `presets` | Saved preset and Library Profile workflows |
+| `advanced-evidence` | Raw-key action plan, risk/readiness evidence, and advanced handoff |
+
+The 12 Network bindings render on the separate Network page. They still stage through the same backend Preview/Save contract and are included in the 155 binding count.
+
+## Library Profile Coverage
+
+`LibraryProfiles` uses a dedicated editor rather than a static builder-array row. Its 77 override-capable keys are drawn from backend metadata; there are no override-only keys.
+
+The editor distinguishes:
+
+- inherited values from the selected parent/global configuration;
+- persisted explicit overrides;
+- staged explicit overrides; and
+- reset-to-inherited actions.
+
+Reset must restore the row's actual inherited value, not the schema default. An explicit value equal to the inherited value is not newly persisted as an override unless it was already an explicit persisted override. The browser field-matrix and Library Profiles save smokes cover these semantics against generated temporary config.
+
+## Advanced / Direct-Config Metadata
+
+There are 56 non-secret metadata keys without routine structured builder controls. The examples below are representative, not exhaustive. The executable source of truth remains `CONFIG_FIELD_DEFINITIONS`, the config contract, and backend Preview Patch output.
+
+| Representative key/family | Why it remains advanced/direct |
+|---|---|
+| `ConfigSchemaVersion` | Backend migration/schema marker, not a routine operator setting |
+| `MaxParallelEncodes`, `ParallelEncodeMode` | Coupled capacity controls that require deliberate worker-slot validation |
+| `MixPriorityPhase`, `QueueOrderingStrategy` | Advanced queue planning; validate against Queue preview |
+| `FinalLibraryPromotion*` | High-impact destination/verification/cleanup/overwrite policy; backend promotion workflow owns mutation |
+| `RenameMovieFilterOptions`, `RenameMovieFilterTerms`, `RenameMovieRemoveTerms` | Advanced naming filters; Rename preview/apply boundaries remain authoritative |
+| `OutputValidation*` | Completed-output validation thresholds and timeouts |
+| `PendingPublishBacklogBlockThreshold`, `PendingPublishDeferredBlockThreshold` | Backend backpressure policy; does not grant frontend drain authority |
+| `StateDb*` | SQLite observability/maintenance policy; JSON/JSONL authority is unchanged |
+| `ShowOverrides` | Advanced per-show media-policy mapping with broad routing/audio/subtitle impact |
+
+Do not treat this representative table as a complete key registry. Unknown or direct-only keys must be reviewed through the backend Raw-Key Action Plan and Preview Patch rather than inferred from this document.
 
 ## Intentionally Hidden From WebView
 
-| Key | Category | Impact | Reason raw-only |
-|---|---|---|---|
-| `CoordinatorAuthToken` | Network | High | Auth secret — intentionally excluded from WebView builder |
-| `WorkerAuthToken` | Network | High | Auth secret — intentionally excluded from WebView builder |
+| Key | Category | Reason hidden |
+|---|---|---|
+| `CoordinatorAuthToken` | Network authentication | Secret must not appear in WebView controls, browser storage, or JS heap snapshots |
+| `WorkerAuthToken` | Network authentication | Secret must match coordinator without browser exposure |
 
-Auth tokens are intentionally hidden — they must not be added to the WebView builder without a design that prevents them from appearing in browser storage, dev tools, or JS heap snapshots.
+These two keys are included in the 59 keys without a routine structured builder. Do not add them to the WebView without an approved secret-handling design.
 
----
+## Important Coverage Notes
 
-## High-Impact OCR Path Fields
+- `ExtraVideoFlags`, `AllowNoAudio`, and `ReprocessAll` have structured controls but retain high-risk save-readiness treatment.
+- OCR tool/tessdata fields are builder-covered text inputs; backend saved-path resolution and readiness evidence are authoritative. There is no frontend-owned path resolution.
+- Byte-backed budget metadata is presented as GiB in the builder while persistence remains bytes; control metadata records the unit conversion.
+- Network is an external page, not an omitted builder group.
+- The Settings field-matrix smoke exercises all structured bindings by field type and validates strict confirmation/reload evidence in a disposable root. It does not validate live config or real-media behavior.
 
-The fields most likely to cause operator confusion or silent failures if misconfigured are now covered by the Subtitle builder, while saved path resolution remains backend-authored:
+## Validation Sources
 
-| Key | Risk if misconfigured |
-|---|---|
-| `BdpgsOcrToolPath` | BDPGS OCR silently fails or uses wrong tool if path is stale or wrong |
-| `BdpgsOcrTessdataPath` | OCR produces garbage or silently skips if data path is wrong |
-
-**Implemented builder and read-only evidence**: WebView Settings now stages `BdpgsOcrToolPath` and `BdpgsOcrTessdataPath` through the Subtitle builder as text values. Backend Preview/Save remains the only persistence boundary. The backend resolves the saved paths against the pipeline script folder, reports tool/tessdata existence and `.dll`/`dotnet` posture, and marks missing enabled OCR paths as blocked. There is still no WebView path picker and no frontend-owned path resolution.
-
-**Implemented action-plan display**: WebView Settings now also includes a read-only Raw-Key Action Plan. It groups unknown schema-drift keys, BDPGS OCR path evidence, subtitle keyword builder coverage, intentionally excluded auth secrets, remaining advanced raw keys, and the backend-owned mutation boundary so the operator sees which raw-key categories need action without adding new settings mutation.
-
----
-
-## Coverage Notes
-
-- Several keys appear in multiple builders (e.g., `DeferredPublish`, `CleanupRemoteStaging`, `RobocopyFlags`, `RobocopyTimeoutSeconds`, `OutsourceMinFreeSpaceGB`, `OutputSizeMultiplier`, `EnableIntegrityCheck`, `SkipStabilityCheck` appear in both File Safety and Pending Publish builders). This is by design — both pages have different operator workflows for the same underlying config key.
-- The `ExtraVideoFlags` field is covered by the Video Detail builder but flagged as high-risk (raw FFmpeg passthrough) in both the local save-readiness checklist and backend risk policy.
-- The `AllowNoAudio` field is covered by the Audio builder and explicitly flagged in risk policy as unsafe if the operator has no-audio output as the intended behavior.
-- The `ReprocessAll` field is covered by the Queue builder but blocked by the local save-readiness checklist pending operator confirmation.
-
----
-
-## Freshness Review — 2026-05-15 (CLN3-025)
-
-Re-checked builder groups against current `settingsView.js` and `settingsOverview.js` to confirm no new fields were added or dropped.
-
-| Builder | Status |
-|---|---|
-| Routing / Size | Pass — route, threshold mode, size, encode ladder, and movie/TV bitrate ceiling fields are builder-covered |
-| Audio | Pass — `AudioPassthroughProfile`, passthrough/transcode/channel/language fields unchanged |
-| Subtitle | Pass — TX3G, BDPGS, ASS/SSA convert/drop/preserve fields covered; `AllowSubtitleHelperFallback` is represented as a launch-safety setting with backend-owned behavior |
-| Pending Publish / Recovery | Pass — `DeferredPublish`, `PendingPublishDrainMode`, `PendingPublishDrainBatchSize`, `RobocopyFlags`, and `CleanupStaleAgeHours` covered |
-| Auth token exclusion | Pass — `CoordinatorAuthToken` / `WorkerAuthToken` still intentionally raw-only |
-| New sample-validation config keys | None — sample validation is not a settings/config concern; its limits are constants in `app/sample_validation/policy.py` |
-
-No builder coverage gaps introduced. `BdpgsOcrToolPath` / `BdpgsOcrTessdataPath` raw-only recommendation closed by the Subtitle builder text fields; `SubSDHTitleKeywords` / `SubSupplementalKeywords` are now list fields staged through the same backend Preview/Save flow. No path picker was added, and auth tokens remain intentionally excluded.
-
-```
-Task ID: CLN3-025
-Files inspected: docs\inventories\SETTINGS_BUILDER_COVERAGE_MATRIX.md, docs\inventories\SETTINGS_KEY_OWNERSHIP_MAP.md (reference), docs\architecture\SETTINGS_RAW_KEY_TRIAGE.md (reference)
-Files changed: docs\inventories\SETTINGS_BUILDER_COVERAGE_MATRIX.md (CLN3-025 freshness note added)
-Validation: Select-String -Path docs\inventories\SETTINGS_BUILDER_COVERAGE_MATRIX.md,docs\inventories\SETTINGS_KEY_OWNERSHIP_MAP.md,docs\architecture\SETTINGS_RAW_KEY_TRIAGE.md -Pattern "audio|subtitle|pending|raw-only|builder"
-Findings: All builder groups current. No new fields added or dropped.
-Open questions: None.
-Risk: Low — documentation only.
-```
+- Backend metadata registry: `src/mediapipeline/core/config/metadata_parts/field_definitions.py` and sibling `metadata_parts/*_fields.py` modules
+- Builder arrays: `apps/desktop/webview/static/assets/settingsMetadata.js`
+- Builder control metadata: `apps/desktop/webview/static/assets/settings/builderControls.js`
+- Library Profile editor: `apps/desktop/webview/static/assets/settingsLibraries/`
+- Browser matrix: `tests/webview/test_webview_browser_settings_field_matrix_smoke.py`
+- Static Settings tests: `tests/python/desktop/test_application_facade_web_static_settings.py`, `tests/webview/test_webview_handbrake_settings_ui.py`, and Settings library/patch tests under `tests/webview/`

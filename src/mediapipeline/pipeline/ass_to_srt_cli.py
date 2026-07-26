@@ -184,6 +184,35 @@ __all__ = [
 ]
 
 
+def _path_identity_key(path: str | os.PathLike[str]) -> str:
+    resolved = Path(path).expanduser().resolve(strict=False)
+    absolute = os.path.abspath(str(resolved))
+    if os.name == "nt":
+        return os.path.normcase(absolute).casefold()
+    return absolute
+
+
+def _paths_alias(
+    left: str | os.PathLike[str],
+    right: str | os.PathLike[str],
+) -> bool:
+    try:
+        return os.path.samefile(left, right)
+    except (FileNotFoundError, OSError):
+        return _path_identity_key(left) == _path_identity_key(right)
+
+
+def _commit_temp_file_no_replace(tmp_name: str, target: Path) -> None:
+    if os.name == "nt":
+        # Windows rename is atomic within a volume and fails if target exists.
+        os.rename(tmp_name, target)
+        return
+
+    # POSIX rename replaces an existing destination. A same-directory hard link
+    # publishes the fsynced inode atomically and fails if the target exists.
+    os.link(tmp_name, target)
+
+
 def atomic_write_text(path: str, text: str, *, encoding: str = "utf-8") -> None:
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -193,11 +222,10 @@ def atomic_write_text(path: str, text: str, *, encoding: str = "utf-8") -> None:
             handle.write(text)
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(tmp_name, target)
-    except Exception:
+        _commit_temp_file_no_replace(tmp_name, target)
+    finally:
         with contextlib.suppress(OSError):
             os.remove(tmp_name)
-        raise
 
 
 def atomic_write_json(path: str, summary_data: dict[str, Any]) -> None:
@@ -212,6 +240,29 @@ def write_summary_json(path: str | None, summary_data: dict[str, Any]) -> None:
     if summary_dir:
         os.makedirs(summary_dir, exist_ok=True)
     atomic_write_json(path, summary_data)
+
+
+def _validate_disjoint_cli_paths(
+    parser: argparse.ArgumentParser,
+    args: argparse.Namespace,
+) -> None:
+    input_path = Path(args.mkv_path)
+    destinations = [("output path", Path(args.output_srt))]
+    if args.summary_json:
+        destinations.append(("summary JSON path", Path(args.summary_json)))
+
+    for label, destination in destinations:
+        if _paths_alias(input_path, destination):
+            parser.error(f"{label} must not alias the input path")
+
+    if len(destinations) == 2 and _paths_alias(
+        destinations[0][1], destinations[1][1]
+    ):
+        parser.error("summary JSON path must not alias the output path")
+
+    for label, destination in destinations:
+        if os.path.lexists(destination):
+            parser.error(f"{label} already exists; refusing to overwrite")
 
 
 def fail_with_summary(args: argparse.Namespace,
@@ -575,6 +626,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     if (not args.print_default_exclude_styles and
             (not args.mkv_path or not args.stream_index or not args.output_srt)):
         parser.error("input, stream index, and output path are required")
+
+    if not args.print_default_exclude_styles:
+        _validate_disjoint_cli_paths(parser, args)
 
     if args.remove_karaoke_override is None:
         legacy_value = (args.remove_karaoke_positional or "1").strip()

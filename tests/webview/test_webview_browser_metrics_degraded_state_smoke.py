@@ -39,7 +39,7 @@ def _runner_source() -> str:
         r"""
         function smokeScript() {
           return `
-          (() => {
+          (async () => {
             const byId = (id) => document.getElementById(id);
             const text = (id) => byId(id)?.textContent || "";
             const page = document.querySelector('[data-page-panel="metrics"]');
@@ -64,6 +64,43 @@ def _runner_source() -> str:
             }
             if (page.dataset.availability !== "available" || byId("metrics-backfill-button").disabled) {
               throw new Error("safe metrics state did not enable current backend controls");
+            }
+
+            await window.refreshAllNow({ automatic: true, initialCritical: true, page: "home" });
+            if (page.dataset.availability !== "available"
+                || text("metrics-overview-status") === "Unavailable — historical only") {
+              throw new Error("a refresh that omitted metrics incorrectly marked metrics unavailable");
+            }
+
+            const originalFetch = window.fetch.bind(window);
+            let releaseHeldHealth = null;
+            let holdNextHealth = true;
+            let metricsRequestCount = 0;
+            window.fetch = async (input, init) => {
+              const requestUrl = typeof input === "string" ? input : String(input?.url || input || "");
+              if (requestUrl.includes("/api/metrics")) metricsRequestCount += 1;
+              if (holdNextHealth && requestUrl.includes("/api/health")) {
+                holdNextHealth = false;
+                await new Promise((resolve) => { releaseHeldHealth = resolve; });
+              }
+              return originalFetch(input, init);
+            };
+            const inFlightRefresh = window.refreshAll({ page: "home" });
+            const holdDeadline = Date.now() + 2000;
+            while (!releaseHeldHealth && Date.now() < holdDeadline) {
+              await new Promise((resolve) => window.setTimeout(resolve, 10));
+            }
+            if (!releaseHeldHealth) throw new Error("test refresh never reached the held health request");
+            window.showPage("metrics");
+            releaseHeldHealth();
+            await inFlightRefresh;
+            const metricsDeadline = Date.now() + 5000;
+            while (metricsRequestCount === 0 && Date.now() < metricsDeadline) {
+              await new Promise((resolve) => window.setTimeout(resolve, 10));
+            }
+            window.fetch = originalFetch;
+            if (metricsRequestCount === 0) {
+              throw new Error("Metrics navigation did not queue a page refresh behind active work");
             }
 
             window.mediaPipelineMetricsView.renderMetricsUnavailable("fixture metrics route timeout");
@@ -104,7 +141,11 @@ def _runner_source() -> str:
             const deadline = Date.now() + 20000;
             while (Date.now() < deadline) {
               const ready = await client.send("Runtime.evaluate", {
-                expression: `Boolean(document.getElementById("metrics-backfill-button") && typeof window.mediaPipelineMetricsView?.renderMetrics === "function")`,
+                expression: `Boolean(document.getElementById("metrics-backfill-button")
+                  && typeof window.mediaPipelineMetricsView?.renderMetrics === "function"
+                  && typeof window.refreshAll === "function"
+                  && typeof window.refreshAllNow === "function"
+                  && typeof window.showPage === "function")`,
                 returnByValue: true,
               });
               if (ready.result?.value === true) break;

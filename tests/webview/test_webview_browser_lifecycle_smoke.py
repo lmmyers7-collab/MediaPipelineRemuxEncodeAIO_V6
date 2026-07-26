@@ -263,6 +263,167 @@ def _browser_lifecycle_runner_source() -> str:
           `;
         }
 
+        async function runtimeValue(client, expression) {
+          const result = await client.send("Runtime.evaluate", {
+            expression,
+            awaitPromise: true,
+            returnByValue: true,
+          });
+          if (result.exceptionDetails) {
+            const details = result.exceptionDetails;
+            throw new Error(details.exception?.description || details.exception?.value || details.text || "browser evaluation failed");
+          }
+          return result.result?.value;
+        }
+
+        async function dispatchNavigationKey(client, keyName, autoRepeat = false) {
+          const isEnter = keyName === "Enter";
+          const key = isEnter ? "Enter" : " ";
+          const code = isEnter ? "Enter" : "Space";
+          const keyCode = isEnter ? 13 : 32;
+          await client.send("Input.dispatchKeyEvent", {
+            type: "keyDown",
+            key,
+            code,
+            text: isEnter ? "\r" : " ",
+            unmodifiedText: isEnter ? "\r" : " ",
+            windowsVirtualKeyCode: keyCode,
+            nativeVirtualKeyCode: keyCode,
+            autoRepeat,
+          });
+          await client.send("Input.dispatchKeyEvent", {
+            type: "keyUp",
+            key,
+            code,
+            windowsVirtualKeyCode: keyCode,
+            nativeVirtualKeyCode: keyCode,
+          });
+          await sleep(100);
+        }
+
+        async function runPrimaryNavigationKeyboardProbe(client) {
+          const pages = await runtimeValue(client, `
+            (() => {
+              const buttons = Array.from(document.querySelectorAll(".nav-button[data-page]"));
+              return buttons.map((button) => button.dataset.page || "");
+            })()
+          `);
+          if (!Array.isArray(pages) || pages.length < 2) {
+            throw new Error("Primary navigation buttons were not available for keyboard testing.");
+          }
+          const navigationReadyDeadline = Date.now() + 10000;
+          let navigationReady = false;
+          while (Date.now() < navigationReadyDeadline) {
+            navigationReady = await runtimeValue(client, `
+              (() => {
+                const sentinel = ${JSON.stringify(pages[0])};
+                const target = ${JSON.stringify(pages[1])};
+                window.showPage(sentinel);
+                document.querySelector('.nav-button[data-page="' + CSS.escape(target) + '"]')?.click();
+                const active = document.querySelector("[data-page-panel].is-visible")?.dataset.pagePanel || "";
+                window.showPage(sentinel);
+                return active === target;
+              })()
+            `);
+            if (navigationReady) break;
+            await sleep(100);
+          }
+          if (!navigationReady) throw new Error("Primary navigation click handlers did not become ready.");
+          await runtimeValue(client, `
+            (() => {
+              const buttons = Array.from(document.querySelectorAll(".nav-button[data-page]"));
+              window.__primaryNavKeyboardProbe = { clicks: [] };
+              buttons.forEach((button) => {
+                button.addEventListener("click", () => {
+                  window.__primaryNavKeyboardProbe.clicks.push(button.dataset.page || "");
+                }, true);
+              });
+            })()
+          `);
+
+          const results = [];
+          for (const keyName of ["Enter", "Space"]) {
+            for (let index = 0; index < pages.length; index += 1) {
+              const target = pages[index];
+              const sentinel = pages[(index + 1) % pages.length];
+              const prepared = await runtimeValue(client, `
+                (() => {
+                  const target = ${JSON.stringify(target)};
+                  const sentinel = ${JSON.stringify(sentinel)};
+                  window.showPage(sentinel);
+                  const button = document.querySelector('.nav-button[data-page="' + CSS.escape(target) + '"]');
+                  if (!button) throw new Error("missing primary nav button " + target);
+                  button.focus({ preventScroll: true });
+                  window.__primaryNavKeyboardProbe.clicks.length = 0;
+                  return {
+                    activePage: document.querySelector("[data-page-panel].is-visible")?.dataset.pagePanel || "",
+                    focusedPage: document.activeElement?.dataset?.page || "",
+                  };
+                })()
+              `);
+              if (prepared.activePage !== sentinel || prepared.focusedPage !== target) {
+                throw new Error(`Could not prepare ${keyName} navigation ${sentinel} -> ${target}: ${JSON.stringify(prepared)}`);
+              }
+
+              await dispatchNavigationKey(client, keyName);
+              const observed = await runtimeValue(client, `
+                (() => ({
+                  activePages: Array.from(document.querySelectorAll("[data-page-panel].is-visible")).map((node) => node.dataset.pagePanel || ""),
+                  ariaPages: Array.from(document.querySelectorAll('.nav-button[aria-current="page"]')).map((node) => node.dataset.page || ""),
+                  focusedPage: document.activeElement?.closest?.("[data-page-panel]")?.dataset?.pagePanel || "",
+                  focusedTag: document.activeElement?.tagName || "",
+                  focusedText: document.activeElement?.textContent?.trim() || "",
+                  clicks: window.__primaryNavKeyboardProbe.clicks.slice(),
+                }))()
+              `);
+              const expectedClicks = keyName === "Enter" ? [] : [target];
+              if (JSON.stringify(observed.activePages) !== JSON.stringify([target])) {
+                throw new Error(`${keyName} did not activate only ${target}: ${JSON.stringify(observed)}`);
+              }
+              if (JSON.stringify(observed.ariaPages) !== JSON.stringify([target])) {
+                throw new Error(`${keyName} did not set aria-current only on ${target}: ${JSON.stringify(observed)}`);
+              }
+              if (observed.focusedPage !== target) {
+                throw new Error(`${keyName} did not move focus into destination ${target}: ${JSON.stringify(observed)}`);
+              }
+              if (observed.focusedTag !== "H1") {
+                throw new Error(`${keyName} did not land focus on the destination heading for ${target}: ${JSON.stringify(observed)}`);
+              }
+              if (JSON.stringify(observed.clicks) !== JSON.stringify(expectedClicks)) {
+                throw new Error(`${keyName} produced unexpected click activation for ${target}: ${JSON.stringify(observed)}`);
+              }
+              results.push({ keyName, target, sentinel, ...observed });
+            }
+          }
+
+          const repeatTarget = pages[0];
+          const repeatSentinel = pages[1];
+          await runtimeValue(client, `
+            (() => {
+              window.showPage(${JSON.stringify(repeatSentinel)});
+              const button = document.querySelector('.nav-button[data-page="' + CSS.escape(${JSON.stringify(repeatTarget)}) + '"]');
+              button.focus({ preventScroll: true });
+              window.__primaryNavKeyboardProbe.clicks.length = 0;
+            })()
+          `);
+          await dispatchNavigationKey(client, "Enter", true);
+          const repeatObserved = await runtimeValue(client, `
+            (() => ({
+              activePage: document.querySelector("[data-page-panel].is-visible")?.dataset.pagePanel || "",
+              ariaPage: document.querySelector('.nav-button[aria-current="page"]')?.dataset.page || "",
+              focusedPage: document.activeElement?.dataset?.page || "",
+              clicks: window.__primaryNavKeyboardProbe.clicks.slice(),
+            }))()
+          `);
+          if (repeatObserved.activePage !== repeatSentinel || repeatObserved.ariaPage !== repeatSentinel) {
+            throw new Error(`Repeated Enter unexpectedly activated ${repeatTarget}: ${JSON.stringify(repeatObserved)}`);
+          }
+          if (repeatObserved.focusedPage !== repeatTarget || repeatObserved.clicks.length !== 0) {
+            throw new Error(`Repeated Enter changed focus or dispatched a click: ${JSON.stringify(repeatObserved)}`);
+          }
+          return { ok: true, cases: results, repeatObserved };
+        }
+
         async function main() {
           const userDataDir = fs.mkdtempSync(`${payload.tmpRoot.replace(/\\/g, "/")}/chrome-profile-`);
           const browser = launchBrowser([
@@ -300,21 +461,15 @@ def _browser_lifecycle_runner_source() -> str:
               returnByValue: true,
             });
             if (ready.result?.value !== true) throw new Error("Backend lifecycle WebView globals or DOM nodes did not become ready.");
-            const result = await client.send("Runtime.evaluate", {
-              expression: lifecycleScript(payload.scenario),
-              awaitPromise: true,
-              returnByValue: true,
-            });
-            if (result.exceptionDetails) {
-              const details = result.exceptionDetails;
-              throw new Error(details.exception?.description || details.exception?.value || details.text || "browser evaluation failed");
-            }
+            const resultValue = payload.scenario === "navigation"
+              ? await runPrimaryNavigationKeyboardProbe(client)
+              : await runtimeValue(client, lifecycleScript(payload.scenario));
             await sleep(750);
             const errorEvents = client.consoleEvents.filter((entry) => entry.startsWith("error:") || entry.startsWith("warning:"));
             if (client.exceptions.length || errorEvents.length) {
               throw new Error(`Browser console/exception noise: ${client.exceptions.concat(errorEvents).join("; ")}`);
             }
-            console.log(JSON.stringify({ ok: true, result: result.result?.value || {} }));
+            console.log(JSON.stringify({ ok: true, result: resultValue || {} }));
           } finally {
             if (client) client.close();
             await terminateBrowser(browser);
@@ -420,6 +575,43 @@ class WebViewBrowserLifecycleSmoke(unittest.TestCase):
             self.assertIn("disabled in WebView", browser_result["shutdownStatus"])
             self.assertFalse(shutdown_event.is_set())
 
+    def test_real_browser_primary_nav_keyboard_activation_is_explicit_and_single(self) -> None:
+        browser_path = _find_browser()
+        if not browser_path:
+            raise unittest.SkipTest("Chrome or Edge is required for the browser-backed WebView lifecycle smoke.")
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved, service = self._service_with_fixture(root)
+            media_snapshot = capture_media_no_mutation_snapshot(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            server = LocalApiServer(
+                facade,
+                token="browser-navigation-keyboard-token",
+                resolved_provider=lambda: resolved,
+                audit_root_provider=lambda: str(root),
+            )
+            try:
+                server.start()
+                result = _run_browser_lifecycle_smoke(
+                    browser_path=browser_path,
+                    url=f"{server.url}/",
+                    scenario="navigation",
+                )
+            finally:
+                server.stop()
+            assert_media_no_mutation(self, media_snapshot)
+
+            browser_result = result["result"]
+            cases = browser_result["cases"]
+            expected_nav_pages = {
+                "home", "launch", "live", "metrics", "queue", "completed", "pending", "rename",
+                "reports", "network", "libraries", "schedule", "settings", "diagnostics", "maintenance",
+            }
+            self.assertEqual(len(cases), len(expected_nav_pages) * 2)
+            self.assertEqual({case["target"] for case in cases}, expected_nav_pages)
+            self.assertEqual({case["keyName"] for case in cases}, {"Enter", "Space"})
+
     def test_real_browser_requests_backend_shutdown_only_when_close_readiness_is_safe(self) -> None:
         browser_path = _find_browser()
         if not browser_path:
@@ -465,10 +657,12 @@ class WebViewBrowserLifecycleSmoke(unittest.TestCase):
             resolved, service = self._service_with_fixture(root)
             media_snapshot = capture_media_no_mutation_snapshot(root)
             facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            proc = DummyProc(24680)
+            proc._mediapipeline_launch_id = "browser-lifecycle-stop-requested-launch"
             facade._schedule_stop_watcher.arm(
                 service=service,
                 resolved=resolved,
-                proc=DummyProc(24680),
+                proc=proc,
                 deadline=datetime.now() - timedelta(seconds=1),
             )
             watcher_deadline = time.monotonic() + 2.0

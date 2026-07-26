@@ -254,6 +254,8 @@ def _copy_sidecars_to_pending(
                 "parked_file": str(parked),
                 "server_out": str(server_out),
                 "output_size": parked.stat().st_size,
+                "output_sha256": sha256_file(parked),
+                "output_hash_algorithm": "SHA256",
                 "preserve_existing": bool(record.get("preserved_existing") is True) if isinstance(record, Mapping) else False,
                 "tx3g_record": pending_record,
             }
@@ -358,7 +360,39 @@ def _queue_status_for_row(row: Mapping[str, Any], *, manifest_status: str) -> di
     severity = "ok"
     terminal = False
 
-    if raw_status in {"skipped", "skip", "disabled"}:
+    if raw_status == "spawn_transition_ambiguous":
+        status_key, label, severity, terminal = (
+            "blocked",
+            "Child Exit Unverified",
+            "error",
+            False,
+        )
+    elif raw_status in {"retry_exhausted"}:
+        status_key, label, severity, terminal = "failed", "Retry Exhausted", "error", True
+    elif raw_status in {"failed_before_manifest"}:
+        status_key, label, severity, terminal = "failed", "Failed Before Manifest", "error", True
+    elif raw_status in {"retry_scheduled"}:
+        status_key, label, severity, terminal = "retrying", "Retry Scheduled", "warning", False
+    elif raw_status in {"retrying"}:
+        status_key, label, severity, terminal = "retrying", "Retrying", "warning", False
+    elif raw_status in {"waiting", "waiting_for_source"}:
+        label = "Waiting for Source" if raw_status == "waiting_for_source" else "Waiting"
+        status_key, severity, terminal = "waiting", "warning", False
+    elif raw_status in {"requested", "accepted", "manifest_created"}:
+        labels = {
+            "requested": "Requested",
+            "accepted": "Accepted",
+            "manifest_created": "Manifest Created",
+        }
+        status_key, label, severity, terminal = "pending", labels[raw_status], "ok", False
+    elif raw_status in {"process_spawned", "starting", "staging"}:
+        labels = {
+            "process_spawned": "Process Spawned",
+            "starting": "Starting",
+            "staging": "Staging",
+        }
+        status_key, label, severity, terminal = "active", labels[raw_status], "warning", False
+    elif raw_status in {"skipped", "skip", "disabled"}:
         status_key, label, severity, terminal = "skipped", "Skipped", "muted", True
     elif raw_status in {"failed", "error", "errored", "destination_policy_failed"}:
         status_key, label, severity, terminal = "failed", "Failed", "error", True
@@ -370,6 +404,12 @@ def _queue_status_for_row(row: Mapping[str, Any], *, manifest_status: str) -> di
         status_key, label, severity, terminal = "stopped", "Stopped", "warning", False
     elif raw_status in {"running", "active", "processing", "destination_policy_applying"}:
         status_key, label, severity, terminal = "active", "Active", "warning", False
+    elif raw_status == "retry_scheduled":
+        status_key, label, severity, terminal = "retrying", "Retry Scheduled", "warning", False
+    elif raw_status == "retry_exhausted":
+        status_key, label, severity, terminal = "failed", "Retry Exhausted", "error", True
+    elif raw_status == "review_required":
+        status_key, label, severity, terminal = "awaiting_review", "Review Required", "warning", True
     elif raw_status in {"pending_claim", "retryable"}:
         status_key, label, severity, terminal = "pending", "Pending", "ok", False
     elif raw_status in {"claimed"}:
@@ -377,9 +417,9 @@ def _queue_status_for_row(row: Mapping[str, Any], *, manifest_status: str) -> di
     elif raw_status in {"worker_completed_pending_reduction", "reduced_ready_for_destination_policy"}:
         status_key, label, severity, terminal = "pending_reduction", "Pending Reduction", "warning", False
     elif raw_status in {"worker_failed_pending_reduction"}:
-        status_key, label, severity, terminal = "failed", "Failed", "error", False
+        status_key, label, severity, terminal = "failed", "Failed", "error", True
     elif raw_status in {"worker_review_pending_reduction"}:
-        status_key, label, severity, terminal = "awaiting_review", "Awaiting Review", "warning", False
+        status_key, label, severity, terminal = "awaiting_review", "Awaiting Review", "warning", True
     elif raw_status in {"pending_publish", "parked"} or pending_manifest_path or pending_payload_path or auto_decision == "pending_publish_review":
         status_key, label, severity, terminal = "pending_publish", "Pending Publish", "warning", True
     elif raw_status in {"review_workspace", "awaiting_review", "review"}:
@@ -391,7 +431,7 @@ def _queue_status_for_row(row: Mapping[str, Any], *, manifest_status: str) -> di
         or replaced_hold_path
     ):
         status_key, label, severity, terminal = "replaced_returned", "Replaced / Returned", "ok", True
-    elif raw_status in {"complete", "completed", "done", "succeeded", "success"}:
+    elif raw_status in {"complete", "completed", "done", "succeeded", "success", "destination_policy_applied"}:
         status_key, label, severity, terminal = "completed", "Completed", "ok", True
     elif manifest_key == "stopped_after_current" and raw_status in {"pending", "queued", "staged", ""}:
         status_key, label, severity, terminal = "stopped", "Stopped", "warning", False

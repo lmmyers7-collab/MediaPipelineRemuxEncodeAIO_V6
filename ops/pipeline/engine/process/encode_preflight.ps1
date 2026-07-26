@@ -10,7 +10,19 @@ function Invoke-MediaPipelineEncodePreflight {
         return New-MediaPipelineEncodeStageResult -Ok $false -Terminal $true -Value $false -Stage 'copy_to_scratch'
     }
 
-    $Context.Paths = Get-OutputPaths $Context.File $Context.IsTV $Context.TvInfo $Context.SafeName
+    if (-not $Context.Paths) {
+    if (-not $Context.Paths) {
+        $Context.Paths = Get-OutputPaths $Context.File $Context.IsTV $Context.TvInfo $Context.SafeName
+    }
+    }
+    if (Get-Command -Name Set-MediaPipelineCurrentRunMonitorOutput -ErrorAction SilentlyContinue) {
+        Set-MediaPipelineCurrentRunMonitorOutput `
+            -State active `
+            -ScratchPath ([string]$Context.LocalIn) `
+            -WorkingOutputPath ([string]$Context.Paths.LocalOut) `
+            -IntendedFinalPath ([string]$Context.Paths.ServerOut) `
+            -VerificationState not_started | Out-Null
+    }
     if (Test-Path -LiteralPath $Context.Paths.ServerOut) {
         if (-not (Test-OutputNeedsReprocess -OutputPath $Context.Paths.ServerOut -SourceFile $Context.File)) {
             if (-not (Invoke-Tx3gSidecarExportForExistingOutput -SourceFile $Context.File -ScratchPath $Context.LocalIn -MediaOutputPath $Context.Paths.ServerOut -Context "ENCODE: ")) {

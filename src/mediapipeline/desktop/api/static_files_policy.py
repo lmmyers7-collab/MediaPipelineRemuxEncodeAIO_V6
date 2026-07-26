@@ -6,7 +6,7 @@ from pathlib import Path, PurePosixPath
 import re
 from typing import Any
 
-from .handler_policy import bounded_error_text
+from .handler_policy import STRICT_DURABLE_COMMAND_ROUTES, bounded_error_text
 
 
 STATIC_INDEX_BOOTSTRAP_PLACEHOLDER = "__MEDIA_PIPELINE_BOOTSTRAP__"
@@ -33,11 +33,12 @@ def local_api_bootstrap(
     startup_progress: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     surface = str(shell_surface or "webview")
-    payload = {
+    payload: dict[str, Any] = {
         "apiBase": "",
         "token": "",
         "appVersion": app_version,
         "shellSurface": surface,
+        "durableCommandRoutes": sorted(STRICT_DURABLE_COMMAND_ROUTES),
     }
     if bool(require_token):
         payload["tokenSource"] = "tauri-initialization-script" if surface.casefold() == "tauri" else "http-only-cookie"

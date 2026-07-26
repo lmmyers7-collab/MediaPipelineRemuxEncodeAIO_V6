@@ -384,8 +384,8 @@ def _node_runner_source() -> str:
           "Diagnostics handoff:",
           "Backend selected open targets:",
           "Open boundary: Queue buttons send only row_key, row_scope, and target.",
-          "Route decision:",
-          "Route reason:",
+          "Planned route:",
+          "Planned reason:",
           "Mutation guardrail",
         ]);
         requireText("queue-diagnostics-guidance", [

@@ -2,17 +2,24 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from mediapipeline.core.queue.file_overrides import FileOverrideManifestReadError, read_file_overrides
+from mediapipeline.core.paths.queue_input_fingerprint import (
+    queue_input_consistency,
+    queue_input_fingerprint,
+)
 from mediapipeline.core.queue.priority_manifest import (
     PriorityManifestReadError,
     get_manifest_entry,
     get_manifest_level,
     has_manifest_priority_entry,
     read_priority_manifest,
+)
+from mediapipeline.core.queue.priority_export import (
+    PriorityQueueExportStore,
+    priority_export_public_status,
 )
 from mediapipeline.core.queue.policy import (
     INVALID_QUEUE_SNAPSHOT_WARNING,
@@ -43,8 +50,6 @@ from mediapipeline.core.queue.policy import (
 )
 from mediapipeline.core.paths.contracts import ResolvedPaths
 from mediapipeline.core.queue.contracts import QueueRecord
-from mediapipeline.core.status.active_jobs import active_job_detail_rows
-
 if TYPE_CHECKING:
     from mediapipeline.core.kernel.dto_commands import CommandResult
     from mediapipeline.core.kernel.dto_inventory import QueuePreviewDto
@@ -124,330 +129,6 @@ def _queue_row_is_operator_runnable(row: dict[str, object]) -> bool:
     return str(row.get("operator_status") or "").strip().casefold() in {"ready", "priority ready"}
 
 
-def _active_csv_rerun_job_present(resolved: ResolvedPaths) -> bool:
-    for row in active_job_detail_rows(resolved.active_jobs_path, max_items=20):
-        text = " ".join(
-            str(row.get(key) or "")
-            for key in ("job_kind", "mode", "status", "command_line", "stdout_log", "stderr_log")
-        ).casefold()
-        if "rerun_csv" in text or "invoke-reruncsv.ps1" in text:
-            status = str(row.get("status") or "").strip().casefold()
-            if status not in {"completed", "exited", "failed", "killed", "stopped"}:
-                return True
-    return False
-
-
-def _latest_rerun_manifest_path(resolved: ResolvedPaths) -> Path | None:
-    if resolved.local_base is None:
-        return None
-    manifest_root = resolved.local_base / "RerunManifests"
-    if not manifest_root.exists():
-        return None
-    try:
-        manifests = sorted(
-            manifest_root.glob("*.json"),
-            key=lambda item: item.stat().st_mtime,
-            reverse=True,
-        )
-    except OSError:
-        return None
-    return manifests[0] if manifests else None
-
-
-def _read_latest_rerun_manifest(resolved: ResolvedPaths) -> tuple[Path, dict[str, object]] | None:
-    manifest_path = _latest_rerun_manifest_path(resolved)
-    if manifest_path is None:
-        return None
-    try:
-        payload = json.loads(manifest_path.read_text(encoding="utf-8-sig"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
-        return None
-    if not isinstance(payload, dict):
-        return None
-    return manifest_path, payload
-
-
-def _rerun_manifest_text(value: object) -> str:
-    return str(value or "").strip()
-
-
-def _rerun_manifest_display_name(source_path: str, stage_path: str) -> str:
-    display_path = stage_path or source_path
-    if not display_path:
-        return "CSV rerun item"
-    return Path(display_path).name or display_path
-
-
-def _rerun_manifest_row_reason(raw_row: dict[str, object], metadata: dict[str, object]) -> str:
-    for key in ("reason", "status_reason", "blocked_reason", "failure_reason", "error", "error_message"):
-        text = _rerun_manifest_text(raw_row.get(key) or metadata.get(key))
-        if text:
-            return text
-    return ""
-
-
-def _rerun_manifest_operator_fields(status: str, reason: str) -> dict[str, str]:
-    status_key = _rerun_manifest_text(status).casefold()
-    reason_key = _rerun_manifest_text(reason).casefold()
-    if status_key in {"skipped", "skip", "disabled"}:
-        return {
-            "operator_status": "CSV rerun skipped",
-            "operator_status_state": "skipped",
-            "operator_severity": "muted",
-            "operator_guidance": "This CSV rerun item was skipped by backend-owned scope or manifest evidence.",
-            "queue_status": "skipped",
-            "queue_status_label": "Skipped",
-        }
-    if status_key in {"failed", "error", "errored"}:
-        return {
-            "operator_status": "CSV rerun failed",
-            "operator_status_state": "blocked",
-            "operator_severity": "error",
-            "operator_guidance": "Review the manifest reason and rerun logs before retrying this item.",
-            "queue_status": "failed",
-            "queue_status_label": "Failed",
-        }
-    if status_key in {"blocked", "invalid", "missing"} or "source file not found" in reason_key:
-        return {
-            "operator_status": "CSV rerun blocked",
-            "operator_status_state": "blocked",
-            "operator_severity": "error",
-            "operator_guidance": "Fix the CSV row or source path before retrying this item.",
-            "queue_status": "blocked",
-            "queue_status_label": "Blocked",
-        }
-    if status_key in {"warning", "warn", "warnings"}:
-        return {
-            "operator_status": "CSV rerun warning",
-            "operator_status_state": "warning",
-            "operator_severity": "warning",
-            "operator_guidance": "Review backend warning evidence before continuing this CSV rerun item.",
-            "queue_status": "warning",
-            "queue_status_label": "Warning",
-        }
-    if status_key in {"held", "hold"}:
-        return {
-            "operator_status": "CSV rerun held",
-            "operator_status_state": "held",
-            "operator_severity": "warning",
-            "operator_guidance": "Release, reprioritize, or remove the held CSV rerun item before expecting progress.",
-            "queue_status": "blocked",
-            "queue_status_label": "Blocked",
-        }
-    if status_key in {"stopped", "stopped_after_current"}:
-        return {
-            "operator_status": "CSV rerun stopped",
-            "operator_status_state": "stopped",
-            "operator_severity": "warning",
-            "operator_guidance": "This CSV rerun item is stopped until a backend-owned continuation starts pending rows.",
-            "queue_status": "stopped",
-            "queue_status_label": "Stopped",
-        }
-    if status_key in {"complete", "completed", "done", "succeeded", "success"}:
-        return {
-            "operator_status": "CSV rerun complete",
-            "operator_status_state": "complete",
-            "operator_severity": "ok",
-            "operator_guidance": "This CSV rerun item has completed; use Completed or Pending Publish evidence for output details.",
-            "queue_status": "completed",
-            "queue_status_label": "Completed",
-        }
-    if status_key in {"published_replace_final", "published_non_overlap", "returned", "replaced"}:
-        return {
-            "operator_status": "CSV rerun returned",
-            "operator_status_state": "returned",
-            "operator_severity": "ok",
-            "operator_guidance": "Backend evidence returned this CSV rerun output to final/library placement.",
-            "queue_status": "replaced_returned",
-            "queue_status_label": "Replaced / Returned",
-        }
-    if status_key in {"pending_publish", "parked"}:
-        return {
-            "operator_status": "CSV rerun Pending Publish",
-            "operator_status_state": "parked",
-            "operator_severity": "ok",
-            "operator_guidance": "This CSV rerun output is parked in Pending Publish; final placement remains owned by Pending Publish drain evidence.",
-            "queue_status": "pending_publish",
-            "queue_status_label": "Pending Publish",
-        }
-    if status_key in {"review_workspace", "awaiting_review"}:
-        return {
-            "operator_status": "CSV rerun review workspace",
-            "operator_status_state": "parked",
-            "operator_severity": "ok",
-            "operator_guidance": "This CSV rerun output is parked in the review workspace; promote it only after checking output evidence.",
-            "queue_status": "review_workspace",
-            "queue_status_label": "Review Workspace",
-        }
-    if status_key == "review":
-        return {
-            "operator_status": "CSV rerun review",
-            "operator_status_state": "review",
-            "operator_severity": "warning",
-            "operator_guidance": "Review the CSV rerun manifest status and logs before taking action.",
-            "queue_status": "warning",
-            "queue_status_label": "Review",
-        }
-    if status_key in {"running", "active", "processing"}:
-        return {
-            "operator_status": "CSV rerun active",
-            "operator_status_state": "running",
-            "operator_severity": "warning",
-            "operator_guidance": "This row is active in the CSV rerun queue; monitor Home progress and Close Readiness.",
-            "queue_status": "active",
-            "queue_status_label": "Active",
-        }
-    if status_key in {"priority", "priority_ready"}:
-        return {
-            "operator_status": "CSV rerun priority pending",
-            "operator_status_state": "ready",
-            "operator_severity": "ok",
-            "operator_guidance": "This priority CSV rerun item is queued for processing.",
-            "queue_status": "pending",
-            "queue_status_label": "Pending",
-        }
-    if status_key in {"staged"}:
-        return {
-            "operator_status": "CSV rerun staged",
-            "operator_status_state": "ready",
-            "operator_severity": "ok",
-            "operator_guidance": "This row is staged in the active CSV rerun queue. Monitor Home progress and Close Readiness.",
-            "queue_status": "pending",
-            "queue_status_label": "Pending",
-        }
-    if status_key in {"pending", "queued", ""}:
-        return {
-            "operator_status": "CSV rerun pending",
-            "operator_status_state": "ready",
-            "operator_severity": "ok",
-            "operator_guidance": "This row is queued in the active CSV rerun manifest. Monitor Home progress and Close Readiness.",
-            "queue_status": "pending",
-            "queue_status_label": "Pending",
-        }
-    return {
-        "operator_status": f"CSV rerun {status_key or 'status unknown'}",
-        "operator_status_state": "review",
-        "operator_severity": "warning",
-        "operator_guidance": "Review the CSV rerun manifest status and logs before taking action.",
-        "queue_status": "warning",
-        "queue_status_label": "Warning",
-    }
-
-
-def _rerun_manifest_preview_rows(manifest: dict[str, object], manifest_path: Path) -> list[dict[str, object]]:
-    raw_rows = manifest.get("rows")
-    if not isinstance(raw_rows, list):
-        return []
-    total = len([row for row in raw_rows if isinstance(row, dict)])
-    rows: list[dict[str, object]] = []
-    for index, raw_row in enumerate((row for row in raw_rows if isinstance(row, dict)), start=1):
-        queue_item = raw_row.get("queue_item") if isinstance(raw_row.get("queue_item"), dict) else {}
-        metadata = queue_item.get("metadata") if isinstance(queue_item.get("metadata"), dict) else {}
-        source_path = _rerun_manifest_text(raw_row.get("source_path") or queue_item.get("source_path"))
-        stage_path = _rerun_manifest_text(raw_row.get("stage_path") or metadata.get("stage_path"))
-        planned_output_path = _rerun_manifest_text(raw_row.get("planned_output_path") or metadata.get("planned_output_path"))
-        media_kind = _rerun_manifest_text(raw_row.get("media_kind") or queue_item.get("media_kind") or "movie").casefold()
-        media_type = "TV" if media_kind == "tv" else "Movie"
-        status = _rerun_manifest_text(raw_row.get("status") or metadata.get("status") or "queued")
-        reason = _rerun_manifest_row_reason(raw_row, metadata)
-        operator_fields = _rerun_manifest_operator_fields(status, reason)
-        route_reason = "Manifest-backed CSV rerun queue; processing route is decided by the nested pipeline per item."
-        operator_guidance = operator_fields["operator_guidance"]
-        if reason:
-            route_reason = f"{route_reason} Manifest reason: {reason}"
-            operator_guidance = f"{operator_guidance} Reason: {reason}"
-        row = {
-            "schema_version": "desktop_csv_rerun_queue_row.v1",
-            "queue_source": "csv_rerun",
-            "queue_phase": "csv_rerun",
-            "rerun_batch_id": _rerun_manifest_text(manifest.get("batch_id")),
-            "source_path": stage_path or source_path,
-            "original_source_path": source_path,
-            "stage_path": stage_path,
-            "planned_output_path": planned_output_path,
-            "destination_path": planned_output_path,
-            "media_kind": media_kind or "movie",
-            "media_type": media_type,
-            "display_name": _rerun_manifest_display_name(source_path, stage_path),
-            "relative_path": _rerun_manifest_text(queue_item.get("relative_path_sort") or stage_path or source_path),
-            "root_path": _rerun_manifest_text(queue_item.get("root_path")),
-            "source_root": _rerun_manifest_text(queue_item.get("root_path")),
-            "route_name": "CSV rerun",
-            "route_reason": route_reason,
-            "operator_status": operator_fields["operator_status"],
-            "operator_status_state": operator_fields["operator_status_state"],
-            "operator_severity": operator_fields["operator_severity"],
-            "operator_guidance": operator_guidance,
-            "queue_status": operator_fields["queue_status"],
-            "queue_status_label": operator_fields["queue_status_label"],
-            "blocking_reason": reason if operator_fields["queue_status"] in {"blocked", "failed"} else "",
-            "warning_reason": reason if operator_fields["queue_status"] in {"warning", "stopped", "awaiting_review", "pending_publish"} else "",
-            "uses_pipeline_start": False,
-            "queue_index": index,
-            "queue_total": total,
-            "queue_position": f"{index}/{total}",
-            "global_order": index,
-            "phase": "CSV RERUN",
-            "status": status,
-            "reason": reason,
-            "stage_mode": _rerun_manifest_text(raw_row.get("stage_mode") or metadata.get("stage_mode")),
-            "original_mode": _rerun_manifest_text(raw_row.get("original_mode") or metadata.get("original_mode")),
-            "return_mode": _rerun_manifest_text(raw_row.get("return_mode") or metadata.get("return_mode")),
-            "audit_issue_codes": _rerun_manifest_text(raw_row.get("audit_issue_codes") or metadata.get("audit_issue_codes")),
-            "verified_output_path": _rerun_manifest_text(raw_row.get("verified_output_path") or metadata.get("verified_output_path")),
-            "pending_publish_manifest_path": _rerun_manifest_text(raw_row.get("pending_publish_manifest_path") or metadata.get("pending_publish_manifest_path")),
-            "pending_publish_payload_path": _rerun_manifest_text(raw_row.get("pending_publish_payload_path") or metadata.get("pending_publish_payload_path")),
-            "published_path": _rerun_manifest_text(raw_row.get("published_path") or metadata.get("published_path")),
-            "replaced_final_hold_path": _rerun_manifest_text(raw_row.get("replaced_final_hold_path") or metadata.get("replaced_final_hold_path")),
-            "manifest_path": str(manifest_path),
-            "available_open_targets": [],
-            "row_key": f"csv_rerun\x1f{manifest.get('batch_id')}\x1f{index}\x1f{stage_path or source_path}".casefold(),
-            "metadata": {
-                "source": "rerun_manifest",
-                "manifest_path": str(manifest_path),
-                "csv_path": _rerun_manifest_text(manifest.get("csv_path")),
-                "config_path": _rerun_manifest_text(manifest.get("config_path")),
-                "stage_path": stage_path,
-                "planned_output_path": planned_output_path,
-                "status": status,
-                "reason": reason,
-                "destination_state": {
-                    "destination_mode": _rerun_manifest_text(manifest.get("destination_mode")),
-                    "collision_policy": _rerun_manifest_text(manifest.get("collision_policy")),
-                    "auto_destination_policy": _rerun_manifest_text(raw_row.get("auto_destination_policy") or metadata.get("auto_destination_policy")),
-                    "auto_destination_decision": _rerun_manifest_text(raw_row.get("auto_destination_decision") or metadata.get("auto_destination_decision")),
-                    "auto_destination_issue_count": _rerun_manifest_text(raw_row.get("auto_destination_issue_count") or metadata.get("auto_destination_issue_count")),
-                },
-            },
-        }
-        rows.append(row)
-    return rows
-
-
-def _rerun_manifest_preview_snapshot(
-    resolved: ResolvedPaths,
-    manifest: dict[str, object],
-    rows: list[dict[str, object]],
-) -> dict[str, object]:
-    movie_count = sum(1 for row in rows if str(row.get("media_type") or "").casefold() == "movie")
-    tv_count = sum(1 for row in rows if str(row.get("media_type") or "").casefold() == "tv")
-    return {
-        "schema_version": "desktop_csv_rerun_queue_preview.v1",
-        "produced_at": _rerun_manifest_text(manifest.get("created_at")),
-        "config_path": _rerun_manifest_text(manifest.get("config_path") or resolved.config_path),
-        "local_base": _rerun_manifest_text(manifest.get("pipeline_local_base") or resolved.local_base),
-        "source_movies": "",
-        "source_tv": "",
-        "outsource": _rerun_manifest_text(manifest.get("output_root")),
-        "movie_count_total": movie_count,
-        "tv_count_total": tv_count,
-        "runnable_count": len(rows),
-        "total_row_count": len(rows),
-        "shown_row_count": len(rows),
-        "rows": rows,
-    }
-
-
 def _queue_preview_dto(**fields: object) -> QueuePreviewDto:
     from mediapipeline.core.kernel.dto_inventory import QueuePreviewDto
 
@@ -463,68 +144,11 @@ def _command_result(**fields: object) -> CommandResult:
 class QueueFacadeMixin:
     """Read-only queue snapshot adapter for the application facade."""
 
-    def _csv_rerun_manifest_preview(
-        self,
-        resolved: ResolvedPaths,
-        *,
-        queue_scan_status: dict[str, object],
-        source_inventory: dict[str, object],
-        reason: str,
-    ) -> QueuePreviewDto | None:
-        if not _active_csv_rerun_job_present(resolved):
-            return None
-        manifest_info = _read_latest_rerun_manifest(resolved)
-        if manifest_info is None:
-            return None
-        manifest_path, manifest = manifest_info
-        rows = _rerun_manifest_preview_rows(manifest, manifest_path)
-        if not rows:
-            return None
-        warnings = [
-            reason,
-            "Showing active CSV rerun manifest queue rows; this read-only view does not launch, stop, drain, publish, or mutate media.",
-        ]
-        metadata_snapshot = _rerun_manifest_preview_snapshot(resolved, manifest, rows)
-        metadata = queue_preview_metadata(
-            metadata_snapshot,
-            rows,
-            snapshot_path=manifest_path,
-            runtime_event_count=0,
-            runtime_outcome_source="",
-            runtime_outcome_warning="",
-        )
-        queue_progress = queue_source_scan_progress_payload(
-            source=str(manifest_path),
-            row_count=len(rows),
-            metadata=metadata,
-            warnings=warnings,
-            status="active",
-            detail="Active CSV rerun manifest queue is driving the current run.",
-        )
-        return _queue_preview_dto(
-            rows=rows,
-            source=str(manifest_path),
-            queue_scan_status=queue_scan_status,
-            source_inventory=source_inventory,
-            queue_progress=queue_progress,
-            progress_bars=list(queue_progress["progress_bars"]),
-            **metadata,
-            warnings=warnings,
-        )
-
     def get_queue_preview(self, resolved: ResolvedPaths) -> QueuePreviewDto:
         """Return the last queue snapshot without spawning a dry-run process."""
         queue_scan_status, source_inventory = self._queue_scan_artifacts(resolved)
         snapshot_path = resolved.queue_snapshot_path
         if not snapshot_path or not snapshot_path.exists():
-            rerun_preview = self._csv_rerun_manifest_preview(
-                resolved,
-                queue_scan_status=queue_scan_status,
-                source_inventory=source_inventory,
-                reason=NO_QUEUE_SNAPSHOT_WARNING,
-            )
-            if rerun_preview is not None:
-                return rerun_preview
             return self._queue_preview_with_progress_warning(
                 str(snapshot_path or ""),
                 NO_QUEUE_SNAPSHOT_WARNING,
@@ -557,8 +181,11 @@ class QueueFacadeMixin:
                 queue_scan_status=queue_scan_status,
                 source_inventory=source_inventory,
             )
+        input_consistency = queue_input_consistency(resolved, snapshot)
+        snapshot_has_input_fingerprint = bool(str(snapshot.get("queue_input_fingerprint") or "").strip())
+        inputs_current = input_consistency.get("status") == "current" or not snapshot_has_input_fingerprint
         priority_manifest: dict[str, object] | None = None
-        if resolved.priority_manifest_path is not None:
+        if inputs_current and resolved.priority_manifest_path is not None:
             try:
                 priority_manifest = read_priority_manifest(resolved.priority_manifest_path, fail_closed=True)
             except PriorityManifestReadError as exc:
@@ -570,7 +197,7 @@ class QueueFacadeMixin:
                     source_inventory=source_inventory,
                 )
         file_override_manifest = None
-        if resolved.file_overrides_path is not None:
+        if inputs_current and resolved.file_overrides_path is not None:
             try:
                 file_override_manifest = read_file_overrides(resolved.file_overrides_path)
             except FileOverrideManifestReadError as exc:
@@ -602,16 +229,19 @@ class QueueFacadeMixin:
         elif resolved.event_file:
             runtime_outcome_warning = "Runtime outcome history reader is not available."
         rows = queue_apply_runtime_outcomes(rows, runtime_events)
-        if not any(_queue_row_is_operator_runnable(row) for row in rows):
-            rerun_preview = self._csv_rerun_manifest_preview(
-                resolved,
-                queue_scan_status=queue_scan_status,
-                source_inventory=source_inventory,
-                reason="Normal queue preview has no runnable rows while a CSV rerun is active.",
-            )
-            if rerun_preview is not None:
-                return rerun_preview
-        warnings = queue_preview_warnings(rows)
+        normal_rows = rows
+        warnings = queue_preview_warnings(normal_rows)
+        if input_consistency.get("status") != "current":
+            changed = ", ".join(str(item) for item in input_consistency.get("changed_inputs") or [])
+            if snapshot_has_input_fingerprint:
+                warnings.append(
+                    "Queue inputs changed after this snapshot was produced; launch is blocked until Queue scan completes"
+                    + (f" ({changed})." if changed else ".")
+                )
+            else:
+                warnings.append(
+                    "This legacy Queue snapshot has no input fingerprint; launch is blocked until Queue scan completes."
+                )
         if runtime_outcome_warning:
             warnings.append(runtime_outcome_warning)
         metadata_snapshot = dict(snapshot)
@@ -625,6 +255,37 @@ class QueueFacadeMixin:
             runtime_event_count=len(runtime_events),
             runtime_outcome_source=str(resolved.event_file or ""),
             runtime_outcome_warning=runtime_outcome_warning,
+        )
+        metadata["shown_row_count"] = len(rows)
+        metadata["total_row_count"] = int(metadata.get("total_row_count") or len(normal_rows))
+        metadata["runnable_count"] = sum(1 for row in normal_rows if _queue_row_is_operator_runnable(row))
+        metadata["normal_queue_visible_count"] = len(normal_rows)
+        metadata["dedicated_rerun_visible_count"] = 0
+        metadata["queue_sources"] = ["normal_queue"]
+        metadata["rerun_correlation"] = {}
+        request_id = str(snapshot.get("desktop_queue_preview_request_id") or "").strip()
+        scan_failed = str(queue_scan_status.get("status") or "").casefold() == "failed"
+        fallback_used = bool(snapshot.get("desktop_queue_snapshot_fallback_used")) or scan_failed
+        fallback_reason = str(snapshot.get("desktop_queue_snapshot_fallback_reason") or "").strip()
+        if scan_failed and not fallback_reason:
+            fallback_reason = str(queue_scan_status.get("message") or "The latest Queue scan failed; showing cached evidence.")
+        metadata["queue_preview_request_id"] = request_id
+        metadata["queue_snapshot_origin"] = str(snapshot.get("queue_snapshot_origin") or "unknown")
+        metadata["queue_snapshot_fallback"] = {
+            "schema_version": "desktop_queue_snapshot_fallback.v1",
+            "used": fallback_used,
+            "reason": fallback_reason,
+            "failed_scan_id": str(queue_scan_status.get("scan_id") or "") if scan_failed else "",
+            "cached_request_id": request_id if fallback_used else "",
+        }
+        metadata["queue_input_consistency"] = input_consistency
+        metadata["queue_plan_fingerprint"] = str(snapshot.get("queue_plan_fingerprint") or "")
+        metadata["queue_plan_fingerprint_schema"] = str(snapshot.get("queue_plan_fingerprint_schema") or "")
+        pending_health = snapshot.get("pending_publish_index_health")
+        metadata["pending_publish_index_health"] = dict(pending_health) if isinstance(pending_health, dict) else {}
+        pending_backpressure = snapshot.get("pending_publish_backpressure")
+        metadata["pending_publish_backpressure"] = (
+            dict(pending_backpressure) if isinstance(pending_backpressure, dict) else {}
         )
         queue_progress = queue_source_scan_progress_payload(
             source=str(snapshot_path),
@@ -662,6 +323,10 @@ class QueueFacadeMixin:
             source=source,
             queue_scan_status=dict(queue_scan_status or {}),
             source_inventory=dict(source_inventory or {}),
+            normal_queue_visible_count=0,
+            dedicated_rerun_visible_count=0,
+            queue_sources=["normal_queue"],
+            rerun_correlation={},
             warnings=[warning],
             queue_progress=progress,
             progress_bars=list(progress["progress_bars"]),
@@ -736,6 +401,69 @@ class QueueFacadeMixin:
                 "status": status,
             },
         )
+
+    def export_priority_queue(self, resolved: ResolvedPaths) -> CommandResult:
+        exporter = getattr(self.service, "export_priority_queue_snapshot", None)
+        if not callable(exporter):
+            return _command_result(
+                command="queue.priority_export",
+                ok=False,
+                severity="error",
+                message="Priority queue export service is not available.",
+                errors=["priority_export_service_unavailable"],
+                refresh_hint="queue",
+            )
+        try:
+            artifact = exporter(resolved)
+        except Exception as exc:
+            return _command_result(
+                command="queue.priority_export",
+                ok=False,
+                severity="error",
+                message=f"Priority queue export failed: {exc}",
+                errors=["priority_export_failed"],
+                refresh_hint="queue",
+            )
+        public = priority_export_public_status(artifact)
+        ready = str(artifact.get("status") or "").casefold() == "ready"
+        return _command_result(
+            command="queue.priority_export",
+            ok=ready,
+            severity="ok" if ready else "warning",
+            message=str(artifact.get("message") or "Priority queue export is not ready."),
+            errors=[] if ready else [str(artifact.get("reason_code") or "priority_export_blocked")],
+            refresh_hint="queue",
+            data=public,
+        )
+
+    def get_priority_queue_export(self, resolved: ResolvedPaths) -> dict[str, object]:
+        if resolved.state_root is None:
+            payload = {
+                "schema_version": "priority_queue_export.v1",
+                "status": "missing",
+                "ready": False,
+                "reason_code": "priority_export_state_root_missing",
+                "message": "Priority queue export requires LocalBase/State to be configured.",
+                "count": 0,
+                "queue_scope": "priority_export",
+            }
+        else:
+            payload = PriorityQueueExportStore(resolved.state_root).latest_status()
+            if str(payload.get("status") or "").casefold() == "ready":
+                current_inputs = queue_input_fingerprint(resolved)
+                if (
+                    current_inputs.get("status") != "current"
+                    or str(current_inputs.get("fingerprint") or "")
+                    != str(payload.get("queue_input_fingerprint") or "")
+                ):
+                    payload = {
+                        **payload,
+                        "status": "stale",
+                        "ready": False,
+                        "reason_code": "priority_export_input_stale",
+                        "message": "Queue inputs changed after this export. Prepare a new priority export.",
+                    }
+        return priority_export_public_status(payload)
 
     @staticmethod
     def _queue_record_to_row(record: QueueRecord) -> dict[str, object]:

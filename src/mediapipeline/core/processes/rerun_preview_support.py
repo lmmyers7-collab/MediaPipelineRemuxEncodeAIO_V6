@@ -13,6 +13,8 @@ from types import SimpleNamespace
 from typing import Any
 
 from mediapipeline.core.audit.rerun_csv import (
+    normalize_source_content_sha256,
+    normalize_source_content_sha256_algorithm,
     planned_output_key_for_rerun_row,
     rerun_output_container_from_config,
 )
@@ -50,6 +52,13 @@ from mediapipeline.core.processes.rerun_state_correlation import (
     build_rerun_state_correlation,
     rerun_state_path_key,
 )
+from mediapipeline.core.processes.rerun_source_health import (
+    RerunSourceHealth,
+    SOURCE_IDENTITY_CHANGED,
+    SOURCE_LOCATION_UNAVAILABLE,
+    SOURCE_MISSING,
+    probe_rerun_source_health,
+)
 
 
 RERUN_CSV_PREVIEW_SCHEMA_VERSION = "desktop_rerun_csv_preview.v1"
@@ -79,6 +88,7 @@ class RerunCsvRow:
     warning_reasons: tuple[str, ...]
     blocked_reasons: tuple[str, ...]
     rule_decision: RerunRuleDecision
+    source_health: RerunSourceHealth | None = None
     duplicate_source: bool = False
     planned_output_key: str = ""
     final_output_path: str = ""
@@ -284,6 +294,13 @@ def _source_extension(source_path: str) -> str:
         return ""
 
 
+def _row_has_source_identity_evidence(row: Mapping[str, Any]) -> bool:
+    identity = _row_value(row, "source_identity_v2", "SourceIdentityV2")
+    size = _row_value(row, "source_size", "SourceSizeBytes", "SizeBytes")
+    mtime = _row_value(row, "source_mtime_utc", "SourceLastWriteUtc", "LastWriteTimeUtc")
+    return bool(identity or (size and mtime))
+
+
 def _classify_rows(
     rows: Iterable[Mapping[str, Any]],
     *,
@@ -304,6 +321,19 @@ def _classify_rows(
 
     config_data = getattr(resolved, "config_data", None)
     output_container = rerun_output_container_from_config(config_data if isinstance(config_data, Mapping) else None)
+    source_health: list[RerunSourceHealth | None] = []
+    root_probe_cache: dict[str, tuple[bool, Any]] = {}
+    for row in raw_rows:
+        source_path = _row_value(row, "source_path", "Path", "SourcePath")
+        health = None
+        if source_path and _is_absolute_source_path(source_path):
+            health = probe_rerun_source_health(
+                source_path,
+                resolved=resolved,
+                row=row,
+                root_probe_cache=root_probe_cache,
+            )
+        source_health.append(health)
     planned_output_keys: list[str] = []
     planned_output_counts: dict[str, int] = {}
     planned_output_first_index: dict[str, int] = {}
@@ -321,7 +351,14 @@ def _classify_rows(
             or (row_original_override and row_original_override != "keep")
             or (row_return_override and row_return_override != "park")
         )
-        source_ok = bool(source_path and _is_absolute_source_path(source_path) and _source_file_exists(source_path))
+        health = source_health[index]
+        source_ok = bool(
+            health
+            and (
+                health.available
+                or (health.waiting and _row_has_source_identity_evidence(row))
+            )
+        )
         extension_ok = bool(
             source_ok and (valid_extensions is None or _source_extension(source_path) in valid_extensions)
         )
@@ -356,6 +393,7 @@ def _classify_rows(
         source_is_absolute: bool | None = None
         source_exists: bool | None = None
         source_extension_valid: bool | None = None
+        health = source_health[index]
         duplicate_source = bool(source_path and source_counts.get(source_path.casefold(), 0) > 1)
         planned_output_key = planned_output_keys[index] if index < len(planned_output_keys) else ""
         duplicate_planned_output = bool(
@@ -370,13 +408,31 @@ def _classify_rows(
             blockers.append("relative source_path")
         else:
             source_is_absolute = True
-            source_exists = _source_file_exists(source_path)
-            if not source_exists:
-                blockers.append("source file not found")
+            source_extension_valid = valid_extensions is None or _source_extension(source_path) in valid_extensions
+            if health is None:
+                source_exists = False
+                blockers.append("source health could not be determined")
+            elif health.available:
+                source_exists = True
+            elif health.waiting:
+                source_exists = None
+                if _row_has_source_identity_evidence(row):
+                    warnings.append(f"{health.code}: {health.detail}")
+                else:
+                    blockers.append(
+                        f"{health.code}: source identity evidence is required before an unavailable source can wait for recovery"
+                    )
+            elif health.code == SOURCE_MISSING:
+                source_exists = False
+                blockers.append(f"{SOURCE_MISSING}: {health.detail}")
+            elif health.code == SOURCE_IDENTITY_CHANGED:
+                source_exists = True
+                blockers.append(f"{SOURCE_IDENTITY_CHANGED}: {health.detail}")
             else:
-                source_extension_valid = valid_extensions is None or _source_extension(source_path) in valid_extensions
-                if not source_extension_valid:
-                    blockers.append("invalid media extension")
+                source_exists = False
+                blockers.append(f"{health.code}: {health.detail}")
+            if not source_extension_valid:
+                blockers.append("invalid media extension")
         if duplicate_source:
             blockers.append("duplicate source_path")
         if duplicate_planned_output:
@@ -432,6 +488,7 @@ def _classify_rows(
                 warning_reasons=tuple(warnings),
                 blocked_reasons=tuple(blockers),
                 rule_decision=rule_decision,
+                source_health=health,
                 duplicate_source=duplicate_source,
                 planned_output_key=planned_output_key,
                 final_output_path=final_output_path,
@@ -502,15 +559,57 @@ def _preview_row(
     rule = row.rule_decision.to_mapping()
     final_output_field = row.final_output_source_field
     final_output_path = row.final_output_path
+    source_health = row.source_health.to_mapping() if row.source_health is not None else {}
+    if source_health:
+        source_stat = {"source_size": 0, "source_mtime_utc": ""}
+        observed_size = source_health.get("observed_size")
+        observed_mtime = str(source_health.get("observed_mtime_utc") or "")
+        if observed_size is not None:
+            source_stat["source_size"] = observed_size
+        if observed_mtime:
+            source_stat["source_mtime_utc"] = observed_mtime
+    else:
+        source_stat = _source_stat_fields(row.source_path)
+    source_content_sha256 = normalize_source_content_sha256(
+        _row_value(row.row, "source_content_sha256", "SourceContentSha256")
+    )
+    source_content_sha256_algorithm = normalize_source_content_sha256_algorithm(
+        _row_value(
+            row.row,
+            "source_content_sha256_algorithm",
+            "SourceContentSha256Algorithm",
+        )
+    )
+    if not source_content_sha256_algorithm:
+        source_content_sha256 = ""
+    source_content_hash_evidence = (
+        {
+            "authority": "persisted_csv_input",
+            "algorithm": source_content_sha256_algorithm,
+            "fresh_probe": False,
+        }
+        if source_content_sha256
+        else {}
+    )
     return {
         "row_index": row.row_index,
         "enabled": row.enabled,
         "status": _row_status(row, in_scope),
         "in_scope": in_scope,
         "source_path": row.source_path,
-        **_source_stat_fields(row.source_path),
+        **source_stat,
+        "source_health": source_health,
+        "source_health_code": str(source_health.get("code") or ""),
+        "source_root": str(source_health.get("source_root") or ""),
+        "source_retryable": source_health.get("retryable") is True,
+        "automatic_next_action": str(source_health.get("automatic_next_action") or ""),
+        "operator_action_required": source_health.get("operator_action_required") is True,
+        "available_operator_action": str(source_health.get("available_operator_action") or ""),
         "source_identity_v2": _row_value(row.row, "source_identity_v2", "SourceIdentityV2"),
         "source_identity_v2_algorithm": _row_value(row.row, "source_identity_v2_algorithm", "SourceIdentityV2Algorithm"),
+        "source_content_sha256": source_content_sha256,
+        "source_content_sha256_algorithm": source_content_sha256_algorithm,
+        "source_content_hash_evidence": source_content_hash_evidence,
         "library_id": _row_value(row.row, "library_id", "LibraryId"),
         "media_kind": _row_value(row.row, "media_kind", "MediaKind", "MediaType"),
         "audit_issue_codes": _row_value(row.row, "audit_issue_codes", "IssueCodes", "PrimaryIssueCode"),

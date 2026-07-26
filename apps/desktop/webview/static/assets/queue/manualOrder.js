@@ -17,6 +17,7 @@
       queueRowKey = () => "",
       refreshDisplayedQueuePriorityRows = () => {},
       renderQueueRows = () => {},
+      requestQueueScan = async () => {},
       sendQueuePriorityBulk = () => {},
       setText = () => {},
       updateQueuePriorityControls = () => {},
@@ -222,7 +223,10 @@
             message: ok ? (message || resultMessage) : resultMessage,
           });
         }
-        if (ok) resetQueueManualOrderLoadedKeys(state.rows);
+        if (ok) {
+          resetQueueManualOrderLoadedKeys(state.rows);
+          await requestQueueScan();
+        }
         return ok;
       } catch (err) {
         finalStatusMessage = `Manual order save failed: ${err}`;

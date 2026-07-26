@@ -32,18 +32,24 @@ function New-MediaPipelineStateLayout {
     $app = Join-Path $stateRoot 'App'
     $pipeline = Join-Path $stateRoot 'Pipeline'
     $progress = Join-Path $stateRoot 'Progress'
+    $runMonitor = Join-Path $stateRoot 'RunMonitor'
     $activeJobs = Join-Path $stateRoot 'ActiveJobs'
     $workers = Join-Path $stateRoot 'Workers'
     $completed = Join-Path $stateRoot 'Completed'
     $failures = Join-Path $stateRoot 'Failures'
     $pendingPush = Join-Path $stateRoot 'PendingServerPush'
+    $toolLogs = Join-Path $pipeline 'ToolLogs'
 
     [pscustomobject]@{
         SchemaVersion    = 'media_pipeline_state_layout.v1'
         Root             = $stateRoot
         App              = $app
         Pipeline         = $pipeline
+        ToolLogs         = $toolLogs
+        ActiveToolLogs   = Join-Path $toolLogs 'Active'
+        InterruptedToolLogs = Join-Path $toolLogs 'Interrupted'
         Progress         = $progress
+        RunMonitor       = $runMonitor
         ActiveJobs       = $activeJobs
         Workers          = $workers
         Completed        = $completed
@@ -56,10 +62,12 @@ function New-MediaPipelineStateLayout {
             ProgressFile         = Join-Path $progress 'pipeline_progress.json'
             PipelineEventLogFile = Join-Path $progress 'pipeline_events.jsonl'
             QueueSnapshot        = Join-Path $progress 'queue_snapshot.json'
+            RunMonitor           = $runMonitor
             LocalWorkerClaims     = Join-Path $pipeline 'local_worker_claims.json'
             LocalWorkerActiveJobs = Join-Path $progress 'active_jobs.json'
             PauseFlag            = Join-Path $pipeline 'pipeline_pause.flag'
             StopFlag             = Join-Path $pipeline 'pipeline_stop.flag'
+            StopAfterCurrentFlag = Join-Path $pipeline 'pipeline_stop_after_current.flag'
             RescanFlag           = Join-Path $pipeline 'pipeline_rescan.flag'
             CompletedJobsManifest = Join-Path $completed 'completed_jobs.jsonl'
             # Non-destructive priority manifest — written by the DesktopApp API,
@@ -98,7 +106,11 @@ function Get-MediaPipelineStateDirectories {
         $Layout.Root,
         $Layout.App,
         $Layout.Pipeline,
+        $Layout.ToolLogs,
+        $Layout.ActiveToolLogs,
+        $Layout.InterruptedToolLogs,
         $Layout.Progress,
+        $Layout.RunMonitor,
         $Layout.ActiveJobs,
         $Layout.Workers,
         $Layout.Completed,

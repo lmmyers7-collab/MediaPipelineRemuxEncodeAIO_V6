@@ -14,7 +14,9 @@ function Normalize-TVShowFolderName {
     $show = $show -replace '\s*\((?:Season\s*)?S?\d{1,2}\)\s*$', ''   # trailing (Season 2) / (S02)
     $show = $show -replace '(?i)\s+Season\s*\d{1,2}\s*(?:\+\s*(?:sp|specials?))?(?:\s+.*)?$', ''
     $show = $show -replace '(?i)\s+S\d{1,2}\s*(?:\+\s*(?:sp|specials?))?(?:\s+.*)?$', ''
-    $show = $show -replace '_TV_| TV', ''
+    # `_TV_` is a historical structural separator. A lexical "TV" token is
+    # authoritative title text (for example, "The TV Set") and must survive.
+    $show = $show -replace '_TV_', ' '
     $show = $show -replace '[\._]', ' '
     $show = $show -replace '\s+', ' '
     return $show.Trim()
@@ -25,9 +27,9 @@ function Get-TVEpisodeFromFilename {
 
     $base = Remove-PriorityMarkersFromName ([System.IO.Path]::GetFileNameWithoutExtension($FileName))
     foreach ($pattern in @(
-            '(?i)\bEpisode[\s._-]*(\d{1,3})\b',
-            '(?i)\bEp[\s._-]*(\d{1,3})\b',
-            '(?i)(?<![A-Za-z0-9])E(\d{1,3})(?![A-Za-z0-9])'
+            '(?i)\bEpisode[\s._-]*(\d{1,3})(?:v\d+)?\b',
+            '(?i)\bEp[\s._-]*(\d{1,3})(?:v\d+)?\b',
+            '(?i)(?<![A-Za-z0-9])E(\d{1,3})(?:v\d+)?(?![A-Za-z0-9])'
         )) {
         if ($base -match $pattern) {
             return [int]$Matches[1]
@@ -183,7 +185,7 @@ function Get-TVEpisodeFromStrippedName {
     # Strip unbracketed quality/codec tokens that could trail after episode number.
     $s = $s -replace '\b(?:2160p|1080p|720p|480p|uhd|hdr|hdr10|hevc|h264|h265|x264|x265|av1|bluray|blu-ray|webrip|web-dl|webdl|remux|bd|dvd|proper|repack|flac|aac|opus|ac3|dts|truehd|eac3|ddp)\b', ' '
     $s = ($s -replace '\s+', ' ').Trim()
-    if ($s -match '[\s._-]+(\d{1,3})\s*$') {
+    if ($s -match '(?i)[\s._-]+(\d{1,3})(?:v\d+)?\s*$') {
         $ep = [int]$Matches[1]
         if ($ep -ge 1 -and $ep -le 500) { return $ep }
     }
@@ -216,8 +218,8 @@ function Get-TVLooseSeasonEpisodeFromName {
     if ([string]::IsNullOrWhiteSpace($s)) { return $null }
 
     foreach ($pattern in @(
-        '(?i)\bS(?<season>\d{1,2})\s+(?:(?:Episode|Ep|E)\s*)?(?<episode>\d{1,3})\b',
-        '(?i)\bSeason\s*(?<season>\d{1,2})\s+(?:(?:Episode|Ep|E)\s*)?(?<episode>\d{1,3})\b'
+        '(?i)\bS(?<season>\d{1,2})\s+(?:(?:Episode|Ep|E)\s*)?(?<episode>\d{1,3})(?:v\d+)?\b',
+        '(?i)\bSeason\s*(?<season>\d{1,2})\s+(?:(?:Episode|Ep|E)\s*)?(?<episode>\d{1,3})(?:v\d+)?\b'
     )) {
         $m = [regex]::Match($s, $pattern)
         if (-not $m.Success) { continue }
@@ -251,7 +253,7 @@ function Get-TVLooseBareEpisodeNumber {
     $s = $s -replace '[$£€¥]\s*\d[\d,.]*', ' '
     $s = $s -replace '\b\d{1,3}(?:,\d{3})+\b', ' '
     $s = ($s -replace '\s+', ' ').Trim()
-    $matches = [regex]::Matches($s, '(?<!\d)(\d{1,3})(?!\d)')
+    $matches = [regex]::Matches($s, '(?i)(?<!\d)(\d{1,3})(?:v\d+)?(?![A-Za-z0-9])')
     $candidates = [System.Collections.Generic.List[int]]::new()
     foreach ($m in $matches) {
         try {
@@ -278,9 +280,39 @@ function Get-TVShowNameBeforeExplicitEpisodeToken {
 
     if ([string]::IsNullOrWhiteSpace($BaseName)) { return "" }
     $base = Remove-PriorityMarkersFromName ([System.IO.Path]::GetFileNameWithoutExtension($BaseName))
-    $match = [regex]::Match($base, '(?i)^(?<show>.+?)(?<![A-Za-z0-9])(?:Episode|Ep|E)[\s._-]*\d{1,3}(?![A-Za-z0-9])')
+    $match = [regex]::Match($base, '(?i)^(?<show>.+?)(?<![A-Za-z0-9])(?:Episode|Ep|E)[\s._-]*\d{1,3}(?:v\d+)?(?![A-Za-z0-9])')
     if (-not $match.Success) { return "" }
-    $show = Get-CleanTVOutputNamePart $match.Groups['show'].Value
+    $show = Get-CleanTVOutputNamePart -Text $match.Groups['show'].Value -PreserveTitleTerms
+    if ([string]::IsNullOrWhiteSpace($show)) { return "" }
+    return $show
+}
+
+function Get-TVShowNameBeforeBareEpisodeToken {
+    param(
+        [string]$BaseName,
+        [int]$Episode
+    )
+
+    if ([string]::IsNullOrWhiteSpace($BaseName) -or $Episode -lt 1 -or $Episode -gt 999) { return "" }
+    $base = Remove-PriorityMarkersFromName ([System.IO.Path]::GetFileNameWithoutExtension($BaseName))
+    # Bare anime episodes are credible for show extraction only with a clear
+    # release separator and with the token followed by metadata or end-of-name.
+    # This rejects title numbers such as "The 100" and "Show - 12 Monkeys".
+    $match = [regex]::Match($base, '(?i)^(?<show>.+?)\s+-\s*(?<episode>\d{1,3})(?:v\d+)?(?=\s*(?:[\(\[\{]|$))')
+    if (-not $match.Success -or [int]$match.Groups['episode'].Value -ne $Episode) { return "" }
+    $show = Get-CleanTVOutputNamePart -Text $match.Groups['show'].Value -PreserveTitleTerms
+    if ([string]::IsNullOrWhiteSpace($show)) { return "" }
+    return $show
+}
+
+function Get-TVShowNameBeforeSpecialMarker {
+    param([string]$BaseName)
+
+    if ([string]::IsNullOrWhiteSpace($BaseName)) { return "" }
+    $base = Remove-PriorityMarkersFromName ([System.IO.Path]::GetFileNameWithoutExtension($BaseName))
+    $match = [regex]::Match($base, '(?i)^(?<show>.+?)(?<![A-Za-z0-9])(?:OVA|OAV|ONA|Specials?)(?=$|[\s._-])')
+    if (-not $match.Success) { return "" }
+    $show = Get-CleanTVOutputNamePart -Text $match.Groups['show'].Value -PreserveTitleTerms
     if ([string]::IsNullOrWhiteSpace($show)) { return "" }
     return $show
 }
@@ -290,9 +322,9 @@ function Get-TVShowNameBeforeSeasonEpisodeTokens {
 
     if ([string]::IsNullOrWhiteSpace($BaseName)) { return "" }
     $base = Remove-PriorityMarkersFromName ([System.IO.Path]::GetFileNameWithoutExtension($BaseName))
-    $match = [regex]::Match($base, '(?i)^(?<show>.+?)(?<![A-Za-z0-9])(?:Season|S)[\s._-]*\d{1,2}[\s._-]+(?:(?:Episode|Ep|E)[\s._-]*)?\d{1,3}(?![A-Za-z0-9])')
+    $match = [regex]::Match($base, '(?i)^(?<show>.+?)(?<![A-Za-z0-9])(?:Season|S)[\s._-]*\d{1,2}[\s._-]+(?:(?:Episode|Ep|E)[\s._-]*)?\d{1,3}(?:v\d+)?(?![A-Za-z0-9])')
     if (-not $match.Success) { return "" }
-    $show = Get-CleanTVOutputNamePart $match.Groups['show'].Value
+    $show = Get-CleanTVOutputNamePart -Text $match.Groups['show'].Value -PreserveTitleTerms
     if ([string]::IsNullOrWhiteSpace($show)) { return "" }
     return $show
 }
@@ -306,7 +338,7 @@ function Get-TVShowNameBeforeOrdinalSeasonToken {
     $pattern = '(?i)^(?<show>.+?)(?<![A-Za-z0-9])(?:' + $wordPat + ')\s+(?:Season|Cour)\b'
     $match = [regex]::Match($base, $pattern)
     if (-not $match.Success) { return "" }
-    $show = Get-CleanTVOutputNamePart $match.Groups['show'].Value
+    $show = Get-CleanTVOutputNamePart -Text $match.Groups['show'].Value -PreserveTitleTerms
     if ([string]::IsNullOrWhiteSpace($show)) { return "" }
     return $show
 }
@@ -315,7 +347,7 @@ function Get-TVShowNameComparisonKey {
     param([string]$Name)
 
     if ([string]::IsNullOrWhiteSpace($Name)) { return "" }
-    $clean = Get-CleanTVOutputNamePart $Name
+    $clean = Get-CleanTVOutputNamePart -Text $Name -PreserveTitleTerms
     if ([string]::IsNullOrWhiteSpace($clean)) {
         $clean = Remove-PriorityMarkersFromName $Name
     }
@@ -396,8 +428,26 @@ function Confirm-TVInfoShowNameAllowed {
         [string]$OriginalName
     )
 
+    if ($Info -and $Info.IsReliable -and (
+        [int]$Info.Season -lt 0 -or [int]$Info.Season -gt 99 -or
+        [int]$Info.Episode -lt 1 -or [int]$Info.Episode -gt 999 -or
+        ($null -ne $Info.EpisodeEnd -and ([int]$Info.EpisodeEnd -le [int]$Info.Episode -or [int]$Info.EpisodeEnd -gt 999)))) {
+        $Info.IsReliable = $false
+        $Info.ParseMode = 'identity-out-of-range'
+        $Info.ParseError = "Invalid TV identity in '$OriginalName'. Seasons must be 0-99, episodes 1-999, and ranges must increase; use SxxEyy-Ezz."
+        return $Info
+    }
     if ($Info -and $Info.IsReliable -and (Test-TVShowNameMatchesDisallowedLibraryFallback -ShowName ([string]$Info.ShowName) -DisallowedShowNameKeys $DisallowedShowNameKeys)) {
         return (Set-TVInfoLibraryFallbackParseError -Info $Info -OriginalName $OriginalName)
+    }
+    if ($Info -and $Info.IsReliable) {
+        $Info.EpisodeTitle = Get-CleanTVEpisodeTitle (Get-EpisodeTitle $OriginalName)
+        if ($null -eq $Info.Revision -and $OriginalName -match '(?i)(?<![A-Za-z0-9])(?:S\d{1,2}E\d{1,3}(?:(?:E|[-_]E)\d{1,3})?|(?:Episode|Ep|E)[\s._-]*\d{1,3}|\d{1,2}x\d{1,3})v(?<revision>\d+)(?![A-Za-z0-9])') {
+            $Info.Revision = [int]$Matches['revision']
+        }
+        if ($null -eq $Info.Revision -and $OriginalName -match '(?i)(?<![A-Za-z0-9])(?<episode>\d{1,3})v(?<revision>\d+)(?![A-Za-z0-9])' -and [int]$Matches['episode'] -eq [int]$Info.Episode) {
+            $Info.Revision = [int]$Matches['revision']
+        }
     }
     return $Info
 }
@@ -493,33 +543,67 @@ function Get-TVInfoFromFile {
         Season       = 0
         Episode      = 0
         EpisodeEnd   = $null   # set for multi-episode files (S01E01E02 / S01E01-E02)
+        EpisodeTitle = ''
+        Revision     = $null
         OriginalName = $name
         IsReliable   = $false
         ParseError   = $null
         ParseMode    = "ambiguous"
     }
-    if ($name -match '[Ss](\d{1,2})[Ee](\d{1,2})') {
-        $info.Season  = [int]$Matches[1]; $info.Episode = [int]$Matches[2]
-        # Multi-episode: S01E01E02 or S01E01-E02 or S01E01_E02
-        if ($name -match '[Ss]\d{1,2}[Ee]\d{1,2}[-_]?[Ee](\d{1,2})') {
-            $epEnd = [int]$Matches[1]
-            if ($epEnd -gt $info.Episode) { $info.EpisodeEnd = $epEnd }
+    if ($name -match '(?i)(?<![A-Za-z0-9])S\d{1,3}E\d{1,4}[-_]\d{1,4}(?![A-Za-z0-9])') {
+        $info.ParseError = "Noncanonical TV episode range in '$name'. Rename it to use SxxEyy-Ezz."
+        $info.ParseMode = 'noncanonical-range'
+        return $info
+    }
+    if ($name -match '(?i)(?<![A-Za-z0-9])(?:Episode|Ep|E)[\s._-]*(?<episode>\d{4,})(?![A-Za-z0-9])') {
+        $info.ParseError = "TV identity in '$name' is outside S00-S99 or E001-E999; use SxxEyy or SxxEyy-Ezz."
+        $info.ParseMode = 'out-of-range'
+        return $info
+    }
+    $canonicalEpisode = [regex]::Match($name, '(?i)(?<![A-Za-z0-9])S(?<season>\d{1,3})E(?<start>\d{1,4})(?:(?:E|[-_]E)(?<end>\d{1,4}))?(?:v(?<revision>\d+))?(?![A-Za-z0-9])')
+    if ($canonicalEpisode.Success) {
+        $info.Season = [int]$canonicalEpisode.Groups['season'].Value
+        $info.Episode = [int]$canonicalEpisode.Groups['start'].Value
+        if ($info.Season -gt 99 -or $info.Episode -lt 1 -or $info.Episode -gt 999) {
+            $info.ParseError = "TV identity in '$name' is outside S00-S99 or E001-E999; use SxxEyy or SxxEyy-Ezz."
+            $info.ParseMode = 'out-of-range'
+            return $info
+        }
+        if ($canonicalEpisode.Groups['end'].Success) {
+            $epEnd = [int]$canonicalEpisode.Groups['end'].Value
+            if ($epEnd -lt 1 -or $epEnd -gt 999 -or $epEnd -le $info.Episode) {
+                $info.ParseError = "Invalid TV episode range in '$name': the range must increase and remain within E001-E999. Use SxxEyy-Ezz."
+                $info.ParseMode = 'invalid-range'
+                return $info
+            }
+            $info.EpisodeEnd = $epEnd
+        }
+        if ($canonicalEpisode.Groups['revision'].Success) {
+            $info.Revision = [int]$canonicalEpisode.Groups['revision'].Value
         }
         # Extract show name from the portion before the SxxExx marker.
         # ② Preserve 4-digit years like "(2024)" — save before stripping all brackets.
-        $showRaw = ($name -replace '[Ss]\d{1,2}[Ee]\d{1,2}.*$','') -replace '[\._]',' '
+        $showRaw = $name.Substring(0, $canonicalEpisode.Index) -replace '[\._]',' '
         $yearTag = if ($showRaw -match '\((\d{4})\)') { " ($($Matches[1]))" } else { '' }
         $show = ($showRaw -replace '\[.*?\]|\(.*?\)','') -replace '\s+',' '
         $show = ($show -replace '[\s\-–_]+$','').Trim()   # ① strip trailing separators
         if ($yearTag) { $show = $show + $yearTag }
+        $cleanShow = Get-CleanTVOutputNamePart -Text $show -PreserveTitleTerms
+        if (-not [string]::IsNullOrWhiteSpace($cleanShow)) { $show = $cleanShow }
         if ($show) {
             $info.ShowName = $show
         } elseif ($folderSeasonInfo -and $folderSeasonInfo.ShowName) {
             $info.ShowName = [string]$folderSeasonInfo.ShowName
         }
         $info.IsReliable = $true
-        $info.ParseMode  = if ($info.EpisodeEnd) { "sxxexx-multi" } else { "sxxexx" }
+        $info.ParseMode  = if ($info.EpisodeEnd) { "sxxexx-range" } else { "sxxexx" }
         return (Confirm-TVInfoShowNameAllowed -Info $info -DisallowedShowNameKeys $disallowedShowNameKeys -OriginalName $name)
+    }
+    if ($name -match '(?i)(?<![A-Za-z0-9])(?:Episode|Ep)[\s._-]*\d{1,3}\s*[-_]\s*(?:E(?:pisode|p)?[\s._-]*)?\d{1,3}(?![A-Za-z0-9])' -or
+        $baseName -match '(?i)(?:^|[\s._-])\d{1,3}\s*[-_]\s*\d{1,3}(?:$|[\s._-])') {
+        $info.ParseError = "Noncanonical TV episode range in '$name'. Rename it to use SxxEyy-Ezz."
+        $info.ParseMode = 'noncanonical-range'
+        return $info
     }
     if ($name -match '(?i)(?<!\d)(\d{1,2})x(\d{1,3})(?!\d)') {
         $info.Season  = [int]$Matches[1]; $info.Episode = [int]$Matches[2]
@@ -662,6 +746,25 @@ function Get-TVInfoFromFile {
         return $info
     }
 
+    # Filename-position special markers are authoritative only when paired
+    # with a credible episode token. Explicit/folder seasons have already won.
+    if ($baseName -match '(?i)(?:^|[\s._-])(?:OVA|OAV|ONA|Special)(?:s)?(?:$|[\s._-])') {
+        $episode = Get-TVEpisodeFromFilename $name
+        if ($null -eq $episode) { $episode = Get-TVEpisodeFromStrippedName $baseName }
+        if ($null -ne $episode -and [int]$episode -ge 1 -and [int]$episode -le 999) {
+            $info.Season = 0
+            $info.Episode = [int]$episode
+            $explicitShow = Get-TVShowNameBeforeSpecialMarker $baseName
+            if ([string]::IsNullOrWhiteSpace($explicitShow)) {
+                $explicitShow = Get-TVShowNameBeforeExplicitEpisodeToken $baseName
+            }
+            if (-not [string]::IsNullOrWhiteSpace($explicitShow)) { $info.ShowName = $explicitShow }
+            $info.IsReliable = $true
+            $info.ParseMode = 'filename-special'
+            return (Confirm-TVInfoShowNameAllowed -Info $info -DisallowedShowNameKeys $disallowedShowNameKeys -OriginalName $name)
+        }
+    }
+
     if ($script:AggressiveEpisodeParsing) {
         $looseSeasonEpisode = Get-TVLooseSeasonEpisodeFromName $baseName
         if ($looseSeasonEpisode) {
@@ -685,13 +788,16 @@ function Get-TVInfoFromFile {
             $info.Season     = 1
             $info.Episode    = [int]$looseEpisode.Episode
             $explicitShow = Get-TVShowNameBeforeExplicitEpisodeToken $baseName
+            if ([string]::IsNullOrWhiteSpace($explicitShow)) {
+                $explicitShow = Get-TVShowNameBeforeBareEpisodeToken -BaseName $baseName -Episode ([int]$looseEpisode.Episode)
+            }
             if (-not [string]::IsNullOrWhiteSpace($explicitShow)) {
                 $info.ShowName = $explicitShow
             } else {
                 $info.ShowName = $fallbackShow
             }
             $info.IsReliable = $true
-            $info.ParseMode  = "aggressive-default-season+$($looseEpisode.Mode)"
+            $info.ParseMode  = 'default-season+episode'
             return (Confirm-TVInfoShowNameAllowed -Info $info -DisallowedShowNameKeys $disallowedShowNameKeys -OriginalName $name)
         }
     }
@@ -714,9 +820,14 @@ function Get-EpisodeTitle {
         }
     }
     # Standard post-SxxExx title patterns
-    if ($name -match '[Ss]\d{1,2}[Ee]\d{1,2}\s*[-]\s*(.+?)(?:\s*[\[\(]|\s*\.\w+$)') { return $Matches[1].Trim() }
+    $canonicalMarker = [regex]::Match($name, '(?i)(?<![A-Za-z0-9])S\d{1,2}E\d{1,3}(?:(?:E|[-_]E)\d{1,3})?(?:v\d+)?(?![A-Za-z0-9])')
+    if ($canonicalMarker.Success) {
+        $afterMarker = $name.Substring($canonicalMarker.Index + $canonicalMarker.Length)
+        if ($afterMarker -match '^\s*[-]\s*(.+?)(?:\s*[\[\(]|\s*\.\w+$)') { return $Matches[1].Trim() }
+        return ""
+    }
     if ($name -match '\d{1,2}x\d{1,2}\s*[-]\s*(.+?)(?:\s*[\[\(]|\s*\.\w+$)')         { return $Matches[1].Trim() }
-    if ($name -match 'E\d{2}\s*[-]\s*(.+?)(?:\s*[\[\(]|\s*\.\w+$)')                   { return $Matches[1].Trim() }
+    if ($name -match '(?i)(?<![A-Za-z0-9])E\d{1,3}(?:v\d+)?\s*[-]\s*(.+?)(?:\s*[\[\(]|\s*\.\w+$)') { return $Matches[1].Trim() }
     if ($name -match '(?i)Episode\s*\d{1,3}\s*[-]\s*(.+?)(?:\s*[\[\(]|\s*\.\w+$)')   { return $Matches[1].Trim() }
     if ($name -match '(?i)Ep\s*\d{1,3}\s*[-]\s*(.+?)(?:\s*[\[\(]|\s*\.\w+$)')         { return $Matches[1].Trim() }
     $explicitTitle = [regex]::Match($name, '(?i)(?<![A-Za-z0-9])(?:Episode|Ep|E)[\s._-]*\d{1,3}(?![A-Za-z0-9])[\s._-]+(?<title>.+)$')
@@ -735,12 +846,136 @@ function Get-EpisodeTitle {
     return ""
 }
 
+function Get-NamingRenameTVFilterCategoryNames {
+    return @(
+        'video_source',
+        'audio_channels',
+        'release_flags',
+        'services_containers',
+        'languages_subs_dubs',
+        'release_groups'
+    )
+}
+
+function Get-NamingRenameTVFilterDefaultOptions {
+    $options = [ordered]@{}
+    foreach ($category in @(Get-NamingRenameTVFilterCategoryNames)) {
+        $options[$category] = $true
+    }
+    return $options
+}
+
+function Get-NamingRenameTVFilterDefaultTerms {
+    return [ordered]@{
+        video_source = @(
+            '2160p','1080p','720p','480p','uhd','hdr','hdr10','dv','dolby vision',
+            'hevc','h264','h.264','h265','h.265','x264','x265','av1','bd','bdrip',
+            'blu ray','blu-ray','bluray','web dl','webdl','webrip','hdtv','dvd','dvdrip',
+            'remux','10 bit','8 bit'
+        )
+        audio_channels = @(
+            'flac','aac','opus','ac3','eac3','ddp','dts','truehd','atmos',
+            '1.0','2.0','5.1','7.1','6ch','6 ch','8ch','8 ch'
+        )
+        release_flags = @('proper','repack','rerip','uncensored','censored')
+        services_containers = @('mkv','mp4')
+        languages_subs_dubs = @(
+            'dual audio','multi audio','eng sub','eng subs','multi sub','multi subs',
+            'subs','sub','subbed','dubbed'
+        )
+        release_groups = @(
+            'chotab','subsplease','erai raws','erai-raws','judas','ember','bonkai','neohevc',
+            'animetime','lostyears','nai','asw','sam','tnp','dedsec','mtbb','smugcat','commie',
+            'horriblesubs','kametsu','db','kawaiika','tlacatlc6','ttga'
+        )
+    }
+}
+
+function Get-NamingRenameTVFilterOptions {
+    $options = Get-NamingRenameTVFilterDefaultOptions
+    $rawOptions = Get-NamingScriptConfigValue -Name 'RenameTVFilterOptions'
+    foreach ($category in @(Get-NamingRenameTVFilterCategoryNames)) {
+        $value = Get-NamingMapValue -Map $rawOptions -Key $category
+        if ($null -ne $value) {
+            $options[$category] = ConvertTo-NamingConfigBool -Value $value -Default $true
+        }
+    }
+    return $options
+}
+
+function Test-NamingRenameTVFilterCategoryEnabled {
+    param($Options, [string]$Category)
+
+    if ($null -eq $Options) { return $true }
+    $value = Get-NamingMapValue -Map $Options -Key $Category
+    return ConvertTo-NamingConfigBool -Value $value -Default $true
+}
+
+function Get-NamingRenameTVFilterTermsForCategory {
+    param([string]$Category)
+
+    $defaults = Get-NamingRenameTVFilterDefaultTerms
+    $rawTerms = Get-NamingScriptConfigValue -Name 'RenameTVFilterTerms'
+    $configuredTerms = ConvertTo-NamingRenameMovieTermList -Value (Get-NamingMapValue -Map $rawTerms -Key $Category)
+    $seen = @{}
+    $terms = [System.Collections.Generic.List[string]]::new()
+    foreach ($term in @($defaults[$Category]) + @($configuredTerms)) {
+        $text = ([string]$term).Trim()
+        if ([string]::IsNullOrWhiteSpace($text)) { continue }
+        $key = $text.ToLowerInvariant()
+        if ($seen.ContainsKey($key)) { continue }
+        $seen[$key] = $true
+        [void]$terms.Add($text)
+    }
+    return @($terms)
+}
+
+function Get-NamingRenameTVConfiguredTermsForCategory {
+    param([string]$Category)
+
+    # Preserve lexical uses of the few built-in words that are also common
+    # title text. All other defaults and operator-supplied additions remain
+    # active while PreserveTitleTerms is in effect.
+    $ambiguousTitleTerms = @('web', 'proper')
+    return @(Get-NamingRenameTVFilterTermsForCategory -Category $Category | Where-Object {
+        ([string]$_).Trim().ToLowerInvariant() -notin $ambiguousTitleTerms
+    })
+}
+
+function Get-NamingRenameTVRemoveTerms {
+    $variable = Get-Variable -Name 'RenameTVRemoveTerms' -Scope Script -ErrorAction SilentlyContinue
+    if ($null -eq $variable) {
+        return @('sample','trailer','extras','featurette','deleted scenes','behind the scenes')
+    }
+    return @(ConvertTo-NamingRenameMovieTermList -Value $variable.Value)
+}
+
+function Remove-NamingTVReleaseGroups {
+    param([string]$Text, $Options)
+
+    if (-not (Test-NamingRenameTVFilterCategoryEnabled -Options $Options -Category 'release_groups')) {
+        return [string]$Text
+    }
+    $result = [string]$Text
+    foreach ($group in @(Get-NamingRenameTVFilterTermsForCategory -Category 'release_groups')) {
+        $pattern = ConvertTo-NamingMovieFilterTermPattern -Term ([string]$group) -Bounded $false
+        if ([string]::IsNullOrWhiteSpace($pattern)) { continue }
+        $result = $result -replace "(?i)^\s*[\[\(]?\s*$pattern\s*[\]\)]?[\s._-]+", ' '
+        $result = $result -replace "(?i)[\s._-]+[\[\(]?\s*$pattern\s*[\]\)]?\s*$", ' '
+    }
+    return $result
+}
+
 function Get-CleanTVOutputNamePart {
-    param([string]$Text)
+    param(
+        [string]$Text,
+        [switch]$PreserveTitleTerms
+    )
 
     if ([string]::IsNullOrWhiteSpace($Text)) { return "" }
 
     $clean = Remove-PriorityMarkersFromName ([System.IO.Path]::GetFileNameWithoutExtension($Text))
+    $filterOptions = Get-NamingRenameTVFilterOptions
     $yearToken = 'PLEXYEARTOKEN'
     $yearValue = $null
     if ($clean -match '\((?<year>(?:18|19|20|21)\d{2})\)') {
@@ -759,9 +994,23 @@ function Get-CleanTVOutputNamePart {
     $clean = $clean -replace '(?i)\b\d{1,2}x\d{1,3}\b', ' '
     $clean = $clean -replace '(?i)\b(?:season|s)\s*\d{1,2}\s*(?:\+\s*(?:sp|specials?))?\b', ' '
     $clean = $clean -replace '(?i)\b(?:specials?|ova|oav|ona|cour)\b', ' '
-    $clean = $clean -replace '(?i)\b(?:uncensored|censored|2160p|1080p|720p|480p|uhd|hdr10\+?|hdr|dv|dolby\s*vision|hevc|h264|h265|x264|x265|av1|10[\s._-]*bits?|8[\s._-]*bits?|upscale(?:d)?|bd|bdrip|blu-ray|bluray|web-dl|webdl|webrip|web|remux|dvd|proper|repack|dual[-\s]*audio|multi[-\s]*audio|eng[-\s]*subs?|multi[-\s]*subs?|subs?|subbed|dubbed|flac|aac|opus|ac3|eac3|ddp\d*|ddp|dts|truehd|atmos|mkv|mp4)\b', ' '
-    $clean = $clean -replace '(?i)\b(?:1\.0|2\.0|5\.1|7\.1|6\s*ch|8\s*ch|6ch|8ch)\b', ' '
-    $clean = $clean -replace '(?i)(?:[\s._-]+(?:chotab|subsplease|erai[\s._-]*raws?|judas|ember|bonkai|neohevc|animetime|lostyears|nai|asw|sam|tnp|dedsec|mtbb|smugcat|commie|horriblesubs|kametsu|db|kawaiika|tlacatlc6|ttga))+$', ' '
+    if ($PreserveTitleTerms) {
+        # Category policy remains active, except for built-in words that are
+        # ambiguous with legitimate show or episode-title text.
+        foreach ($category in @('video_source','audio_channels','release_flags','services_containers','languages_subs_dubs','release_groups')) {
+            if (Test-NamingRenameTVFilterCategoryEnabled -Options $filterOptions -Category $category) {
+                $clean = Remove-NamingMovieFilterTerms -Text $clean -Terms (Get-NamingRenameTVConfiguredTermsForCategory -Category $category)
+            }
+        }
+    } else {
+        foreach ($category in @('video_source','audio_channels','release_flags','services_containers','languages_subs_dubs')) {
+            if (Test-NamingRenameTVFilterCategoryEnabled -Options $filterOptions -Category $category) {
+                $clean = Remove-NamingMovieFilterTerms -Text $clean -Terms (Get-NamingRenameTVFilterTermsForCategory -Category $category)
+            }
+        }
+        $clean = Remove-NamingTVReleaseGroups -Text $clean -Options $filterOptions
+    }
+    $clean = Remove-NamingMovieFilterTerms -Text $clean -Terms (Get-NamingRenameTVRemoveTerms)
     $clean = $clean -replace '[\[\]{}()]', ' '
     $clean = $clean -replace '[<>:"/\\|?*]', ''
     $clean = $clean -replace '[._]+', ' '
@@ -776,9 +1025,13 @@ function Get-CleanTVOutputNamePart {
 function Get-CleanTVEpisodeTitle {
     param([string]$Title)
 
-    $clean = Get-CleanTVOutputNamePart $Title
+    # Revision flags are metadata only when they occupy the release-tail
+    # position. Lexical uses such as "A Proper Introduction" remain titles.
+    $titleText = [string]$Title -replace '(?i)[\s._-]+(?:PROPER|REPACK|RERIP)\s*$', ' '
+    $clean = Get-CleanTVOutputNamePart -Text $titleText -PreserveTitleTerms
     if ([string]::IsNullOrWhiteSpace($clean)) { return "" }
     if ($clean.Length -gt 80) { return "" }
+    if ($clean -match '^\d+$') { return "" }
     if ($clean -match '(?i)^E\d{1,3}$') { return "" }
     if ($clean -match '(?i)^(?:audio|subs?|subtitles?|dubbed|subbed|english|japanese|bd|hevc|x264|x265)(?:\s+.*)?$') {
         return ""
@@ -813,7 +1066,7 @@ function Get-TVParseRenameSuggestion {
 
     $ext = [System.IO.Path]::GetExtension($File.Name)
     if ($TvInfo -and $null -ne $TvInfo.Season -and [int]$TvInfo.Season -ge 0 -and $TvInfo.ShowName) {
-        $show = Get-CleanTVOutputNamePart ([string](Get-TVInfoField -TvInfo $TvInfo -Name 'ShowName' -Default ''))
+        $show = Get-CleanTVOutputNamePart -Text ([string](Get-TVInfoField -TvInfo $TvInfo -Name 'ShowName' -Default '')) -PreserveTitleTerms
         if ([string]::IsNullOrWhiteSpace($show)) { $show = ([string]$TvInfo.ShowName -replace '[<>:"/\\|?*]', '').Trim() }
         return ("{0} - S{1}E##{2}" -f $show, ([int]$TvInfo.Season).ToString('00'), $ext)
     }

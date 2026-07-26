@@ -295,7 +295,14 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
             attributes: {{}},
             children: [],
             textContent: "",
+            disabled: false,
+            listeners: {{}},
             setAttribute(name, value) {{ this.attributes[name] = String(value); }},
+            addEventListener(name, listener) {{ this.listeners[name] = listener; }},
+            click() {{
+              if (this.disabled) return Promise.resolve();
+              return Promise.resolve(this.listeners.click?.({{ preventDefault() {{}} }}));
+            }},
             appendChild(child) {{ this.children.push(child); }},
             replaceChildren(...children) {{
               this.children = children;
@@ -505,7 +512,27 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
             }},
           ];
           emptyCsvModule.renderLaunchBackendPreflight(activeWorkAlertPayloads);
-          const activeWorkAlertSuppressed = !domNodes[".launch-preflight-startup-alert"];
+          const activeWorkGlobalAlertAbsent = !domNodes[".launch-preflight-startup-alert"];
+          const queueScanAlertPayloads = [
+            {{
+              target: "pipeline",
+              _frontend_target_label: "Pipeline",
+              _frontend_preflight_active: true,
+              _frontend_preflight_included: true,
+              status: "blocked",
+              can_request_start: false,
+              checks: [{{
+                key: "normal_queue_scope",
+                label: "Normal queue scope",
+                status: "blocked",
+                evidence: "Latest Queue snapshot origin is active_run, not a backend dry-run.",
+                action: "Run Queue scan before launching.",
+                detail: ["queue_snapshot_origin_not_dry_run"],
+              }}],
+            }},
+          ];
+          emptyCsvModule.renderLaunchBackendPreflight(queueScanAlertPayloads);
+          const queueScanGlobalAlertAbsent = !domNodes[".launch-preflight-startup-alert"];
           const alertPayloads = [
             {{
               target: "pipeline",
@@ -535,13 +562,11 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
             }},
           ];
           emptyCsvModule.renderLaunchBackendPreflight(alertPayloads);
-          const blockedAlert = domNodes[".launch-preflight-startup-alert"];
-          const blockedAlertText = blockedAlert ? blockedAlert.textContent : "";
-          const blockedAlertState = blockedAlert?.dataset?.state || "";
-          const blockedAlertRole = blockedAlert?.attributes?.role || "";
-          const blockedAlertLive = blockedAlert?.attributes?.["aria-live"] || "";
+          const blockedGlobalAlertAbsent = !domNodes[".launch-preflight-startup-alert"];
+          const blockedRows = emptyCsvModule.launchBackendPreflightRows(alertPayloads);
+          const blockedDetail = emptyCsvModule.launchBackendPreflightDetailLines(blockedRows[0] || {{}}).join("\\n");
           emptyCsvModule.renderLaunchBackendPreflight(poisonPayloads);
-          const alertClearedByReadyPipeline = !domNodes[".launch-preflight-startup-alert"];
+          const readyGlobalAlertAbsent = !domNodes[".launch-preflight-startup-alert"];
           process.stdout.write(JSON.stringify({{
             renderFetchCount,
             fetchUrls,
@@ -564,12 +589,12 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
             poisonStatus: emptyCsvModule.launchBackendPreflightOverallStatus(poisonPayloads),
             poisonRows: emptyCsvModule.launchBackendPreflightRows(poisonPayloads).map((row) => row.targetLabel + ":" + row.posture),
             poisonScopeLabel: emptyCsvModule.launchBackendPreflightScopeLabel(poisonPayloads),
-            activeWorkAlertSuppressed,
-            blockedAlertText,
-            blockedAlertState,
-            blockedAlertRole,
-            blockedAlertLive,
-            alertClearedByReadyPipeline,
+            activeWorkGlobalAlertAbsent,
+            queueScanGlobalAlertAbsent,
+            blockedGlobalAlertAbsent,
+            blockedRowPostures: blockedRows.map((row) => row.posture),
+            blockedDetail,
+            readyGlobalAlertAbsent,
           }}));
         }})().catch((error) => {{
           console.error(error && error.stack ? error.stack : String(error));
@@ -612,7 +637,11 @@ def _run_launch_controller_state_smoke() -> dict[str, object]:
         vm.runInContext(source, context);
 
         const launchControllerStateModule = context.window.__launchControllerStateModule.createLaunchControllerStateModule();
-        const staleSnapshot = {{ pipeline_state: "idle", progress: {{ CurrentStage: "encoding", Status: "last update old" }} }};
+        const staleSnapshot = {{
+          pipeline_state: "idle",
+          progress_health: {{ stale_evidence: true }},
+          progress: {{ CurrentStage: "encoding", Status: "last update old" }},
+        }};
         const stuckSnapshot = {{ pipeline_state: "idle", progress: {{ CurrentStage: "encoding", Status: "stuck without active worker" }} }};
         const activeClose = {{ safe_to_close: false, active_work: true, state: "running" }};
         process.stdout.write(JSON.stringify({{
@@ -1057,18 +1086,15 @@ class WebViewLaunchCommandButtonsSmoke(unittest.TestCase):
         self.assertEqual(result["poisonStatus"], "Ready")
         self.assertEqual(result["poisonRows"], ["Pipeline:ready"])
         self.assertEqual(result["poisonScopeLabel"], "Pipeline backend preflight")
-        self.assertTrue(result["activeWorkAlertSuppressed"])
-        self.assertIn("Pipeline launch blocked by backend preflight", result["blockedAlertText"])
-        self.assertIn("What is wrong: Autonomy health gate is blocked", result["blockedAlertText"])
-        self.assertIn("pipeline_version is required and cannot be blank", result["blockedAlertText"])
-        self.assertIn("How to fix: Open Pending Publish", result["blockedAlertText"])
-        self.assertIn("STATE_FILE_SCHEMA_REFERENCE.md", result["blockedAlertText"])
-        self.assertIn("Backend detail: row_key=pending-row-1", result["blockedAlertText"])
-        self.assertIn("Recovery route: Open Pending Publish Recovery Plan at /api/pending-publish/recovery-plan", result["blockedAlertText"])
-        self.assertEqual(result["blockedAlertState"], "blocked")
-        self.assertEqual(result["blockedAlertRole"], "alert")
-        self.assertEqual(result["blockedAlertLive"], "assertive")
-        self.assertTrue(result["alertClearedByReadyPipeline"])
+        self.assertTrue(result["activeWorkGlobalAlertAbsent"])
+        self.assertTrue(result["queueScanGlobalAlertAbsent"])
+        self.assertTrue(result["blockedGlobalAlertAbsent"])
+        self.assertEqual(result["blockedRowPostures"], ["blocked"])
+        self.assertIn("Autonomy health gate", result["blockedDetail"])
+        self.assertIn("pipeline_version is required and cannot be blank", result["blockedDetail"])
+        self.assertIn("STATE_FILE_SCHEMA_REFERENCE.md", result["blockedDetail"])
+        self.assertIn("Open Pending Publish Recovery Plan", result["blockedDetail"])
+        self.assertTrue(result["readyGlobalAlertAbsent"])
 
     def test_active_work_compact_gate_renders_active_instead_of_will_fail(self) -> None:
         result = _run_launch_compact_gate_smoke()
@@ -1083,13 +1109,13 @@ class WebViewLaunchCommandButtonsSmoke(unittest.TestCase):
         self.assertEqual(result["blockedBackendStatus"], "blocked")
         self.assertEqual(result["blockedBackendValue"], "Will Fail")
 
-    def test_stale_progress_does_not_count_as_stuck_without_backend_stuck_signal(self) -> None:
+    def test_stale_progress_is_quiet_idle_without_backend_stuck_signal(self) -> None:
         result = _run_launch_controller_state_smoke()
 
         self.assertFalse(result["staleIsStuck"])
-        self.assertTrue(result["staleIsStale"])
-        self.assertEqual(result["staleController"], "stale")
-        self.assertIn("Stale progress evidence", result["staleSummary"])
+        self.assertFalse(result["staleIsStale"])
+        self.assertEqual(result["staleController"], "idle")
+        self.assertNotIn("Stale progress evidence", result["staleSummary"])
         self.assertTrue(result["stuckIsStuck"])
         self.assertTrue(result["activeIsActive"])
 

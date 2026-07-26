@@ -1,3 +1,6 @@
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+
 import {
   analyzeScriptAsset,
   collectScriptTags,
@@ -77,6 +80,10 @@ const namespaceApiForwarderFiles = new Set([
 ]);
 
 const routeOwnerRules = [
+  {
+    route: /^\/api\/queue\/priority-export$/,
+    ownersByMethod: { GET: ["Launch"], POST: ["Queue"] },
+  },
   { route: /^\/api\/queue\//, owners: ["Queue"] },
   { route: /^\/api\/completed(?:$|\/|\?)/, owners: ["Completed"] },
   { route: /^\/api\/publish-reconciliation(?:$|\?)/, owners: ["Completed"] },
@@ -141,8 +148,8 @@ const selectorRouteRules = [
 
 const directMutationApiRules = [
   { label: "direct fetch outside apiClient", pattern: /\bfetch\s*\(/, allowed: ["apps/desktop/webview/static/assets/apiClient.js"] },
-  { label: "direct Tauri bridge access", pattern: /window\.__TAURI__|\b__TAURI__\b/, allowed: ["apps/desktop/webview/static/assets/tauriLifecycleBridge.js"] },
-  { label: "Tauri invoke", pattern: /\binvoke\s*\(|\.invoke\s*\(/, allowed: [] },
+  { label: "direct Tauri bridge access", pattern: /window\.__TAURI__|\b__TAURI__\b/, allowed: ["apps/desktop/webview/static/assets/tauriLifecycleBridge.js", "apps/desktop/webview/static/assets/pipelineLogWindowBridge.js"] },
+  { label: "Tauri invoke", pattern: /\binvoke\s*\(|\.invoke\s*\(/, allowed: ["apps/desktop/webview/static/assets/pipelineLogWindowBridge.js"] },
   { label: "Tauri shell/fs/process capability", pattern: /\b(writeTextFile|writeFile|removeFile|removeDir|renameFile|Command|openPath|openUrl)\s*\(/, allowed: [] },
   { label: "Node filesystem/process import", pattern: /\b(require|import)\s*\(\s*["'](?:fs|node:fs|child_process|node:child_process)["']|from\s+["'](?:fs|node:fs|child_process|node:child_process)["']/, allowed: [] },
   { label: "direct filesystem path mutation wording", pattern: /\b(unlink|rm|rmdir|rename|moveFile|copyFile)\s*\(/, allowed: [] },
@@ -188,7 +195,7 @@ const localControlRules = [
   { pattern: /queue-manual-save-order|save loaded backend order/i, classification: "local-queue-order-staging" },
   { pattern: /sample-validation-.*clear|sample-validation-clear/, classification: "local-sample-validation-staging" },
   { pattern: /report-audit-(save|remove)-location|saved locations?/i, classification: "local-launch-intent-staging" },
-  { pattern: /data-launch-mode=|pipeline-single-file-clear|single file|backend queue|validate|continuous|run once/i, classification: "local-launch-intent-staging" },
+  { pattern: /data-launch-mode=|data-pipeline-scope-preset=|pipeline-single-file-clear|single file|backend queue|validate|continuous|run once/i, classification: "local-launch-intent-staging" },
   { pattern: /schedule-editor-(load|clear|allow)/, classification: "local-schedule-staging" },
   { pattern: /settings-deployment-|settings-open-wizard|settings-wizard-(back|next|add-library|copy-diagnostics)/, classification: "local-guided-setup" },
   { pattern: /network-lifecycle-confirm-cancel|role-setup-cancel|settings-network-(apply|reset|path-map-add-row)/, classification: "local-network-staging" },
@@ -216,7 +223,8 @@ const routeHintRules = [
   { pattern: /rerun-stop-after-current-button|stop after current/i, route: "/api/rerun/control" },
   { pattern: /rerun-(start|dry-run|plan-only)-button|rerun start|start rerun|preview csv rerun|plan csv rerun/i, route: "/api/rerun/start" },
   { pattern: /queue-scan|scan sources/i, route: "/api/queue/scan" },
-  { pattern: /queue-priority|priority/i, route: "/api/queue/priority" },
+  { pattern: /queue-priority-export-btn/i, route: "/api/queue/priority-export" },
+  { pattern: /queue-priority-(?!export-btn\b)/i, route: "/api/queue/priority" },
   { pattern: /queue-strategy|strategy/i, route: "/api/queue/strategy" },
   { pattern: /fo-.*(save|clear)|file-overrides.*(save|clear)/i, route: "/api/queue/file-overrides" },
   { pattern: /series-preview/i, route: "/api/queue/file-overrides/series-preview" },
@@ -287,6 +295,19 @@ function parseArgs(argv) {
 
 function normalizeRoute(route) {
   return String(route || "").split("?")[0];
+}
+
+export function matchRouteContract(contracts, method, normalizedPath) {
+  const requestedMethod = String(method || "").toUpperCase();
+  const contract = contracts.find((candidate) => (
+    candidate.method === requestedMethod && candidate.path === normalizedPath
+  )) || null;
+  const availableMethods = [...new Set(
+    contracts
+      .filter((candidate) => candidate.path === normalizedPath && candidate.method !== requestedMethod)
+      .map((candidate) => candidate.method),
+  )].sort();
+  return { contract, availableMethods };
 }
 
 function memberName(node) {
@@ -443,6 +464,9 @@ function controlIdentity(control) {
 
 function classifyControl(control) {
   const identity = controlIdentity(control);
+  if (Object.hasOwn(control.attrs, "data-network-future-control")) {
+    return { classification: "disabled-future-network-control", route: "" };
+  }
   for (const rule of routeHintRules) {
     if (rule.pattern.test(identity)) {
       return {
@@ -521,10 +545,12 @@ function ownerForScript(path) {
   return "Shared";
 }
 
-function allowedOwnersForRoute(route) {
+export function allowedOwnersForRoute(route, method = "") {
   const normalized = normalizeRoute(route);
   const rule = routeOwnerRules.find((candidate) => candidate.route.test(route) || candidate.route.test(normalized));
-  return rule ? rule.owners : ["Shared"];
+  if (!rule) return ["Shared"];
+  if (rule.ownersByMethod) return rule.ownersByMethod[String(method || "").toUpperCase()] || [];
+  return rule.owners;
 }
 
 function collectApiCalls(script) {
@@ -576,8 +602,6 @@ function buildReport() {
   const indexHtml = readText(repoRelative(webviewIndexPath));
   const markup = expandIncludes(indexHtml);
   const contracts = extractContracts();
-  const contractByPath = new Map(contracts.map((contract) => [`${contract.method} ${contract.path}`, contract]));
-  const routeContractsByPath = new Map(contracts.map((contract) => [contract.path, contract]));
   const scripts = collectScriptTags(indexHtml)
     .map((src, index) => ({ index, src, path: scriptSrcToRepoPath(src) }))
     .filter((item) => item.path)
@@ -632,8 +656,8 @@ function buildReport() {
       if (!call.route) continue;
       const normalized = normalizeRoute(call.route);
       const method = call.function === "apiGet" ? "GET" : "POST";
-      const contract = contractByPath.get(`${method} ${normalized}`) || routeContractsByPath.get(normalized);
-      const allowedOwners = allowedOwnersForRoute(call.route);
+      const { contract, availableMethods } = matchRouteContract(contracts, method, normalized);
+      const allowedOwners = allowedOwnersForRoute(call.route, method);
       const readOnlySharedOwner = method === "GET" && ["App Shell", "Shared"].includes(script.owner);
       const ownerOk = readOnlySharedOwner || allowedOwners.includes(script.owner) || allowedOwners.includes("Shared") || script.owner === "Shared";
       routeUsages.push({
@@ -650,12 +674,15 @@ function buildReport() {
         owner_ok: ownerOk,
       });
       if (!contract) {
+        const methodHint = availableMethods.length
+          ? ` Available method(s) for this path: ${availableMethods.join(", ")}.`
+          : "";
         violations.push({
           rule: "undocumented-api-route",
           route: call.route,
           file: script.path,
           line: call.line,
-          message: `${method} ${normalized} is not documented in LOCAL_API_ROUTE_CONTRACT.`,
+          message: `${method} ${normalized} is not documented in LOCAL_API_ROUTE_CONTRACT.${methodHint}`,
         });
       }
       if (!ownerOk) {
@@ -795,12 +822,18 @@ function buildReport() {
   };
 }
 
-const args = parseArgs(process.argv.slice(2));
-const report = buildReport();
-const staleOrWriteExit = writeOrCheckJson(outputPath, report, args.check);
-if (report.violations.length) {
-  report.violations.forEach((violation) => console.error(`${violation.rule}: ${violation.message}`));
-  process.exitCode = 1;
-} else {
-  process.exitCode = staleOrWriteExit;
+function isMainModule() {
+  return Boolean(process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href);
+}
+
+if (isMainModule()) {
+  const args = parseArgs(process.argv.slice(2));
+  const report = buildReport();
+  const staleOrWriteExit = writeOrCheckJson(outputPath, report, args.check);
+  if (report.violations.length) {
+    report.violations.forEach((violation) => console.error(`${violation.rule}: ${violation.message}`));
+    process.exitCode = 1;
+  } else {
+    process.exitCode = staleOrWriteExit;
+  }
 }

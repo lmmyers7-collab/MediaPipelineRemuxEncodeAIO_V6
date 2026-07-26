@@ -72,6 +72,8 @@ function Get-MediaPipelineKnownOutcomeCodes {
         'ALREADY_PROCESSED',
         'AUDIO_ARGUMENT_BUILD_FAILED',
         'BAD_EXTENSION',
+        'DESTINATION_NAMING_EVIDENCE_MISSING',
+        'DESTINATION_NAMING_PLAN_MISMATCH',
         'ENCODE_CPU_INSUFFICIENT_SPACE',
         'ENCODE_CPU_MUTEX_UNAVAILABLE',
         'ENCODE_DURATION_MISMATCH',
@@ -83,7 +85,9 @@ function Get-MediaPipelineKnownOutcomeCodes {
         'ENCODE_QUALITY_REVIEW',
         'ENCODE_QUALITY_VERIFICATION_FAILED',
         'ENCODE_SIZE_GUARD_EXCEEDED',
+        'ENCODE_CONTEXT_CONTRACT_INVALID',
         'ENCODE_UNEXPECTED_EXCEPTION',
+        'FFMPEG_RUNNER_EXCEPTION',
         'DOVI_RPU_EXTRACT_FAILED',
         'DYNAMIC_HDR_HEVC_EXTRACT_FAILED',
         'DYNAMIC_HDR_EXTRACTION_RESULT_MISSING',
@@ -114,6 +118,12 @@ function Get-MediaPipelineKnownOutcomeCodes {
         'MEDIA_PROBE_STOPPED',
         'MEDIA_PROBE_TIMEOUT',
         'LOCAL_WORKER_CHILD_TIMEOUT',
+        'LOCAL_WORKER_CHILD_STALE_HEARTBEAT',
+        'LOCAL_WORKER_DUPLICATE_CLAIM',
+        'LOCAL_WORKER_FAILED',
+        'LOCAL_WORKER_RESULT_INVALID',
+        'LOCAL_WORKER_START_FAILED',
+        'LOCAL_WORKER_STOPPED',
         'MKVMERGE_WARNINGS',
         'MKVMERGE_WARNING_STREAM_LOSS',
         'NATIVE_ABORTED',
@@ -126,8 +136,10 @@ function Get-MediaPipelineKnownOutcomeCodes {
         'OUTPUT_DESTINATION_LOW_SPACE',
         'OUTPUT_DESTINATION_SPACE_UNKNOWN',
         'OUTPUT_HASH_INVALID',
+        'OUTPUT_HASH_MISSING',
         'OUTPUT_MEDIA_TRACK_PROBE_FAILED',
         'OUTPUT_MEDIA_TRACK_PROBE_INVALID',
+        'OUTPUT_MEDIA_TRACK_VERIFICATION_FAILED',
         'OUTPUT_PATH_UNSUPPORTED',
         'OUTPUT_ROOT_MISSING',
         'OUTPUT_SIZE_INVALID',
@@ -136,6 +148,8 @@ function Get-MediaPipelineKnownOutcomeCodes {
         'OUTPUT_VIDEO_STREAM_PROBE_FAILED',
         'OUTPUT_VIDEO_STREAM_TOPOLOGY_MISMATCH',
         'PENDING_PARK_FAILED',
+        'PENDING_PUBLISH_BACKPRESSURE_BLOCKED',
+        'PENDING_PUBLISH_PARK_FAILED',
         'PERMANENT_FAILURE',
         'PROGRESS_PERSISTENCE_FAILED',
         'PUBLISH_COPY_FAILED',
@@ -145,10 +159,20 @@ function Get-MediaPipelineKnownOutcomeCodes {
         'REMUX_OUTPUT_MISSING',
         'REMUX_UNEXPECTED_EXCEPTION',
         'SCRATCH_COPY_UNREADABLE',
+        'SCRATCH_BOUNDARY_HELPER_UNAVAILABLE',
+        'SCRATCH_CONTAINER_CREATE_FAILED',
+        'SCRATCH_COPY_FAILED',
+        'SCRATCH_COPY_REUSED',
         'SCRATCH_INTEGRITY_FAILED',
+        'SCRATCH_PATH_INVALID',
+        'SCRATCH_REPLACEMENT_BLOCKED',
+        'SCRATCH_ROOT_UNAVAILABLE',
+        'SCRATCH_SAFE_NAME_UNSAFE',
         'SIDECAR_ORIGINAL_MISSING',
         'SIDECAR_ORIGINAL_PAYLOAD_MISSING',
+        'SIDECAR_HASH_INVALID',
         'SIDECAR_REQUIRED_FIELD_MISSING',
+        'SIDECAR_SIZE_INVALID',
         'SIDECAR_WRITE_FAILED',
         'SOURCE_FAILURE_MARKER',
         'SOURCE_FILE_PATH_EMPTY',
@@ -179,6 +203,7 @@ function Get-MediaPipelineKnownOutcomeCodes {
         'SUBTITLE_ASS_CONVERT_TIMEOUT',
         'SUBTITLE_ASS_SRT_EMPTY',
         'SUBTITLE_ASS_SRT_INVALID',
+        'SUBTITLE_HELPER_SELFCHECK_FAILED',
         'SUBTITLE_BDPGS_CONTAINER_UNSUPPORTED',
         'SUBTITLE_BDPGS_OCR_EMPTY',
         'SUBTITLE_BDPGS_OCR_EXCEPTION',
@@ -205,6 +230,8 @@ function Get-MediaPipelineKnownOutcomeCodes {
         'SUBTITLE_TX3G_SRT_EMPTY',
         'SUBTITLE_TX3G_SRT_INVALID',
         'SUBTITLE_TX3G_SRT_PUBLISH_FAILED',
+        'SUBTITLE_TX3G_SIDECAR_PREFLIGHT_FAILED',
+        'SUBTITLE_TX3G_SIDECAR_WRITE_FAILED',
         'SUBTITLE_TX3G_UNKNOWN_FAILURE',
         'SUBTITLE_UNKNOWN_FAILURE',
         'SUBTITLE_VOBSUB_CONTAINER_UNSUPPORTED',
@@ -229,33 +256,33 @@ function Get-MediaPipelineKnownOutcomeCodes {
     return @($codes | Sort-Object -Unique)
 }
 
-function Get-MediaPipelineOutcomeCodeFamily {
+function Get-MediaPipelineCodeFamily {
     param([string]$Code)
 
     $codeText = if ($Code) { ([string]$Code).Trim().ToUpperInvariant() } else { '' }
-    if ($codeText -match '^OK$|^ALREADY_PROCESSED$|^INTEGRITY_DISABLED$') { return 'non_failure_outcome' }
+    if ($codeText -match '^OK$|^ALREADY_PROCESSED$|^INTEGRITY_DISABLED$|^SCRATCH_COPY_REUSED$') { return 'non_failure_outcome' }
+    if ($codeText -match '^FFMPEG_|^SYSTEM_') { return 'native_tool' }
     if ($codeText -match '^ENCODE_CPU_') { return 'encode_cpu' }
     if ($codeText -match '^ENCODE_|^ENCODER_|^HDR_|^HDR10_|^DYNAMIC_HDR_|^DOVI_|^HDR10PLUS_') { return 'encode' }
     if ($codeText -match '^REMUX_|^MKVMERGE_') { return 'remux' }
     if ($codeText -match '^SUBTITLE_') { return 'subtitle' }
     if ($codeText -match '^AUDIO_|^SOURCE_MEDIA_AUDIO_') { return 'audio' }
+    if ($codeText -match '^DESTINATION_NAMING_') { return 'destination_naming' }
     if ($codeText -eq 'SOURCE_OVERWRITE_CONFIRM_INVALID') { return 'publish' }
     if ($codeText -match '^SOURCE_|^MEDIA_|^FILE_|^SCRATCH_') { return 'source_media' }
     if ($codeText -match '^OUTPUT_|^PUBLISH_|^PENDING_|^SIDECAR_') { return 'publish' }
-    if ($codeText -match '^PROGRESS_|^STOP_|^NATIVE_') { return 'process_lifecycle' }
+    if ($codeText -match '^PROGRESS_|^STOP_|^NATIVE_|^LOCAL_WORKER_') { return 'process_lifecycle' }
     return 'generic_failure'
+}
+
+function Get-MediaPipelineOutcomeCodeFamily {
+    param([string]$Code)
+    return Get-MediaPipelineCodeFamily -Code $Code
 }
 
 function Get-MediaPipelineFailureCodeFamily {
     param([string]$Code)
-
-    $codeText = if ($Code) { ([string]$Code).Trim().ToUpperInvariant() } else { '' }
-    if ($codeText -match '^ENCODE_CPU_') { return 'encode_cpu' }
-    if ($codeText -match '^ENCODE_') { return 'encode' }
-    if ($codeText -match '^REMUX_|^MKVMERGE_') { return 'remux' }
-    if ($codeText -match '^SOURCE_|^MEDIA_|^FILE_') { return 'source_media' }
-    if ($codeText -match '^OUTPUT_') { return 'output' }
-    return 'native_tool'
+    return Get-MediaPipelineCodeFamily -Code $Code
 }
 
 function Get-MediaPipelineCodeStage {
@@ -275,10 +302,11 @@ function Get-MediaPipelineCodeStage {
         '^ENCODE_|^ENCODER_|^HDR_|^HDR10_|^DYNAMIC_HDR_|^DOVI_|^HDR10PLUS_' { return 'encode' }
         '^REMUX_|^MKVMERGE_' { return 'remux' }
         '^SOURCE_MEDIA_AUDIO_|^AUDIO_' { return 'audio' }
+        '^DESTINATION_NAMING_' { return 'destination-naming' }
         '^SOURCE_OVERWRITE_CONFIRM_INVALID$' { return 'publish' }
         '^SOURCE_|^MEDIA_|^FILE_|^SCRATCH_' { return 'source-intake' }
         '^OUTPUT_|^PUBLISH_|^PENDING_|^SIDECAR_' { return 'publish' }
-        '^PROGRESS_|^STOP_|^NATIVE_' { return 'process-lifecycle' }
+        '^PROGRESS_|^STOP_|^NATIVE_|^LOCAL_WORKER_' { return 'process-lifecycle' }
         '^OK$|^ALREADY_PROCESSED$|^INTEGRITY_DISABLED$' { return 'non-failure' }
         default {
             if ($Family) { return ([string]$Family).Replace('_', '-') }
@@ -301,10 +329,14 @@ function Get-MediaPipelineCodeHandledBy {
         '^SUBTITLE_ASS_'   { return 'Subtitles.Ass.ps1' }
         '^SUBTITLE_'       { return 'Subtitles.ps1' }
         '^SOURCE_MEDIA_AUDIO_|^AUDIO_' { return 'Audio.ps1' }
+        '^DESTINATION_NAMING_' { return 'PipelineProcessing.ps1 / RunMonitorState.ps1' }
+        '^OUTPUT_MEDIA_TRACK_' { return 'MediaTrackVerification.ps1 / EncodeVerification.ps1 / RemuxVerification.ps1' }
+        '^OUTPUT_HASH_(?:INVALID|MISSING)$|^SIDECAR_(?:HASH_INVALID|SIZE_INVALID)$' { return 'PendingManifestStore.ps1 / PendingDrainTransaction.ps1' }
         '^SOURCE_OVERWRITE_CONFIRM_INVALID$|^OUTPUT_|^PUBLISH_|^PENDING_|^SIDECAR_' { return 'PublishCompletion.ps1 / PendingPush.ps1' }
         '^SOURCE_|^MEDIA_|^FILE_|^SCRATCH_' { return 'MediaProbe.ps1 / ScratchCopy.ps1 / FailureState.ps1' }
         '^REMUX_|^MKVMERGE_' { return 'PipelineProcessing.ps1 / Native.ps1' }
         '^ENCODE_|^ENCODER_|^HDR_|^HDR10_|^DYNAMIC_HDR_|^DOVI_|^HDR10PLUS_' { return 'PipelineProcessing.ps1 / DynamicHdr.ps1 / FfmpegProgress.ps1' }
+        '^LOCAL_WORKER_' { return 'LocalWorkerSlots.ps1 / LocalWorkerClaimStore.ps1' }
         '^PROGRESS_|^STOP_|^NATIVE_' { return 'PipelineProcessing.ps1 / Native.ps1' }
         '^OK$|^ALREADY_PROCESSED$|^INTEGRITY_DISABLED$' { return 'PipelineProcessing.ps1' }
         default {
@@ -321,10 +353,11 @@ function Get-MediaPipelineCodeRetryable {
     )
 
     $codeText = if ($Code) { ([string]$Code).Trim().ToUpperInvariant() } else { '' }
-    if ($codeText -match '^OK$|^ALREADY_PROCESSED$|^BAD_EXTENSION$|^OPERATOR_REQUIRED$|^PERMANENT_FAILURE$|^TV_PARSE_UNRELIABLE$|^SOURCE_TV_PARSE_FAILED$|^OUTPUT_PATH_UNSUPPORTED$|^FILE_PATH_EMPTY$|^FILE_ZERO_BYTES$|^SOURCE_FILE_PATH_EMPTY$|^SOURCE_FILE_ZERO_BYTES$|QUALITY_BELOW_FLOOR') {
+    if ($codeText -match '^OK$|^ALREADY_PROCESSED$|^SCRATCH_COPY_REUSED$|^BAD_EXTENSION$|^OPERATOR_REQUIRED$|^PERMANENT_FAILURE$|^TV_PARSE_UNRELIABLE$|^SOURCE_TV_PARSE_FAILED$|^OUTPUT_PATH_UNSUPPORTED$|^DESTINATION_NAMING_|^FILE_PATH_EMPTY$|^FILE_ZERO_BYTES$|^SOURCE_FILE_PATH_EMPTY$|^SOURCE_FILE_ZERO_BYTES$|QUALITY_BELOW_FLOOR') {
         return $false
     }
-    if ($codeText -match '^HDR10_OUTPUT_METADATA_MISMATCH$|^OUTPUT_HASH_INVALID$|^OUTPUT_MEDIA_TRACK_PROBE_INVALID$|^OUTPUT_VIDEO_STREAM_TOPOLOGY_MISMATCH$|^SOURCE_OVERWRITE_CONFIRM_INVALID$') {
+    if ($codeText -match '^SCRATCH_(?:SAFE_NAME_UNSAFE|PATH_INVALID|BOUNDARY_HELPER_UNAVAILABLE)$') { return $false }
+    if ($codeText -match '^HDR10_OUTPUT_METADATA_MISMATCH$|^OUTPUT_HASH_(?:INVALID|MISSING)$|^SIDECAR_(?:HASH_INVALID|SIZE_INVALID)$|^OUTPUT_MEDIA_TRACK_PROBE_INVALID$|^OUTPUT_VIDEO_STREAM_TOPOLOGY_MISMATCH$|^SOURCE_OVERWRITE_CONFIRM_INVALID$') {
         return $false
     }
     if ($codeText -match 'TRUNCATED|CONTAINER_INVALID|DECODE_FAILED|STREAM_UNSUPPORTED|AUDIO_MISSING|VIDEO_MISSING|AUDIO_OVERRIDE_STRIPPED|INTEGRITY_FAILED|ACCESS_DENIED') {
@@ -362,6 +395,10 @@ function Get-MediaPipelineCodeWhenFires {
     switch -Regex ($codeText) {
         '^OK$' { return 'The pipeline step completed successfully or reported an accepted non-failure outcome.' }
         '^ALREADY_PROCESSED$' { return 'The source matched existing completed/published evidence and was skipped as already processed.' }
+        '^SCRATCH_COPY_REUSED$' { return 'An exact fingerprint-matched scratch copy passed integrity verification and was safely reused.' }
+        '^DESTINATION_NAMING_EVIDENCE_MISSING$' { return 'A fingerprint-backed Backend Queue job could not prove its immutable accepted production filename before media work.' }
+        '^DESTINATION_NAMING_PLAN_MISMATCH$' { return 'Execution-time destination planning no longer matched the immutable filename accepted by the Backend Queue.' }
+        '^LOCAL_WORKER_' { return 'Local-worker claim, child-process, heartbeat, or result validation could not complete safely.' }
         'STILL_WRITING' { return 'The source appears to be growing or unstable and should be retried after the copy finishes.' }
         'TIMEOUT' { return 'A tool or pipeline step exceeded its configured timeout.' }
         'STOPPED' { return 'The operator or runtime requested that the in-flight process stop.' }
@@ -372,7 +409,7 @@ function Get-MediaPipelineCodeWhenFires {
         'SUBTITLE' { return 'Subtitle probing, extraction, conversion, OCR, validation, or sidecar publish failed.' }
         '^HDR10_OUTPUT_' { return 'Post-encode HDR10 output probing or metadata verification rejected the generated output.' }
         '^OUTPUT_MEDIA_TRACK_|^OUTPUT_VIDEO_STREAM_' { return 'Output stream probing or topology verification rejected the generated output.' }
-        '^OUTPUT_HASH_INVALID$|^SOURCE_OVERWRITE_CONFIRM_INVALID$' { return 'Pending-publish manifest trust validation rejected malformed output-integrity or overwrite-confirmation evidence.' }
+        '^OUTPUT_HASH_(?:INVALID|MISSING)$|^SIDECAR_(?:HASH_INVALID|SIZE_INVALID)$|^SOURCE_OVERWRITE_CONFIRM_INVALID$' { return 'Pending-publish manifest trust validation rejected missing or malformed media, sidecar, or overwrite-confirmation evidence.' }
         'PUBLISH|PENDING|SIDECAR' { return 'Publishing, deferred publish parking, drain, manifest, or sidecar work failed.' }
         'TRUNCATED|CONTAINER_INVALID|DECODE_FAILED|STREAM_UNSUPPORTED|PROBE_FAILED|PROBE_TIMEOUT' { return 'The source media could not be probed, decoded, or validated as healthy media.' }
         'DURATION_MISMATCH|OUTPUT_MISSING|SIZE_GUARD|QUALITY_BELOW_FLOOR|QUALITY_REVIEW' { return 'Post-processing verification rejected the generated output.' }
@@ -395,8 +432,20 @@ function Get-MediaPipelineCodeOperatorAction {
 
     $codeText = if ($Code) { ([string]$Code).Trim().ToUpperInvariant() } else { '' }
     switch -Regex ($codeText) {
-        '^OK$|^ALREADY_PROCESSED$|^INTEGRITY_DISABLED$' {
+        '^OK$|^ALREADY_PROCESSED$|^INTEGRITY_DISABLED$|^SCRATCH_COPY_REUSED$' {
             return 'No repair action is implied by this code; inspect surrounding status before treating it as a failure.'
+        }
+        '^SCRATCH_(?:SAFE_NAME_UNSAFE|PATH_INVALID|BOUNDARY_HELPER_UNAVAILABLE)$' {
+            return 'Do not bypass the scratch boundary. Repair the backend path identity, configuration, or installed boundary helper before starting a new run.'
+        }
+        '^SCRATCH_(?:ROOT_UNAVAILABLE|CONTAINER_CREATE_FAILED|COPY_FAILED|REPLACEMENT_BLOCKED)$' {
+            return 'Inspect the configured scratch root, free space, permissions, and file locks before retrying the source.'
+        }
+        '^DESTINATION_NAMING_' {
+            return 'Refresh Queue and start a new run. Do not rename the source or add a one-off cleanup filter to bypass accepted-name evidence.'
+        }
+        '^LOCAL_WORKER_' {
+            return 'Inspect the local-worker claim, child heartbeat/result evidence, and active-job state before retrying or releasing the source.'
         }
         'LOW_SPACE|SPACE_UNKNOWN|DISK_FULL|INSUFFICIENT_SPACE' {
             return 'Free disk space, verify the destination path, then rerun or drain only after parked artifacts are accounted for.'
@@ -419,7 +468,7 @@ function Get-MediaPipelineCodeOperatorAction {
         '^HDR10_OUTPUT_|^OUTPUT_MEDIA_TRACK_|^OUTPUT_VIDEO_STREAM_' {
             return 'Do not publish the output. Inspect output ffprobe and verification evidence, then regenerate or repair the output before retrying publish.'
         }
-        '^OUTPUT_HASH_INVALID$|^SOURCE_OVERWRITE_CONFIRM_INVALID$' {
+        '^OUTPUT_HASH_(?:INVALID|MISSING)$|^SIDECAR_(?:HASH_INVALID|SIZE_INVALID)$|^SOURCE_OVERWRITE_CONFIRM_INVALID$' {
             return 'Do not drain the pending item. Inspect and correct the manifest trust fields through the owning backend workflow before retrying.'
         }
         'TRUNCATED|CONTAINER_INVALID|DECODE_FAILED|STREAM_UNSUPPORTED|PROBE_FAILED|PROBE_TIMEOUT' {
@@ -447,7 +496,7 @@ function New-MediaPipelineCodeMetadata {
     )
 
     $codeText = ([string]$Code).Trim().ToUpperInvariant()
-    $resolvedFamily = if ($Family) { $Family } else { Get-MediaPipelineOutcomeCodeFamily -Code $codeText }
+    $resolvedFamily = if ($Family) { $Family } else { Get-MediaPipelineCodeFamily -Code $codeText }
     $retryable = Get-MediaPipelineCodeRetryable -Code $codeText -Family $resolvedFamily
     [pscustomobject]@{
         Code             = $codeText
@@ -463,13 +512,13 @@ function New-MediaPipelineCodeMetadata {
 
 function Get-MediaPipelineFailureCodeRegistry {
     foreach ($code in @(Get-MediaPipelineKnownFailureCodes)) {
-        New-MediaPipelineCodeMetadata -Code $code -Family (Get-MediaPipelineFailureCodeFamily -Code $code)
+        New-MediaPipelineCodeMetadata -Code $code
     }
 }
 
 function Get-MediaPipelineOutcomeCodeRegistry {
     foreach ($code in @(Get-MediaPipelineKnownOutcomeCodes)) {
-        New-MediaPipelineCodeMetadata -Code $code -Family (Get-MediaPipelineOutcomeCodeFamily -Code $code)
+        New-MediaPipelineCodeMetadata -Code $code
     }
 }
 
@@ -477,14 +526,14 @@ function Get-MediaPipelineFailureCodeMetadata {
     param([string]$Code)
     if (-not (Test-MediaPipelineKnownFailureCode -Code $Code)) { return $null }
     $codeText = ([string]$Code).Trim().ToUpperInvariant()
-    return New-MediaPipelineCodeMetadata -Code $codeText -Family (Get-MediaPipelineFailureCodeFamily -Code $codeText)
+    return New-MediaPipelineCodeMetadata -Code $codeText
 }
 
 function Get-MediaPipelineOutcomeCodeMetadata {
     param([string]$Code)
     if (-not (Test-MediaPipelineKnownOutcomeCode -Code $Code)) { return $null }
     $codeText = ([string]$Code).Trim().ToUpperInvariant()
-    return New-MediaPipelineCodeMetadata -Code $codeText -Family (Get-MediaPipelineOutcomeCodeFamily -Code $codeText)
+    return New-MediaPipelineCodeMetadata -Code $codeText
 }
 
 function Test-MediaPipelineKnownFailureCode {

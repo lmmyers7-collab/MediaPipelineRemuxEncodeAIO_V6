@@ -10,6 +10,7 @@ from mediapipeline.core.network.url_policy import redact_network_secret_text
 
 from .coordinator_parts.http_server import _CoordHandler, _CoordServer
 from .protocol import WorkerEntry
+from .rerun_claims import NETWORK_RERUN_ROW_JOB_KIND, update_network_rerun_row_released
 
 _log = logging.getLogger("mediapipeline.desktop.network.coordinator")
 
@@ -114,7 +115,34 @@ class CoordinatorLifecycleMixin:
             try:
                 timeout = self._heartbeat_timeout_mins()
                 stale   = self._registry.reclaim_stale(timeout)
+                quarantine_by_job = {
+                    str(entry.get("job_id") or ""): entry
+                    for entry in self._registry.reclaimed_source_quarantine_snapshot()
+                }
                 for job in stale:
+                    if str(getattr(job, "job_kind", "") or "") == NETWORK_RERUN_ROW_JOB_KIND:
+                        try:
+                            released = update_network_rerun_row_released(
+                                app=self._app,
+                                job=job,
+                                worker_id=job.worker_id,
+                                reason="stale heartbeat reclaim",
+                                retry_at_utc=str(
+                                    quarantine_by_job.get(job.job_id, {}).get("expires_at") or ""
+                                ),
+                            )
+                        except Exception as exc:
+                            released = False
+                            _log.exception(
+                                "Failed to release stale Network CSV rerun row for job %s: %s",
+                                job.job_id[:8],
+                                redact_network_secret_text(exc),
+                            )
+                        if not released:
+                            _log.error(
+                                "Reclaimed stale Network CSV rerun job %s but could not release its durable batch row.",
+                                job.job_id[:8],
+                            )
                     _log.warning(
                         "Reclaimed stale job %s from worker '%s' (%s) — "
                         "file will be available for reclaim.",

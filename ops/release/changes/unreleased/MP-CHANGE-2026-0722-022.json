@@ -1,0 +1,64 @@
+{
+  "id": "MP-CHANGE-2026-0722-022",
+  "title": "Preserve watch fired-registry TTL under LRU access",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-07-22",
+  "date_completed": "2026-07-22",
+  "summary": "Expire every fired-registry entry whose fixed TTL has elapsed, independent of the LRU access order used for the bounded registry cap.",
+  "reason": "Remediate P3 AUDIT-FIND-W01-027. Accessing an older fired entry moved it behind newer entries, where first-unexpired short-circuiting could suppress it indefinitely past the configured TTL.",
+  "affected_areas": [
+    "watch-folder duplicate suppression",
+    "watch fired-registry TTL",
+    "generated_context"
+  ],
+  "behavior_before": "Expiration stopped at the first unexpired OrderedDict entry even though has_fired reordered entries for LRU without changing their original fixed-TTL timestamps.",
+  "behavior_after": "Expiration scans the bounded registry and removes every entry older than the fixed TTL. LRU access still controls max-entry eviction but no longer changes or obstructs time-based re-fire eligibility.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/feature-cards/generated-context.md",
+    "docs/generated/feature-cards/local-api.md",
+    "docs/generated/feature-cards/network-mode.md",
+    "docs/generated/feature-cards/queue-launch.md",
+    "docs/generated/feature-cards/release-validation.md",
+    "docs/generated/feature-cards/webview.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0722-022.json.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/watch/scanner.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_watch_folder_scanner.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0722-022.json",
+    "src/mediapipeline/desktop/watch/scanner.py",
+    "tests/python/desktop/test_watch_folder_scanner.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_watch_folder_scanner.py: reordered older entry expires while a newer entry remains suppressed.",
+    "tests/python/desktop/test_watch_folder_scanner.py: sustained newer-entry churn cannot extend a stale entry's TTL.",
+    "tests/python/desktop/test_watch_folder_scanner.py: exact TTL boundary remains inclusive and re-fire begins only after it.",
+    "tests/python/desktop/test_watch_folder_scanner.py: zero TTL never suppresses repeated detections.",
+    "tests/python/desktop/test_watch_folder_scanner.py: max-entry eviction remains LRU ordered."
+  ],
+  "manual_validation": [
+    "Pre-fix focused reproduction - expected red: 2 tests failed because reordered and churn-obscured entries remained suppressed after TTL; boundary, zero-TTL, and max-entry controls passed.",
+    "Post-fix FiredRegistry set - passed: 6 tests.",
+    "Complete watch scanner module - passed: 11 tests.",
+    "Affected scanner, manager, routes, and schedule-stop modules - passed: 40 tests and 6 subtests.",
+    "Focused Ruff and bundled Python py_compile for changed source/tests - passed.",
+    "Direct mypy for scanner.py remains blocked by 2 pre-existing normalize_extensions iterable/type-ignore errors outside FiredRegistry.",
+    "Full desktop discovery - 3,030 tests: 3,020 passed, 9 failed, 1 skipped, with 6,850 subtests passed. Every non-pass matches the unchanged pre-existing baseline categories: AUDIT-FIND-W02-004, AUDIT-FIND-W11-030, AUDIT-FIND-W15-001, AUDIT-FIND-W09-013, and unrelated topbar event-ticker assertions.",
+    "Targeted refresh_summaries wrote 3 summaries; generate_project_index regenerated 2,472 typed records and the dependency graph; feature-file map and 15 feature cards regenerated. An interrupted combined wrapper was rerun as independent bounded generator commands before checks.",
+    "Summary integrity, risky-file registry, lifecycle-map, feature-card, and AI-guardrail unit set - passed: 35 tests and 72 subtests.",
+    "Project-index/dependency and feature-map/card generator checks passed; risky-file registry and architecture guardrails passed.",
+    "God-file guard passed across the 3 touched source/test/packet paths.",
+    "validate_changes --require-worktree-coverage - passed with 1,137 valid packets before completion."
+  ],
+  "rollback_plan": "Revert the all-entry TTL expiration scan, deterministic registry tests, generated context, and packet metadata together; retain this packet as incomplete evidence if rollback occurs.",
+  "related_changes": [
+    "AUDIT-FIND-W01-027",
+    "CSW-2026-07-09-SCHEDULE-001"
+  ],
+  "notes": "Backend watch deduplication only. No source mutation, media policy, publish flow, or filesystem/media fixture is involved; representative media is not required. Fixed TTL semantics are preserved rather than converted to sliding TTL."
+}

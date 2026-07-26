@@ -1,0 +1,71 @@
+{
+  "id": "MP-CHANGE-2026-0720-012",
+  "title": "High usage MCP retrieval",
+  "version_target": "2026.07.20.004",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "low",
+  "date_started": "2026-07-20",
+  "date_completed": "2026-07-20",
+  "summary": "Improve the local read-only code-context MCP with measured retrieval quality, atomic index freshness, revision-aware caches, privacy-safe aggregate metrics, and a budgeted multi-file read tool.",
+  "reason": "High-volume chatbot sessions need fresher catalog results, fewer read round trips, measurable retrieval quality, and cache behavior that remains correct as the generated index changes.",
+  "affected_areas": [
+    "docs",
+    "generated_context",
+    "tests",
+    "tooling"
+  ],
+  "behavior_before": "The MCP loads its catalog once per process, caches only exact context prompts, exposes four single-query/read tools, and has no aggregate quality benchmark or operational counters.",
+  "behavior_after": "The MCP atomically reloads valid catalog revisions, uses normalized revision-aware caches, exposes a token-bounded code_bundle tool, emits content-free aggregate metrics, and has a versioned retrieval-quality benchmark.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/FILE_SUMMARIES.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/feature-cards/generated-context.md",
+    "docs/generated/summaries/docs/generated/FILE_SUMMARIES.md.md",
+    "docs/generated/summaries/docs/inventories/PACKAGING_DEPENDENCY_INVENTORY.md.md",
+    "docs/generated/summaries/docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/code_context_benchmark.py.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/code_context_mcp.py.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/code_context_service.py.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/context_records.py.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/context_slice.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_code_context_benchmark.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_code_context_mcp.py.md",
+    "docs/inventories/PACKAGING_DEPENDENCY_INVENTORY.md",
+    "docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0720-012.json",
+    "src/mediapipeline/tools/dev/code_context_benchmark.py",
+    "src/mediapipeline/tools/dev/code_context_mcp.py",
+    "src/mediapipeline/tools/dev/code_context_service.py",
+    "src/mediapipeline/tools/dev/context_records.py",
+    "src/mediapipeline/tools/dev/context_slice.py",
+    "tests/fixtures/code_context_retrieval_cases.v1.json",
+    "tests/python/tooling/test_code_context_benchmark.py",
+    "tests/python/tooling/test_code_context_mcp.py"
+  ],
+  "tests_added": [
+    "tests/python/tooling/test_code_context_benchmark.py",
+    "tests/python/tooling/test_code_context_mcp.py"
+  ],
+  "manual_validation": [
+    "PASS: 56 focused context/MCP/benchmark unit tests (2 skipped for unavailable symlink/system-MCP capabilities)",
+    "PASS: Ruff on all touched Python source and tests",
+    "PASS: mypy on five touched MCP/retrieval source modules",
+    "PASS: official MCP stdio initialize/list/call integration exposed five compact read-only tools",
+    "PASS: retrieval benchmark: Recall@5 100%, Recall@10 100%, high-risk test/boundary coverage 100%, irrelevant top-10 14.65%",
+    "PASS: performance benchmark: warm repo_context p95 7.413 ms, live code_search p95 144.283 ms, reload 52.389 ms",
+    "PASS: project-index and feature-file-map generated checks",
+    "PASS: context_slice generated-index check before later unrelated concurrent file changes",
+    "PARTIAL: AI guardrail postflight reached MCP-independent failures from unrelated concurrent worktree changes"
+  ],
+  "rollback_plan": "Revert only the files listed in this packet, regenerate their summaries through the repository tool, and retain the existing four-tool MCP registration. Do not alter unrelated change packet 011 or production media behavior.",
+  "related_changes": [
+    "MP-CHANGE-2026-0720-002",
+    "MP-CHANGE-2026-0720-010",
+    "MP-CHANGE-2026-0720-014"
+  ],
+  "notes": "Release 1 only. Cursor pagination and SQLite FTS5 remain evidence-gated follow-ons; the benchmark did not trigger either gate because aggregate truncation remained below 10% and deterministic Recall@5 reached 100%. This is read-only developer tooling; no real-media validation is required. Pre-existing and concurrent unrelated packets are excluded from this packet.\nAdd atomic index reload, revision-aware caches, aggregate metrics, and budgeted bundle reads.\nExpose code_bundle through the read-only MCP adapter.\nAdd retrieval quality and performance benchmark command.\nAdd the versioned 48-case retrieval fixture.\nCover reload, caches, bundle behavior, privacy, and five-tool MCP integration.\nCover fixture integrity and benchmark acceptance gates.\nCache normalized retrieval terms for high-volume ranking.\nAdd high-volume ranking profile caches and stop redundant post-budget serialization; overlaps completed packet 014.\nDocument atomic reload, code_bundle, opt-in evidence search, and benchmark command.\nInventory MCP and benchmark coverage.\nRecord benchmark validation for the isolated MCP dependency.\nRegenerate navigation evidence for MCP retrieval changes.\nRegenerate feature navigation for MCP retrieval changes.\nThe final worktree-wide postflight was not clean because unrelated concurrent changes left stale summaries, an orphan packet summary, an active-doc violation, a package dependency cycle, and a source hash changing after catalog generation."
+}

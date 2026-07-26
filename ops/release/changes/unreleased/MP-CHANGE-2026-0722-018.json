@@ -1,0 +1,65 @@
+{
+  "id": "MP-CHANGE-2026-0722-018",
+  "title": "Order Network rerun claim rollback safely",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-22",
+  "date_completed": "2026-07-22",
+  "summary": "Persist a Network CSV rerun row rollback before releasing its exact in-flight registry owner, and fail closed when either rollback side cannot reach the intended state.",
+  "reason": "Remediate P1 AUDIT-FIND-W01-023. The previous registry-first rollback could free the duplicate-command guard and then fail to roll back the durable batch row, leaving a claimed row stranded without registry ownership.",
+  "affected_areas": [
+    "Network CSV rerun claim lifecycle",
+    "coordinator response delivery",
+    "distributed registry persistence",
+    "generated_context"
+  ],
+  "behavior_before": "Network rerun claim rollback removed the in-memory registry entry first. A missing/corrupt batch, batch read error, or atomic batch write failure then left the durable row claimed while registry ownership was absent, permitting conflicting reclaim behavior after persistence or restart.",
+  "behavior_after": "Rollback verifies the exact durable row claim, atomically persists that row as pending/claimable, and only then releases the exact registry owner. Batch failures retain the active registry claim; a rejected registry release is surfaced while the retained claim continues to quarantine duplicate work.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/feature-cards/generated-context.md",
+    "docs/generated/feature-cards/local-api.md",
+    "docs/generated/feature-cards/network-mode.md",
+    "docs/generated/feature-cards/queue-launch.md",
+    "docs/generated/feature-cards/release-validation.md",
+    "docs/generated/feature-cards/webview.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0722-018.json.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/rerun_claims.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_network_rerun_claims.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0722-018.json",
+    "src/mediapipeline/desktop/network/rerun_claims.py",
+    "tests/python/desktop/test_network_rerun_claims.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_network_rerun_claims.py: injected batch read and write failures preserve exact registry ownership across persisted-state reload, and a clean retry converges the row and registry.",
+    "tests/python/desktop/test_network_rerun_claims.py: response delivery plus batch rollback-write failure preserves the durable claimed row and persisted registry owner across restart.",
+    "tests/python/desktop/test_network_rerun_claims.py: rejected registry release after durable row rollback retains the duplicate-blocking registry quarantine and raises an explicit failure."
+  ],
+  "manual_validation": [
+    "Pre-fix focused reproduction - expected red: injected batch read and write failures both showed registry ownership was removed before durable row rollback.",
+    "Post-fix focused rollback set - passed: 3 tests.",
+    "Affected rerun and coordinator workflow modules - passed: 104 tests.",
+    "All test_network*.py desktop modules - passed: 457 tests after one isolated timing-sensitive lock test passed and the broad set was rerun successfully.",
+    "Focused Ruff and bundled Python py_compile for changed source/tests - passed.",
+    "Mypy for composed registry.py and rerun_claims.py - passed with no issues.",
+    "Full desktop discovery - 3,000 tests: 2,990 passed, 6 failed, 3 errored, 1 skipped. Every non-pass matches the unchanged pre-existing baseline: AUDIT-FIND-W02-004, AUDIT-FIND-W11-030, AUDIT-FIND-W15-001, AUDIT-FIND-W09-013, and unrelated topbar event-ticker assertions.",
+    "Targeted refresh_summaries wrote 3 summaries; generate_project_index regenerated 2,468 typed records and the dependency graph; feature-file map and 15 feature cards regenerated.",
+    "Summary integrity, risky-file registry, lifecycle-map, feature-card, and AI-guardrail unit set - passed: 35 tests.",
+    "Project-index/dependency and feature-map/card generator --check modes passed; risky-file registry and architecture guardrails passed.",
+    "God-file guard completed with 0 errors and 3 warning-only findings across the 2 touched source/test paths; the reported HEAD growth includes earlier independently packeted batches.",
+    "validate_changes --require-worktree-coverage - passed with 1,133 valid packets before completion.",
+    "Final post-completion packet summary/index refresh and validate_changes --require-worktree-coverage - passed with 1,133 valid packets."
+  ],
+  "rollback_plan": "Revert the batch-first rollback ordering, failure-state tests, generated context, and packet metadata together; retain this packet as incomplete evidence if rollback occurs.",
+  "related_changes": [
+    "AUDIT-FIND-W01-021",
+    "AUDIT-FIND-W01-023",
+    "MP-CHANGE-2026-0722-016"
+  ],
+  "notes": "High-risk distributed state transition. No source media, media policy, WebView behavior, or public protocol changed. Representative media validation is not required because the fix is confined to synthetic registry/batch persistence and response-delivery failure paths.\nAUDIT-FIND-W01-023 remediated by durable batch-first rollback plus fail-closed registry quarantine."
+}

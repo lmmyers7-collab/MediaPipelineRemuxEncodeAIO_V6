@@ -19,17 +19,29 @@
     "partials/page-diagnostics.html",
     "partials/page-libraries.html",
     "partials/page-settings.html",
+    "partials/page-settings-guided-setup.html",
+    "partials/page-settings-presets.html",
+    "partials/page-settings-status.html",
+    "partials/page-settings-routing-size.html",
+    "partials/page-settings-media-output-video.html",
+    "partials/page-settings-paths-safety.html",
+    "partials/page-settings-publish-recovery.html",
+    "partials/page-settings-media-output-subtitles.html",
+    "partials/page-settings-media-output-audio.html",
+    "partials/page-settings-naming.html",
+    "partials/page-settings-queue-runtime.html",
+    "partials/page-settings-advanced-evidence.html",
     "partials/shared-settings-save-review-dialog.html",
     "partials/app-shell-end.html"
   ],
   "report_note": "Pre-split report only. IDs are collected from index.html with mp-include partials expanded. Missing IDs can be legitimate when markup is generated at runtime, but every future split should keep this report stable or deliberately update it.",
   "counts": {
-    "html_ids": 2070,
-    "js_touched_ids": 655,
-    "ids_present_in_index": 615,
-    "ids_missing_from_index": 40,
+    "html_ids": 2150,
+    "js_touched_ids": 683,
+    "ids_present_in_index": 642,
+    "ids_missing_from_index": 41,
     "likely_dynamic_missing_ids": 0,
-    "review_missing_ids": 40
+    "review_missing_ids": 41
   },
   "ids_present_in_index": [
     "active-job-detail-rows",
@@ -86,6 +98,7 @@
     "cross-page-conflict-rows",
     "cross-page-real-media-rows",
     "cross-page-sample-rows",
+    "current-work-heading",
     "customize-layout-btn",
     "daily-driver-rows",
     "dependency-atlas-button",
@@ -108,6 +121,8 @@
     "diagnostics-owner-handoff-rows",
     "diagnostics-pipeline-log-status",
     "diagnostics-progress-rows",
+    "diagnostics-recovery-preview-button",
+    "diagnostics-recovery-reconcile-button",
     "diagnostics-state-summary-actions",
     "diagnostics-state-summary-rows",
     "diagnostics-state-triage-actions",
@@ -358,6 +373,8 @@
     "pipeline-event-rows",
     "pipeline-launch-status",
     "pipeline-log-window-button",
+    "pipeline-priority-export-id",
+    "pipeline-priority-export-status",
     "pipeline-single-file-browse-button",
     "pipeline-single-file-browse-status",
     "pipeline-single-file-clear-button",
@@ -505,6 +522,29 @@
     "rerun-start-target-mode",
     "rerun-start-window-size",
     "reset-layout-btn",
+    "run-monitor-announcer",
+    "run-monitor-audio-body",
+    "run-monitor-detail",
+    "run-monitor-file-outcome",
+    "run-monitor-freshness",
+    "run-monitor-items",
+    "run-monitor-items-toggle",
+    "run-monitor-last-known",
+    "run-monitor-last-known-body",
+    "run-monitor-output",
+    "run-monitor-output-evidence",
+    "run-monitor-recovery",
+    "run-monitor-refresh",
+    "run-monitor-route-summary",
+    "run-monitor-routes",
+    "run-monitor-sidecars",
+    "run-monitor-stage-list",
+    "run-monitor-stage-summary",
+    "run-monitor-stop-after-current",
+    "run-monitor-subtitle-body",
+    "run-monitor-summary",
+    "run-monitor-terminal-links",
+    "run-monitor-workers",
     "sample-validation-acceptance-gate-rows",
     "sample-validation-append-button",
     "sample-validation-category",
@@ -645,8 +685,7 @@
     "tdarr-matrix-compare-right",
     "tdarr-matrix-delete-confirm",
     "tdarr-matrix-proof-pack-rows",
-    "tdarr-matrix-run-compare-rows",
-    "topbar-event-ticker"
+    "tdarr-matrix-run-compare-rows"
   ],
   "ids_missing_from_index": [
     "completed-review-rows",
@@ -688,7 +727,8 @@
     "settings-rename-preview-input",
     "settings-rename-preview-output",
     "settings-rename-preview-status",
-    "theme-toggle"
+    "theme-toggle",
+    "topbar-event-ticker"
   ],
   "likely_dynamic_missing_ids": [],
   "review_missing_ids": [
@@ -731,7 +771,8 @@
     "settings-rename-preview-input",
     "settings-rename-preview-output",
     "settings-rename-preview-status",
-    "theme-toggle"
+    "theme-toggle",
+    "topbar-event-ticker"
   ],
   "scripts": [
     {
@@ -895,6 +936,64 @@
       "src": "/assets/progressView.js?v=20260630-csv-home-queue-fastpath",
       "path": "apps/desktop/webview/static/assets/progressView.js",
       "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/runMonitor/formatters.js",
+      "path": "apps/desktop/webview/static/assets/runMonitor/formatters.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/runMonitor/normalization.js",
+      "path": "apps/desktop/webview/static/assets/runMonitor/normalization.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/runMonitor/rendering.js",
+      "path": "apps/desktop/webview/static/assets/runMonitor/rendering.js",
+      "dom_ids_touched": [
+        "run-monitor-audio-body",
+        "run-monitor-file-outcome",
+        "run-monitor-route-summary",
+        "run-monitor-routes",
+        "run-monitor-stage-list",
+        "run-monitor-stage-summary",
+        "run-monitor-subtitle-body"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/runMonitor/interaction.js",
+      "path": "apps/desktop/webview/static/assets/runMonitor/interaction.js",
+      "dom_ids_touched": [
+        "run-monitor-detail",
+        "run-monitor-items"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/runMonitorView.js",
+      "path": "apps/desktop/webview/static/assets/runMonitorView.js",
+      "dom_ids_touched": [
+        "current-work-heading",
+        "run-monitor-announcer",
+        "run-monitor-freshness",
+        "run-monitor-items",
+        "run-monitor-items-toggle",
+        "run-monitor-last-known",
+        "run-monitor-last-known-body",
+        "run-monitor-output",
+        "run-monitor-output-evidence",
+        "run-monitor-recovery",
+        "run-monitor-refresh",
+        "run-monitor-sidecars",
+        "run-monitor-stop-after-current",
+        "run-monitor-summary",
+        "run-monitor-terminal-links",
+        "run-monitor-workers"
+      ],
       "missing_from_index": []
     },
     {
@@ -2771,6 +2870,7 @@
       "src": "/assets/reports/audit/sources.js",
       "path": "apps/desktop/webview/static/assets/reports/audit/sources.js",
       "dom_ids_touched": [
+        "report-audit-add-source-button",
         "report-audit-clear-source-selection-button",
         "report-audit-scan-all-button",
         "report-audit-scan-selected-button",
@@ -2947,6 +3047,8 @@
       "src": "/assets/recoverySupportView.js",
       "path": "apps/desktop/webview/static/assets/recoverySupportView.js",
       "dom_ids_touched": [
+        "diagnostics-recovery-preview-button",
+        "diagnostics-recovery-reconcile-button",
         "home-recovery-banner",
         "maintenance-support-create",
         "maintenance-support-include-logs",
@@ -3134,6 +3236,7 @@
       "src": "/assets/launch/startRequest.js",
       "path": "apps/desktop/webview/static/assets/launch/startRequest.js",
       "dom_ids_touched": [
+        "pipeline-priority-export-id",
         "pipeline-start-mode",
         "pipeline-start-schedule-override",
         "pipeline-start-show-config",
@@ -3167,6 +3270,8 @@
       "src": "/assets/launch/scopeControls.js",
       "path": "apps/desktop/webview/static/assets/launch/scopeControls.js",
       "dom_ids_touched": [
+        "pipeline-priority-export-id",
+        "pipeline-priority-export-status",
         "pipeline-single-file-browse-status",
         "pipeline-start-button",
         "pipeline-start-mode",
@@ -3192,6 +3297,7 @@
         "launch-encoder-capability-refresh-button",
         "pending-drain-button",
         "pipeline-compact-gate-status",
+        "pipeline-priority-export-id",
         "pipeline-single-file-browse-button",
         "pipeline-single-file-clear-button",
         "pipeline-start-button",
@@ -3266,7 +3372,9 @@
         "activity",
         "topbar-event-ticker"
       ],
-      "missing_from_index": []
+      "missing_from_index": [
+        "topbar-event-ticker"
+      ]
     },
     {
       "src": "/assets/app/lifecycle/navigation.js",
@@ -3330,7 +3438,9 @@
         "refresh-health",
         "topbar-event-ticker"
       ],
-      "missing_from_index": []
+      "missing_from_index": [
+        "topbar-event-ticker"
+      ]
     },
     {
       "src": "/assets/app/home/dailyDriver.js",
@@ -3452,20 +3562,15 @@
         "completed-status-filter",
         "dependency-atlas-button",
         "dependency-atlas-open-folder-button",
-        "failure-filter",
         "failure-source-markers",
         "final-library-pause-button",
         "final-library-promote-button",
         "final-library-resume-button",
         "home-refresh-button",
         "maintenance-refresh-button",
-        "pending-clear-filters-button",
         "pending-drain-button",
-        "pending-filter",
-        "pending-investigation-filter",
         "pending-recovery-plan-all-button",
         "pending-recovery-plan-selected-button",
-        "pending-status-filter",
         "pipeline-start-button",
         "publish-reconciliation-refresh-button",
         "queue-clear-filters-button",

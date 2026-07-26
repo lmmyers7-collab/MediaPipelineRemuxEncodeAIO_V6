@@ -1,0 +1,129 @@
+        <!-- TAB: AUDIO -->
+        <div class="settings-tab-pane" data-settings-tab="media-output">
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Audio <span class="impact-chip" data-impact="medium" title="Audio — channel layout, codec selection, normalization, and passthrough policy">Medium Impact</span></h2>
+            <strong id="settings-audio-builder-status">No audio changes built</strong>
+          </div>
+          <div class="form-grid launch-form-grid">
+            <label>
+              Passthrough profile
+              <select id="settings-audio-passthrough-profile">
+                <option value="plex_balanced">Plex balanced</option>
+                <option value="compatibility">Compatibility</option>
+                <option value="lossless_passthrough">Lossless passthrough</option>
+                <option value="custom_codec_list">Custom codec list</option>
+              </select>
+            </label>
+            <label>
+              Custom passthrough codecs
+              <input id="settings-audio-compatible-codecs" type="text" autocomplete="off" placeholder="aac, ac3, eac3">
+            </label>
+            <label>
+              Primary default language
+              <select id="settings-audio-preferred-languages">
+                <option value="eng">English (eng)</option>
+                <option value="zho">Chinese / Mandarin (zho)</option>
+                <option value="hin">Hindi (hin)</option>
+                <option value="spa">Spanish (spa)</option>
+                <option value="ara">Arabic (ara)</option>
+                <option value="fra">French (fra)</option>
+                <option value="ben">Bengali (ben)</option>
+                <option value="por">Portuguese (por)</option>
+                <option value="ind">Indonesian (ind)</option>
+                <option value="urd">Urdu (urd)</option>
+                <option value="rus">Russian (rus)</option>
+                <option value="deu">German (deu)</option>
+                <option value="jpn">Japanese (jpn)</option>
+                <option value="pcm">Nigerian Pidgin (pcm)</option>
+                <option value="mar">Marathi (mar)</option>
+                <option value="vie">Vietnamese (vie)</option>
+                <option value="tel">Telugu (tel)</option>
+                <option value="swa">Swahili (swa)</option>
+                <option value="hau">Hausa (hau)</option>
+                <option value="tur">Turkish (tur)</option>
+              </select>
+            </label>
+            <label>
+              Transcode codec
+              <select id="settings-audio-transcode-codec">
+                <option value="eac3">EAC3</option>
+                <option value="ac3">AC3</option>
+                <option value="aac">AAC</option>
+              </select>
+            </label>
+            <label>
+              Transcode bitrate
+              <select id="settings-audio-transcode-bitrate">
+                <option value="384k">384k</option>
+                <option value="448k">448k</option>
+                <option value="640k">640k</option>
+                <option value="768k">768k</option>
+              </select>
+            </label>
+            <label class="check-row launch-check-row">
+              <input id="settings-audio-auto-bitrate" type="checkbox"> Auto bitrate by channels
+            </label>
+            <label>
+              Downmix mode
+              <select id="settings-audio-downmix-mode">
+                <option value="max_channels">Cap to max channels</option>
+                <option value="preserve">Preserve source channels</option>
+                <option value="stereo">Force stereo</option>
+              </select>
+            </label>
+            <label>
+              Max channels
+              <select id="settings-audio-max-channels">
+                <option value="2">2.0 stereo</option>
+                <option value="6">5.1</option>
+                <option value="8">7.1</option>
+              </select>
+            </label>
+            <label class="check-row launch-check-row">
+              <input id="settings-audio-allow-no-audio" type="checkbox"> Allow no-audio outputs
+            </label>
+          </div>
+          <div class="action-row action-row-left">
+            <span class="action-hint-wrapper">
+              <button type="button" id="settings-audio-apply-button" class="secondary-button" aria-label="Update Audio Changes. Prepares audio builder values for Save Settings; backend validation still runs on Save.">Update Audio Changes</button>
+              <span class="action-hover-hint" role="tooltip">
+                <strong>What this does</strong>
+                <span>Prepares the values in this Audio builder for Save Settings. It does not save settings or choose streams by itself; Save Settings still runs backend validation, and the backend owns passthrough, transcode, downmix, and default-track decisions.</span>
+              </span>
+            </span>
+            <button type="button" id="settings-audio-reset-button" class="secondary-button">Reset From Current</button>
+          </div>
+          <pre id="settings-audio-guidance" class="prose-block">No audio guidance loaded.</pre>
+          <p class="note">Audio keys are prepared for Save Settings. Leave no-audio output disabled for normal Plex libraries.</p>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Audio & Subtitle Check</h2>
+            <strong id="settings-media-policy-status">Not evaluated</strong>
+          </div>
+          <pre id="settings-media-policy-summary" class="prose-block">No audio/subtitle policy cross-check loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Area</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Operator Check</th>
+                </tr>
+              </thead>
+              <tbody id="settings-media-policy-rows">
+                <tr><td colspan="4">No audio/subtitle policy rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Policy not evaluated</span>
+            <span class="empty-state-hint">Refresh to load the audio/subtitle policy cross-check.</span>
+          </div>
+          </div>
+          <p id="settings-media-policy-legend" class="note table-legend">Audio/subtitle policy rows are read-only and have no selectable actions.</p>
+          <p class="note">This cross-check is read-only and does not change FFmpeg, subtitle, audio, remux, encode, or publish policy. Save Settings remains backend-owned.</p>
+        </section>
+        </div>
+

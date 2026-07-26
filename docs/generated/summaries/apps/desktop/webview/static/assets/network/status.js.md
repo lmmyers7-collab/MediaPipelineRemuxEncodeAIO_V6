@@ -1,5 +1,8 @@
 ---
 file: apps/desktop/webview/static/assets/network/status.js
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: JavaScript
 pipeline_stage: network
 token_priority: medium
 owner_domain: webview
@@ -9,6 +12,9 @@ sha256: 7a34ff6fba91e17c707e88554853fd286edda8911283d7fd40e66c8ac2b807ee
 ---
 # `apps/desktop/webview/static/assets/network/status.js`
 
-**Purpose:** (unparsed)
+**Purpose:** JavaScript implementation for status; exposes createNetworkStatusModule, networkAttentionItems, networkTopologyNodes.
+
+**Public symbols:** `createNetworkStatusModule`, `networkAttentionItems`, `networkTopologyNodes`, `networkWorkerDriftFieldText`, `networkWorkerDriftPayload`, `networkWorkerDriftStatusText`, `networkWorkerDriftSummaryLines`, `networkWorkerPolicyDivergenceActive`, `networkWorkerPolicyDivergencePayload`, `networkWorkerPolicyDivergenceStatusText`, `networkWorkerPolicyDivergenceSummaryLines`, `networkWorkerPolicyDivergenceText`, `renderNetworkActionReadinessGates`, `renderNetworkAttentionStack`, `renderNetworkStatusBanner`, `renderNetworkTopologyStrip`, `setNetworkGate`
+**In-repo imports:** `window.__networkStatusModule`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/network/status.js`._

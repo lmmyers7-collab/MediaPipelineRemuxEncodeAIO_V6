@@ -15,6 +15,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.models import ResolvedPaths
 from mediapipeline.core.processes.active_jobs import (
+    ACTIVE_JOB_BLOCKING_STATUSES,
     active_job_pid_is_alive,
     active_job_pid_matches_record,
     cleanup_stale_validate_active_jobs,
@@ -65,20 +66,24 @@ class ProcessActiveJobHelperTests(unittest.TestCase):
             resolved = self._resolved(root)
             proc = FakeProc(pid=1234)
 
-            record_path = write_active_job_launch_record(
-                proc,
-                resolved=resolved,
-                job_kind="pipeline",
-                mode="once",
-                command_line="pwsh -File pipeline.ps1",
-                args=["pwsh", "-File", "pipeline.ps1"],
-                launch_cwd=root,
-                show_console=False,
-                metadata={"source": "test"},
-                stdout_log=stdout,
-                stderr_log=stderr,
-                app_pid=999,
-            )
+            with patch(
+                "mediapipeline.core.processes.active_jobs._capture_process_create_time",
+                return_value=1778083200.125,
+            ):
+                record_path = write_active_job_launch_record(
+                    proc,
+                    resolved=resolved,
+                    job_kind="pipeline",
+                    mode="once",
+                    command_line="pwsh -File pipeline.ps1",
+                    args=["pwsh", "-File", "pipeline.ps1"],
+                    launch_cwd=root,
+                    show_console=False,
+                    metadata={"source": "test"},
+                    stdout_log=stdout,
+                    stderr_log=stderr,
+                    app_pid=999,
+                )
 
             self.assertIsNotNone(record_path)
             self.assertEqual(Path(proc._mediapipeline_active_job_record), record_path)
@@ -88,6 +93,7 @@ class ProcessActiveJobHelperTests(unittest.TestCase):
             self.assertEqual(payload["mode"], "once")
             self.assertEqual(payload["status"], "launching")
             self.assertEqual(payload["pid"], 1234)
+            self.assertEqual(payload["process_create_time"], 1778083200.125)
             self.assertEqual(payload["app_pid"], 999)
             self.assertEqual(payload["stdout_log"], str(stdout))
             self.assertEqual(payload["stderr_log"], str(stderr))
@@ -137,6 +143,43 @@ class ProcessActiveJobHelperTests(unittest.TestCase):
             self.assertEqual(payload["status"], "completed")
             self.assertEqual(payload["return_code"], 0)
             self.assertTrue(payload["completed_at"])
+
+    def test_cleanup_terminal_statuses_are_monotonic_against_heartbeat_and_exit_races(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            proc = FakeProc(pid=2223, returncode=None)
+            resolved = self._resolved(root)
+            record_path = write_active_job_launch_record(
+                proc,
+                resolved=resolved,
+                job_kind="rerun_csv",
+                mode="rerun_csv",
+                command_line="pwsh rerun.ps1",
+                args=["pwsh", "rerun.ps1"],
+                launch_cwd=root,
+                show_console=False,
+                metadata={},
+                stdout_log=None,
+                stderr_log=None,
+                app_pid=999,
+            )
+            self.assertIsNotNone(record_path)
+
+            update_active_job_record(proc, status="kill_degraded", return_code=None)
+            update_active_job_record(proc, status="active", return_code=None)
+            proc.returncode = -9
+            update_active_job_record(proc, return_code=-9)
+            payload = json.loads(record_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["status"], "kill_degraded")
+            self.assertEqual(payload["completed_at"], "")
+            self.assertIn("kill_degraded", ACTIVE_JOB_BLOCKING_STATUSES)
+
+            update_active_job_record(proc, status="killed", return_code=-9)
+            update_active_job_record(proc, status="active", return_code=None)
+            update_active_job_record(proc, return_code=-9)
+            payload = json.loads(record_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["status"], "killed")
+            self.assertEqual(payload["return_code"], -9)
 
     def test_update_active_job_record_logs_corrupt_record_repair(self) -> None:
         with tempfile.TemporaryDirectory() as td:
@@ -290,6 +333,9 @@ class ProcessActiveJobHelperTests(unittest.TestCase):
             def status(self) -> str:
                 return "running"
 
+            def create_time(self) -> float:
+                return 100.0
+
             def cmdline(self) -> list[str]:
                 return ["notepad.exe", "unrelated.txt"]
 
@@ -318,6 +364,7 @@ class ProcessActiveJobHelperTests(unittest.TestCase):
                     "mode": "continuous",
                     "status": "active",
                     "pid": 100,
+                    "process_create_time": 100.0,
                     "app_pid": 1,
                     "command_line": "pwsh -File pipeline.ps1",
                     "args": ["pwsh", "-File", "pipeline.ps1"],
@@ -388,6 +435,180 @@ class ProcessActiveJobHelperTests(unittest.TestCase):
 
         self.assertIsNone(active_job_pid_matches_record(ActiveJobRecord.from_mapping(payload), FakePsutil))
 
+    def test_active_job_pid_identity_requires_creation_time_and_rejects_any_contradiction(self) -> None:
+        from mediapipeline.desktop.contracts import ActiveJobRecord
+
+        class FakeNoSuchProcess(Exception):
+            pass
+
+        class FakeProcess:
+            def __init__(self, *, create_time: float, cmdline: list[str], cwd: str) -> None:
+                self._create_time = create_time
+                self._cmdline = cmdline
+                self._cwd = cwd
+
+            def is_running(self) -> bool:
+                return True
+
+            def status(self) -> str:
+                return "running"
+
+            def create_time(self) -> float:
+                return self._create_time
+
+            def cmdline(self) -> list[str]:
+                return self._cmdline
+
+            def cwd(self) -> str:
+                return self._cwd
+
+        class FakePsutil:
+            NoSuchProcess = FakeNoSuchProcess
+            STATUS_ZOMBIE = "zombie"
+            process: FakeProcess
+
+            @classmethod
+            def Process(cls, _pid: int):
+                return cls.process
+
+        root = str(Path("C:/MediaPipeline"))
+        base_payload = {
+            "schema_version": "desktop_active_job.v1",
+            "launch_id": "identity",
+            "job_kind": "pipeline",
+            "mode": "validate",
+            "status": "active",
+            "pid": 9001,
+            "app_pid": 1,
+            "command_line": "pwsh -File pipeline.ps1 -ValidateOnly",
+            "args": ["pwsh", "-File", "pipeline.ps1", "-ValidateOnly"],
+            "cwd": root,
+            "stdout_log": "",
+            "stderr_log": "",
+            "show_console": False,
+            "metadata": {},
+            "launched_at": "2026-05-06T12:00:00-04:00",
+            "last_update": "2026-05-06T12:00:01-04:00",
+            "return_code": None,
+        }
+
+        FakePsutil.process = FakeProcess(
+            create_time=100.0,
+            cmdline=["notepad.exe", "unrelated.txt"],
+            cwd=root,
+        )
+        matching_creation = ActiveJobRecord.from_mapping({**base_payload, "process_create_time": 100.0})
+        self.assertFalse(active_job_pid_matches_record(matching_creation, FakePsutil))
+
+        FakePsutil.process = FakeProcess(
+            create_time=200.0,
+            cmdline=list(base_payload["args"]),
+            cwd=root,
+        )
+        reused_pid = ActiveJobRecord.from_mapping({**base_payload, "process_create_time": 100.0})
+        self.assertFalse(active_job_pid_matches_record(reused_pid, FakePsutil))
+
+        matching_weak_fields_only = ActiveJobRecord.from_mapping(base_payload)
+        self.assertIsNone(active_job_pid_matches_record(matching_weak_fields_only, FakePsutil))
+
+    def test_cleanup_rechecks_identity_and_does_not_kill_process_reused_before_termination(self) -> None:
+        class FakeNoSuchProcess(Exception):
+            pass
+
+        class FakeProcess:
+            def __init__(self, *, create_time: float, cmdline: list[str]) -> None:
+                self.pid = 8100
+                self._create_time = create_time
+                self._cmdline = cmdline
+                self.killed = False
+
+            def is_running(self) -> bool:
+                return True
+
+            def status(self) -> str:
+                return "running"
+
+            def create_time(self) -> float:
+                return self._create_time
+
+            def cmdline(self) -> list[str]:
+                return self._cmdline
+
+            def cwd(self) -> str:
+                return str(root)
+
+            def kill(self) -> None:
+                self.killed = True
+
+        original_process = FakeProcess(
+            create_time=100.0,
+            cmdline=["pwsh", "-File", "pipeline.ps1", "-ValidateOnly"],
+        )
+        reused_process = FakeProcess(
+            create_time=200.0,
+            cmdline=["notepad.exe", "unrelated.txt"],
+        )
+
+        class FakePsutil:
+            NoSuchProcess = FakeNoSuchProcess
+            STATUS_ZOMBIE = "zombie"
+            lookups = 0
+
+            @classmethod
+            def Process(cls, _pid: int):
+                cls.lookups += 1
+                return original_process if cls.lookups == 1 else reused_process
+
+            @staticmethod
+            def wait_procs(targets: list[FakeProcess], timeout: float):
+                _ = targets, timeout
+                raise AssertionError("Contradictory process identity must never reach process-tree termination.")
+
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            active_jobs = root / "ActiveJobs"
+            active_jobs.mkdir()
+            record_path = active_jobs / "reused-validate.json"
+            write_active_job_payload(
+                record_path,
+                {
+                    "schema_version": "desktop_active_job.v1",
+                    "launch_id": "reused-validate",
+                    "job_kind": "pipeline",
+                    "mode": "validate",
+                    "status": "active",
+                    "pid": original_process.pid,
+                    "process_create_time": 100.0,
+                    "app_pid": 1,
+                    "command_line": "pwsh -File pipeline.ps1 -ValidateOnly",
+                    "args": ["pwsh", "-File", "pipeline.ps1", "-ValidateOnly"],
+                    "cwd": str(root),
+                    "stdout_log": "",
+                    "stderr_log": "",
+                    "show_console": False,
+                    "metadata": {},
+                    "launched_at": "2026-05-06T12:00:00-04:00",
+                    "last_update": "2026-05-06T12:00:01-04:00",
+                    "return_code": None,
+                },
+            )
+            resolved = self._resolved(root)
+            resolved.active_jobs_path = active_jobs
+
+            messages = cleanup_stale_validate_active_jobs(
+                resolved,
+                stale_after_seconds=1.0,
+                psutil_module=FakePsutil,
+            )
+            updated = json.loads(record_path.read_text(encoding="utf-8"))
+
+        self.assertFalse(original_process.killed)
+        self.assertFalse(reused_process.killed)
+        self.assertEqual(FakePsutil.lookups, 2)
+        self.assertEqual(updated["status"], "orphaned")
+        self.assertIn("no longer matches the launch record", updated["reconcile_reason"])
+        self.assertIn("Marked stale validate-only", "\n".join(messages))
+
     def test_cleanup_stale_validate_active_job_kills_only_validate_only_launch(self) -> None:
         class FakeNoSuchProcess(Exception):
             pass
@@ -403,6 +624,9 @@ class ProcessActiveJobHelperTests(unittest.TestCase):
 
             def status(self) -> str:
                 return "running"
+
+            def create_time(self) -> float:
+                return float(self.pid)
 
             def cmdline(self) -> list[str]:
                 return ["pwsh", "-File", "pipeline.ps1", self.mode_arg]
@@ -439,14 +663,22 @@ class ProcessActiveJobHelperTests(unittest.TestCase):
                 gone = [target for target in targets if not target.is_running()]
                 return gone, alive
 
-        def payload(name: str, *, pid: int, mode: str, mode_arg: str) -> dict[str, object]:
+        def payload(
+            name: str,
+            *,
+            pid: int,
+            mode: str,
+            mode_arg: str,
+            status: str = "active",
+        ) -> dict[str, object]:
             return {
                 "schema_version": "desktop_active_job.v1",
                 "launch_id": name,
                 "job_kind": "pipeline",
                 "mode": mode,
-                "status": "active",
+                "status": status,
                 "pid": pid,
+                "process_create_time": float(pid),
                 "app_pid": 1,
                 "command_line": f"pwsh -File pipeline.ps1 {mode_arg}",
                 "args": ["pwsh", "-File", "pipeline.ps1", mode_arg],
@@ -466,11 +698,23 @@ class ProcessActiveJobHelperTests(unittest.TestCase):
             active_jobs.mkdir()
             validate_proc = FakeProcess(7100, mode_arg="-ValidateOnly")
             once_proc = FakeProcess(7200, mode_arg="-Once")
-            FakePsutil.processes = {7100: validate_proc, 7200: once_proc}
+            degraded_proc = FakeProcess(7300, mode_arg="-ValidateOnly")
+            FakePsutil.processes = {7100: validate_proc, 7200: once_proc, 7300: degraded_proc}
             validate_record = active_jobs / "validate.json"
             once_record = active_jobs / "once.json"
+            degraded_record = active_jobs / "degraded.json"
             write_active_job_payload(validate_record, payload("validate", pid=7100, mode="validate", mode_arg="-ValidateOnly"))
             write_active_job_payload(once_record, payload("once", pid=7200, mode="once", mode_arg="-Once"))
+            write_active_job_payload(
+                degraded_record,
+                payload(
+                    "degraded",
+                    pid=7300,
+                    mode="validate",
+                    mode_arg="-ValidateOnly",
+                    status="kill_degraded",
+                ),
+            )
             resolved = self._resolved(root)
             resolved.active_jobs_path = active_jobs
 
@@ -482,12 +726,15 @@ class ProcessActiveJobHelperTests(unittest.TestCase):
 
             validate_payload = json.loads(validate_record.read_text(encoding="utf-8"))
             once_payload = json.loads(once_record.read_text(encoding="utf-8"))
+            degraded_payload = json.loads(degraded_record.read_text(encoding="utf-8"))
 
         self.assertTrue(validate_proc.killed)
         self.assertFalse(once_proc.killed)
+        self.assertFalse(degraded_proc.killed)
         self.assertEqual(validate_payload["status"], "killed")
         self.assertIn("validate-only heartbeat stale", validate_payload["reconcile_reason"])
         self.assertEqual(once_payload["status"], "active")
+        self.assertEqual(degraded_payload["status"], "kill_degraded")
         self.assertEqual(len(messages), 1)
         self.assertIn("Cleaned stale validate-only", messages[0])
 

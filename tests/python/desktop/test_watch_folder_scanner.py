@@ -85,6 +85,57 @@ class WatchFolderScannerTests(unittest.TestCase):
         self.assertTrue(registry.should_fire(path, (100, 201), now=3))
         self.assertTrue(registry.should_fire(path, stat, now=12))
 
+    def test_fired_registry_expires_stale_entry_after_lru_reorder(self) -> None:
+        registry = FiredRegistry(ttl_seconds=10)
+        stat = (100, 200)
+
+        self.assertTrue(registry.should_fire("C:/media/a.mkv", stat, now=0))
+        self.assertTrue(registry.should_fire("C:/media/b.mkv", stat, now=5))
+        self.assertFalse(registry.should_fire("C:/media/a.mkv", stat, now=6))
+
+        self.assertTrue(registry.should_fire("C:/media/a.mkv", stat, now=11))
+        self.assertFalse(registry.should_fire("C:/media/b.mkv", stat, now=11))
+
+    def test_fired_registry_recent_churn_does_not_extend_stale_entry_ttl(self) -> None:
+        registry = FiredRegistry(ttl_seconds=10)
+        stat = (100, 200)
+
+        self.assertTrue(registry.should_fire("C:/media/stale.mkv", stat, now=0))
+        for timestamp in range(1, 10):
+            self.assertTrue(registry.should_fire(f"C:/media/new-{timestamp}.mkv", stat, now=timestamp))
+        self.assertFalse(registry.should_fire("C:/media/stale.mkv", stat, now=9.5))
+
+        self.assertTrue(registry.should_fire("C:/media/stale.mkv", stat, now=11))
+
+    def test_fired_registry_ttl_boundary_is_inclusive(self) -> None:
+        registry = FiredRegistry(ttl_seconds=10)
+        path = "C:/media/movie.mkv"
+        stat = (100, 200)
+
+        self.assertTrue(registry.should_fire(path, stat, now=0))
+        self.assertFalse(registry.should_fire(path, stat, now=10))
+        self.assertTrue(registry.should_fire(path, stat, now=10.001))
+
+    def test_fired_registry_zero_ttl_never_suppresses(self) -> None:
+        registry = FiredRegistry(ttl_seconds=0)
+        path = "C:/media/movie.mkv"
+        stat = (100, 200)
+
+        self.assertTrue(registry.should_fire(path, stat, now=1))
+        self.assertTrue(registry.should_fire(path, stat, now=1))
+
+    def test_fired_registry_max_entries_uses_lru_order(self) -> None:
+        registry = FiredRegistry(max_entries=2, ttl_seconds=100)
+        stat = (100, 200)
+
+        self.assertTrue(registry.should_fire("C:/media/a.mkv", stat, now=0))
+        self.assertTrue(registry.should_fire("C:/media/b.mkv", stat, now=1))
+        self.assertFalse(registry.should_fire("C:/media/a.mkv", stat, now=2))
+        self.assertTrue(registry.should_fire("C:/media/c.mkv", stat, now=3))
+
+        self.assertTrue(registry.should_fire("C:/media/b.mkv", stat, now=4))
+        self.assertFalse(registry.should_fire("C:/media/c.mkv", stat, now=4))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -15,8 +15,15 @@ from collections.abc import Callable, Mapping
 from pydantic import ValidationError
 
 from mediapipeline.contracts.config import CONFIG_SCHEMA_VERSION, Config
+from mediapipeline.contracts.config_coercion import _normalize_config_term_list
+from mediapipeline.contracts.config_defaults import _is_exact_legacy_packaged_rename_movie_remove_terms
 from mediapipeline.core.config.file_io import atomic_write_text
 from mediapipeline.core.config.load import load_psd1_mapping
+from mediapipeline.core.config.authority_lock import (
+    SettingsAuthorityLockError,
+    settings_authority_lock,
+)
+from mediapipeline.core.config.settings_patch_policy import settings_config_digest
 from mediapipeline.core.config.validation import canonical_config_key_spelling_errors
 from mediapipeline.core.kernel.config_key_aliases import CONFIG_KEY_ALIASES
 from mediapipeline.core.kernel.config_key_order import ALL_CONFIG_KEYS
@@ -42,6 +49,19 @@ Psd1Loader = Callable[[Path, str | None], Mapping[str, Any]]
 
 class SettingsStoreError(RuntimeError):
     """Raised when the JSON settings authority cannot be trusted."""
+
+
+class SettingsAuthorityConflictError(SettingsStoreError):
+    """Raised when the authority no longer matches the caller's reviewed base."""
+
+    def __init__(self, *, expected_digest: str, current_digest: str, candidate_digest: str) -> None:
+        super().__init__(
+            "Settings authority changed after preview; the save was not applied. "
+            "Refresh settings and review the candidate again."
+        )
+        self.expected_digest = expected_digest
+        self.current_digest = current_digest
+        self.candidate_digest = candidate_digest
 
 
 @dataclass(frozen=True)
@@ -79,6 +99,13 @@ def _file_sha256(path: Path) -> str:
         for block in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def _authority_lock_timeout_seconds(service: object) -> float:
+    try:
+        return max(0.0, float(getattr(service, "_settings_authority_lock_timeout_seconds", 10.0)))
+    except (TypeError, ValueError):
+        return 10.0
 
 
 def settings_store_path_for_config(config_path: Path) -> Path:
@@ -181,6 +208,10 @@ def migrate_imported_settings_mapping(raw: Mapping[str, Any]) -> SettingsMigrati
             errors=sorted(set(errors)),
         )
 
+    raw_movie_remove_terms = _normalize_config_term_list(settings_input.get("RenameMovieRemoveTerms"))
+    if _is_exact_legacy_packaged_rename_movie_remove_terms(raw_movie_remove_terms):
+        migrations_applied.append("normalize:RenameMovieRemoveTerms:legacy-packaged-default")
+
     try:
         model = Config.model_validate(settings_input)
     except ValidationError as exc:
@@ -227,11 +258,15 @@ def _store_envelope(
 
 
 def _projection_values(envelope: Mapping[str, Any]) -> dict[str, Any]:
-    values = dict(envelope.get("settings") if isinstance(envelope.get("settings"), dict) else {})
-    extras = envelope.get("legacy_extras")
-    if isinstance(extras, dict):
-        values.update(extras)
-    return values
+    raw_settings = envelope.get("settings")
+    settings = dict(raw_settings) if isinstance(raw_settings, dict) else {}
+    unknown_keys = sorted(str(key) for key in settings if key not in ALL_CONFIG_KEYS)
+    if unknown_keys:
+        raise SettingsStoreError(
+            "Settings JSON authority contains unregistered active key(s): "
+            + ", ".join(unknown_keys[:12])
+        )
+    return settings
 
 
 def _read_store_envelope(path: Path) -> dict[str, Any]:
@@ -502,6 +537,17 @@ def _promote_envelope_and_projection(
             atomic_write_text(resolved.config_path, psd1_text)
             result = ConfigSaveResult(output_path=resolved.config_path, backup_path=None)
         atomic_write_text(projection_path, projection_text)
+        committed_envelope = _read_store_envelope(store_path)
+        if _json_text(committed_envelope) != store_text:
+            raise SettingsStoreError("Settings JSON authority verification failed after atomic replacement.")
+        try:
+            committed_projection = json.loads(projection_path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            raise SettingsStoreError("Settings projection manifest verification failed after atomic replacement.") from exc
+        if committed_projection != projection:
+            raise SettingsStoreError("Settings projection manifest verification failed after atomic replacement.")
+        if _file_sha256(resolved.config_path) != str(projection.get("psd1_sha256") or ""):
+            raise SettingsStoreError("Settings PSD1 projection verification failed after atomic replacement.")
         _write_last_good_snapshots(envelope, projection, store_path, projection_path)
         return result
     except Exception:
@@ -530,7 +576,96 @@ def _load_existing_store_or_restore(store_path: Path) -> tuple[dict[str, Any], s
         return restored, "restored", warnings
 
 
-def load_settings_authority_for_service(
+def _read_settings_authority_for_service_unlocked(
+    service: object,
+    config_path: Path,
+) -> dict[str, Any]:
+    """Read and validate the initialized JSON authority without repairing artifacts."""
+
+    store_path = settings_store_path_for_config(config_path)
+    projection_path = settings_projection_path_for_config(config_path)
+    if not store_path.is_file():
+        message = (
+            "Settings JSON authority is not initialized; run the explicit settings repair/import flow "
+            f"before previewing changes: {store_path}"
+        )
+        _set_service_metadata(
+            service,
+            config_path,
+            _store_metadata(
+                authority="json_store",
+                status="missing",
+                store_path=store_path,
+                projection_path=projection_path,
+                migration_journal=[],
+                legacy_extras_count=0,
+                psd1_drift_status="unverified",
+                projection_status="missing" if not projection_path.is_file() else "present_unverified",
+                errors=[message],
+            ),
+        )
+        raise SettingsStoreError(message)
+
+    try:
+        envelope = _read_store_envelope(store_path)
+    except SettingsStoreError as exc:
+        _set_service_metadata(
+            service,
+            config_path,
+            _store_metadata(
+                authority="json_store",
+                status="read_blocked",
+                store_path=store_path,
+                projection_path=projection_path,
+                migration_journal=[],
+                legacy_extras_count=0,
+                psd1_drift_status="unverified",
+                projection_status="present_unverified" if projection_path.is_file() else "missing",
+                errors=[str(exc), "Use the explicit settings repair flow to restore verified last-good state."],
+            ),
+        )
+        raise
+
+    projection_status = "missing"
+    psd1_drift_status = "missing" if not config_path.is_file() else "unverified"
+    warnings: list[str] = []
+    if projection_path.is_file():
+        try:
+            projection = json.loads(projection_path.read_text(encoding="utf-8"))
+            expected_psd1_digest = str(projection.get("psd1_sha256") or "") if isinstance(projection, dict) else ""
+            projection_status = "present"
+            if config_path.is_file() and expected_psd1_digest:
+                psd1_drift_status = (
+                    "in_sync" if _source_psd1_sha256(config_path) == expected_psd1_digest else "drift_detected"
+                )
+                if psd1_drift_status == "drift_detected":
+                    warnings.append(
+                        "Active PSD1 differs from the JSON authority projection; preview remained read-only. "
+                        "Run explicit settings repair before saving if regeneration is required."
+                    )
+        except Exception as exc:
+            projection_status = "invalid_unmodified"
+            warnings.append(f"Settings projection evidence could not be verified without repair: {exc}")
+
+    _set_service_metadata(
+        service,
+        config_path,
+        _store_metadata(
+            authority="json_store",
+            status="loaded",
+            store_path=store_path,
+            projection_path=projection_path,
+            migration_journal=[str(item) for item in envelope.get("migrations_applied", [])],
+            legacy_extras_count=len(envelope.get("legacy_extras") or {}),
+            psd1_drift_status=psd1_drift_status,
+            projection_status=projection_status,
+            warnings=warnings,
+        ),
+    )
+    return dict(envelope.get("settings") or {})
+
+
+def _load_settings_authority_for_service_unlocked(
     service: object,
     config_path: Path,
     powershell_host: str | None,
@@ -636,53 +771,118 @@ def load_settings_authority_for_service(
     return dict(migrated.settings)
 
 
+def load_settings_authority_for_service(
+    service: object,
+    config_path: Path,
+    powershell_host: str | None,
+    *,
+    psd1_loader: Psd1Loader | None = None,
+) -> dict[str, Any]:
+    """Load/repair the authority while excluding every cross-process writer."""
+
+    store_path = settings_store_path_for_config(config_path)
+    with settings_authority_lock(
+        store_path,
+        timeout_seconds=_authority_lock_timeout_seconds(service),
+    ):
+        return _load_settings_authority_for_service_unlocked(
+            service,
+            config_path,
+            powershell_host,
+            psd1_loader=psd1_loader,
+        )
+
+
+def read_settings_authority_for_service(
+    service: object,
+    config_path: Path,
+    powershell_host: str | None,
+) -> dict[str, Any]:
+    """Read the initialized authority under the existing lock without filesystem mutation."""
+
+    _ = powershell_host
+    store_path = settings_store_path_for_config(config_path)
+    with settings_authority_lock(
+        store_path,
+        timeout_seconds=_authority_lock_timeout_seconds(service),
+        read_only=True,
+    ):
+        return _read_settings_authority_for_service_unlocked(service, config_path)
+
+
 def save_settings_authority_for_service(
     service: object,
     resolved: ResolvedPaths,
     candidate_settings: Mapping[str, Any],
     *,
+    expected_authority_digest: str | None = None,
     psd1_loader: Psd1Loader | None = None,
 ) -> ConfigSaveResult:
     store_path = settings_store_path_for_config(resolved.config_path)
     projection_path = settings_projection_path_for_config(resolved.config_path)
-    current_legacy: dict[str, Any] = {}
-    current_migrations: list[str] = []
-    if store_path.is_file():
-        current = _read_store_envelope(store_path)
-        current_legacy = dict(current.get("legacy_extras") or {})
-        current_migrations = [str(item) for item in current.get("migrations_applied") or []]
+    with settings_authority_lock(
+        store_path,
+        timeout_seconds=_authority_lock_timeout_seconds(service),
+    ):
+        current_legacy: dict[str, Any] = {}
+        current_migrations: list[str] = []
+        current_settings: dict[str, Any] = {}
+        store_exists = store_path.is_file()
+        if store_exists:
+            current = _read_store_envelope(store_path)
+            current_settings = dict(current.get("settings") or {})
+            current_legacy = dict(current.get("legacy_extras") or {})
+            current_migrations = [str(item) for item in current.get("migrations_applied") or []]
 
-    migrated = migrate_imported_settings_mapping(candidate_settings)
-    if migrated.errors:
-        raise SettingsStoreError("Settings candidate failed JSON authority validation: " + "; ".join(migrated.errors))
-    legacy_extras = {**current_legacy, **migrated.legacy_extras}
-    migrations = sorted({*current_migrations, *migrated.migrations_applied})
-    envelope = _store_envelope(
-        settings=migrated.settings,
-        legacy_extras=legacy_extras,
-        migrations_applied=migrations,
-        source_psd1_path=resolved.config_path,
-        source_psd1_sha256=_source_psd1_sha256(resolved.config_path),
-    )
-    result = _promote_envelope_and_projection(
-        service,
-        resolved,
-        envelope,
-        create_backup=True,
-        psd1_loader=psd1_loader,
-    )
-    metadata = _store_metadata(
-        authority="json_store",
-        status="saved",
-        store_path=store_path,
-        projection_path=projection_path,
-        migration_journal=migrations,
-        legacy_extras_count=len(legacy_extras),
-        psd1_drift_status="saved_projection",
-        projection_status="generated",
-    )
-    _set_service_metadata(service, resolved.config_path, metadata)
-    return result
+        migrated = migrate_imported_settings_mapping(candidate_settings)
+        if migrated.errors:
+            raise SettingsStoreError("Settings candidate failed JSON authority validation: " + "; ".join(migrated.errors))
+
+        current_digest = settings_config_digest(current_settings)
+        candidate_digest = settings_config_digest(migrated.settings)
+        submitted_digest = str(expected_authority_digest or "")
+        candidate_is_already_durable = store_exists and candidate_digest == current_digest
+        expected_matches_current = bool(submitted_digest) and submitted_digest == current_digest
+        first_write_matches_missing = not store_exists and submitted_digest in {"", settings_config_digest({})}
+        if not candidate_is_already_durable and not expected_matches_current and not first_write_matches_missing:
+            raise SettingsAuthorityConflictError(
+                expected_digest=submitted_digest,
+                current_digest=current_digest,
+                candidate_digest=candidate_digest,
+            )
+
+        legacy_extras = {**current_legacy, **migrated.legacy_extras}
+        migrations = sorted({*current_migrations, *migrated.migrations_applied})
+        envelope = _store_envelope(
+            settings=migrated.settings,
+            legacy_extras=legacy_extras,
+            migrations_applied=migrations,
+            source_psd1_path=resolved.config_path,
+            source_psd1_sha256=_source_psd1_sha256(resolved.config_path),
+        )
+        result = _promote_envelope_and_projection(
+            service,
+            resolved,
+            envelope,
+            create_backup=True,
+            psd1_loader=psd1_loader,
+        )
+        committed = _read_store_envelope(store_path)
+        committed_digest = settings_config_digest(committed.get("settings") or {})
+        if committed_digest != candidate_digest:
+            raise SettingsStoreError("Settings JSON authority did not durably contain the accepted candidate.")
+        metadata = _store_metadata(
+            authority="json_store",
+            status="saved",
+            store_path=store_path,
+            projection_path=projection_path,
+            migration_journal=migrations,
+            legacy_extras_count=len(legacy_extras),
+            psd1_drift_status="saved_projection",
+            projection_status="generated",
+        )
+        _set_service_metadata(service, resolved.config_path, metadata)
+        return result
 
 
 def import_psd1_settings_preview_for_service(
@@ -691,9 +891,18 @@ def import_psd1_settings_preview_for_service(
     *,
     psd1_loader: Psd1Loader | None = None,
 ) -> dict[str, Any]:
-    _ = service
-    raw = dict((psd1_loader or _psd1_loader_default)(resolved.config_path, resolved.powershell_host))
-    migrated = migrate_imported_settings_mapping(raw)
+    store_path = settings_store_path_for_config(resolved.config_path)
+    with settings_authority_lock(
+        store_path,
+        timeout_seconds=_authority_lock_timeout_seconds(service),
+    ):
+        if store_path.is_file():
+            current = _read_store_envelope(store_path)
+            authority_digest = settings_config_digest(current.get("settings") or {})
+        else:
+            authority_digest = settings_config_digest({})
+        raw = dict((psd1_loader or _psd1_loader_default)(resolved.config_path, resolved.powershell_host))
+        migrated = migrate_imported_settings_mapping(raw)
     return {
         "schema_version": SETTINGS_IMPORT_PREVIEW_SCHEMA_VERSION,
         "source_psd1_path": str(resolved.config_path),
@@ -704,6 +913,7 @@ def import_psd1_settings_preview_for_service(
         "errors": list(migrated.errors),
         "warnings": list(migrated.warnings),
         "can_import": migrated.ok,
+        "authority_config_digest": authority_digest,
         "writes_config": False,
         "writes_store": False,
     }
@@ -723,6 +933,7 @@ def import_psd1_settings_for_service(
         service,
         resolved,
         imported_values,
+        expected_authority_digest=str(preview["authority_config_digest"]),
         psd1_loader=psd1_loader,
     )
     return {
@@ -744,12 +955,15 @@ __all__ = [
     "SETTINGS_IMPORT_RESULT_SCHEMA_VERSION",
     "SETTINGS_PROJECTION_SCHEMA_VERSION",
     "SETTINGS_STORE_SCHEMA_VERSION",
+    "SettingsAuthorityConflictError",
+    "SettingsAuthorityLockError",
     "SettingsMigrationResult",
     "SettingsStoreError",
     "import_psd1_settings_for_service",
     "import_psd1_settings_preview_for_service",
     "load_settings_authority_for_service",
     "migrate_imported_settings_mapping",
+    "read_settings_authority_for_service",
     "save_settings_authority_for_service",
     "settings_projection_path_for_config",
     "settings_store_metadata_for_service",

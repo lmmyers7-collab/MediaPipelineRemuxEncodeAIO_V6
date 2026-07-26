@@ -1,0 +1,73 @@
+{
+  "id": "MP-CHANGE-2026-0723-031",
+  "title": "Remove unprovenanced UI reference document",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "medium",
+  "date_started": "2026-07-23",
+  "date_completed": "2026-07-23",
+  "summary": "Remove the unprovenanced Refactoring UI DOCX, retain only a lawful official-site reference, and enforce a source-control boundary against Office working documents under active documentation.",
+  "reason": "Remediate AUDIT-FIND-W13-003. The tracked 71,272-byte DOCX contains a substantial conversion of paid third-party publication text, has no repository redistribution-permission record, and is distributed by Git even though portable packages exclude it.",
+  "affected_areas": [
+    "change-control",
+    "documentation",
+    "generated-context",
+    "release-validation",
+    "source-intake",
+    "tests",
+    "tooling"
+  ],
+  "behavior_before": "Git tracked docs/ui/Refactoring_UI_text_only.docx, while the portable-release policy only excluded it from deployable packages. Source intake had no check preventing the same or another opaque Office working document from being committed below docs/.",
+  "behavior_after": "The unprovenanced DOCX is absent, docs/ui/README.md links only to the official source and states the repository policy, and all shared source-tree audit suites fail closed when Git tracks a present Office working document below docs/.",
+  "files_touched": [
+    "docs/DOCS_INDEX.md",
+    "docs/change_control/CHANGE_INDEX.md",
+    "docs/generated/DOC_ARCHIVE_CANDIDATE_SCAN.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/docs/DOCS_INDEX.md.md",
+    "docs/generated/summaries/docs/change_control/CHANGE_INDEX.md.md",
+    "docs/generated/summaries/docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-031.json.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/audit_checks.py.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/check_tracked_office_documents.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_ai_guardrail.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_audit_checks.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_tracked_office_documents.py.md",
+    "docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md",
+    "docs/ui/README.md",
+    "docs/ui/Refactoring_UI_text_only.docx",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-031.json",
+    "src/mediapipeline/tools/dev/audit_checks.py",
+    "src/mediapipeline/tools/dev/check_tracked_office_documents.py",
+    "tests/python/tooling/test_ai_guardrail.py",
+    "tests/python/tooling/test_audit_checks.py",
+    "tests/python/tooling/test_tracked_office_documents.py"
+  ],
+  "tests_added": [
+    "CLI finding/error reporting and current-repository no-Office-document integration coverage.",
+    "Case-insensitive Office-extension detection with deleted-worktree path handling.",
+    "Fail-closed handling for missing Git, timeout, nonzero exit, and OS errors.",
+    "Shared pre-commit, phase-1, deep-audit, release-self-test, and AI-guardrail suite wiring."
+  ],
+  "manual_validation": [
+    "Adjacent tooling suite: 47 tests and 11 subtests passed.",
+    "Archive candidate scan regenerated deterministically and no longer contains the removed DOCX.",
+    "Deletion proof passed: exact file absent, Git reports deletion, and bounded active-reference scan is clean.",
+    "Direct tracked Office document check and targeted Ruff passed.",
+    "Direct tracked-Office-document check passed with zero findings.",
+    "Focused tooling suite passed: 15 tests and 6 subtests.",
+    "Focused tooling suite: 15 tests and 6 subtests passed.",
+    "Generated project and feature map checks passed.",
+    "Global summary check remains at the known three unrelated stale summaries; active-doc check remains at known DOC005 only.",
+    "Release package policy regression suite passed.",
+    "Strict worktree coverage passed with 1,173 valid packets.",
+    "Targeted Ruff validation passed."
+  ],
+  "rollback_plan": "Restore the exact DOCX only if a rights review produces a documented redistribution permission and an explicit source-intake policy exception; otherwise revert the guard, documentation, tests, generated context, and packet without restoring third-party text.",
+  "related_changes": [
+    "AUDIT-FIND-W13-003"
+  ],
+  "notes": "The removed artifact was verified immediately before deletion as 71,272 bytes, SHA-256 f74086541166cbf80dc7fe582a6960d5032b0e570f7c268ccaa37e48aba4cce0, and Git blob 246b2a24d1d2e7647c67af3c5c343d0494bf9a11. The deletion is recoverable from Git history. Immutable audit evidence remains unchanged. No media path is touched, and representative real-media validation is not required.\nRemoved verified DOCX and added shared source-tree intake guard.\nTargeted source-intake, documentation, and package-policy validation complete."
+}

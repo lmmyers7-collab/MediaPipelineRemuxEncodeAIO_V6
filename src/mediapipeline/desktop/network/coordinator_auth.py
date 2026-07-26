@@ -105,22 +105,27 @@ class CoordinatorAuthMixin:
         N7 — refuses an empty / whitespace-only token (which would have
         opened the API to anonymous access on the LAN) and persists the
         new token to app_state so a coordinator restart preserves it.
-        Raises ``ValueError`` when the supplied token is blank.
+        Raises ``ValueError`` when the supplied token is invalid and
+        ``RuntimeError`` when durable persistence fails. Persistence completes
+        before the live token changes, so either failure leaves runtime auth
+        unchanged.
         """
         new_token = validate_coordinator_auth_token(new_token)
-        self._auth_token = new_token
-        # Persist so the next start picks up the rotated token instead of
-        # silently reverting to the old auto-generated one in app_state.
+        # Persist before changing the live authority. A failed write must leave
+        # existing workers authenticated and must be visible to the caller so a
+        # surrounding config transaction can compensate.
         try:
             self._app.service.save_app_state({"coordinator_auth_token": new_token})
-        except Exception:
+        except Exception as exc:
             _log.exception("Could not persist rotated coordinator token to app state.")
             _log.warning(
-                "Coordinator auth token updated live, but persistence failed; "
-                "workers may need a new token after coordinator restart."
+                "Coordinator auth token was not updated live because persistence failed."
             )
-        else:
-            _log.info("Coordinator auth token updated and persisted (hot-swap, no restart required).")
+            raise RuntimeError(
+                "Could not persist rotated coordinator token; the live token was unchanged."
+            ) from exc
+        self._auth_token = new_token
+        _log.info("Coordinator auth token updated and persisted (hot-swap, no restart required).")
         self._safe_log_cluster_event(
             "auth-token-rotated",
             level="INFO",

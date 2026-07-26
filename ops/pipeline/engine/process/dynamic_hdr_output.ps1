@@ -110,7 +110,9 @@ function Test-DynamicHdrOutputPreservation {
     param(
         [Parameter(Mandatory)] $SourceEvidence,
         [Parameter(Mandatory)] [string] $OutputPath,
-        [int] $ExpectedRpuFrameCount = 0
+        [int] $ExpectedRpuFrameCount = 0,
+        [scriptblock] $PollHandler = $null,
+        [int] $PollMilliseconds = 100
     )
 
     $expectedDovi = [bool](Get-DynamicHdrResultValue -Result $SourceEvidence -Name 'dovi_present')
@@ -158,8 +160,8 @@ function Test-DynamicHdrOutputPreservation {
         return [pscustomobject]$base
     }
 
-    $doviState = Get-DolbyVisionState -FilePath $OutputPath
-    $hdr10PlusState = Test-Hdr10PlusPresence -FilePath $OutputPath
+    $doviState = Get-DolbyVisionState -FilePath $OutputPath -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds
+    $hdr10PlusState = Test-Hdr10PlusPresence -FilePath $OutputPath -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds
     $base.dovi_state = $doviState
     $base.hdr10plus_state = $hdr10PlusState
     $base.output_dovi_present = [bool](Get-DynamicHdrResultValue -Result $doviState -Name 'DoviPresent')

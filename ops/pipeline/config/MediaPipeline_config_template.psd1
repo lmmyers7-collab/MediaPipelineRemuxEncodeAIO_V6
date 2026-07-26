@@ -111,7 +111,7 @@
         services_containers = @('amzn', 'nf', 'dsnp', 'hmax', 'hulu', 'itunes', 'appletv', 'atvp', 'peacock', 'pck', 'vudu', 'stan', 'sho', 'mkv', 'mp4', 'm4v', 'avi', 'mov', 'wmv', 'MA')
         release_groups = @('rarbg', 'rbg', 'yify', 'yts', 'yts lt', 'galaxyrg', 'bone', 'psa', 'tigole', 'kris', 'sparks', 'ntb', 'evo', 'tepes', 'flux', 'framestor', 'cmrg', 'neonoir', 'supaCvnt', 'BYNDR', 'Kira')
     }
-    RenameMovieRemoveTerms = @('sample', 'trailer', 'extras', 'featurette', 'deleted scenes', 'behind the scenes', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12')
+    RenameMovieRemoveTerms = @('sample', 'trailer', 'extras', 'featurette', 'deleted scenes', 'behind the scenes')
     ValidExtensions = @('.mkv', '.mp4', '.avi', '.mov', '.m4v', '.ts', '.m2ts')
     FileStabilityWait = 15
     EnableWatchFolders = $false
@@ -127,6 +127,7 @@
     RobocopyFlags = @('/J', '/R:3', '/W:15', '/MT:2', '/NP', '/NDL', '/NFL')
     DebugMode = $true
     LogRetentionDays = 7
+    InterruptedToolLogRetentionDays = 3
     PipelineDebugLogMaxBytes = 104857600
     FailureArtifactWarningThresholdGB = 100
     FailureArtifactRetentionDays = 0
@@ -173,6 +174,7 @@
     PauseFlagBlockSeconds = 21600
     LocalWorkerHeartbeatGraceSeconds = 900
     QueueExecutionMaxRunnablePerRound = 500
+    QueueLaunchSnapshotFreshnessSeconds = 60
     StateDbMaintenanceIntervalSeconds = 21600
     StateDbWalReviewBytes = 33554432
     StateDbCompletedJobsMaxRows = 250000

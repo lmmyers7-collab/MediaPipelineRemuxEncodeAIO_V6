@@ -111,7 +111,7 @@
           const title = field.choice_help && field.choice_help[optionValue] ? ` title="${escapeHtml(field.choice_help[optionValue])}"` : "";
           return `<option value="${escapeHtml(optionValue)}"${optionValue === valueText ? " selected" : ""}${title}>${escapeHtml(choiceValueLabel(optionValue))}</option>`;
         });
-        if (valueText && !hasCurrent) {
+        if (!hasCurrent) {
           options.unshift(`<option value="${escapeHtml(valueText)}" selected>${escapeHtml(valueText)}</option>`);
         }
         return `<select${disabledAttr} data-library-override-control data-library-override-key="${escapeHtml(key)}">${options.join("")}</select>`;
@@ -144,6 +144,16 @@
 
     function overrideValuesEqual(left, right) {
       return JSON.stringify(stableComparable(left)) === JSON.stringify(stableComparable(right));
+    }
+
+    function normalizedInheritedOverrideValue(field, value) {
+      if (value === null || value === undefined) {
+        if (field?.kind === "list") return [];
+        if (field?.kind === "bool") return false;
+        return "";
+      }
+      if (field?.kind === "list" && value === "") return [];
+      return value;
     }
 
     function overrideStateText(isOverride, value, inheritedValue) {
@@ -308,10 +318,12 @@
       const evidence = settingOverrideEvidence(profile, groupKey, fieldKey);
       const hasLocalOverride = Object.prototype.hasOwnProperty.call(groupOverrides, fieldKey);
       const isOverride = editable && (hasLocalOverride || evidence?.state === "explicit");
+      const persistedOverride = editable && (evidence ? evidence.state === "explicit" : hasLocalOverride);
       const value = effectiveLibraryOverrideValue(profile, groupKey, fieldKey);
-      const inheritedValue = evidence && Object.prototype.hasOwnProperty.call(evidence, "inherited_value")
+      const inheritedValue = normalizedInheritedOverrideValue(field, evidence && Object.prototype.hasOwnProperty.call(evidence, "inherited_value")
         ? evidence.inherited_value
-        : defaultSettingValue(fieldKey);
+        : defaultSettingValue(fieldKey));
+      const inheritedValueJson = JSON.stringify(stableComparable(inheritedValue)) ?? "null";
       const label = escapeHtml(options.label || choiceLabel(fieldKey));
       const unavailableReason = editable ? "" : status.reason || "not available for library overrides";
       const stateText = editable ? overrideStateText(isOverride, value, inheritedValue) : unavailableReason;
@@ -334,7 +346,7 @@
       ].filter(Boolean).join(" ");
       const advancedAttr = fieldIsAdvanced(fieldKey, field) ? " data-advanced" : "";
       const routeAttr = options.routeRole ? ` data-library-route-role="${escapeHtml(options.routeRole)}"` : "";
-      const rowAttrs = `class="${baseClass}" data-library-override-row data-library-override-group="${escapeHtml(groupKey)}" data-library-override-key="${escapeHtml(fieldKey)}" data-library-persisted-key="${escapeHtml(persistedKey)}" data-library-override="${isOverride ? "true" : "false"}" data-library-override-eligible="${editable ? "true" : "false"}" data-library-section="${escapeHtml(section)}" data-library-scope="${escapeHtml(scope)}" data-library-advanced-visibility="${escapeHtml(advancedVisibility)}" data-library-unavailable-reason="${escapeHtml(unavailableReason)}"${routeAttr}${advancedAttr}${title}`;
+      const rowAttrs = `class="${baseClass}" data-library-override-row data-library-override-group="${escapeHtml(groupKey)}" data-library-override-key="${escapeHtml(fieldKey)}" data-library-persisted-key="${escapeHtml(persistedKey)}" data-library-override="${isOverride ? "true" : "false"}" data-library-persisted-override="${persistedOverride ? "true" : "false"}" data-library-inherited-value="${escapeHtml(inheritedValueJson)}" data-library-override-eligible="${editable ? "true" : "false"}" data-library-section="${escapeHtml(section)}" data-library-scope="${escapeHtml(scope)}" data-library-advanced-visibility="${escapeHtml(advancedVisibility)}" data-library-unavailable-reason="${escapeHtml(unavailableReason)}"${routeAttr}${advancedAttr}${title}`;
       const control = buildOverrideControl(fieldKey, value, !editable);
       const controlMarkup = options.unit
         ? `<span class="settings-input-with-unit">${control}<span>${escapeHtml(options.unit)}</span></span>`
@@ -513,14 +525,16 @@
       const evidence = settingOverrideEvidence(profile, groupKey, fieldKey);
       const hasLocalOverride = Object.prototype.hasOwnProperty.call(groupOverrides, fieldKey);
       const isOverride = editable && (hasLocalOverride || evidence?.state === "explicit");
+      const persistedOverride = editable && (evidence ? evidence.state === "explicit" : hasLocalOverride);
       const value = hasLocalOverride
         ? groupOverrides[fieldKey]
         : evidence && Object.prototype.hasOwnProperty.call(evidence, "effective_value")
           ? evidence.effective_value
           : effectiveOverrideValue(profile, groupKey, fieldKey);
-      const inheritedValue = evidence && Object.prototype.hasOwnProperty.call(evidence, "inherited_value")
+      const inheritedValue = normalizedInheritedOverrideValue(field, evidence && Object.prototype.hasOwnProperty.call(evidence, "inherited_value")
         ? evidence.inherited_value
-        : defaultSettingValue(fieldKey);
+        : defaultSettingValue(fieldKey));
+      const inheritedValueJson = JSON.stringify(stableComparable(inheritedValue)) ?? "null";
       const label = escapeHtml(choiceLabel(fieldKey));
       const unavailableReason = editable ? "" : status.reason || "not available for library overrides";
       const stateText = editable ? overrideStateText(isOverride, value, inheritedValue) : unavailableReason;
@@ -542,7 +556,7 @@
         isOverride ? "is-custom" : "is-inherited",
       ].filter(Boolean).join(" ");
       const advancedAttr = fieldIsAdvanced(fieldKey, field) ? " data-advanced" : "";
-      const rowAttrs = `class="${baseClass}" data-library-override-row data-library-override-group="${escapeHtml(groupKey)}" data-library-override-key="${escapeHtml(fieldKey)}" data-library-persisted-key="${escapeHtml(persistedKey)}" data-library-override="${isOverride ? "true" : "false"}" data-library-override-eligible="${editable ? "true" : "false"}" data-library-section="${escapeHtml(section)}" data-library-scope="${escapeHtml(scope)}" data-library-advanced-visibility="${escapeHtml(advancedVisibility)}" data-library-unavailable-reason="${escapeHtml(unavailableReason)}"${advancedAttr}${title}`;
+      const rowAttrs = `class="${baseClass}" data-library-override-row data-library-override-group="${escapeHtml(groupKey)}" data-library-override-key="${escapeHtml(fieldKey)}" data-library-persisted-key="${escapeHtml(persistedKey)}" data-library-override="${isOverride ? "true" : "false"}" data-library-persisted-override="${persistedOverride ? "true" : "false"}" data-library-inherited-value="${escapeHtml(inheritedValueJson)}" data-library-override-eligible="${editable ? "true" : "false"}" data-library-section="${escapeHtml(section)}" data-library-scope="${escapeHtml(scope)}" data-library-advanced-visibility="${escapeHtml(advancedVisibility)}" data-library-unavailable-reason="${escapeHtml(unavailableReason)}"${advancedAttr}${title}`;
       const control = buildOverrideControl(fieldKey, value, !editable);
       const button = editable ? renderUseDefaultButton(groupKey, fieldKey, isOverride) : "";
       const unavailable = unavailableReason ? `<span class="note settings-library-override-unavailable">${escapeHtml(unavailableReason)}</span>` : "";
@@ -775,7 +789,7 @@
         byId("settings-library-active-title")?.closest?.(".settings-library-actions-panel"),
       ].filter(Boolean);
       if (!containers.some((container) => container.contains(active))) return false;
-      return Boolean(active.closest?.("select, input, textarea"));
+      return Boolean(active.closest?.("select, input, textarea, [data-library-override-row]"));
     }
 
     function shouldDeferAutomaticLibraryRender(options = {}) {
@@ -820,6 +834,7 @@
       effectiveOverrideValue,
       settingOverrideEvidence,
       overrideValuesEqual,
+      normalizedInheritedOverrideValue,
       overrideStateText,
       renderUseDefaultButton,
       routeNumberValue,

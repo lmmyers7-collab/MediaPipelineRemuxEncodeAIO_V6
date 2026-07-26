@@ -1,0 +1,62 @@
+{
+  "id": "MP-CHANGE-2026-0723-007",
+  "title": "Exclude test-only release content without scanner false positives",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": "2026-07-23",
+  "summary": "Keep Tauri Rust test-only modules out of default portable packages while preserving explicit IncludeTests validation packages, and scan structured JSON values without misclassifying escaped test-inventory paths as live UNC values.",
+  "reason": "Remediate P1 AUDIT-FIND-W09-010 and AUDIT-FIND-W10-020. Test modules live below the production Rust source tree and therefore bypass the release policy's existing top-level test exclusions, allowing developer-only literals and fixtures to ship by default. Raw-text scanning also mistook a valid JSON-escaped extended-path test anchor for a live UNC value and blocked canonical release packaging.",
+  "affected_areas": [
+    "release package privacy",
+    "Tauri Rust test placement",
+    "release policy exclusions",
+    "portable package verification"
+  ],
+  "behavior_before": "Default release builds omitted top-level test trees but copied apps/desktop/tauri/src-tauri/src/lib_tests and apps/desktop/tauri/src-tauri/src/backend_process/tests.rs because those test-only modules are nested under the production source tree. Content scanning also examined serialized JSON text and rejected the valid generated test inventory as if its escaped extended-path fixture were an operative UNC path.",
+  "behavior_after": "Default release builds narrowly omit the Tauri lib_tests tree and backend_process/tests.rs, explicit IncludeTests builds retain them, and release hygiene verifies their absence whenever tests are not included. JSON content scanning traverses decoded string values, accepts the generated extended-path fixture, and continues rejecting actual private UNC values and malformed unsafe content.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/feature-cards/release-validation.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-ReleasePackagePolicyChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-007.json.md",
+    "docs/generated/summaries/ops/scripts/release/release_policy.ps1.md",
+    "docs/generated/summaries/ops/scripts/release/test_contracts.ps1.md",
+    "ops/pipeline/tests/Unit/Invoke-ReleasePackagePolicyChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-007.json",
+    "ops/scripts/release/release_policy.ps1",
+    "ops/scripts/release/test_contracts.ps1"
+  ],
+  "tests_added": [
+    "Release policy assertions prove all nested Tauri Rust test-module paths are excluded by default while production Rust source remains included.",
+    "Release policy and hygiene assertions prove explicit IncludeTests packages retain the nested Rust test modules.",
+    "A Rust-source privacy assertion forbids the audited personal server and user-profile identifiers.",
+    "Content-policy assertions parse JSON string values, distinguish escaped Windows extended drive-path fixtures from private UNC paths, and retain conservative scanning for malformed JSON."
+  ],
+  "manual_validation": [
+    "PowerShell parser checks passed for the release policy, package test contracts, and release policy unit script.",
+    "Focused JSON content-policy checks passed against the generated test inventory and a synthetic private UNC value.",
+    "Release package policy checks passed, including a full default dry-run: 17,884 copied files planned, 10,883 excluded, and exactly four Tauri Rust test-module exclusions.",
+    "Actual default portable package built with 17,884 copied files; its manifest recorded four Tauri Rust test-module exclusions, all four test files were absent, adjacent production Rust was present, and packaged Rust had zero audited personal-identifier hits.",
+    "Actual package-mode manifest and hygiene checks passed. The broader testless self-test reached the known unrelated AUDIT-FIND-DEP-001 unallowlisted package-cycle baseline and therefore did not qualify as release acceptance.",
+    "Post-audit revalidation of Invoke-ReleasePackagePolicyChecks.ps1 passed, including the real generated test inventory, a 17,894-file current-tree dry-run, and the unsafe-content rejection path.",
+    "cargo test --locked --lib passed: 62 tests.",
+    "Project index/dependency graph and feature file map checks passed.",
+    "Release-scope, summary-integrity, feature-card, and risky-registry tooling passed: 37 tests and 70 subtests.",
+    "Risky-file registry and architecture guardrails passed; god-file guard reported the unchanged baseline of 0 errors and 51 warnings.",
+    "Global summary freshness reported only the same six pre-existing stale files outside this packet.",
+    "git diff --check passed.",
+    "validate_changes --require-worktree-coverage passed with 1,149 valid packets before completion."
+  ],
+  "rollback_plan": "Revert the narrow Rust test-module exclusions, hygiene rules, policy assertions, generated summaries/maps, and this packet together. Reassess release content scanning before permitting test-only source below production trees to ship by default.",
+  "related_changes": [
+    "AUDIT-FIND-W09-010",
+    "AUDIT-FIND-W10-020"
+  ],
+  "notes": "This batch changes release selection and package verification only. It does not launch the media pipeline or read, write, move, or delete media, so representative real-media validation is not required. The actual portable build used a uniquely named directory below the system temp root. Automated recursive cleanup was blocked by execution policy after validation, so the recoverable temp package remains at C:\\Users\\lmmye\\AppData\\Local\\Temp\\mediapipeline-w09-010-8a0eeb49efc9467da2556d07c1d9a791."
+}

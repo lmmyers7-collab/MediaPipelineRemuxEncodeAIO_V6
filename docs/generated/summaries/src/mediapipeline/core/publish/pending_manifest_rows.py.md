@@ -1,5 +1,8 @@
 ---
 file: src/mediapipeline/core/publish/pending_manifest_rows.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: publish
 token_priority: high
 owner_domain: publish
@@ -9,9 +12,9 @@ sha256: 4062206e46085d21e4b23ff8b7ace52c1993708f532c1e9feb6b16f901fa4005
 ---
 # `src/mediapipeline/core/publish/pending_manifest_rows.py`
 
-**Purpose:** (no module docstring)
+**Purpose:** Python implementation for pending manifest rows; exposes invalid_contract_pending_manifest_row, pending_output_size, pending_payload_error_text.
 
-**Public functions:** `invalid_contract_pending_manifest_row()`, `pending_output_size()`, `pending_payload_error_text()`, `pending_sidecar_status()`, `readable_pending_manifest_row()`, `unreadable_pending_manifest_row()`
+**Public symbols:** `invalid_contract_pending_manifest_row`, `pending_output_size`, `pending_payload_error_text`, `pending_sidecar_status`, `readable_pending_manifest_row`, `unreadable_pending_manifest_row`
 **In-repo imports:** `mediapipeline.core.kernel.contracts.pending_publish`, `mediapipeline.core.publish.pending_format`, `mediapipeline.core.publish.pending_paths`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/publish/pending_manifest_rows.py`._

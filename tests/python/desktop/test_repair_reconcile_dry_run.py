@@ -162,6 +162,8 @@ def _pending_manifest_payload(payload: Path, destination: Path, source: Path) ->
         "route": "remux",
         "publish_mode": "deferred",
         "output_size": payload.stat().st_size,
+        "output_sha256": hashlib.sha256(payload.read_bytes()).hexdigest(),
+        "output_hash_algorithm": "SHA256",
         "parked_at": "2026-06-18T08:05:00-04:00",
         "sidecar_files": [],
         "tx3g_srt_tracks": [],
@@ -319,6 +321,9 @@ def _csv_rerun_duplicate_pending_fixture(root: Path) -> tuple[object, dict[str, 
             "local_file": str(duplicate_sidecar),
             "parked_file": str(duplicate_sidecar),
             "server_out": str(output.with_name("Paprika (2006).eng.srt")),
+            "output_size": duplicate_sidecar.stat().st_size,
+            "output_sha256": hashlib.sha256(duplicate_sidecar.read_bytes()).hexdigest(),
+            "output_hash_algorithm": "SHA256",
             "kind": "tx3g_srt",
         }
     ]
@@ -571,6 +576,59 @@ class RepairReconcileDryRunTests(unittest.TestCase):
         self.assertEqual(candidate["local_file"], str(files["pending_payload"]))
         self.assertEqual(candidate["source_path"], str(files["source"]))
         self.assertEqual(candidate["output_path"], str(files["output"]))
+
+    def test_pending_orphan_reconcile_blocks_missing_or_stale_payload_hash_proof(self) -> None:
+        for proof_state in ("missing", "stale", "stale_sidecar"):
+            with self.subTest(proof_state=proof_state), tempfile.TemporaryDirectory() as raw_root:
+                root = Path(raw_root)
+                resolved, files = _pending_fixture(root, orphan_payload=True)
+                facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+                preview = facade.get_pending_publish_preview(resolved).to_mapping()
+                row = preview["rows"][0]
+                proposal = _pending_manifest_payload(
+                    files["pending_payload"], files["output"], files["source"]
+                )
+                if proof_state == "missing":
+                    proposal.pop("output_sha256")
+                elif proof_state == "stale":
+                    proposal["output_sha256"] = "0" * 64
+                else:
+                    sidecar = files["pending_payload"].with_suffix(".eng.srt")
+                    sidecar.write_text("subtitle", encoding="utf-8")
+                    proposal["sidecar_files"] = [
+                        {
+                            "local_file": str(sidecar),
+                            "server_out": str(files["output"].with_suffix(".eng.srt")),
+                            "output_size": sidecar.stat().st_size,
+                            "output_sha256": "0" * 64,
+                            "output_hash_algorithm": "SHA256",
+                        }
+                    ]
+                row["backend_manifest_proposal"] = proposal
+                facade.get_pending_publish_preview = lambda _resolved, mapping=preview.copy: SimpleNamespace(  # type: ignore[method-assign]
+                    to_mapping=mapping
+                )
+
+                result = facade.plan_repair_reconcile_dry_run(
+                    resolved,
+                    candidate_command="pending_publish.reconcile_orphan_payloads",
+                    request={"scope": "selected", "row_key": row["row_key"]},
+                ).to_mapping()["data"]
+
+                candidate = result["diff_summary"]["rows"][0]
+                self.assertFalse(result["safe_to_apply"])
+                self.assertEqual(candidate["status"], "blocked")
+                self.assertFalse(Path(str(files["pending_payload"]) + ".manifest.json").exists())
+                if proof_state == "missing":
+                    self.assertIn("output_sha256", candidate["missing_required_manifest_fields"])
+                    self.assertIn("output_sha256 is required", candidate["error"])
+                elif proof_state == "stale":
+                    self.assertIn("output_sha256 does not match", candidate["error"])
+                else:
+                    self.assertIn(
+                        "sidecar_files[0] output_sha256 does not match",
+                        candidate["error"],
+                    )
 
     def test_pending_manifest_repair_dry_run_builds_valid_backend_proposal_without_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

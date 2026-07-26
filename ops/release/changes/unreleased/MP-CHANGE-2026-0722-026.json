@@ -1,0 +1,62 @@
+{
+  "id": "MP-CHANGE-2026-0722-026",
+  "title": "Align setup CPU presets with canonical config",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-07-22",
+  "date_completed": "2026-07-22",
+  "summary": "Keep setup-emitted VideoPreset values on the canonical descriptor registry, write libx265 speed choices only to CpuEncodePreset, and preserve integer types for setup-authored numeric fields.",
+  "reason": "Remediate P1 AUDIT-FIND-W02-006. The safest no-GPU setup default wrote VideoPreset=medium even though the canonical schema, Python contract, and engine registry accept only p1-p7 for that key.",
+  "affected_areas": [
+    "first-run setup wizard CPU fallback",
+    "setup video-profile and manual-preset prompts",
+    "setup compatibility validation",
+    "setup integer input and config emission",
+    "PowerShell config schema parity tests"
+  ],
+  "behavior_before": "Selecting the CPU/libx265 profile or manually tuning its preset stored libx265 speed names in VideoPreset, and the setup-local compatibility helper contradicted the canonical contract by accepting those invalid values.",
+  "behavior_after": "Setup profiles and prompts derive from the canonical registries, retain a p1-p7 VideoPreset for every codec, store CPU speed in CpuEncodePreset, default no-GPU first runs to the valid CPU profile, and emit integer-only setup fields with canonical integer types.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/feature-cards/release-validation.md",
+    "docs/generated/feature-cards/settings-config.md",
+    "docs/generated/summaries/ops/pipeline/config/setup/ConfigFile.ps1.md",
+    "docs/generated/summaries/ops/pipeline/config/setup/Dependencies.ps1.md",
+    "docs/generated/summaries/ops/pipeline/config/setup/UserInteraction.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0722-026.json.md",
+    "ops/pipeline/config/setup/ConfigFile.ps1",
+    "ops/pipeline/config/setup/Dependencies.ps1",
+    "ops/pipeline/config/setup/UserInteraction.ps1",
+    "ops/pipeline/tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0722-026.json"
+  ],
+  "tests_added": [
+    "Extend Invoke-ConfigKeyRegistryChecks.ps1 with no-GPU CPU-profile selection, canonical preset-key mapping, registry-derived manual choices, emitted PSD1 schema validation, and integer-reader type assertions."
+  ],
+  "manual_validation": [
+    "Pre-fix Invoke-ConfigKeyRegistryChecks.ps1 - expected red because Get-SetupVideoProfiles did not exist; the first post-fix run then caught the OrderedDictionary copy defect before the IDictionary correction.",
+    "Focused Invoke-ConfigKeyRegistryChecks.ps1 - passed: 206 registered keys and references across 166 PowerShell files; exercised no-GPU CPU selection, canonical CPU/GPU preset registries, schema-valid CPU config emission, and integer input typing.",
+    "Packaged Setup-MediaPipeline.ps1 -AcceptDefaults -DryRun completed successfully against disposable existing directories, validated the generated config and dependencies, did not create the requested config file, and the exact disposable root was verified removed.",
+    "Setup-MediaPipeline.ps1 -ListDefaults - passed without writing operator config.",
+    "Contract-schema, runtime-config-resolution, and rerun-nested-config PowerShell wrappers - passed.",
+    "Canonical Python config contract and desktop config policy/validation modules - passed: 59 tests and 87 subtests.",
+    "PowerShell parser checks passed for all four changed source/test scripts.",
+    "Targeted refresh_summaries wrote five summaries; generate_project_index regenerated 2,476 typed records and the dependency graph; feature-file map and 15 feature cards regenerated.",
+    "Summary integrity, risky-file registry, lifecycle-map, feature-card, and AI-guardrail unit set - passed: 35 tests and 72 subtests.",
+    "Project-index, feature-map, and both canonical config-schema generator checks passed.",
+    "Global summary freshness reports only the same six pre-existing stale files outside this packet; every touched summary is current.",
+    "Risky-file registry and architecture guardrails passed. God-file guard completed with zero errors and one warning-only finding for the pre-existing oversized config-key registry wrapper.",
+    "validate_changes --require-worktree-coverage - passed with 1,141 valid packets before completion."
+  ],
+  "rollback_plan": "Revert the setup key mapping, compatibility parity test, PowerShell regression wrapper, generated context, and packet metadata together; retain this packet as incomplete evidence if rollback occurs.",
+  "related_changes": [
+    "AUDIT-FIND-W02-006"
+  ],
+  "notes": "Setup/config emission only. The packaged dry-run exposed that the setup numeric reader returned doubles for integer-only canonical fields; this packet fixes that required validation-path blocker by accepting and returning positive integers at every existing call site. It does not remediate the separate W02-010 zero/null validation finding. No engine command generation, encoder routing, source media, scratch, publish, or destination policy changes. Representative real media is not required."
+}

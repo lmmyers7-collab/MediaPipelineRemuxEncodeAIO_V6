@@ -30,6 +30,7 @@ class DummyQueueDryRunService:
         self.workspace_root = root
         self.app_root.mkdir()
         self._queue_completed_cache_status = ""
+        self._queue_dry_run_cleanup_warnings: list[str] = []
 
     def _queue_snapshot_write_path(self, resolved: ResolvedPaths) -> Path | None:
         return queue_snapshot_write_path(resolved)
@@ -107,6 +108,12 @@ class QueueDryRunRunnerTests(unittest.TestCase):
             self.assertIsNotNone(snapshot)
             assert snapshot is not None
             self.assertTrue(snapshot["desktop_queue_preview_request_id"])
+            self.assertEqual(snapshot["queue_snapshot_origin"], "dry_run")
+            self.assertEqual(snapshot["queue_input_fingerprint_schema"], "queue_input_fingerprint.v1")
+            self.assertTrue(snapshot["queue_input_fingerprint"])
+            self.assertIn("config", snapshot["queue_input_components"])
+            self.assertFalse(snapshot["desktop_queue_snapshot_fallback_used"])
+            self.assertEqual(snapshot["desktop_queue_snapshot_fallback_reason"], "")
             final_path = queue_snapshot_write_path(resolved)
             self.assertIsNotNone(final_path)
             assert final_path is not None
@@ -129,9 +136,11 @@ class QueueDryRunRunnerTests(unittest.TestCase):
             final_path.parent.mkdir(parents=True, exist_ok=True)
             cached_payload = _snapshot_payload("cached")
             final_path.write_text(json.dumps(cached_payload), encoding="utf-8")
+            captured: dict[str, Path] = {}
 
             def fake_run_capture(args, **_kwargs):
                 temp_path = Path(args[args.index("-QueuePlanOutPath") + 1])
+                captured["temp_path"] = temp_path
                 temp_path.parent.mkdir(parents=True, exist_ok=True)
                 temp_path.write_text("partial", encoding="utf-8")
                 return CapturedCommandResult(
@@ -146,9 +155,72 @@ class QueueDryRunRunnerTests(unittest.TestCase):
             with patch("mediapipeline.core.queue.dry_run_runner.run_capture", fake_run_capture):
                 snapshot = run_queue_dry_run_for_service(service, resolved, allow_cached_fallback=True)
 
-            self.assertEqual(snapshot, cached_payload)
+            self.assertEqual(
+                {key: value for key, value in (snapshot or {}).items() if not key.startswith("desktop_queue_snapshot_fallback_")},
+                cached_payload,
+            )
+            self.assertTrue(snapshot["desktop_queue_snapshot_fallback_used"])
+            self.assertIn("timed out", snapshot["desktop_queue_snapshot_fallback_reason"])
+            self.assertEqual(json.loads(final_path.read_text(encoding="utf-8")), cached_payload)
+            self.assertFalse(captured["temp_path"].exists())
             self.assertIn("timed out", service._queue_completed_cache_status)
             self.assertIn("Showing last cached snapshot", service._queue_completed_cache_status)
+
+    def test_run_queue_dry_run_cleans_temp_on_process_parse_and_stale_failures(self) -> None:
+        for failure_kind in ("process", "malformed", "stale"):
+            with self.subTest(failure_kind=failure_kind), tempfile.TemporaryDirectory() as td:
+                root = Path(td)
+                service = DummyQueueDryRunService(root)
+                resolved = _resolved(root)
+                captured: dict[str, Path] = {}
+                if failure_kind == "stale":
+                    service._queue_snapshot_is_current_for_request = lambda *_args: False  # type: ignore[method-assign]
+
+                def fake_run_capture(args, _captured=captured, _failure_kind=failure_kind, **_kwargs):
+                    temp_path = Path(args[args.index("-QueuePlanOutPath") + 1])
+                    _captured["temp_path"] = temp_path
+                    temp_path.parent.mkdir(parents=True, exist_ok=True)
+                    temp_path.write_text(
+                        "{malformed" if _failure_kind == "malformed" else json.dumps(_snapshot_payload("fresh")),
+                        encoding="utf-8",
+                    )
+                    return CapturedCommandResult(
+                        args=args,
+                        returncode=17 if _failure_kind == "process" else 0,
+                        stdout="",
+                        stderr="fixture failure" if _failure_kind == "process" else "",
+                    )
+
+                with patch("mediapipeline.core.queue.dry_run_runner.run_capture", fake_run_capture):
+                    with self.assertRaises(RuntimeError):
+                        run_queue_dry_run_for_service(service, resolved)
+
+                self.assertFalse(captured["temp_path"].exists())
+                final_path = queue_snapshot_write_path(resolved)
+                assert final_path is not None
+                self.assertFalse(final_path.exists())
+
+    def test_run_queue_dry_run_rejects_input_change_and_cleans_temp(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            service = DummyQueueDryRunService(root)
+            resolved = _resolved(root)
+            captured: dict[str, Path] = {}
+
+            def fake_run_capture(args, **_kwargs):
+                temp_path = Path(args[args.index("-QueuePlanOutPath") + 1])
+                captured["temp_path"] = temp_path
+                temp_path.parent.mkdir(parents=True, exist_ok=True)
+                temp_path.write_text(json.dumps(_snapshot_payload("fresh")), encoding="utf-8")
+                resolved.config_path.parent.mkdir(parents=True, exist_ok=True)
+                resolved.config_path.write_text("@{}", encoding="utf-8")
+                return CapturedCommandResult(args=args, returncode=0, stdout="", stderr="")
+
+            with patch("mediapipeline.core.queue.dry_run_runner.run_capture", fake_run_capture):
+                with self.assertRaisesRegex(RuntimeError, "inputs changed"):
+                    run_queue_dry_run_for_service(service, resolved)
+
+            self.assertFalse(captured["temp_path"].exists())
 
     def test_run_queue_dry_run_without_local_base_sets_status_and_returns_none(self) -> None:
         with tempfile.TemporaryDirectory() as td:

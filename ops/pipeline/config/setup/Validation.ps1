@@ -116,7 +116,7 @@ function Invoke-Validation {
         $failures.Add("VideoPreset '$($Config['VideoPreset'])' is not valid for codec '$($Config['VideoCodec'])'.")
     }
 
-    foreach ($key in @('MovieRoute1080pTargetSizeGB','TVRoute1080pTargetSizeGB','MinFreeSpaceGB','OutsourceMinFreeSpaceGB','VideoQuality','FFmpegEncodeTimeoutSeconds','FFmpegRemuxTimeoutSeconds','LogRetentionDays','FallbackCpuQuality','SourceScanIntervalSeconds','ProcessedIndexRefreshSeconds')) {
+    foreach ($key in @('MovieRoute1080pTargetSizeGB','TVRoute1080pTargetSizeGB','MinFreeSpaceGB','OutsourceMinFreeSpaceGB','VideoQuality','FFmpegEncodeTimeoutSeconds','FFmpegRemuxTimeoutSeconds','LogRetentionDays','InterruptedToolLogRetentionDays','FallbackCpuQuality','SourceScanIntervalSeconds','ProcessedIndexRefreshSeconds')) {
         if ($Config.ContainsKey($key)) {
             try {
                 if ([double]$Config[$key] -le 0) {
@@ -125,6 +125,15 @@ function Invoke-Validation {
             } catch {
                 $failures.Add("$key must be numeric.")
             }
+        }
+    }
+    if ($Config.ContainsKey('InterruptedToolLogRetentionDays')) {
+        try {
+            if ([int]$Config['InterruptedToolLogRetentionDays'] -gt 365) {
+                $failures.Add('InterruptedToolLogRetentionDays must be <= 365.')
+            }
+        } catch {
+            # The shared positive-number check above already reports the type error.
         }
     }
     if ($Config.ContainsKey('OutputSizeMultiplier')) {

@@ -147,7 +147,7 @@ class CsvRerunCompletionSummaryTests(unittest.TestCase):
 
             snapshot = MediaPipelineApplicationFacade(service, app_version="test").get_snapshot(resolved)
 
-        self.assertEqual(snapshot.pipeline_state, "stale")
+        self.assertEqual(snapshot.pipeline_state, "idle")
         self.assertEqual(snapshot.csv_rerun_summary["status"], "complete")
         self.assertTrue(snapshot.csv_rerun_summary["terminal"])
 

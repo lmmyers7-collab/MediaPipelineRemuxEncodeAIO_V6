@@ -30,6 +30,27 @@ function Get-UncShareRoot {
     return $null
 }
 
+function Get-MediaPipelineFilesystemBoundaryRoot {
+    param([Parameter(Mandatory)] [string] $Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path)) { return '' }
+    $normalized = Normalize-MediaPipelinePathForBoundary $Path
+    if ([string]::IsNullOrWhiteSpace($normalized)) { return '' }
+
+    $root = ''
+    try {
+        $root = if (Test-IsUncPath $normalized) {
+            [string](Get-UncShareRoot $normalized)
+        } else {
+            [string][System.IO.Path]::GetPathRoot($normalized)
+        }
+    } catch {
+        return ''
+    }
+    if ([string]::IsNullOrWhiteSpace($root)) { return '' }
+    return (Normalize-MediaPipelinePathForBoundary $root)
+}
+
 function Normalize-MediaPipelinePathForBoundary {
     param([string]$Path)
     if ([string]::IsNullOrWhiteSpace($Path)) { return '' }
@@ -104,7 +125,27 @@ function Test-MediaPipelinePathHasReparseAttribute {
         $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
         return [bool]($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint)
     } catch {
-        return $false
+        throw [System.IO.IOException]::new("Unable to inspect path component attributes: $Path", $_.Exception)
+    }
+}
+
+function Get-MediaPipelinePathInspection {
+    param([Parameter(Mandatory)] [string] $Path)
+
+    try {
+        $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
+        return [pscustomobject]@{
+            Exists = $true
+            Item = $item
+        }
+    } catch [System.Management.Automation.ItemNotFoundException] {
+        return [pscustomobject]@{ Exists = $false; Item = $null }
+    } catch [System.IO.FileNotFoundException] {
+        return [pscustomobject]@{ Exists = $false; Item = $null }
+    } catch [System.IO.DirectoryNotFoundException] {
+        return [pscustomobject]@{ Exists = $false; Item = $null }
+    } catch {
+        throw [System.IO.IOException]::new("Unable to inspect path component: $Path", $_.Exception)
     }
 }
 
@@ -126,7 +167,8 @@ function Get-MediaPipelineExistingPathChain {
     foreach ($part in ($relative -split '[\\/]')) {
         if ([string]::IsNullOrWhiteSpace($part)) { continue }
         $current = Join-Path $current $part
-        if (Test-Path -LiteralPath $current -ErrorAction SilentlyContinue) {
+        $inspection = Get-MediaPipelinePathInspection -Path $current
+        if ([bool]$inspection.Exists) {
             $items.Add((Normalize-MediaPipelinePathForBoundary $current)) | Out-Null
         } else {
             break
@@ -158,17 +200,36 @@ function Test-MediaPipelinePathBoundarySafe {
     if (-not $AllowRootTarget -and $pathText.Equals($rootText, [System.StringComparison]::OrdinalIgnoreCase)) {
         return (New-MediaPipelinePathBoundaryResult -Ok $false -ReasonCode 'ROOT_MUTATION_TARGET' -Reason 'path is the allowed root itself' -Path $pathText -Root $rootText)
     }
-    if (-not (Test-Path -LiteralPath $rootText -ErrorAction SilentlyContinue)) {
+    try {
+        $rootInspection = Get-MediaPipelinePathInspection -Path $rootText
+    } catch {
+        return (New-MediaPipelinePathBoundaryResult -Ok $false -ReasonCode 'REPARSE_INSPECTION_FAILED' -Reason "allowed-root inspection failed: $($_.Exception.Message)" -Path $pathText -Root $rootText)
+    }
+    if (-not [bool]$rootInspection.Exists) {
         return (New-MediaPipelinePathBoundaryResult -Ok $false -ReasonCode 'ROOT_MISSING' -Reason 'allowed root does not exist' -Path $pathText -Root $rootText)
     }
-    if (-not $AllowMissingLeaf -and -not (Test-Path -LiteralPath $pathText -ErrorAction SilentlyContinue)) {
-        return (New-MediaPipelinePathBoundaryResult -Ok $false -ReasonCode 'PATH_MISSING' -Reason 'path does not exist' -Path $pathText -Root $rootText)
+    if (-not ($rootInspection.Item -is [System.IO.DirectoryInfo])) {
+        return (New-MediaPipelinePathBoundaryResult -Ok $false -ReasonCode 'ROOT_NOT_DIRECTORY' -Reason 'allowed root is not a directory' -Path $pathText -Root $rootText)
+    }
+    if (-not $AllowMissingLeaf) {
+        try {
+            $pathInspection = Get-MediaPipelinePathInspection -Path $pathText
+        } catch {
+            return (New-MediaPipelinePathBoundaryResult -Ok $false -ReasonCode 'REPARSE_INSPECTION_FAILED' -Reason "target-path inspection failed: $($_.Exception.Message)" -Path $pathText -Root $rootText)
+        }
+        if (-not [bool]$pathInspection.Exists) {
+            return (New-MediaPipelinePathBoundaryResult -Ok $false -ReasonCode 'PATH_MISSING' -Reason 'path does not exist' -Path $pathText -Root $rootText)
+        }
     }
 
-    foreach ($candidate in (Get-MediaPipelineExistingPathChain -Path $pathText -Root $rootText)) {
-        if (Test-MediaPipelinePathHasReparseAttribute -Path $candidate) {
-            return (New-MediaPipelinePathBoundaryResult -Ok $false -ReasonCode 'REPARSE_POINT_COMPONENT' -Reason 'path contains a symlink, junction, or reparse point component' -Path $pathText -Root $rootText -ReparsePath $candidate)
+    try {
+        foreach ($candidate in (Get-MediaPipelineExistingPathChain -Path $pathText -Root $rootText)) {
+            if (Test-MediaPipelinePathHasReparseAttribute -Path $candidate) {
+                return (New-MediaPipelinePathBoundaryResult -Ok $false -ReasonCode 'REPARSE_POINT_COMPONENT' -Reason 'path contains a symlink, junction, or reparse point component' -Path $pathText -Root $rootText -ReparsePath $candidate)
+            }
         }
+    } catch {
+        return (New-MediaPipelinePathBoundaryResult -Ok $false -ReasonCode 'REPARSE_INSPECTION_FAILED' -Reason "path reparse inspection failed: $($_.Exception.Message)" -Path $pathText -Root $rootText)
     }
 
     return (New-MediaPipelinePathBoundaryResult -Ok $true -ReasonCode 'OK' -Reason 'path is within root and has no reparse components' -Path $pathText -Root $rootText)

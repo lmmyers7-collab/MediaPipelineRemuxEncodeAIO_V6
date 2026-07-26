@@ -1,5 +1,8 @@
 ---
 file: ops/pipeline/engine/decide/profile_selection.ps1
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: PowerShell
 pipeline_stage: decide
 token_priority: high
 owner_domain: decide
@@ -9,8 +12,8 @@ sha256: 4eccb829935a4ed78998df301b57dcf20bef2756182c1dc9876e057d871efbfa
 ---
 # `ops/pipeline/engine/decide/profile_selection.ps1`
 
-**Purpose:** (no .SYNOPSIS block)
+**Purpose:** PowerShell implementation for profile selection; exposes Add-MediaRoutePlanMetadataToMap, ConvertTo-MediaRouteEvidenceBool, ConvertTo-MediaRouteEvidenceDouble.
 
-**Functions:** `Add-MediaRoutePlanMetadataToMap`, `ConvertTo-MediaRouteEvidenceBool`, `ConvertTo-MediaRouteEvidenceDouble`, `ConvertTo-MediaRouteHintMap`, `Get-ActiveMediaRouteHints`, `Get-ActiveMediaRoutePlanMetadata`, `Get-MediaRouteDecisionTraceEntryByCode`, `Get-MediaRouteEvidenceValue`, `Get-MediaRouteProfileValue`, `New-MediaRouteExplanation`, `Resolve-MediaRouteRoutingProfileName`, `Resolve-MediaRouteSizeGuardModeName`, `Resolve-MediaRouteThresholdModeName`
+**Public symbols:** `Add-MediaRoutePlanMetadataToMap`, `ConvertTo-MediaRouteEvidenceBool`, `ConvertTo-MediaRouteEvidenceDouble`, `ConvertTo-MediaRouteHintMap`, `Get-ActiveMediaRouteHints`, `Get-ActiveMediaRoutePlanMetadata`, `Get-MediaRouteDecisionTraceEntryByCode`, `Get-MediaRouteEvidenceValue`, `Get-MediaRouteProfileValue`, `New-MediaRouteExplanation`, `Resolve-MediaRouteRoutingProfileName`, `Resolve-MediaRouteSizeGuardModeName`, `Resolve-MediaRouteThresholdModeName`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/pipeline/engine/decide/profile_selection.ps1`._

@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-from .base import bool_field, int_field, require_mapping, require_schema_version, text_field
+from .base import bool_field, int_field, list_field, require_mapping, require_schema_version, text_field
 
 
 PROCESS_FILE_RESULT_SCHEMA_VERSION = "process_file_result.v1"
@@ -28,6 +28,13 @@ class ProcessFileResult:
     publish_mode: str
     output_path: str
     output_size_bytes: int
+    published_path: str
+    parked_path: str
+    intended_final_path: str
+    manifest_path: str
+    pipeline_sidecar_path: str
+    sidecar_paths: list[str]
+    publish_transaction_id: str
     raw: Mapping[str, Any] = field(default_factory=dict, repr=False, compare=False)
 
     @classmethod
@@ -51,5 +58,12 @@ class ProcessFileResult:
             publish_mode=text_field(data, "PublishMode"),
             output_path=text_field(data, "OutputPath"),
             output_size_bytes=int_field(data, "OutputSizeBytes"),
+            published_path=text_field(data, "PublishedPath"),
+            parked_path=text_field(data, "ParkedPath"),
+            intended_final_path=text_field(data, "IntendedFinalPath"),
+            manifest_path=text_field(data, "ManifestPath"),
+            pipeline_sidecar_path=text_field(data, "PipelineSidecarPath"),
+            sidecar_paths=[str(item) for item in list_field(data, "SidecarPaths")],
+            publish_transaction_id=text_field(data, "PublishTransactionId"),
             raw=data,
         )

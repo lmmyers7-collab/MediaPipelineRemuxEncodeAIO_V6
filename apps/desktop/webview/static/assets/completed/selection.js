@@ -73,6 +73,10 @@
     }
 
     function renderCompletedDetail(item) {
+      window.mediaPipelineAppRowOpenActions?.setBackendRowOpenActionAvailability?.(
+        "completed",
+        item?.available_open_targets
+      );
       ctx.renderCompletedSelectedAtAGlance(item || null);
       ctx.renderCompletedActiveOutputContext(item || null);
       const guardrail = "Mutation guardrail: selected-row detail is read-only and cannot accept outputs, repair manifests, rerun jobs, reconcile sidecars, publish, or delete files.";

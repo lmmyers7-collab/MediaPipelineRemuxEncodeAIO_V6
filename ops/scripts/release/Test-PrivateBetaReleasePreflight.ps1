@@ -9,7 +9,12 @@ param(
 
     [string]$ReleaseTag,
 
+    [Parameter(Mandatory)]
+    [string]$ResourceRoot,
+
     [string]$ConfigOutputPath,
+
+    [switch]$SkipSecretPresence,
 
     [switch]$AsJson
 )
@@ -59,6 +64,8 @@ Add-Check 'version' ($Version -match '^\d+\.\d+\.\d+\+\d+$') `
     'Version must be Tauri-compatible semver with build metadata, for example 2026.6.4+001.'
 Add-Check 'release_tag' ($ReleaseTag -match '^app-v\d+\.\d+\.\d+\+\d+$') `
     'Release tag must use the app-v<version> shape expected by the beta workflow.'
+Add-Check 'release_tag:version_identity' ($ReleaseTag -ceq "app-v$Version") `
+    'Release tag must equal app-v<version> exactly.'
 
 $requiredSecretNames = @(
     'TAURI_SIGNING_PRIVATE_KEY',
@@ -66,12 +73,17 @@ $requiredSecretNames = @(
     'WINDOWS_CERTIFICATE_BASE64',
     'WINDOWS_CERTIFICATE_PASSWORD'
 )
-foreach ($secretName in $requiredSecretNames) {
-    Add-Check "secret:$secretName" (Test-RequiredEnv $secretName) `
-        "Required protected release secret is present: $secretName."
+if ($SkipSecretPresence) {
+    Add-Check 'secret_scope:deferred_to_consuming_step' $true `
+        'Private signing-secret presence is intentionally deferred to the exact signing build step.' 'warning'
+} else {
+    foreach ($secretName in $requiredSecretNames) {
+        Add-Check "secret:$secretName" (Test-RequiredEnv $secretName) `
+            "Required protected release secret is present: $secretName."
+    }
+    Add-Check 'secret:TAURI_SIGNING_PRIVATE_KEY_PASSWORD' (Test-RequiredEnv 'TAURI_SIGNING_PRIVATE_KEY_PASSWORD') `
+        'Optional updater private-key password is present when the updater key is encrypted.' 'warning'
 }
-Add-Check 'secret:TAURI_SIGNING_PRIVATE_KEY_PASSWORD' (Test-RequiredEnv 'TAURI_SIGNING_PRIVATE_KEY_PASSWORD') `
-    'Optional updater private-key password is present when the updater key is encrypted.' 'warning'
 
 if (Test-Path -LiteralPath $workflowPath -PathType Leaf) {
     $workflowText = Get-Content -LiteralPath $workflowPath -Raw
@@ -85,8 +97,16 @@ if (Test-Path -LiteralPath $workflowPath -PathType Leaf) {
     }
     Add-Check 'workflow:config_generator' ($workflowText -match 'New-TauriProductizationConfig\.ps1') `
         'Workflow must generate updater-enabled Tauri config.'
+    Add-Check 'workflow:sanitized_resource_stage' (
+        $workflowText -match 'build\.ps1[\s\S]+-DestinationRoot\s+\$resourceRoot' -and
+        $workflowText -match 'New-TauriProductizationConfig\.ps1[\s\S]+-ResourceRoot\s+\$resourceRoot'
+    ) 'Workflow must stage the sanitized release tree and pass it to the Tauri config generator.'
     Add-Check 'workflow:channel_json' ($workflowText -match 'New-TauriUpdaterChannelJson\.ps1') `
         'Workflow must generate updater channel JSON and checksums.'
+    Add-Check 'workflow:provenance_publisher' (
+        $workflowText -match 'Publish-PrivateBetaGitHubRelease\.ps1' -and
+        $workflowText -match 'MEDIAPIPELINE_ALLOW_SAME_COMMIT_REBUILD'
+    ) 'Workflow must use the provenance-bound publisher and protected rebuild approval.'
 } else {
     Add-Check 'workflow:file' $false "Private beta workflow not found: $workflowPath"
 }
@@ -98,6 +118,7 @@ if (Test-Path -LiteralPath $configGeneratorPath -PathType Leaf) {
             Repository = $Repository
             UpdaterPublicKey = [Environment]::GetEnvironmentVariable('TAURI_UPDATER_PUBLIC_KEY')
             Version = $Version
+            ResourceRoot = $ResourceRoot
             OutputPath = $ConfigOutputPath
         }
         $thumbprint = [Environment]::GetEnvironmentVariable('WINDOWS_CERTIFICATE_THUMBPRINT')
@@ -121,6 +142,8 @@ $generatedConfigEvidence = [ordered]@{
     windows_install_mode = $null
     create_updater_artifacts = $false
     nsis_only = $false
+    resource_root = $null
+    resource_map_count = 0
     digest_algorithm = $null
     timestamp_url_present = $false
     certificate_thumbprint_present = $false
@@ -136,6 +159,9 @@ if (Test-Path -LiteralPath $ConfigOutputPath -PathType Leaf) {
         $generatedConfigEvidence.windows_install_mode = [string]$generatedConfig.plugins.updater.windows.installMode
         $generatedConfigEvidence.create_updater_artifacts = [bool]$generatedConfig.bundle.createUpdaterArtifacts
         $generatedConfigEvidence.nsis_only = ($targets.Count -eq 1 -and $targets[0] -eq 'nsis')
+        $resourceProperties = @($generatedConfig.bundle.resources.PSObject.Properties)
+        $generatedConfigEvidence.resource_map_count = $resourceProperties.Count
+        $generatedConfigEvidence.resource_root = [System.IO.Path]::GetFullPath($ResourceRoot).TrimEnd('\', '/')
         $generatedConfigEvidence.digest_algorithm = [string]$generatedConfig.bundle.windows.digestAlgorithm
         $generatedConfigEvidence.timestamp_url_present = -not [string]::IsNullOrWhiteSpace([string]$generatedConfig.bundle.windows.timestampUrl)
         $generatedConfigEvidence.certificate_thumbprint_present = -not [string]::IsNullOrWhiteSpace([string]$generatedConfig.bundle.windows.certificateThumbprint)
@@ -144,8 +170,28 @@ if (Test-Path -LiteralPath $ConfigOutputPath -PathType Leaf) {
             'Generated Tauri config must target only NSIS for the first beta lane.'
         Add-Check 'generated_config:updater_artifacts' $generatedConfigEvidence.create_updater_artifacts `
             'Generated Tauri config must enable updater artifact creation.'
-        Add-Check 'generated_config:endpoint' ($endpoint -eq "https://github.com/$Repository/releases/latest/download/latest-$Channel.json") `
-            'Generated updater endpoint must match the selected channel and GitHub repository.'
+        $expectedResourceRoot = [System.IO.Path]::GetFullPath($ResourceRoot).TrimEnd('\', '/')
+        $expectedResourceMap = [ordered]@{
+            (Join-Path $expectedResourceRoot 'release_manifest.json') = 'release_manifest.json'
+            (Join-Path $expectedResourceRoot 'pyproject.toml') = 'pyproject.toml'
+            ((Join-Path $expectedResourceRoot 'apps\desktop\webview').TrimEnd('\', '/') + '\') = 'apps/desktop/webview/'
+            ((Join-Path $expectedResourceRoot 'apps\desktop\runtime').TrimEnd('\', '/') + '\') = 'apps/desktop/runtime/'
+            ((Join-Path $expectedResourceRoot 'src\mediapipeline').TrimEnd('\', '/') + '\') = 'src/mediapipeline/'
+            ((Join-Path $expectedResourceRoot 'ops\pipeline').TrimEnd('\', '/') + '\') = 'ops/pipeline/'
+            ((Join-Path $expectedResourceRoot 'ops\scripts').TrimEnd('\', '/') + '\') = 'ops/scripts/'
+            ((Join-Path $expectedResourceRoot 'ops\release\metadata').TrimEnd('\', '/') + '\') = 'ops/release/metadata/'
+        }
+        $resourceMapMatches = $resourceProperties.Count -eq $expectedResourceMap.Count
+        foreach ($entry in $expectedResourceMap.GetEnumerator()) {
+            $property = $generatedConfig.bundle.resources.PSObject.Properties[$entry.Key]
+            if ($null -eq $property -or [string]$property.Value -ne [string]$entry.Value) {
+                $resourceMapMatches = $false
+            }
+        }
+        Add-Check 'generated_config:sanitized_resources' $resourceMapMatches `
+            'Generated Tauri config must map only the root marker, manifest, and explicit backend runtime roots.'
+        Add-Check 'generated_config:endpoint' ($endpoint -eq "https://github.com/$Repository/releases/download/updater-$Channel/latest-$Channel.json") `
+            'Generated updater endpoint must use the stable channel-pointer release for the selected repository and channel.'
         Add-Check 'generated_config:install_mode' ($generatedConfigEvidence.windows_install_mode -eq 'passive') `
             'Windows updater install mode must remain passive.'
         Add-Check 'generated_config:digest' ($generatedConfigEvidence.digest_algorithm -eq 'sha256') `

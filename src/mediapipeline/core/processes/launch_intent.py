@@ -31,6 +31,8 @@ class PipelineLaunchIntent:
     show_config: bool
     show_console: bool
     schedule_override: str
+    queue_scope: str
+    priority_export_id: str
     network_role: str
     network_mode_label: str
 
@@ -48,6 +50,8 @@ class PipelineLaunchIntent:
             "show_console": self.show_console,
             "single_file": self.single_file,
             "schedule_override": self.schedule_override,
+            "queue_scope": self.queue_scope,
+            "priority_export_id": self.priority_export_id,
             "extra_args_present": bool(self.extra_args),
             "allow_extra_args": False,
             "network_role": self.network_role,
@@ -68,6 +72,8 @@ def normalize_pipeline_launch_intent(resolved: ResolvedPaths, request: dict[str,
     sleep_seconds, sleep_error = parse_pipeline_sleep_seconds(request.get("sleep_seconds"))
     extra_args = normalize_pipeline_extra_args(request.get("extra_args"))
     single_file = str(request.get("single_file") or "").strip()
+    queue_scope = str(request.get("queue_scope") or "backend_queue").strip().casefold()
+    priority_export_id = str(request.get("priority_export_id") or "").strip()
     single_file_validation = (
         queue_source_file_validation(resolved, single_file, field_name="single_file")
         if single_file
@@ -85,6 +91,8 @@ def normalize_pipeline_launch_intent(resolved: ResolvedPaths, request: dict[str,
         show_config=bool(request.get("show_config", False)),
         show_console=bool(request.get("show_console", False)),
         schedule_override=str(request.get("schedule_override") or "").strip(),
+        queue_scope=queue_scope,
+        priority_export_id=priority_export_id,
         network_role=network_role,
         network_mode_label=pipeline_start_network_mode_label(
             network_role,

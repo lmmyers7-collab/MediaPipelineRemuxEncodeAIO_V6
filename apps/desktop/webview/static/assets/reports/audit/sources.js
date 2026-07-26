@@ -11,6 +11,23 @@
     const scanReportAuditSources = typeof deps.scanReportAuditSources === "function" ? deps.scanReportAuditSources : function () {};
     const setText = typeof deps.setText === "function" ? deps.setText : function () {};
     const startReportAuditFromForm = typeof deps.startReportAuditFromForm === "function" ? deps.startReportAuditFromForm : function () {};
+  function reportAuditOperationIsBusy(scope) {
+    const operations = reportsState.reportAuditBusyOperations;
+    return Boolean(operations && typeof operations === "object" && operations[scope]);
+  }
+
+  function reportAuditSourceRegistryIsBusy() {
+    return reportAuditOperationIsBusy("sourceEdit") || reportAuditOperationIsBusy("sourceScan");
+  }
+
+  function reportAuditLifecycleIsBusy() {
+    return reportAuditOperationIsBusy("start") || reportAuditOperationIsBusy("stop");
+  }
+
+  function reportAuditSourceCommandIsBusy() {
+    return reportAuditSourceRegistryIsBusy() || reportAuditLifecycleIsBusy();
+  }
+
   function reportAuditLocationText(value) {
     return String(value || "").trim();
   }
@@ -105,10 +122,12 @@
     );
     const hasRows = rows.length > 0;
     const hasSelection = selectedRows.length > 0;
+    const addSource = byId("report-audit-add-source-button");
+    if (addSource) addSource.disabled = reportAuditSourceCommandIsBusy();
     const scanSelected = byId("report-audit-scan-selected-button");
-    if (scanSelected) scanSelected.disabled = reportsState.reportAuditCommandBusy || !hasSelection;
+    if (scanSelected) scanSelected.disabled = reportAuditSourceCommandIsBusy() || !hasSelection;
     const scanAll = byId("report-audit-scan-all-button");
-    if (scanAll) scanAll.disabled = reportsState.reportAuditCommandBusy || !hasRows;
+    if (scanAll) scanAll.disabled = reportAuditSourceCommandIsBusy() || !hasRows;
     const clearSelection = byId("report-audit-clear-source-selection-button");
     if (clearSelection) clearSelection.disabled = !hasSelection;
     renderReportAuditLaunchPreflight();
@@ -203,7 +222,8 @@
       runButton.dataset.auditSourceAction = "run";
       runButton.dataset.auditSourceId = sourceId;
       runButton.textContent = "Run";
-      runButton.disabled = !enabled || reportsState.reportAuditCommandBusy || reportsState.reportAuditStartBusy;
+      runButton.disabled = !enabled
+        || reportAuditSourceCommandIsBusy();
       runButton.addEventListener("click", () => {
         selectOnlyReportAuditSource(sourceId);
         startReportAuditFromForm();
@@ -214,7 +234,7 @@
       scanButton.dataset.auditSourceAction = "scan";
       scanButton.dataset.auditSourceId = sourceId;
       scanButton.textContent = "Scan";
-      scanButton.disabled = !enabled || Boolean(reportsState.reportAuditCommandBusy);
+      scanButton.disabled = !enabled || reportAuditSourceCommandIsBusy();
       scanButton.addEventListener("click", () => scanReportAuditSources([sourceId]));
       const removeButton = document.createElement("button");
       removeButton.type = "button";
@@ -222,7 +242,7 @@
       removeButton.dataset.auditSourceAction = "remove";
       removeButton.dataset.auditSourceId = sourceId;
       removeButton.textContent = "Remove";
-      removeButton.disabled = Boolean(reportsState.reportAuditCommandBusy);
+      removeButton.disabled = reportAuditSourceCommandIsBusy();
       removeButton.addEventListener("click", () => removeReportAuditSource(sourceId));
       actionCell.append(runButton, scanButton, removeButton);
       row.appendChild(actionCell);

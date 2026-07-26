@@ -18,7 +18,7 @@
             <strong id="diagnostics-live-run-status" data-state="unknown">Checking</strong>
           </div>
           <div id="diagnostics-live-run-strip" class="live-run-strip" aria-live="polite" aria-label="Diagnostics live run summary">
-            <span class="live-run-chip" data-status="unknown" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="live" aria-label="Open Telemetry for live state" title="Open Telemetry">
+            <span class="live-run-chip" data-status="unknown" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="home" data-quick-link-focus="#current-work-heading" aria-label="Open Current Work run state" title="Open Current Work">
               <span class="live-run-chip-label">State</span>
               <strong class="live-run-chip-value">Waiting for backend snapshot</strong>
             </span>
@@ -36,9 +36,16 @@
             <button type="button" class="secondary-button" data-ui-quick-link data-quick-link-page="diagnostics" data-quick-link-diag-tab="triage" data-quick-link-focus="#diagnostics-close-readiness-overview" aria-label="Focus Diagnostics shutdown readiness">Check whether it is safe to close</button>
           </div>
         </section>
-        <section class="panel" data-panel-type="evidence" aria-labelledby="diagnostics-recovery-heading">
+        <section class="panel" data-panel-type="interactive" aria-labelledby="diagnostics-recovery-heading">
           <div class="panel-heading"><h2 id="diagnostics-recovery-heading">Startup Recovery</h2><strong id="diagnostics-recovery-status" role="status" aria-live="polite">Not loaded</strong></div>
           <pre id="diagnostics-recovery-detail" class="prose-block">Recovery evidence is not loaded.</pre>
+          <p class="note">When recovery is blocked by terminal stale evidence, preview verifies the exact backend-owned records and confirms that every recorded process is absent. Apply only archives those records; it never touches source media.</p>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" id="diagnostics-recovery-preview-button" class="secondary-button">Preview Lifecycle Reconcile</button>
+            <button type="button" id="diagnostics-recovery-reconcile-button" class="danger-button" disabled>Reconcile Stale Lifecycle Evidence</button>
+          </div>
+          <p id="diagnostics-recovery-action-status" class="note" role="status" aria-live="polite">Run the preview before reconciliation is available.</p>
+          <pre id="diagnostics-recovery-action-detail" class="prose-block">No lifecycle reconciliation preview has run.</pre>
         </section>
         <section class="panel" data-panel-type="evidence" aria-labelledby="diagnostics-provenance-heading">
           <div class="panel-heading"><h2 id="diagnostics-provenance-heading">Effective Settings Provenance</h2><strong>Read-only</strong></div>

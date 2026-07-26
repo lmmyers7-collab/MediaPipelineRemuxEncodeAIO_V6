@@ -1,5 +1,8 @@
 ---
 file: src/mediapipeline/core/completed/manifest.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: completed
@@ -9,9 +12,9 @@ sha256: 4c47c8d24e51a73f081ac85eb0f67deae94f0eabda5ce0e412152e3f49f3726c
 ---
 # `src/mediapipeline/core/completed/manifest.py`
 
-**Purpose:** (no module docstring)
+**Purpose:** Python implementation for manifest; exposes annotate_completed_output_health, completed_sidecar_path_from_payload, normalize_proof_mode.
 
-**Public functions:** `annotate_completed_output_health()`, `completed_sidecar_path_from_payload()`, `normalize_proof_mode()`, `read_completed_manifest_records()`
+**Public symbols:** `annotate_completed_output_health`, `completed_sidecar_path_from_payload`, `normalize_proof_mode`, `read_completed_manifest_records`
 **In-repo imports:** `mediapipeline.core.completed.contracts`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/completed/manifest.py`._

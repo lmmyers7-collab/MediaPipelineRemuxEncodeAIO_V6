@@ -16,7 +16,9 @@ function New-MediaPipelineEnginePlan {
         [string] $ConfigPath = '',
         [string] $PowerShellPath = '',
         [string] $ParallelEncodeMode = 'single',
-        [int] $MaxParallelEncodes = 1
+        [int] $MaxParallelEncodes = 1,
+        [bool] $PriorityOnly = $false,
+        [string] $ExpectedQueuePlanFingerprint = ''
     )
 
     return [pscustomobject]@{
@@ -31,6 +33,8 @@ function New-MediaPipelineEnginePlan {
         PowerShellPath     = $PowerShellPath
         ParallelEncodeMode = $ParallelEncodeMode
         MaxParallelEncodes = [int]$MaxParallelEncodes
+        PriorityOnly       = [bool]$PriorityOnly
+        ExpectedQueuePlanFingerprint = [string]$ExpectedQueuePlanFingerprint
     }
 }
 

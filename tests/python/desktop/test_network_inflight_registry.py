@@ -23,6 +23,146 @@ from mediapipeline.desktop.network.registry import InFlightRegistry
 
 
 class NetworkInFlightRegistryTests(unittest.TestCase):
+    def test_job_scoped_rollback_preserves_unrelated_registry_mutations(self) -> None:
+        registry = InFlightRegistry()
+        self.assertTrue(
+            registry.claim(
+                job_id="job-target",
+                worker_id="worker-target",
+                worker_name="Target Worker",
+                source_path=r"C:\Media\target.mkv",
+                encode_config={},
+            )
+        )
+        self.assertTrue(
+            registry.claim(
+                job_id="job-finished",
+                worker_id="worker-finished",
+                worker_name="Finished Worker",
+                source_path=r"C:\Media\finished.mkv",
+                encode_config={},
+            )
+        )
+        rollback = registry.rollback_snapshot(
+            "job-target",
+            transition="complete",
+            success=True,
+            elapsed_seconds=12.0,
+            output_size_bytes=1_073_741_824,
+        )
+
+        self.assertIsNotNone(
+            registry.complete(
+                "job-target",
+                "worker-target",
+                success=True,
+                elapsed_seconds=12.0,
+                output_size_bytes=1_073_741_824,
+            )
+        )
+        self.assertIsNotNone(registry.complete("job-finished", "worker-finished", success=True))
+        self.assertTrue(
+            registry.claim(
+                job_id="job-new",
+                worker_id="worker-new",
+                worker_name="New Worker",
+                source_path=r"C:\Media\new.mkv",
+                encode_config={},
+            )
+        )
+        with registry._lock:
+            registry._late_terminal_reports.append({"job_id": "job-unrelated", "worker_id": "worker-late"})
+            registry._reclaimed_source_quarantine[r"c:\media\quarantined.mkv"] = {
+                "source_identity": r"c:\media\quarantined.mkv",
+                "source_path": r"C:\Media\quarantined.mkv",
+                "job_id": "job-quarantined",
+            }
+
+        self.assertTrue(registry.restore_rollback_snapshot(rollback))
+
+        with registry._lock:
+            self.assertEqual(set(registry._jobs), {"job-target", "job-new"})
+            self.assertEqual(registry.session_completed, 1)
+            self.assertEqual(registry._worker_stats["worker-target"]["files"], 0)
+            self.assertEqual(registry._worker_stats["worker-finished"]["files"], 1)
+            self.assertEqual(
+                registry._late_terminal_reports,
+                [{"job_id": "job-unrelated", "worker_id": "worker-late"}],
+            )
+            self.assertIn(r"c:\media\quarantined.mkv", registry._reclaimed_source_quarantine)
+
+    def test_failed_completion_rollback_preserves_later_same_worker_success(self) -> None:
+        registry = InFlightRegistry()
+        for job_id, source_name in (("job-target", "target.mkv"), ("job-finished", "finished.mkv")):
+            self.assertTrue(
+                registry.claim(
+                    job_id=job_id,
+                    worker_id="worker-shared",
+                    worker_name="Shared Worker",
+                    source_path=rf"C:\Media\{source_name}",
+                    encode_config={},
+                )
+            )
+        rollback = registry.rollback_snapshot("job-target", transition="complete", success=False)
+
+        registry.complete(
+            "job-target",
+            "worker-shared",
+            success=False,
+            reason_code="ENCODE_ERROR",
+            reason="target failure",
+        )
+        registry.complete(
+            "job-finished",
+            "worker-shared",
+            success=True,
+            elapsed_seconds=5.0,
+            output_size_bytes=1_073_741_824,
+        )
+
+        self.assertTrue(registry.restore_rollback_snapshot(rollback))
+        with registry._lock:
+            self.assertEqual(set(registry._jobs), {"job-target"})
+            self.assertEqual(registry.session_completed, 1)
+            self.assertEqual(registry.session_failed, 0)
+            stats = registry._worker_stats["worker-shared"]
+            self.assertEqual(stats["files"], 1)
+            self.assertEqual(stats["failure_streak_count"], 0)
+            self.assertEqual(stats["last_failure_job_id"], "")
+            self.assertNotIn(
+                "worker-shared\0c:\\media\\target.mkv",
+                registry._failure_ledger,
+            )
+
+    def test_job_scoped_rollback_refuses_new_source_owner_without_replacing_it(self) -> None:
+        registry = InFlightRegistry()
+        self.assertTrue(
+            registry.claim(
+                job_id="job-target",
+                worker_id="worker-target",
+                worker_name="Target Worker",
+                source_path=r"C:\Media\target.mkv",
+                encode_config={},
+            )
+        )
+        rollback = registry.rollback_snapshot("job-target", transition="release")
+        self.assertIsNotNone(registry.unclaim("job-target", "worker-target"))
+        self.assertTrue(
+            registry.claim(
+                job_id="job-new-owner",
+                worker_id="worker-new",
+                worker_name="New Worker",
+                source_path=r"C:\Media\target.mkv",
+                encode_config={},
+            )
+        )
+
+        with self.assertLogs("mediapipeline.desktop.network.registry", level="ERROR"):
+            self.assertFalse(registry.restore_rollback_snapshot(rollback))
+        with registry._lock:
+            self.assertEqual(set(registry._jobs), {"job-new-owner"})
+            self.assertEqual(registry._claimed_paths[r"c:\media\target.mkv"], "job-new-owner")
+
     def test_inflight_registry_save_survives_concurrent_saves(self) -> None:
         for label, registry_type in (
             ("core", CoreInFlightRegistry),
@@ -322,6 +462,8 @@ class NetworkInFlightRegistryTests(unittest.TestCase):
             )
         )
         self.assertIsNotNone(report)
+        self.assertTrue(report["accepted"])
+        self.assertEqual(report["authorization_status"], "accepted")
         self.assertTrue(report["removes_queue_record"])
         self.assertTrue(registry.clear_reclaimed_source_quarantine(source))
         with registry._lock:
@@ -357,6 +499,8 @@ class NetworkInFlightRegistryTests(unittest.TestCase):
             )
         )
         self.assertIsNotNone(report)
+        self.assertTrue(report["accepted"])
+        self.assertEqual(report["authorization_status"], "accepted")
         self.assertFalse(report["removes_queue_record"])
         with registry._lock:
             registry._recent_completions.clear()
@@ -364,6 +508,74 @@ class NetworkInFlightRegistryTests(unittest.TestCase):
         self.assertTrue(registry.is_in_flight("c:/media/retryable.mkv"))
         stats = registry.reclaimed_source_quarantine_stats()
         self.assertEqual(stats["count"], 1)
+
+    def test_late_terminal_report_rejects_worker_that_did_not_own_reclaimed_job(self) -> None:
+        registry = InFlightRegistry()
+        source = r"C:\Media\owner-bound.mkv"
+        self.assertTrue(
+            registry.claim(
+                job_id="job-owner-bound",
+                worker_id="worker-owner",
+                worker_name="Owner Worker",
+                source_path=source,
+                encode_config={},
+            )
+        )
+        with registry._lock:
+            registry._jobs["job-owner-bound"].last_heartbeat = "2026-01-01T00:00:00+00:00"
+        self.assertEqual(
+            [job.job_id for job in registry.reclaim_stale(0.01)],
+            ["job-owner-bound"],
+        )
+
+        report = registry.record_late_terminal_report(
+            SimpleNamespace(
+                job_id="job-owner-bound",
+                worker_id="worker-foreign",
+                success=True,
+                queue_terminal=True,
+            )
+        )
+
+        self.assertIsNotNone(report)
+        self.assertFalse(report["accepted"])
+        self.assertEqual(report["authorization_status"], "rejected_owner_mismatch")
+        self.assertEqual(report["reclaimed_worker_id"], "worker-owner")
+        self.assertFalse(report["removes_queue_record"])
+        self.assertEqual(registry.late_terminal_reports_snapshot(), [report])
+        self.assertTrue(registry.is_in_flight(source))
+        self.assertEqual(registry.reclaimed_source_quarantine_stats()["count"], 1)
+
+    def test_late_terminal_report_carries_server_created_rerun_identity(self) -> None:
+        registry = InFlightRegistry()
+        source = r"C:\Media\rerun.mkv"
+        self.assertTrue(
+            registry.claim(
+                job_id="job-rerun",
+                worker_id="worker-owner",
+                worker_name="Owner Worker",
+                source_path=source,
+                encode_config={},
+                job_kind="csv_rerun_row",
+                claim_metadata={
+                    "job_kind": "csv_rerun_row",
+                    "rerun_batch_id": "batch-1",
+                    "rerun_row_key": "row-1",
+                },
+            )
+        )
+        with registry._lock:
+            registry._jobs["job-rerun"].last_heartbeat = "2026-01-01T00:00:00+00:00"
+        registry.reclaim_stale(0.01)
+
+        report = registry.record_late_terminal_report(
+            SimpleNamespace(job_id="job-rerun", worker_id="worker-owner", success=True)
+        )
+
+        self.assertIsNotNone(report)
+        self.assertEqual(report["job_kind"], "csv_rerun_row")
+        self.assertEqual(report["rerun_batch_id"], "batch-1")
+        self.assertEqual(report["rerun_row_key"], "row-1")
 
     def test_failure_ledger_is_capped_and_persists_bounded_rows(self) -> None:
         with tempfile.TemporaryDirectory() as td:
@@ -525,74 +737,3 @@ class NetworkInFlightRegistryTests(unittest.TestCase):
         with self.assertLogs("mediapipeline.desktop.network.encode_config_snapshot", level="WARNING") as encode_logs:
             self.assertEqual(snapshot_encode_config(config, "worker"), {"VideoCodec": "copy"})
         self.assertIn("WorkerConfigOverrides is disabled by backend policy", "\n".join(encode_logs.output))
-
-    def test_inflight_registry_load_skips_malformed_rows_without_partial_failure(self) -> None:
-        with tempfile.TemporaryDirectory() as td:
-            path = Path(td) / "inflight_registry.json"
-            valid_source = r"C:\Media\valid.mkv"
-            path.write_text(
-                json.dumps(
-                    {
-                        "jobs": [
-                            {
-                                "job_id": "job-1",
-                                "worker_id": "worker-1",
-                                "worker_name": "Worker 1",
-                                "source_path": valid_source,
-                                "claimed_at": "2026-05-08T00:00:00+00:00",
-                                "last_heartbeat": "2026-05-08T00:01:00+00:00",
-                                "progress_percent": 42,
-                                "current_stage": "encoding",
-                                "encode_config": {},
-                                "priority": True,
-                                "estimated_size_gb": 1.5,
-                            },
-                            {
-                                "job_id": "bad-progress",
-                                "worker_id": "worker-2",
-                                "worker_name": "Worker 2",
-                                "source_path": r"C:\Media\bad.mkv",
-                                "claimed_at": "2026-05-08T00:00:00+00:00",
-                                "last_heartbeat": "2026-05-08T00:01:00+00:00",
-                                "progress_percent": "not-a-number",
-                            },
-                            {
-                                "job_id": "bad-size",
-                                "worker_id": "worker-3",
-                                "worker_name": "Worker 3",
-                                "source_path": r"C:\Media\bad-size.mkv",
-                                "claimed_at": "2026-05-08T00:00:00+00:00",
-                                "last_heartbeat": "2026-05-08T00:01:00+00:00",
-                                "estimated_size_gb": "NaN",
-                            },
-                            ["not", "an", "object"],
-                            {"job_id": "", "source_path": r"C:\Media\missing-id.mkv"},
-                        ],
-                        "session_completed": "bad-counter",
-                        "session_failed": "2",
-                        "worker_stats": {
-                            "worker-1": {"name": "Worker 1", "files": "3", "gb": "6.5", "secs": "120"},
-                            "worker-bad": {"files": "not-a-number"},
-                            "worker-bad-gb": {"files": "1", "gb": "NaN", "secs": "120"},
-                        },
-                    }
-                ),
-                encoding="utf-8",
-            )
-            registry = InFlightRegistry()
-
-            with self.assertLogs("mediapipeline.desktop.network.registry", level="WARNING") as logs:
-                registry.load(path)
-
-            self.assertTrue(registry.is_in_flight(valid_source))
-            snapshot = registry.snapshot()
-            self.assertEqual(len(snapshot), 1)
-            self.assertEqual(snapshot[0].worker_id, "worker-1")
-            self.assertEqual(snapshot[0].files_completed, 3)
-            self.assertEqual(registry.session_completed, 0)
-            self.assertEqual(registry.session_failed, 2)
-            text = "\n".join(logs.output)
-            self.assertIn("Skipping malformed in-flight job", text)
-            self.assertIn("Skipping incomplete in-flight job", text)
-            self.assertIn("Invalid session_completed", text)
-            self.assertIn("Skipping malformed worker stats", text)

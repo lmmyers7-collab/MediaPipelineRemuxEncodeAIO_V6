@@ -1,5 +1,8 @@
 ---
 file: src/mediapipeline/core/diagnostics/autonomy_health_publish.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: publish
 token_priority: medium
 owner_domain: diagnostics
@@ -9,7 +12,7 @@ sha256: f5f135423f4916f11b2991f52570b849dc6c84c46875336ec46bd51cdc3b66e3
 ---
 # `src/mediapipeline/core/diagnostics/autonomy_health_publish.py`
 
-**Purpose:** (no module docstring)
+**Purpose:** Python implementation for autonomy health publish.
 
 **In-repo imports:** `mediapipeline.core.diagnostics.autonomy_evaluators`, `mediapipeline.core.diagnostics.autonomy_growth`, `mediapipeline.core.diagnostics.autonomy_health_constants`, `mediapipeline.core.diagnostics.autonomy_health_projection`, `mediapipeline.core.diagnostics.autonomy_health_runtime`, `mediapipeline.core.diagnostics.autonomy_health_support`, `mediapipeline.core.diagnostics.autonomy_policy`, `mediapipeline.core.diagnostics.autonomy_recovery`, `mediapipeline.core.diagnostics.autonomy_scan`, `mediapipeline.core.diagnostics.autonomy_types`, `mediapipeline.core.kernel.contracts.pending_publish`, `mediapipeline.core.status.runtime_health`
 

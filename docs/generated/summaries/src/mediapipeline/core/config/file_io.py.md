@@ -1,5 +1,8 @@
 ---
 file: src/mediapipeline/core/config/file_io.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
@@ -9,8 +12,8 @@ sha256: a8fb7888d6eed414066150380f3ccec156dafdc4f818108bb848caf9c5d7158f
 ---
 # `src/mediapipeline/core/config/file_io.py`
 
-**Purpose:** (no module docstring)
+**Purpose:** Python implementation for file io; exposes atomic_write_text, normalize_open_path_text, path_from_file_uri.
 
-**Public functions:** `atomic_write_text()`, `normalize_open_path_text()`, `path_from_file_uri()`, `strip_windows_extended_path_prefix()`
+**Public symbols:** `atomic_write_text`, `normalize_open_path_text`, `path_from_file_uri`, `strip_windows_extended_path_prefix`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/config/file_io.py`._

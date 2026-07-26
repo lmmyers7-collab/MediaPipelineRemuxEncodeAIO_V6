@@ -24,6 +24,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine') -Pa
 }
 
 . (Join-Path $repoRoot 'ops\pipeline\engine\audit\rerun_source_identity.ps1')
+$metadataScript = Join-Path $repoRoot 'ops\pipeline\entrypoints\Get-RerunSourceMetadata.ps1'
 
 function Assert-True {
     param([bool] $Condition, [string] $Message)
@@ -55,6 +56,19 @@ try {
 
     Assert-True ($changedIdentity -match '^[0-9a-f]{64}$') 'Changed-source fallback should still emit a SHA-256 identity.'
     Assert-True ($changedIdentity -ne $firstIdentity) 'Missing-ffprobe fallback identity should change when source sample bytes change.'
+
+    $metadataRequestPath = Join-Path $tempRoot 'metadata-request.json'
+    $metadataOutputPath = Join-Path $tempRoot 'metadata-output.json'
+    [System.IO.File]::WriteAllText(
+        $metadataRequestPath,
+        ([ordered]@{ schema_version = 'rerun_source_metadata_request.v1'; source_paths = @($source) } | ConvertTo-Json -Depth 4),
+        [System.Text.UTF8Encoding]::new($false)
+    )
+    & $metadataScript -InputJsonPath $metadataRequestPath -OutputJsonPath $metadataOutputPath
+    $metadataPayload = Get-Content -LiteralPath $metadataOutputPath -Raw | ConvertFrom-Json
+    $expectedContentSha256 = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash.ToLowerInvariant()
+    Assert-Equal $metadataPayload.rows[0].source_content_sha256 $expectedContentSha256 'Rerun source metadata omitted the full-file SHA-256 contract.'
+    Assert-Equal $metadataPayload.rows[0].source_content_sha256_algorithm 'sha256-full-file' 'Rerun source metadata emitted an unsupported content-hash algorithm token.'
 } finally {
     if (Test-Path -LiteralPath $tempRoot) {
         Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue

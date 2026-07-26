@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import datetime, UTC
 from pathlib import Path
 import threading
+import time
 from typing import Any
 import uuid
 
@@ -11,16 +13,21 @@ from mediapipeline.core.queue.dry_run_runner import (
     run_queue_dry_run_for_service,
 )
 from mediapipeline.core.queue.preview_builder import build_queue_preview_for_service
+from mediapipeline.core.queue.freshness import (
+    QueueSnapshotFreshnessAnchor,
+    QueueSnapshotFreshnessResult,
+    build_queue_snapshot_freshness_anchor,
+    evaluate_queue_snapshot_freshness,
+    normalize_queue_snapshot_freshness_seconds,
+)
 from mediapipeline.core.queue.priority_markers import (
-    apply_priority_marker as apply_priority_marker_to_path,
-    format_priority_leaf_name as format_priority_leaf_name_for_marker,
     get_source_priority_info as get_source_priority_info_for_path,
     path_is_unc,
     remove_priority_markers_from_name,
     safe_mtime,
     starts_with_priority_marker,
-    touch_priority_target as touch_priority_target_path,
 )
+from mediapipeline.core.queue.priority_export import PriorityQueueExportStore
 from mediapipeline.core.queue.snapshot import (
     queue_dry_run_tail,
     queue_record_from_snapshot_row,
@@ -46,6 +53,8 @@ from mediapipeline.core.queue.contracts import QueueRecord
 
 
 class QueueServiceMixin:
+    _QUEUE_SCAN_LOCK_CREATION_GUARD = threading.Lock()
+
     def starts_with_priority_marker(self, text: str, markers: list[str]) -> bool:
         return starts_with_priority_marker(text, markers)
 
@@ -115,12 +124,154 @@ class QueueServiceMixin:
         """Spawn the pipeline in -EmitQueuePlan mode and load the resulting JSON."""
         return run_queue_dry_run_for_service(self, resolved, allow_cached_fallback=allow_cached_fallback)
 
+    def export_priority_queue_snapshot(self, resolved: ResolvedPaths) -> dict[str, Any]:
+        if resolved.state_root is None:
+            return {
+                "schema_version": "priority_queue_export.v1",
+                "status": "blocked",
+                "ready": False,
+                "reason_code": "priority_export_state_root_missing",
+                "message": "Priority queue export requires LocalBase/State to be configured.",
+                "count": 0,
+                "queue_scope": "priority_export",
+            }
+        store = PriorityQueueExportStore(resolved.state_root)
+        export_id = store.new_export_id()
+        export_path = store.path_for_export(export_id)
+        snapshot = run_queue_dry_run_for_service(
+            self,
+            resolved,
+            destination_path=export_path,
+            priority_only=True,
+            snapshot_origin="priority_export",
+            request_id=export_id,
+            mirror_to_state_db=False,
+        )
+        if not isinstance(snapshot, dict):
+            return {
+                "schema_version": "priority_queue_export.v1",
+                "status": "blocked",
+                "ready": False,
+                "reason_code": "priority_export_snapshot_missing",
+                "message": "Priority-only queue dry-run did not produce a snapshot.",
+                "count": 0,
+                "queue_scope": "priority_export",
+            }
+        if snapshot.get("priority_only_scope") is not True:
+            try:
+                export_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+            return {
+                "schema_version": "priority_queue_export.v1",
+                "status": "blocked",
+                "ready": False,
+                "reason_code": "priority_export_scope_unverified",
+                "message": "Priority-only queue dry-run did not prove priority-only scope.",
+                "count": 0,
+                "queue_scope": "priority_export",
+            }
+        artifact = store.create_from_snapshot(snapshot, export_id=export_id)
+        if artifact.get("status") != "ready":
+            try:
+                export_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+        return artifact
+
+    def validate_priority_queue_export_for_launch(
+        self,
+        resolved: ResolvedPaths,
+        *,
+        export_id: str,
+    ) -> dict[str, Any]:
+        if resolved.state_root is None:
+            return {
+                "status": "blocked",
+                "reason_code": "priority_export_state_root_missing",
+                "message": "Priority Export requires LocalBase/State to be configured.",
+            }
+        return PriorityQueueExportStore(resolved.state_root).validate_for_launch(export_id=export_id)
+
+    def normalize_queue_snapshot_freshness_seconds(self, value: object) -> int:
+        return normalize_queue_snapshot_freshness_seconds(value)
+
+    def evaluate_queue_snapshot_freshness_for_launch(
+        self,
+        snapshot_path: Path,
+        snapshot: Mapping[str, Any],
+        scan_status: Mapping[str, Any],
+        *,
+        freshness_seconds: float,
+        wall_now: datetime | None = None,
+        monotonic_now: float | None = None,
+        anchor: QueueSnapshotFreshnessAnchor | None = None,
+    ) -> QueueSnapshotFreshnessResult:
+        return evaluate_queue_snapshot_freshness(
+            snapshot_path,
+            snapshot,
+            scan_status,
+            freshness_seconds=freshness_seconds,
+            wall_now=wall_now,
+            monotonic_now=monotonic_now,
+            anchor=anchor,
+        )
+
     def _queue_scan_lock(self) -> threading.Lock:
         lock = getattr(self, "_queue_source_scan_lock", None)
         if lock is None:
-            lock = threading.Lock()
-            self._queue_source_scan_lock = lock
+            with self._QUEUE_SCAN_LOCK_CREATION_GUARD:
+                lock = getattr(self, "_queue_source_scan_lock", None)
+                if lock is None:
+                    lock = threading.Lock()
+                    self._queue_source_scan_lock = lock
         return lock
+
+    def queue_snapshot_freshness_wall_now(self) -> datetime:
+        return datetime.now(UTC)
+
+    def queue_snapshot_freshness_monotonic_now(self) -> float:
+        return time.monotonic()
+
+    def queue_snapshot_freshness_anchor(self) -> QueueSnapshotFreshnessAnchor | None:
+        anchor = getattr(self, "_queue_snapshot_freshness_anchor", None)
+        return anchor if isinstance(anchor, QueueSnapshotFreshnessAnchor) else None
+
+    def _clear_queue_snapshot_freshness_anchor(self) -> None:
+        self._queue_snapshot_freshness_anchor = None
+
+    def _record_queue_snapshot_freshness_anchor(
+        self,
+        resolved: ResolvedPaths,
+        snapshot_path: Path,
+        snapshot: dict[str, Any],
+        scan_status: dict[str, Any],
+    ) -> None:
+        self._clear_queue_snapshot_freshness_anchor()
+        freshness_seconds = normalize_queue_snapshot_freshness_seconds(
+            (resolved.config_data or {}).get("QueueLaunchSnapshotFreshnessSeconds")
+        )
+        wall_now = self.queue_snapshot_freshness_wall_now()
+        monotonic_now = self.queue_snapshot_freshness_monotonic_now()
+        initial = evaluate_queue_snapshot_freshness(
+            snapshot_path,
+            snapshot,
+            scan_status,
+            freshness_seconds=freshness_seconds,
+            wall_now=wall_now,
+            monotonic_now=monotonic_now,
+        )
+        if not initial.fresh:
+            return
+        try:
+            self._queue_snapshot_freshness_anchor = build_queue_snapshot_freshness_anchor(
+                snapshot_path,
+                snapshot,
+                scan_status,
+                monotonic_now=monotonic_now,
+            )
+        except ValueError:
+            self._clear_queue_snapshot_freshness_anchor()
 
     def _queue_scan_id(self) -> str:
         prefix = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
@@ -138,7 +289,12 @@ class QueueServiceMixin:
         thread = active.get("thread") if isinstance(active, dict) else None
         if isinstance(thread, threading.Thread) and thread.is_alive():
             active_id = str(active.get("scan_id") or "")
-            if active_id and str(status.get("scan_id") or "") == active_id:
+            active_phase = str(active.get("phase") or "")
+            if (
+                active_id
+                and str(status.get("scan_id") or "") == active_id
+                and active_phase != "curation_deferred"
+            ):
                 status = dict(status)
                 status["running"] = True
                 status["status"] = "running"
@@ -165,6 +321,55 @@ class QueueServiceMixin:
         scan_id = str(active.get("scan_id") or "").strip()
         scan_text = f" {scan_id}" if scan_id else ""
         return f"{action} blocked because queue source scan{scan_text} is still running."
+
+    def normal_run_once_queue_scan_block_message(
+        self,
+        action: str,
+        *,
+        preempt: bool = False,
+    ) -> str:
+        """Atomically allow or preempt pre-curation scans for normal Run Once."""
+        lock = self._queue_scan_lock()
+        with lock:
+            active = getattr(self, "_queue_source_scan_active", None)
+            thread = active.get("thread") if isinstance(active, dict) else None
+            if not isinstance(thread, threading.Thread) or not thread.is_alive():
+                return ""
+            phase = str(active.get("phase") or "").strip().casefold()
+            if phase in {"starting", "inventory", "preempt_requested", "curation_deferred"}:
+                if preempt and phase != "curation_deferred":
+                    preempt_event = active.get("preempt_event")
+                    if not isinstance(preempt_event, threading.Event):
+                        return self.queue_source_scan_active_block_message(action)
+                    preempt_event.set()
+                    active["phase"] = "preempt_requested"
+                return ""
+            return self.queue_source_scan_active_block_message(action)
+
+    def _queue_source_scan_enter_inventory(self, scan_id: str) -> None:
+        lock = self._queue_scan_lock()
+        with lock:
+            active = getattr(self, "_queue_source_scan_active", None)
+            if not isinstance(active, dict) or str(active.get("scan_id") or "") != scan_id:
+                return
+            if str(active.get("phase") or "") == "starting":
+                active["phase"] = "inventory"
+
+    def _queue_source_scan_claim_curation(self, scan_id: str) -> bool:
+        """Atomically choose curation or a Run Once preemption request."""
+        lock = self._queue_scan_lock()
+        with lock:
+            active = getattr(self, "_queue_source_scan_active", None)
+            if not isinstance(active, dict) or str(active.get("scan_id") or "") != scan_id:
+                return False
+            preempt_event = active.get("preempt_event")
+            if not isinstance(preempt_event, threading.Event):
+                return False
+            if preempt_event.is_set():
+                active["phase"] = "curation_deferred"
+                return False
+            active["phase"] = "curating"
+            return True
 
     def start_queue_source_scan(self, resolved: ResolvedPaths, request: dict[str, Any]) -> dict[str, Any]:
         status_path = queue_scan_status_path(resolved)
@@ -213,6 +418,7 @@ class QueueServiceMixin:
                     "status": self.read_queue_scan_status(resolved),
                 }
 
+            self._clear_queue_snapshot_freshness_anchor()
             scan_id = self._queue_scan_id()
             requested_at = utc_now_iso()
             status = queue_scan_status_payload(
@@ -238,7 +444,12 @@ class QueueServiceMixin:
                 name=f"queue-source-scan-{scan_id}",
                 daemon=False,
             )
-            self._queue_source_scan_active = {"scan_id": scan_id, "thread": thread}
+            self._queue_source_scan_active = {
+                "scan_id": scan_id,
+                "thread": thread,
+                "phase": "starting",
+                "preempt_event": threading.Event(),
+            }
             thread.start()
 
         return {
@@ -265,6 +476,7 @@ class QueueServiceMixin:
         warnings: list[str] = []
         try:
             if mode != "curate_only":
+                self._queue_source_scan_enter_inventory(scan_id)
                 inventory_started = utc_now_iso()
                 self._write_queue_scan_status(
                     resolved,
@@ -316,6 +528,35 @@ class QueueServiceMixin:
                 )
                 return
 
+            if not self._queue_source_scan_claim_curation(scan_id):
+                deferred_at = utc_now_iso()
+                self._write_queue_scan_status(
+                    resolved,
+                    queue_scan_status_payload(
+                        scan_id=scan_id,
+                        status="deferred",
+                        phase="curation_deferred",
+                        mode=mode,
+                        force=force,
+                        scope=scope,
+                        requested_at_utc=requested_at,
+                        started_at_utc=requested_at,
+                        updated_at_utc=deferred_at,
+                        completed_at_utc=deferred_at,
+                        message=(
+                            "Queue curation deferred because normal Run Once accepted "
+                            "the existing validated dry-run snapshot."
+                        ),
+                        status_path=status_path,
+                        inventory_path=inventory_path,
+                        queue_snapshot_path=snapshot_path,
+                        inventory_count=inventory_count,
+                        curated_row_count=0,
+                        warnings=warnings,
+                    ),
+                )
+                return
+
             curation_started = utc_now_iso()
             self._write_queue_scan_status(
                 resolved,
@@ -338,7 +579,23 @@ class QueueServiceMixin:
                 ),
             )
             curated_row_count = len(self.build_queue_preview(resolved, force_refresh=force))
+            curated_snapshot = self._read_queue_snapshot(snapshot_path) or {}
+            preview_request_id = str(curated_snapshot.get("desktop_queue_preview_request_id") or "")
+            warnings.extend(
+                str(item)
+                for item in getattr(self, "_queue_dry_run_cleanup_warnings", [])
+                if str(item).strip()
+            )
             completed_at = utc_now_iso()
+            self._record_queue_snapshot_freshness_anchor(
+                resolved,
+                snapshot_path,
+                curated_snapshot,
+                {
+                    "scan_id": scan_id,
+                    "queue_preview_request_id": preview_request_id,
+                },
+            )
             self._write_queue_scan_status(
                 resolved,
                 queue_scan_status_payload(
@@ -358,6 +615,7 @@ class QueueServiceMixin:
                     queue_snapshot_path=snapshot_path,
                     inventory_count=inventory_count,
                     curated_row_count=curated_row_count,
+                    queue_preview_request_id=preview_request_id,
                     warnings=warnings,
                 ),
             )
@@ -413,12 +671,3 @@ class QueueServiceMixin:
 
     def _safe_mtime(self, path: Path, cache: dict[Path, float] | None = None) -> float:
         return safe_mtime(path, cache)
-
-    def format_priority_leaf_name(self, marker: str, leaf: str, markers: list[str]) -> str:
-        return format_priority_leaf_name_for_marker(marker, leaf, markers)
-
-    def apply_priority_marker(self, target_path: Path, markers: list[str], marker: str, remove_only: bool = False) -> Path:
-        return apply_priority_marker_to_path(target_path, markers, marker, remove_only=remove_only)
-
-    def touch_priority_target(self, target_path: Path) -> None:
-        touch_priority_target_path(target_path)

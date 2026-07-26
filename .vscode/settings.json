@@ -1,0 +1,9 @@
+{
+  "search.exclude": {
+    "docs/archive/**": true,
+    "docs/generated/**": true,
+    "docs/reviews/**": true,
+    "ops/release/changes/archived/**": true,
+    "tests/fixtures/**": true
+  }
+}

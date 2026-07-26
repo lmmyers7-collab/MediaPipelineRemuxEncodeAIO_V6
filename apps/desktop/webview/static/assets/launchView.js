@@ -165,6 +165,7 @@
   const launchStartRequest = typeof launchStartRequestModule.createLaunchStartRequestModule === "function"
     ? launchStartRequestModule.createLaunchStartRequestModule({
       byId: typeof byId === "function" ? byId : window.byId,
+      getPipelineStartScope: () => launchCoordinatorState.pipelineStartScope,
     })
     : {};
   const {
@@ -260,6 +261,7 @@
   delete window.__launchScopeControlsModule;
   const launchScopeControls = typeof launchScopeControlsModule.createLaunchScopeControlsModule === "function"
     ? launchScopeControlsModule.createLaunchScopeControlsModule({
+      apiGet: (...args) => window.mediaPipelineApi.apiGet(...args),
       byId: typeof byId === "function" ? byId : window.byId,
       onControlsChanged: function () { updateLaunchCommandButtonStates(); },
       renderAllLaunchPreflights: function () { renderAllLaunchPreflights(); },

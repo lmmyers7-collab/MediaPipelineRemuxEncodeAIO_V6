@@ -33,6 +33,7 @@ from mediapipeline.core.kernel.config_keys import (
     KEY_H264_REMUX_MAX_BITRATE_MBPS,
     KEY_H264_REMUX_MAX_HEIGHT,
     KEY_INDEX_SCAN_TIMEOUT_SECONDS,
+    KEY_INTERRUPTED_TOOL_LOG_RETENTION_DAYS,
     KEY_LOCAL_WORKER_HEARTBEAT_GRACE_SECONDS,
     KEY_LOCAL_BASE,
     KEY_MAX_ENCODE_GROWTH_PERCENT,
@@ -54,6 +55,7 @@ from mediapipeline.core.kernel.config_keys import (
     KEY_PIPELINE_DEBUG_LOG_MAX_BYTES,
     KEY_PROCESSED_INDEX_REFRESH_SECONDS,
     KEY_QUEUE_EXECUTION_MAX_RUNNABLE_PER_ROUND,
+    KEY_QUEUE_LAUNCH_SNAPSHOT_FRESHNESS_SECONDS,
     KEY_ROUTE_1080P_MAX_VIDEO_BITRATE_MBPS,
     KEY_ROUTE_1080P_UPPER_HEIGHT_TOLERANCE_PERCENT,
     KEY_ROUTE_1440P_LOWER_HEIGHT_TOLERANCE_PERCENT,
@@ -200,6 +202,14 @@ def validate_required_and_numeric_config(values: dict[str, Any], errors: list[st
     validate_int(
         values,
         errors,
+        KEY_INTERRUPTED_TOOL_LOG_RETENTION_DAYS,
+        "InterruptedToolLogRetentionDays",
+        minimum=1,
+        maximum=365,
+    )
+    validate_int(
+        values,
+        errors,
         KEY_FAILURE_ARTIFACT_CLEANUP_TARGET_GB,
         "FailureArtifactCleanupTargetGB",
         minimum=0,
@@ -314,6 +324,15 @@ def validate_required_and_numeric_config(values: dict[str, Any], errors: list[st
             "QueueExecutionMaxRunnablePerRound",
             minimum=1,
             maximum=1000000,
+        )
+    if KEY_QUEUE_LAUNCH_SNAPSHOT_FRESHNESS_SECONDS in values:
+        validate_int(
+            values,
+            errors,
+            KEY_QUEUE_LAUNCH_SNAPSHOT_FRESHNESS_SECONDS,
+            "QueueLaunchSnapshotFreshnessSeconds",
+            minimum=15,
+            maximum=3600,
         )
     if KEY_STATE_DB_MAINTENANCE_INTERVAL_SECONDS in values:
         validate_int(

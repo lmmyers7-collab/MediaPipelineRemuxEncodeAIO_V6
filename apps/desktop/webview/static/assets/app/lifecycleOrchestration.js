@@ -199,19 +199,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (finalLibraryPauseButton) finalLibraryPauseButton.addEventListener("click", () => window.mediaPipelineCompletedView?.requestFinalLibraryPromotionPause?.());
   const finalLibraryResumeButton = byId("final-library-resume-button");
   if (finalLibraryResumeButton) finalLibraryResumeButton.addEventListener("click", () => window.mediaPipelineCompletedView?.requestFinalLibraryPromotionResume?.());
-  const pendingFilter = byId("pending-filter");
-  if (pendingFilter) pendingFilter.addEventListener("input", () => window.mediaPipelinePendingPublishView?.renderPendingRows?.());
-  const pendingStatusFilter = byId("pending-status-filter");
-  if (pendingStatusFilter) pendingStatusFilter.addEventListener("change", () => window.mediaPipelinePendingPublishView?.renderPendingRows?.());
-  const pendingInvestigationFilter = byId("pending-investigation-filter");
-  if (pendingInvestigationFilter) pendingInvestigationFilter.addEventListener("change", () => window.mediaPipelinePendingPublishView?.renderPendingRows?.());
-  const pendingClearFiltersButton = byId("pending-clear-filters-button");
-  if (pendingClearFiltersButton) pendingClearFiltersButton.addEventListener("click", () => window.mediaPipelinePendingPublishView?.resetPendingFilters?.());
-  const failureFilter = byId("failure-filter");
-  if (failureFilter) failureFilter.addEventListener("input", () => {
-    window.mediaPipelineReportsView?.renderFailureResolutionGroups?.();
-    window.mediaPipelineReportsView?.renderFailureRows?.();
-  });
   const failureSourceMarkers = byId("failure-source-markers");
   if (failureSourceMarkers) failureSourceMarkers.addEventListener("change", refreshAll);
   const auditPreviewFilter = byId("audit-preview-filter");
@@ -219,7 +206,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const auditPreviewPriorityOnly = byId("audit-preview-priority-only");
   if (auditPreviewPriorityOnly) auditPreviewPriorityOnly.addEventListener("change", refreshAll);
   document.querySelectorAll("[data-control-action]").forEach((button) => {
-    button.addEventListener("click", () => launchView.requestPipelineControl?.(button.dataset.controlAction || ""));
+    button.addEventListener("click", () => launchView.requestPipelineControl?.(button.dataset.controlAction || "", button));
   });
   document.querySelectorAll("[data-open-diagnostics]").forEach((button) => {
     button.addEventListener("click", () => requestDiagnosticsOpen(button.dataset.openDiagnostics || "", button));

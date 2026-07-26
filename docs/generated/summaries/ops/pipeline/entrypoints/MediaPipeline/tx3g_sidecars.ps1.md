@@ -1,5 +1,8 @@
 ---
 file: ops/pipeline/entrypoints/MediaPipeline/tx3g_sidecars.ps1
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: PowerShell
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
@@ -9,8 +12,10 @@ sha256: a9355c29848b088501208582cd5756485e373118efc7ae17f1a87a35fb962f0c
 ---
 # `ops/pipeline/entrypoints/MediaPipeline/tx3g_sidecars.ps1`
 
-**Purpose:** (no .SYNOPSIS block)
+**Purpose:** PowerShell implementation for tx3g sidecars; exposes Invoke-Tx3gSidecarExportForExistingOutput.
 
-**Functions:** `Invoke-Tx3gSidecarExportForExistingOutput`
+**Public symbols:** `Invoke-Tx3gSidecarExportForExistingOutput`
+**Invoked stages:** `subtitle-probe`, `subtitle-tx3g-extract`
+**Invoked tools:** `ffprobe`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/pipeline/entrypoints/MediaPipeline/tx3g_sidecars.ps1`._

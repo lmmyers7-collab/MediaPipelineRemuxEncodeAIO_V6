@@ -1,5 +1,8 @@
 ---
 file: src/mediapipeline/core/diagnostics/policy.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: observability
 token_priority: medium
 owner_domain: diagnostics
@@ -11,7 +14,7 @@ sha256: 61965c817244b55fcf868a2149d135ec2f0d5be09750764062a5790404f6dc87
 
 **Purpose:** Read-only diagnostics payload and summary policy helpers.
 
-**Public functions:** `clamp_diagnostics_tail_bytes()`, `diagnostics_active_job_detail_rows()`, `diagnostics_active_job_rows()`, `diagnostics_launch_log_summary()`, `diagnostics_summary_lines()`, `diagnostics_tail_base_payload()`, `diagnostics_tail_disallowed_payload()`, `diagnostics_tail_evidence()`, `diagnostics_tail_file_payload()`, `diagnostics_tail_line_contains_term()`, `diagnostics_tail_missing_payload()`, `diagnostics_warnings()`
+**Public symbols:** `clamp_diagnostics_tail_bytes`, `diagnostics_active_job_detail_rows`, `diagnostics_active_job_rows`, `diagnostics_launch_log_summary`, `diagnostics_summary_lines`, `diagnostics_tail_base_payload`, `diagnostics_tail_disallowed_payload`, `diagnostics_tail_evidence`, `diagnostics_tail_file_payload`, `diagnostics_tail_line_contains_term`, `diagnostics_tail_missing_payload`, `diagnostics_warnings`
 **In-repo imports:** `mediapipeline.core.paths.contracts`, `mediapipeline.core.status.active_jobs`, `mediapipeline.core.status.contracts`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/diagnostics/policy.py`._

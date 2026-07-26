@@ -1,0 +1,57 @@
+{
+  "id": "MP-CHANGE-2026-0722-004",
+  "title": "Fail closed on Tdarr background lifecycle persistence",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-22",
+  "date_completed": "2026-07-22",
+  "summary": "Make Tdarr Matrix background launch lifecycle evidence durable and fail closed across partial starts.",
+  "reason": "Remediate P1 AUDIT-FIND-COORD-DIAG-009. A bundled-runtime fault injection confirmed that a post-spawn metadata write failure returns success while close-readiness reports no active work.",
+  "affected_areas": [
+    "background diagnostics",
+    "close readiness",
+    "crash recovery",
+    "data-integrity",
+    "process lifecycle",
+    "validation"
+  ],
+  "behavior_before": "The audit child starts before its only lifecycle record is written; an OSError is discarded, success is returned, and close-readiness can report inactive while the child is live.",
+  "behavior_after": "A verified atomic reservation will exist before spawn, active PID identity will replace it atomically after spawn, and any post-spawn persistence failure will return an actionable failure, attempt exact-child cleanup, and retain fail-closed reconciliation evidence.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/src/mediapipeline/core/diagnostics/tdarr_matrix_audit.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_tdarr_background_lifecycle_persistence.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0722-004.json",
+    "src/mediapipeline/core/diagnostics/tdarr_matrix_audit.py",
+    "tests/python/desktop/test_tdarr_background_lifecycle_persistence.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_tdarr_background_lifecycle_persistence.py: prelaunch reservation failure, post-spawn identity persistence failure, exact-child cleanup, close-readiness blocking evidence, and reused-PID identity regressions."
+  ],
+  "manual_validation": [
+    "Close-readiness static, process-kill, and process-launch suites - passed: 74 tests, 17 subtests",
+    "Disposable real child post-spawn persistence fault - passed: command failed, exact child exited, reservation persisted, close-readiness blocked",
+    "Focused lifecycle regressions - expected red before implementation: 2 failed",
+    "Focused lifecycle regressions after implementation - passed: 3 tests",
+    "Full close-readiness file - one separate finding-backed failure AUDIT-FIND-W03-015; all selected Tdarr cases passed",
+    "Generated summaries refreshed for changed source and focused test; project index and feature map regenerated and current",
+    "Pre-fix bundled-runtime fault injection - defect confirmed: success true, metadata absent, close-readiness inactive",
+    "Project index, feature map, lifecycle map, architecture guardrails, and naming lint checks - passed",
+    "Tdarr service and close-readiness suite excluding separate AUDIT-FIND-W03-015 case - passed: 47 tests, 7 subtests",
+    "Tooling guardrail tests - passed: 33 tests, 57 subtests",
+    "ai_guardrail postflight - only separate finding-backed failures AUDIT-FIND-COV-001, AUDIT-FIND-DEP-001, and AUDIT-FIND-W12-ACTIVE-001; batch-local checks passed with 0 god-file errors",
+    "git diff --check - passed (line-ending warnings only)",
+    "ruff and py_compile for changed Python files - passed",
+    "validate_changes --require-worktree-coverage - passed before completion: 1119 packets valid"
+  ],
+  "rollback_plan": "Revert the lifecycle reservation, cleanup, and focused regression changes; refresh generated summaries; retain this packet as incomplete evidence if rollback occurs.",
+  "related_changes": [
+    "AUDIT-FIND-COORD-DIAG-009"
+  ],
+  "notes": "Finding disposition before remediation: confirmed. The immutable audit ledger and linked independent attestation remain unchanged. Invariant: a spawned background child must never exist without durable close-readiness evidence. The close-readiness and process-lifecycle no-touch gate requires focused fault injection, active/unavailable close evidence, exact-child cleanup, stale PID identity coverage, and a disposable real child process. Representative real media is not required and is not authorized for this batch. Python impact: yes; backend-owned Tdarr Matrix diagnostics lifecycle only.\nPre-fix bundled-runtime reproduction: success=True, background_started=True, metadata_exists=False, close_status=inactive, close_active_work=False.\nPostflight reports a non-blocking size warning for the pre-existing 515-line Tdarr audit module, now 614 lines; no god-file error or architecture violation was introduced. The lifecycle logic remains local to the existing background-launch owner."
+}

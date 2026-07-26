@@ -21,6 +21,17 @@
       setText = function () {},
       state = { lastLaunchCommandState: { snapshot: null, closeReadiness: null } },
     } = deps;
+    const acceptedRerunCommands = new Set(["rerun.start", "rerun.network.start", "rerun.continue"]);
+
+  function launchCommandIsAcceptedRerun(result) {
+    return acceptedRerunCommands.has(String(result?.command || "").trim().toLowerCase());
+  }
+
+  function launchCommandLifecycleMessage(result, message) {
+    const text = String(message || "");
+    if (!result?.ok || !launchCommandIsAcceptedRerun(result)) return text;
+    return text.replace(/^Started CSV rerun\b/i, "Accepted CSV rerun");
+  }
 
   function setPipelineControlMessage(message) {
     setText("control-status", message);
@@ -100,7 +111,10 @@
 
   function launchCommandStatusLabel(result, successLabel = "Started") {
     if (!result || typeof result !== "object") return "Unknown";
-    if (result.ok) return result.severity === "warning" ? "Warning" : successLabel;
+    if (result.ok) {
+      if (result.severity === "warning") return "Warning";
+      return launchCommandIsAcceptedRerun(result) ? "Accepted" : successLabel;
+    }
     return result.severity || "Blocked";
   }
 
@@ -199,9 +213,10 @@
       `Command: ${payload.command || "unknown"}`,
       `Result: ${payload.ok ? "ok" : "blocked"}${payload.severity ? ` (${payload.severity})` : ""}`,
     ];
-    const displayMessage = typeof commandResultDisplayMessage === "function"
+    const rawDisplayMessage = typeof commandResultDisplayMessage === "function"
       ? commandResultDisplayMessage(payload)
       : String(payload.message || "");
+    const displayMessage = launchCommandLifecycleMessage(payload, rawDisplayMessage);
     if (displayMessage) {
       lines.push("", displayMessage);
     }

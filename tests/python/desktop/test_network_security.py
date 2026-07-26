@@ -1,8 +1,15 @@
 from __future__ import annotations
 
 import io
+import json
+import socket
 import sys
+import tempfile
+import threading
+import time
 import unittest
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 from mediapipeline.tools.paths import find_repo_root
@@ -23,14 +30,14 @@ from mediapipeline.desktop.network.auth import (
 )
 from mediapipeline.core.network.url_policy import redact_network_secret_text, redact_url
 from mediapipeline.desktop.config_keys import KEY_COORDINATOR_AUTH_TOKEN
-from mediapipeline.desktop.network.coordinator import CoordinatorDispatcher, _CoordHandler
+from mediapipeline.desktop.network.coordinator import CoordinatorDispatcher, _CoordHandler, _CoordServer
 from mediapipeline.desktop.network.identity import (
     LOG_MESSAGE_TRUNCATION_SUFFIX,
     coerce_worker_name,
     is_valid_worker_id,
     sanitize_log_entry_fields,
 )
-from mediapipeline.desktop.network.protocol import LogEntryRequest
+from mediapipeline.desktop.network.protocol import DoneRequest, LogEntryRequest
 from mediapipeline.desktop.network.registry import InFlightRegistry
 from mediapipeline.desktop.network.worker import (
     _http_read_capped,
@@ -117,6 +124,368 @@ class NetworkSecurityTests(unittest.TestCase):
                 now=timestamp + 301,
             )
         )
+
+    def test_inline_worker_result_artifact_is_bound_to_signed_done_body(self) -> None:
+        token = "a" * 32
+        timestamp = 1_700_000_000
+        payload = DoneRequest(
+            job_id="job-inline",
+            worker_id="worker-inline",
+            success=True,
+            worker_result_artifact={
+                "SchemaVersion": "local_worker_result.v1",
+                "WorkerClaimId": "job-inline",
+                "Success": True,
+                "OutputPath": r"\\server\handoff\Movie.mkv",
+            },
+        ).to_dict()
+        body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+        headers = sign_request(
+            "POST",
+            "/api/done",
+            body,
+            token,
+            timestamp=timestamp,
+            nonce="inline-artifact",
+        )
+        tampered = dict(payload)
+        tampered["worker_result_artifact"] = {
+            **payload["worker_result_artifact"],
+            "OutputPath": r"C:\Unapproved\Other.mkv",
+        }
+        tampered_body = json.dumps(tampered, separators=(",", ":")).encode("utf-8")
+
+        self.assertFalse(
+            validate_signed_request(
+                headers,
+                token,
+                method="POST",
+                path_with_query="/api/done",
+                body=tampered_body,
+                now=timestamp,
+            )
+        )
+
+    def test_future_signed_request_nonce_is_retained_for_full_admissible_window(self) -> None:
+        token = "s" * 32
+        nonce_cache: dict[str, float] = {}
+        headers = sign_request(
+            "POST",
+            "/api/done",
+            b'{}',
+            token,
+            timestamp=1_300,
+            nonce="future-window-nonce",
+        )
+
+        accepted = validate_signed_request_result(
+            headers,
+            token,
+            method="POST",
+            path_with_query="/api/done",
+            body=b'{}',
+            nonce_cache=nonce_cache,
+            now=1_000,
+            max_skew_seconds=300,
+        )
+        replay = validate_signed_request_result(
+            headers,
+            token,
+            method="POST",
+            path_with_query="/api/done",
+            body=b'{}',
+            nonce_cache=nonce_cache,
+            now=1_600,
+            max_skew_seconds=300,
+        )
+
+        self.assertTrue(accepted.ok)
+        self.assertEqual(nonce_cache["future-window-nonce"], 1_600)
+        self.assertFalse(replay.ok)
+
+    def test_nonce_cache_fails_closed_at_capacity_without_evicting_valid_entries(self) -> None:
+        token = "s" * 32
+        nonce_cache = {"still-valid": 1_600.0, "expired": 999.0}
+
+        def validate(nonce: str) -> bool:
+            headers = sign_request("POST", "/api/done", b'{}', token, timestamp=1_000, nonce=nonce)
+            return validate_signed_request_result(
+                headers,
+                token,
+                method="POST",
+                path_with_query="/api/done",
+                body=b'{}',
+                nonce_cache=nonce_cache,
+                now=1_000,
+                max_skew_seconds=300,
+                max_nonce_cache_entries=2,
+            ).ok
+
+        self.assertTrue(validate("new-with-room"))
+        self.assertEqual(set(nonce_cache), {"still-valid", "new-with-room"})
+        self.assertFalse(validate("rejected-at-capacity"))
+        self.assertEqual(set(nonce_cache), {"still-valid", "new-with-room"})
+
+    def test_coordinator_http_accepts_identical_future_signed_mutation_only_once(self) -> None:
+        token = "s" * 32
+        body = b'{"job_id":"job-1"}'
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._auth_token = token
+        dispatcher._auth_nonce_cache = {}
+        dispatcher._auth_nonce_lock = threading.Lock()
+        mutations: list[bytes] = []
+
+        def record_done(handler: _CoordHandler, request_body: bytes) -> None:
+            mutations.append(request_body)
+            handler._send_json({"status": "ok"})
+
+        dispatcher._http_done = record_done  # type: ignore[method-assign]
+        server = _CoordServer(("127.0.0.1", 0), _CoordHandler)
+        server.dispatcher = dispatcher
+        server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+        server_thread.start()
+        headers = sign_request(
+            "POST",
+            "/api/done",
+            body,
+            token,
+            timestamp=1_300,
+            nonce="future-http-nonce",
+        )
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{server.server_port}/api/done",
+            data=body,
+            headers=headers,
+            method="POST",
+        )
+
+        try:
+            with patch("mediapipeline.desktop.network.auth.time.time", return_value=1_000):
+                with urllib.request.urlopen(request, timeout=5) as response:  # noqa: S310 - localhost test server
+                    self.assertEqual(response.status, 200)
+            with patch("mediapipeline.desktop.network.auth.time.time", return_value=1_301):
+                with self.assertRaises(urllib.error.HTTPError) as exc_info:
+                    urllib.request.urlopen(request, timeout=5)  # noqa: S310 - localhost test server
+            self.assertEqual(exc_info.exception.code, 401)
+            self.assertEqual(mutations, [body])
+        finally:
+            server.shutdown()
+            server.server_close()
+            server_thread.join(timeout=5)
+
+    def test_signed_late_terminal_and_release_reports_require_reclaimed_worker_owner(self) -> None:
+        token = "o" * 32
+        with tempfile.TemporaryDirectory() as td:
+            state_path = Path(td) / "coordinator_inflight.json"
+            registry = InFlightRegistry()
+            for job_id, worker_id, source_path in (
+                ("job-terminal", "worker-terminal-owner", r"C:\Media\terminal.mkv"),
+                ("job-release", "worker-release-owner", r"C:\Media\release.mkv"),
+            ):
+                self.assertTrue(
+                    registry.claim(
+                        job_id=job_id,
+                        worker_id=worker_id,
+                        worker_name=worker_id,
+                        source_path=source_path,
+                        encode_config={},
+                    )
+                )
+                with registry._lock:
+                    registry._jobs[job_id].last_heartbeat = "2026-01-01T00:00:00+00:00"
+            self.assertEqual(
+                {job.job_id for job in registry.reclaim_stale(0.01)},
+                {"job-terminal", "job-release"},
+            )
+            registry.save(state_path)
+
+            dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+            dispatcher._auth_token = token
+            dispatcher._auth_nonce_cache = {}
+            dispatcher._auth_nonce_lock = threading.Lock()
+            dispatcher._registry = registry
+            dispatcher._inflight_state_path = lambda: state_path  # type: ignore[assignment]
+            removed_sources: list[str] = []
+            dispatcher._remove_from_queue = removed_sources.append  # type: ignore[assignment]
+            events: list[dict[str, object]] = []
+            dispatcher.log_cluster_event = lambda **kwargs: events.append(kwargs)  # type: ignore[assignment]
+
+            server = _CoordServer(("127.0.0.1", 0), _CoordHandler)
+            server.dispatcher = dispatcher
+            server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+            server_thread.start()
+
+            def post_done(payload: dict[str, object], nonce: str) -> tuple[int, dict[str, object]]:
+                body = json.dumps(payload).encode("utf-8")
+                headers = sign_request("POST", "/api/done", body, token, nonce=nonce)
+                request = urllib.request.Request(
+                    f"http://127.0.0.1:{server.server_port}/api/done",
+                    data=body,
+                    headers=headers,
+                    method="POST",
+                )
+                try:
+                    with urllib.request.urlopen(request, timeout=5) as response:  # noqa: S310 - localhost test server
+                        return response.status, json.loads(response.read().decode("utf-8"))
+                except urllib.error.HTTPError as exc:
+                    return exc.code, json.loads(exc.read().decode("utf-8"))
+
+            try:
+                terminal_payload = DoneRequest(
+                    job_id="job-terminal",
+                    worker_id="worker-foreign",
+                    success=True,
+                    queue_terminal=True,
+                ).to_dict()
+                first_status, first_body = post_done(terminal_payload, "late-owner-mismatch-1")
+                replay_status, replay_body = post_done(terminal_payload, "late-owner-mismatch-2")
+                release_mismatch_status, _ = post_done(
+                    DoneRequest(
+                        job_id="job-release",
+                        worker_id="worker-foreign",
+                        released=True,
+                    ).to_dict(),
+                    "late-release-mismatch",
+                )
+                release_owner_status, release_owner_body = post_done(
+                    DoneRequest(
+                        job_id="job-release",
+                        worker_id="worker-release-owner",
+                        released=True,
+                    ).to_dict(),
+                    "late-release-owner",
+                )
+            finally:
+                server.shutdown()
+                server.server_close()
+                server_thread.join(timeout=5)
+
+            self.assertEqual((first_status, replay_status, release_mismatch_status), (403, 403, 403))
+            self.assertEqual(first_body["status"], "forbidden")
+            self.assertEqual(replay_body["status"], "forbidden")
+            self.assertEqual(release_owner_status, 200)
+            self.assertEqual(release_owner_body["status"], "late_recorded")
+            self.assertEqual(removed_sources, [])
+            self.assertEqual(registry.reclaimed_source_quarantine_stats()["count"], 2)
+
+            restored = InFlightRegistry()
+            self.assertTrue(restored.load(state_path))
+            reports = restored.late_terminal_reports_snapshot()
+            self.assertEqual(len(reports), 4)
+            self.assertEqual(
+                [report["authorization_status"] for report in reports],
+                [
+                    "rejected_owner_mismatch",
+                    "rejected_owner_mismatch",
+                    "rejected_owner_mismatch",
+                    "accepted",
+                ],
+            )
+            self.assertFalse(any(report["removes_queue_record"] for report in reports))
+            self.assertEqual(
+                [event["event"] for event in events],
+                [
+                    "late_terminal_owner_mismatch",
+                    "late_terminal_owner_mismatch",
+                    "late_terminal_owner_mismatch",
+                    "late_release_recorded",
+                ],
+            )
+
+    def test_signed_late_rerun_rejects_path_and_persisted_batch_identity_mismatches(self) -> None:
+        token = "r" * 32
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            source = root / "Movies" / "Movie.mkv"
+            source.parent.mkdir(parents=True)
+            source.write_bytes(b"source")
+            batch_path = root / "State" / "Rerun" / "Network" / "batch-1.json"
+            batch_path.parent.mkdir(parents=True)
+            batch_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "desktop_rerun_network_batch.v1",
+                        "batch_id": "batch-other",
+                        "rows": [{"row_key": "row-1", "source_path": str(source)}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            before = batch_path.read_bytes()
+            registry = InFlightRegistry()
+            self.assertTrue(
+                registry.claim(
+                    job_id="job-rerun",
+                    worker_id="worker-owner",
+                    worker_name="Owner Worker",
+                    source_path=str(source),
+                    encode_config={},
+                    job_kind="csv_rerun_row",
+                    claim_metadata={
+                        "job_kind": "csv_rerun_row",
+                        "rerun_batch_id": "batch-1",
+                        "rerun_row_key": "row-1",
+                    },
+                )
+            )
+            with registry._lock:
+                registry._jobs["job-rerun"].last_heartbeat = "2026-01-01T00:00:00+00:00"
+            registry.reclaim_stale(0.01)
+            registry_path = root / "State" / "coordinator_inflight.json"
+
+            dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+            dispatcher._app = SimpleNamespace(resolved=SimpleNamespace(state_root=root / "State"))
+            dispatcher._auth_token = token
+            dispatcher._auth_nonce_cache = {}
+            dispatcher._auth_nonce_lock = threading.Lock()
+            dispatcher._registry = registry
+            dispatcher._inflight_state_path = lambda: registry_path  # type: ignore[assignment]
+            removed_sources: list[str] = []
+            dispatcher._remove_from_queue = removed_sources.append  # type: ignore[assignment]
+            dispatcher.log_cluster_event = lambda **_kwargs: None  # type: ignore[assignment]
+
+            server = _CoordServer(("127.0.0.1", 0), _CoordHandler)
+            server.dispatcher = dispatcher
+            server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+            server_thread.start()
+
+            def post(batch_id: str, nonce: str) -> tuple[int, dict[str, object]]:
+                body = json.dumps(
+                    DoneRequest(
+                        job_id="job-rerun",
+                        worker_id="worker-owner",
+                        success=True,
+                        queue_terminal=True,
+                        job_kind="csv_rerun_row",
+                        rerun_batch_id=batch_id,
+                        rerun_row_key="row-1",
+                    ).to_dict()
+                ).encode("utf-8")
+                request = urllib.request.Request(
+                    f"http://127.0.0.1:{server.server_port}/api/done",
+                    data=body,
+                    headers=sign_request("POST", "/api/done", body, token, nonce=nonce),
+                    method="POST",
+                )
+                try:
+                    with urllib.request.urlopen(request, timeout=5) as response:  # noqa: S310
+                        return response.status, json.loads(response.read().decode("utf-8"))
+                except urllib.error.HTTPError as exc:
+                    return exc.code, json.loads(exc.read().decode("utf-8"))
+
+            try:
+                path_status, path_body = post("../outside", "late-rerun-path")
+                batch_status, batch_body = post("batch-1", "late-rerun-batch")
+            finally:
+                server.shutdown()
+                server.server_close()
+                server_thread.join(timeout=5)
+
+            self.assertEqual((path_status, batch_status), (409, 409))
+            self.assertEqual(path_body["error"], "network rerun late report identity mismatch")
+            self.assertEqual(batch_body["error"], "network rerun late report identity mismatch")
+            self.assertEqual(removed_sources, [])
+            self.assertEqual(batch_path.read_bytes(), before)
 
     def test_hmac_clock_skew_is_diagnosed_only_after_signature_matches(self) -> None:
         token = "s" * 32
@@ -275,11 +644,13 @@ class NetworkSecurityTests(unittest.TestCase):
         dispatcher.log_cluster_event = lambda **_kwargs: None  # type: ignore[assignment]
 
         with self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as logs:
-            CoordinatorDispatcher.update_auth_token(dispatcher, "x" * 32)
+            with self.assertRaisesRegex(RuntimeError, "Could not persist rotated coordinator token"):
+                CoordinatorDispatcher.update_auth_token(dispatcher, "x" * 32)
 
         log_text = "\n".join(logs.output)
         self.assertIn("Could not persist rotated coordinator token", log_text)
-        self.assertIn("updated live, but persistence failed", log_text)
+        self.assertEqual(dispatcher._auth_token, "old-token")
+        self.assertNotIn("updated live, but persistence failed", log_text)
         self.assertNotIn("updated and persisted", log_text)
 
     def test_update_auth_token_cluster_log_failure_does_not_block_rotation(self) -> None:
@@ -524,6 +895,237 @@ class NetworkSecurityTests(unittest.TestCase):
         self.assertIn("Failed to read coordinator request body after Content-Length 12", output)
         self.assertIn("request handler will stop", output)
         self.assertIn("body stream closed", output)
+
+    def test_coordinator_rejects_transfer_encoding_before_body_read(self) -> None:
+        server = _CoordServer(("127.0.0.1", 0), _CoordHandler)
+        server.dispatcher = SimpleNamespace()
+        server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+        server_thread.start()
+        client = socket.create_connection(("127.0.0.1", server.server_port), timeout=2)
+        client.settimeout(2)
+
+        try:
+            client.sendall(
+                b"POST /api/done HTTP/1.1\r\n"
+                b"Host: 127.0.0.1\r\n"
+                b"Transfer-Encoding: chunked\r\n\r\n"
+            )
+            response_parts: list[bytes] = []
+            while True:
+                response_part = client.recv(4096)
+                if not response_part:
+                    break
+                response_parts.append(response_part)
+            response = b"".join(response_parts)
+            self.assertIn(b"400 Bad Request", response)
+            self.assertIn(b"Connection: close", response)
+            self.assertIn(b"unsupported Transfer-Encoding", response)
+        finally:
+            client.close()
+            server.shutdown()
+            server.server_close()
+            server_thread.join(timeout=2)
+
+    def test_coordinator_stalled_body_hits_connection_timeout_before_auth(self) -> None:
+        class FastTimeoutHandler(_CoordHandler):
+            REQUEST_IO_TIMEOUT_SECONDS = 0.15
+
+        auth_calls: list[object] = []
+        server = _CoordServer(("127.0.0.1", 0), FastTimeoutHandler)
+        server.dispatcher = SimpleNamespace(
+            _request_auth_result=lambda *_args, **_kwargs: auth_calls.append(object())
+        )
+        server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+        server_thread.start()
+        client = socket.create_connection(("127.0.0.1", server.server_port), timeout=2)
+        client.settimeout(2)
+
+        try:
+            started = time.monotonic()
+            client.sendall(
+                b"POST /api/done HTTP/1.1\r\n"
+                b"Host: 127.0.0.1\r\n"
+                b"Content-Length: 64\r\n\r\n"
+                b"x"
+            )
+            try:
+                response = client.recv(4096)
+            except (ConnectionAbortedError, ConnectionResetError):
+                response = b""
+            self.assertEqual(response, b"")
+            self.assertLess(time.monotonic() - started, 1.5)
+            self.assertEqual(auth_calls, [])
+        finally:
+            client.close()
+            server.shutdown()
+            server.server_close()
+            server_thread.join(timeout=2)
+
+    def test_coordinator_incomplete_headers_hit_connection_timeout(self) -> None:
+        class FastTimeoutHandler(_CoordHandler):
+            REQUEST_IO_TIMEOUT_SECONDS = 0.15
+
+        server = _CoordServer(("127.0.0.1", 0), FastTimeoutHandler)
+        server.dispatcher = SimpleNamespace()
+        server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+        server_thread.start()
+        client = socket.create_connection(("127.0.0.1", server.server_port), timeout=2)
+        client.settimeout(2)
+
+        try:
+            started = time.monotonic()
+            client.sendall(b"POST /api/done HTTP/1.1\r\nHost: 127.0.0.1\r\n")
+            try:
+                response = client.recv(4096)
+            except (ConnectionAbortedError, ConnectionResetError):
+                response = b""
+            self.assertEqual(response, b"")
+            self.assertLess(time.monotonic() - started, 1.5)
+        finally:
+            client.close()
+            server.shutdown()
+            server.server_close()
+            server_thread.join(timeout=2)
+
+    def test_coordinator_caps_concurrent_unauthenticated_handlers(self) -> None:
+        class TwoSlotServer(_CoordServer):
+            MAX_CONCURRENT_HANDLERS = 2
+
+        class LongTimeoutHandler(_CoordHandler):
+            REQUEST_IO_TIMEOUT_SECONDS = 10.0
+
+        server = TwoSlotServer(("127.0.0.1", 0), LongTimeoutHandler)
+        server.dispatcher = SimpleNamespace()
+        server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+        server_thread.start()
+        clients: list[socket.socket] = []
+
+        try:
+            request_prefix = (
+                b"POST /api/done HTTP/1.1\r\n"
+                b"Host: 127.0.0.1\r\n"
+                b"Content-Length: 64\r\n\r\n"
+                b"x"
+            )
+            for _ in range(2):
+                client = socket.create_connection(("127.0.0.1", server.server_port), timeout=2)
+                client.settimeout(2)
+                client.sendall(request_prefix)
+                clients.append(client)
+
+            deadline = time.monotonic() + 2.0
+            while server._active_request_count() < 2 and time.monotonic() < deadline:
+                time.sleep(0.01)
+            self.assertEqual(server._active_request_count(), 2)
+
+            excess = socket.create_connection(("127.0.0.1", server.server_port), timeout=2)
+            excess.settimeout(2)
+            clients.append(excess)
+            excess.sendall(request_prefix)
+            try:
+                response = excess.recv(4096)
+            except (ConnectionAbortedError, ConnectionResetError):
+                response = b""
+            self.assertEqual(response, b"")
+            self.assertLessEqual(server._active_request_count(), 2)
+        finally:
+            for client in clients:
+                client.close()
+            server.shutdown()
+            server.server_close()
+            server_thread.join(timeout=2)
+
+    def test_coordinator_shutdown_abandons_stalled_pre_auth_request(self) -> None:
+        class LongTimeoutHandler(_CoordHandler):
+            REQUEST_IO_TIMEOUT_SECONDS = 30.0
+
+        server = _CoordServer(("127.0.0.1", 0), LongTimeoutHandler)
+        server.dispatcher = SimpleNamespace()
+        server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+        server_thread.start()
+        client = socket.create_connection(("127.0.0.1", server.server_port), timeout=2)
+        client.sendall(
+            b"POST /api/done HTTP/1.1\r\n"
+            b"Host: 127.0.0.1\r\n"
+            b"Content-Length: 64\r\n\r\n"
+            b"x"
+        )
+
+        try:
+            deadline = time.monotonic() + 2.0
+            while server._active_request_count() < 1 and time.monotonic() < deadline:
+                time.sleep(0.01)
+            self.assertEqual(server._active_request_count(), 1)
+
+            started = time.monotonic()
+            server.shutdown()
+            server.server_close()
+            server_thread.join(timeout=2)
+            elapsed = time.monotonic() - started
+
+            self.assertLess(elapsed, 1.5)
+            self.assertFalse(server_thread.is_alive())
+            self.assertEqual(server.daemon_threads, True)
+        finally:
+            client.close()
+            if server_thread.is_alive():
+                server.shutdown()
+                server.server_close()
+                server_thread.join(timeout=2)
+
+    def test_coordinator_shutdown_joins_authenticated_mutation_cleanup(self) -> None:
+        mutation_entered = threading.Event()
+        allow_completion = threading.Event()
+        mutation_completed = threading.Event()
+
+        def request_auth_result(*_args, **_kwargs) -> SimpleNamespace:
+            return SimpleNamespace(ok=True, reason="")
+
+        def finish_done(handler: _CoordHandler, _body: bytes) -> None:
+            mutation_entered.set()
+            self.assertTrue(allow_completion.wait(timeout=2))
+            mutation_completed.set()
+            handler._send_json({"status": "ok"})
+
+        server = _CoordServer(("127.0.0.1", 0), _CoordHandler)
+        server.dispatcher = SimpleNamespace(
+            _request_auth_result=request_auth_result,
+            _http_done=finish_done,
+        )
+        server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+        server_thread.start()
+        client = socket.create_connection(("127.0.0.1", server.server_port), timeout=2)
+        client.sendall(
+            b"POST /api/done HTTP/1.1\r\n"
+            b"Host: 127.0.0.1\r\n"
+            b"Content-Length: 2\r\n\r\n{}"
+        )
+        self.assertTrue(mutation_entered.wait(timeout=2))
+
+        def close_server() -> None:
+            server.shutdown()
+            server.server_close()
+
+        close_thread = threading.Thread(target=close_server, daemon=True)
+        close_thread.start()
+        try:
+            time.sleep(0.1)
+            self.assertTrue(close_thread.is_alive())
+            self.assertFalse(mutation_completed.is_set())
+            allow_completion.set()
+            close_thread.join(timeout=2)
+            server_thread.join(timeout=2)
+            self.assertFalse(close_thread.is_alive())
+            self.assertTrue(mutation_completed.is_set())
+        finally:
+            allow_completion.set()
+            client.close()
+            if close_thread.is_alive():
+                close_thread.join(timeout=2)
+            if server_thread.is_alive():
+                server.shutdown()
+                server.server_close()
+                server_thread.join(timeout=2)
 
     # ------------------------------------------------------------------
     # N13 — worker_id format validation

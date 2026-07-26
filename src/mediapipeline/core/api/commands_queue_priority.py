@@ -93,6 +93,18 @@ def _priority_position_from_request(value: Any) -> tuple[float | None, str]:
 
 class LocalApiQueuePriorityCommandPayloadMixin:
 
+    def _queue_priority_export_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("queue.priority_export", "queue")
+        return self.facade.export_priority_queue(resolved).to_mapping()
+
+    def _queue_priority_export_read_payload(self) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("queue.priority_export.read", "queue")
+        return dict(self.facade.get_priority_queue_export(resolved))
+
     def _queue_priority_payload(self, request: dict[str, Any]) -> dict[str, Any]:
         resolved = self._resolved()
         if resolved is None:

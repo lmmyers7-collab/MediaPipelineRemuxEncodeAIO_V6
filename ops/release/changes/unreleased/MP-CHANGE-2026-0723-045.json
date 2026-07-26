@@ -1,0 +1,60 @@
+{
+  "id": "MP-CHANGE-2026-0723-045",
+  "title": "Redact deep command journal secrets",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": "2026-07-23",
+  "summary": "Remediate AUDIT-FIND-W01-004 by making command-journal evidence inspect structured containers before depth truncation and by defensively redacting legacy stringified credential-shaped mappings.",
+  "reason": "The current recursion cap stringifies uninspected mappings and lists, allowing deep password, token, join_blob, secret, api_key, or authorization values to reach JSON history, SQLite mirrors, and operator-visible command evidence in plaintext.",
+  "affected_areas": [
+    "JSON and SQLite command evidence persistence",
+    "Local API command journal policy",
+    "WebView command evidence rendering",
+    "generated source summaries and change-control evidence",
+    "loaded legacy command history sanitation",
+    "network secret text redaction"
+  ],
+  "behavior_before": "At the depth cap, structured values are converted with str before sensitive keys are inspected, and stringified mapping syntax is not redacted.",
+  "behavior_after": "Mappings and lists are inspected before depth enforcement, over-depth containers use a constant sentinel or key-aware bounded shape, sensitive aliases are always redacted, and legacy stringified credential-shaped values are defensively sanitized before persistence or display.",
+  "files_touched": [
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/src/mediapipeline/core/network/url_policy.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/api/command_journal_policy.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_api_command_contracts.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_api_command_journal_policy.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_phase4_storage_observability.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-045.json",
+    "src/mediapipeline/core/network/url_policy.py",
+    "src/mediapipeline/desktop/api/command_journal_policy.py",
+    "tests/python/desktop/test_api_command_contracts.py",
+    "tests/python/desktop/test_api_command_journal_policy.py",
+    "tests/python/desktop/test_phase4_storage_observability.py"
+  ],
+  "tests_added": [
+    "Depth 3-6 mapping/list combinations for every sensitive alias",
+    "Loaded legacy stringified mapping sanitation",
+    "Synthetic fake-secret absence in JSON and SQLite persistence",
+    "Useful nonsecret boundary evidence and constant truncation sentinel coverage"
+  ],
+  "manual_validation": [
+    "Bundled Ruff on all five Batch 045 Python paths: passed",
+    "Bundled pytest focused journal policy, accepted-route/result reachability, and JSON/SQLite persistence: 68 passed, 404 subtests passed",
+    "Bundled pytest journal lifecycle, replay, HTTP, atomic-write, and shared network security regression set: 116 passed, 17 subtests passed",
+    "Exact-path summary refresh: 5 written; project index and feature-map generators completed",
+    "Planned: command-journal policy, command contract, handler, persistence, and command-evidence WebView smoke tests",
+    "Planned: generated-context checks and strict worktree packet coverage",
+    "generate_project_index --check and generate_feature_file_map --check: passed",
+    "ops/scripts/smoke/Test-WebViewCommandEvidenceSmoke.ps1: passed 1 test with zero skips; temporary Local API and mocked DOM only",
+    "refresh_summaries --check: Batch 045 summaries current; only the two pre-existing test-suite-inventory summary baselines remain stale",
+    "validate_changes --require-worktree-coverage: 1187 packets valid before completion"
+  ],
+  "rollback_plan": "Revert only this packet's redaction policy, focused tests, and generated artifacts. No state migration is required; existing history is sanitized on load, while previously exposed real credentials must be rotated and history removed under separate incident authority if discovered.",
+  "related_changes": [
+    "AUDIT-FIND-W01-004"
+  ],
+  "notes": "Security hardening uses synthetic fake credentials only and will not inspect, persist, or rotate live secrets. Command journal count, FIFO, success-status recording, and route ownership remain unchanged. Python impact: existing API/network redaction modules and focused tests only; no new compatibility surface.\nNo real credentials or media were read or mutated; all security fixtures use Batch 045 synthetic fake values.\nRepresentative real-media validation was not required because this batch changes only command-evidence sanitation and does not affect media routing, source/scratch/output paths, FFmpeg, subtitle, audio, publish, rename, or queue mutation."
+}

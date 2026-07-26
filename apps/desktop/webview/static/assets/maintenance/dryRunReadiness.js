@@ -241,7 +241,7 @@
     setMaintenanceStatusText("maintenance-status", "Checking...", "running");
     setMaintenanceStatusText("maintenance-progress-status", "Active", "running");
     setText("maintenance-progress-steps", "Starting backend Maintenance health check. Progress will update from /api/maintenance/progress while probes run.");
-    startMaintenanceProgressPolling();
+    renderDryRunProgressStart();
     try {
       renderMaintenance(await apiGet("/api/maintenance"));
     } catch (error) {

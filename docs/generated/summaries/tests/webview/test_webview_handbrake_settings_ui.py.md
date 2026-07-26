@@ -1,17 +1,21 @@
 ---
 file: tests/webview/test_webview_handbrake_settings_ui.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-11
+last_modified: 2026-07-20
 last_reviewed: 2026-06-04
-sha256: 3ce5a9078555dc71cf2ddc7fd98f92b8b5005ce47622203f9f5a207e278f4a55
+sha256: e9b59386dcc6cd8a800af7287f7289e40bfb078c2fbb8f94f733fc6398172c03
 ---
 # `tests/webview/test_webview_handbrake_settings_ui.py`
 
-**Purpose:** (no module docstring)
+**Purpose:** Python implementation for test webview handbrake settings ui; exposes WebViewHandBrakeSettingsUiTests.
 
-**Classes:** `WebViewHandBrakeSettingsUiTests`
+**Public symbols:** `WebViewHandBrakeSettingsUiTests`
 **In-repo imports:** `mediapipeline.core.config.metadata_parts.field_definitions`, `mediapipeline.core.config.preset_migration`, `mediapipeline.tools.paths`
+**HTTP routes:** `/api/pipeline/start`, `/api/settings/pipeline-plan-preview`, `/api/settings/preview-patch`, `/api/settings/save-patch`, `/api/settings/wizard/preview`, `/api/settings/wizard/save`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths tests/webview/test_webview_handbrake_settings_ui.py`._

@@ -25,6 +25,7 @@ from mediapipeline.desktop.api.static_files import render_index
 
 _STATIC_ROOT = find_repo_root(Path(__file__)) / "apps" / "desktop" / "webview" / "static"
 _INDEX_HTML = _STATIC_ROOT / "index.html"
+_NAVIGATION_JS = _STATIC_ROOT / "assets" / "app" / "lifecycle" / "navigation.js"
 
 _EXPECTED_NAV_PAGES = [
     "home",
@@ -290,6 +291,27 @@ class WebViewNavigationStaticTests(unittest.TestCase):
         self.assertIn('data-page="home" aria-current="page"', html)
         self.assertEqual(html.count('aria-current="page"'), 1)
 
+    def test_primary_nav_handles_enter_directly_and_leaves_space_native(self) -> None:
+        source = _NAVIGATION_JS.read_text(encoding="utf-8")
+        init_source = source[source.index("function initNavigation()") : source.index("function sparkKind")]
+        handler_match = re.search(
+            r'button\.addEventListener\("keydown", \(event\) => \{.*?\n\s*\}\);',
+            init_source,
+            re.S,
+        )
+        self.assertIsNotNone(handler_match)
+        handler = handler_match.group(0)
+        for fragment in [
+            'button.addEventListener("keydown", (event) => {',
+            'if (event.key !== "Enter") return;',
+            "event.preventDefault();",
+            "event.stopPropagation();",
+            "if (event.repeat) return;",
+            'navigateToPage(button.dataset.page, { restoreFocus: true });',
+        ]:
+            self.assertIn(fragment, handler)
+        self.assertNotIn('" "', handler)
+
     def test_initial_visible_page_panel_is_home(self) -> None:
         visible_panels = [p["panel"] for p in self.parsed.page_panels if "is-visible" in p["classes"]]
         self.assertEqual(
@@ -383,7 +405,7 @@ class WebViewNavigationStaticTests(unittest.TestCase):
             {"token": "quick-link-contract-test-token", "appVersion": "v5-test", "shellSurface": "webview"},
         ).body.decode("utf-8")
         for fragment in [
-            'data-quick-link-page="live"',
+            'data-quick-link-page="home" data-quick-link-focus="#current-work-heading"',
             'data-quick-link-page="pending"',
             'data-quick-link-reports-tab="failures"',
             'data-quick-link-metrics-tab="routes"',
@@ -456,6 +478,8 @@ class WebViewNavigationStaticTests(unittest.TestCase):
             }[source]
             for fragment in fragments:
                 self.assertIn(fragment, text)
+        self.assertNotIn("#run-monitor-route-evidence", progress_js)
+        self.assertIn('route: { page: "home", focus: "#run-monitor-detail"', progress_js)
 
     def test_nav_element_is_present(self) -> None:
         self.assertGreater(
@@ -471,8 +495,8 @@ class WebViewNavigationStaticTests(unittest.TestCase):
         )
         self.assertEqual(response.status, 200)
         html = response.body.decode("utf-8")
+        self.assertIn('<h1 id="current-work-heading" tabindex="-1">Current Work</h1>', html)
         for label in [
-            "Home",
             "Launch",
             "Telemetry",
             "Queue",
@@ -619,7 +643,9 @@ class WebViewNavigationStaticTests(unittest.TestCase):
             re.S,
         )
         self.assertIsNotNone(home_match)
-        self.assertNotIn('data-control-action="', home_match.group(1))
+        self.assertEqual(home_match.group(1).count('data-control-action="stop"'), 1)
+        self.assertNotIn('data-control-action="kill"', home_match.group(1))
+        self.assertIn('id="run-monitor-stop-after-current"', home_match.group(1))
 
 
 if __name__ == "__main__":

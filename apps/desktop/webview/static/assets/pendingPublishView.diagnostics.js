@@ -25,6 +25,10 @@
 
     function setPendingOpenBusy(isBusy) {
       setPendingOpenInFlight(isBusy);
+      if (typeof window.mediaPipelineAppRowOpenActions?.setBackendRowOpenActionBusy === "function") {
+        window.mediaPipelineAppRowOpenActions.setBackendRowOpenActionBusy("pending", getPendingOpenInFlight());
+        return;
+      }
       document.querySelectorAll("[data-open-pending]").forEach((button) => {
         button.disabled = getPendingOpenInFlight();
       });

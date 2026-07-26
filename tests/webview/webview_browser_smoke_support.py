@@ -8,6 +8,7 @@ import subprocess
 import textwrap
 import time
 import unittest
+from contextvars import ContextVar
 from pathlib import Path
 
 _TRANSIENT_NATIVE_CRASH_RETURN_CODES = {3221226505, -1073740791}
@@ -32,6 +33,10 @@ _MEDIA_NO_MUTATION_SUFFIXES = (
     ".pipeline.json",
     ".manifest.json",
     ".jsonl",
+)
+_PENDING_MEDIA_NO_MUTATION_SNAPSHOTS: ContextVar[tuple[dict[str, dict[str, object]], ...]] = ContextVar(
+    "pending_media_no_mutation_snapshots",
+    default=(),
 )
 
 
@@ -66,8 +71,7 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def capture_media_no_mutation_snapshot(root: Path) -> dict[str, dict[str, object]]:
-    """Hash source/output media and sidecar-like artifacts in a smoke fixture."""
+def _capture_media_no_mutation_snapshot(root: Path) -> dict[str, dict[str, object]]:
     root = Path(root)
     snapshot: dict[str, dict[str, object]] = {"__root__": {"path": str(root)}}
     for path in sorted((item for item in root.rglob("*") if item.is_file()), key=lambda item: str(item).casefold()):
@@ -81,17 +85,62 @@ def capture_media_no_mutation_snapshot(root: Path) -> dict[str, dict[str, object
     return snapshot
 
 
-def assert_media_no_mutation(test_case: unittest.TestCase, before: dict[str, dict[str, object]]) -> None:
-    """Fail if a browser smoke changed, deleted, or created media/sidecar files."""
+def capture_media_no_mutation_snapshot(
+    root: Path,
+    *,
+    register_runner_finalizer: bool = True,
+) -> dict[str, dict[str, object]]:
+    """Hash watched artifacts and register a runner-finally verification."""
+    snapshot = _capture_media_no_mutation_snapshot(root)
+    if register_runner_finalizer:
+        pending = _PENDING_MEDIA_NO_MUTATION_SNAPSHOTS.get()
+        _PENDING_MEDIA_NO_MUTATION_SNAPSHOTS.set((*pending, snapshot))
+    return snapshot
+
+
+def _discard_pending_media_no_mutation_snapshot(before: dict[str, dict[str, object]]) -> None:
+    pending = _PENDING_MEDIA_NO_MUTATION_SNAPSHOTS.get()
+    remaining = tuple(snapshot for snapshot in pending if snapshot is not before)
+    if len(remaining) != len(pending):
+        _PENDING_MEDIA_NO_MUTATION_SNAPSHOTS.set(remaining)
+
+
+def _verify_media_no_mutation_snapshot(before: dict[str, dict[str, object]]) -> None:
     root = Path(str(before.get("__root__", {}).get("path", "")))
     expected = {path: value for path, value in before.items() if path != "__root__"}
     for raw_path in before:
         if raw_path == "__root__":
             continue
         path = Path(raw_path)
-        test_case.assertTrue(path.exists(), f"Watched media/sidecar file was deleted: {path}")
-    after = {path: value for path, value in capture_media_no_mutation_snapshot(root).items() if path != "__root__"}
-    test_case.assertEqual(after, expected)
+        if not path.exists():
+            raise AssertionError(f"Watched media/sidecar file was deleted: {path}")
+    after = {path: value for path, value in _capture_media_no_mutation_snapshot(root).items() if path != "__root__"}
+    _discard_pending_media_no_mutation_snapshot(before)
+    if after != expected:
+        raise AssertionError(f"Watched media/sidecar files changed under {root}: expected {expected!r}, got {after!r}")
+
+
+def assert_media_no_mutation(test_case: unittest.TestCase, before: dict[str, dict[str, object]]) -> None:
+    """Fail if a browser smoke changed, deleted, or created media/sidecar files."""
+    try:
+        _verify_media_no_mutation_snapshot(before)
+    except AssertionError as error:
+        test_case.fail(str(error))
+    finally:
+        _discard_pending_media_no_mutation_snapshot(before)
+
+
+def _finalize_pending_media_no_mutation_snapshots() -> None:
+    pending = _PENDING_MEDIA_NO_MUTATION_SNAPSHOTS.get()
+    _PENDING_MEDIA_NO_MUTATION_SNAPSHOTS.set(())
+    failures: list[str] = []
+    for snapshot in pending:
+        try:
+            _verify_media_no_mutation_snapshot(snapshot)
+        except AssertionError as error:
+            failures.append(str(error))
+    if failures:
+        raise AssertionError("No-mutation finalizer failed:\n" + "\n".join(f"- {failure}" for failure in failures))
 
 
 def bounded_text(value: object, *, limit: int = 8000) -> str:
@@ -126,6 +175,36 @@ def _is_transient_browser_runner_crash(result: subprocess.CompletedProcess[str])
 
 
 def run_node_browser_smoke(
+    label: str,
+    *,
+    node: str,
+    runner_path: Path,
+    payload_path: Path,
+    timeout_seconds: int,
+) -> dict[str, object]:
+    runner_error: BaseException | None = None
+    try:
+        return _run_node_browser_smoke(
+            label,
+            node=node,
+            runner_path=runner_path,
+            payload_path=payload_path,
+            timeout_seconds=timeout_seconds,
+        )
+    except BaseException as error:
+        runner_error = error
+        raise
+    finally:
+        try:
+            _finalize_pending_media_no_mutation_snapshots()
+        except AssertionError as mutation_error:
+            if runner_error is None:
+                raise
+            if hasattr(runner_error, "add_note"):
+                runner_error.add_note(str(mutation_error))
+
+
+def _run_node_browser_smoke(
     label: str,
     *,
     node: str,
@@ -198,8 +277,60 @@ def run_node_browser_smoke(
     return parsed
 
 
-def browser_cdp_runner_prelude() -> str:
+def browser_namespace_promotion_script() -> str:
+    """Promote namespace exports while preserving deliberate test-only global faults."""
     return textwrap.dedent(
+        r"""
+        (function () {
+          const maskKey = "__mediaPipelineBrowserSmokeMaskedGlobals";
+          const maskHelper = "__mediaPipelineBrowserSmokeMaskGlobal";
+          if (!Array.isArray(window[maskKey])) {
+            Object.defineProperty(window, maskKey, {
+              value: [],
+              configurable: true,
+            });
+          }
+          const maskedGlobals = window[maskKey];
+          function removeMaskedGlobal(name) {
+            try { delete window[name]; } catch (_) {}
+            if (window[name] !== undefined) {
+              try { window[name] = undefined; } catch (_) {}
+            }
+            if (window[name] !== undefined) {
+              throw new Error(`Browser smoke could not mask global: ${name}`);
+            }
+          }
+          function maskGlobal(name) {
+            const normalized = String(name || "").trim();
+            if (!normalized) throw new Error("Browser smoke global mask requires a name.");
+            if (!maskedGlobals.includes(normalized)) {
+              maskedGlobals.push(normalized);
+              maskedGlobals.sort();
+            }
+            removeMaskedGlobal(normalized);
+          }
+          Object.defineProperty(window, maskHelper, {
+            value: maskGlobal,
+            configurable: true,
+          });
+          maskedGlobals.forEach(removeMaskedGlobal);
+          Object.keys(window)
+            .filter((key) => key.startsWith("mediaPipeline"))
+            .forEach((namespace) => {
+              const namespaceExports = window[namespace];
+              if (!namespaceExports || typeof namespaceExports !== "object") return;
+              Object.entries(namespaceExports).forEach(([name, value]) => {
+                if (!maskedGlobals.includes(name) && window[name] === undefined) window[name] = value;
+              });
+            });
+          maskedGlobals.forEach(removeMaskedGlobal);
+        })();
+        """
+    ).strip()
+
+
+def browser_cdp_runner_prelude() -> str:
+    prelude = textwrap.dedent(
         r"""
         const fs = require("fs");
         const http = require("http");
@@ -273,19 +404,7 @@ def browser_cdp_runner_prelude() -> str:
           }
         }
 
-        const MEDIA_PIPELINE_NAMESPACE_PROMOTION = `
-        (function () {
-          Object.keys(window)
-            .filter((key) => key.startsWith("mediaPipeline"))
-            .forEach((namespace) => {
-              const namespaceExports = window[namespace];
-              if (!namespaceExports || typeof namespaceExports !== "object") return;
-              Object.entries(namespaceExports).forEach(([name, value]) => {
-                if (window[name] === undefined) window[name] = value;
-              });
-            });
-        })();
-        `;
+        const MEDIA_PIPELINE_NAMESPACE_PROMOTION = __MEDIA_PIPELINE_NAMESPACE_PROMOTION__;
 
         function createCdpClient(wsUrl) {
           let nextId = 1;
@@ -352,4 +471,8 @@ def browser_cdp_runner_prelude() -> str:
           };
         }
         """
+    )
+    return prelude.replace(
+        "__MEDIA_PIPELINE_NAMESPACE_PROMOTION__",
+        json.dumps(browser_namespace_promotion_script()),
     )

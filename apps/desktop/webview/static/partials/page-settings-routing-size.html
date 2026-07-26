@@ -1,0 +1,447 @@
+        <!-- TAB: ROUTING -->
+        <div class="settings-tab-pane" data-settings-tab="routing-size">
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Routing <span class="impact-chip" data-impact="medium" title="Routing / size policy — used before processing to decide copy/remux versus encode">Medium Impact</span></h2>
+            <strong id="settings-builder-status">No changes built</strong>
+          </div>
+          <div class="settings-routing-hierarchy">
+            <section class="settings-builder-subsection">
+              <h3>Library goal</h3>
+              <div class="form-grid launch-form-grid">
+                <label>
+                  Saved routing profile
+                  <select id="settings-builder-routing-profile">
+                    <option value="plex_direct_stream">Plex direct/stream</option>
+                    <option value="plex_direct_play">Plex direct play</option>
+                    <option value="archive_shrink">Archive shrink</option>
+                    <option value="archive_quality">Archive quality</option>
+                    <option value="manual">Manual</option>
+                  </select>
+                </label>
+              </div>
+              <div class="settings-size-guard-help" aria-label="Oversize result descriptions">
+                <dl>
+                  <div>
+                    <dt>Try remux fallback</dt>
+                    <dd>If an automatic size/bitrate-threshold encode grows past the buffer, try safe remux/direct copy. Forced route overrides warn only and do not fallback. If remux is blocked, reject the oversized encode for review before publish.</dd>
+                  </div>
+                  <div>
+                    <dt>Block publish</dt>
+                    <dd>Stop an oversized encode before publish so it can be reviewed instead of reaching the final library.</dd>
+                  </div>
+                  <div>
+                    <dt>Warn only</dt>
+                    <dd>Record the size overage and continue when the rest of output verification passes.</dd>
+                  </div>
+                </dl>
+              </div>
+            </section>
+            <section class="settings-builder-subsection">
+              <h3>What forces an encode?</h3>
+              <div class="form-grid launch-form-grid">
+                <label>
+                  Encode trigger
+                  <select id="settings-builder-route-threshold-mode">
+                    <option value="compatibility_advisory">Bitrate strict, size flexible</option>
+                    <option value="size">Target size strict</option>
+                    <option value="bitrate">Direct-copy bitrate strict</option>
+                    <option value="size_or_bitrate">Size or bitrate strict</option>
+                  </select>
+                </label>
+              </div>
+              <p id="settings-route-trigger-summary" class="note">High bitrate can force encode; target-size behavior depends on the selected trigger.</p>
+            </section>
+            <section class="settings-builder-subsection">
+              <h3>TV / Movie targets by height</h3>
+              <p class="note settings-route-legend">Target GB is the encoded output budget. Mbps is the source direct-copy/remux cap. Height chooses the bucket.</p>
+              <div id="settings-route-height-slider" class="settings-route-range-rail" aria-label="Editable route height slider by bucket">
+                <div class="settings-route-slider-labels">
+                  <span class="settings-route-slider-bucket" data-route-bucket="1080p">
+                    <span class="settings-route-range-label">1080p</span>
+                    <output id="settings-height-1080p-range" class="visually-hidden">&lt;=1200p</output>
+                  </span>
+                  <span class="settings-route-slider-bucket" data-route-bucket="1440p">
+                    <span class="settings-route-range-label">1440p</span>
+                    <output id="settings-height-1440p-range" class="visually-hidden">1201-1799p</output>
+                  </span>
+                  <span class="settings-route-slider-bucket" data-route-bucket="4k">
+                    <span class="settings-route-range-label">4K</span>
+                    <output id="settings-height-4k-range" class="visually-hidden">&gt;=1800p</output>
+                  </span>
+                </div>
+                <div class="settings-route-slider" aria-label="Drag route height boundaries">
+                  <div class="settings-route-slider-hit" data-route-drag-boundary="middle" aria-hidden="true"></div>
+                  <div class="settings-route-slider-track" aria-hidden="true">
+                    <span class="settings-route-slider-fill settings-route-slider-fill-1080p"></span>
+                    <span class="settings-route-slider-fill settings-route-slider-fill-1440p"></span>
+                    <span class="settings-route-slider-fill settings-route-slider-fill-4k"></span>
+                  </div>
+                  <label class="settings-route-range-control settings-route-slider-thumb settings-route-slider-thumb-first" data-route-boundary-control="first" data-route-drag-boundary="first">
+                    <span class="settings-route-slider-handle" aria-hidden="true"></span>
+                    <span>&lt;=</span>
+                    <input id="settings-route-boundary-1080p-end-input" type="number" min="1080" max="1439" step="1" value="1200" aria-label="1080p upper route height boundary">
+                    <span>p</span>
+                  </label>
+                  <label class="settings-route-range-control settings-route-slider-thumb settings-route-slider-thumb-second" data-route-boundary-control="second" data-route-drag-boundary="second">
+                    <span class="settings-route-slider-handle" aria-hidden="true"></span>
+                    <span>&gt;=</span>
+                    <input id="settings-route-boundary-4k-start-input" type="number" min="1441" max="2160" step="1" value="1800" aria-label="4K lower route height boundary">
+                    <span>p</span>
+                  </label>
+                </div>
+              </div>
+              <div class="settings-route-target-editor" aria-label="TV and movie route target bucket editor">
+                <article class="settings-route-bucket-card" data-route-bucket="1080p">
+                  <header class="settings-route-bucket-header">
+                    <div>
+                      <h4>1080p</h4>
+                      <p>Derived height range</p>
+                    </div>
+                    <span id="settings-route-card-range-1080p" class="settings-route-range-ref" aria-hidden="true">uses &lt;=1200p</span>
+                  </header>
+                  <div class="settings-route-bucket-grid">
+                    <section class="settings-route-bucket-group">
+                      <h5>Encoded output size (GB)</h5>
+                      <div class="settings-route-target-stack">
+                        <label class="settings-inline-field">Movie <span class="settings-input-with-unit"><input id="settings-builder-movie-1080p-target" type="number" min="1" step="1" aria-label="Movie 1080p encoded output size in GB"><span aria-hidden="true">GB</span></span></label>
+                        <label class="settings-inline-field">TV <span class="settings-input-with-unit"><input id="settings-builder-tv-1080p-target" type="number" min="1" step="1" aria-label="TV 1080p encoded output size in GB"><span aria-hidden="true">GB</span></span></label>
+                      </div>
+                    </section>
+                    <section class="settings-route-bucket-group">
+                      <h5>Direct-copy limits</h5>
+                      <div class="settings-route-target-stack">
+                        <label class="settings-inline-field">Max Mbps <input id="settings-builder-1080p-route-bitrate" type="number" min="1" max="500" step="1" aria-label="1080p max bitrate for direct copy"></label>
+                        <span class="settings-percent-readout" id="settings-bitrate-estimate-1080p">If constant: 30m TV ~4.5 GB; 2h movie ~18 GB</span>
+                      </div>
+                    </section>
+                    <section class="settings-route-bucket-group settings-route-evidence-group">
+                      <h5>Height range</h5>
+                      <div class="settings-boundary-editor">
+                        <input id="settings-builder-1080p-upper-tolerance" type="hidden" min="0" max="33.240741" step="1" aria-label="1080p upper height tolerance percent" data-settings-preserve-input-type="true">
+                        <input id="settings-boundary-1080p-end" type="hidden" min="1080" max="1439" step="1" aria-label="1080p bucket end height">
+                        <span class="settings-percent-readout">Derived <output id="settings-builder-1080p-upper-tolerance-readout">11%</output> tolerance; ends at <output id="settings-boundary-1080p-end-readout">1200p</output></span>
+                      </div>
+                    </section>
+                  </div>
+                </article>
+                <article class="settings-route-bucket-card" data-route-bucket="1440p">
+                  <header class="settings-route-bucket-header">
+                    <div>
+                      <h4>1440p</h4>
+                      <p>Derived height range</p>
+                    </div>
+                    <span id="settings-route-card-range-1440p" class="settings-route-range-ref" aria-hidden="true">uses 1201-1799p</span>
+                  </header>
+                  <div class="settings-route-bucket-grid">
+                    <section class="settings-route-bucket-group">
+                      <h5>Encoded output size (GB)</h5>
+                      <div class="settings-route-target-stack">
+                        <label class="settings-inline-field">Movie <span class="settings-input-with-unit"><input id="settings-builder-movie-1440p-target" type="number" min="1" step="1" aria-label="Movie 1440p encoded output size in GB"><span aria-hidden="true">GB</span></span></label>
+                        <label class="settings-inline-field">TV <span class="settings-input-with-unit"><input id="settings-builder-tv-1440p-target" type="number" min="1" step="1" aria-label="TV 1440p encoded output size in GB"><span aria-hidden="true">GB</span></span></label>
+                      </div>
+                    </section>
+                    <section class="settings-route-bucket-group">
+                      <h5>Direct-copy limits</h5>
+                      <div class="settings-route-target-stack">
+                        <label class="settings-inline-field">Max Mbps <input id="settings-builder-1440p-route-bitrate" type="number" min="1" max="500" step="1" aria-label="1440p max bitrate for direct copy"></label>
+                        <span class="settings-percent-readout" id="settings-bitrate-estimate-1440p">If constant: 30m TV ~7.9 GB; 2h movie ~31.5 GB</span>
+                      </div>
+                    </section>
+                    <section class="settings-route-bucket-group settings-route-evidence-group">
+                      <h5>Height range</h5>
+                      <div class="settings-boundary-editor">
+                        <input id="settings-boundary-1440p-start" type="hidden" min="1081" max="1440" step="1" aria-label="1440p bucket start height">
+                        <input id="settings-boundary-1440p-end" type="hidden" min="1440" max="2159" step="1" aria-label="1440p bucket end height">
+                        <input id="settings-builder-1440p-lower-tolerance" type="hidden" min="0" max="100" step="0.000001" data-settings-preserve-input-type="true">
+                        <input id="settings-builder-1440p-upper-tolerance" type="hidden" min="0" max="100" step="0.000001" data-settings-preserve-input-type="true">
+                        <span class="settings-percent-readout">Derived lower <output id="settings-builder-1440p-lower-tolerance-readout">17%</output>; upper <output id="settings-builder-1440p-upper-tolerance-readout">25%</output></span>
+                      </div>
+                    </section>
+                  </div>
+                </article>
+                <article class="settings-route-bucket-card" data-route-bucket="4k">
+                  <header class="settings-route-bucket-header">
+                    <div>
+                      <h4>4K</h4>
+                      <p>Derived height range</p>
+                    </div>
+                    <span id="settings-route-card-range-4k" class="settings-route-range-ref" aria-hidden="true">uses &gt;=1800p</span>
+                  </header>
+                  <div class="settings-route-bucket-grid">
+                    <section class="settings-route-bucket-group">
+                      <h5>Encoded output size (GB)</h5>
+                      <div class="settings-route-target-stack">
+                        <label class="settings-inline-field">Movie <span class="settings-input-with-unit"><input id="settings-builder-movie-4k-target" type="number" min="1" step="1" aria-label="Movie 4K encoded output size in GB"><span aria-hidden="true">GB</span></span></label>
+                        <label class="settings-inline-field">TV <span class="settings-input-with-unit"><input id="settings-builder-tv-4k-target" type="number" min="1" step="1" aria-label="TV 4K encoded output size in GB"><span aria-hidden="true">GB</span></span></label>
+                      </div>
+                    </section>
+                    <section class="settings-route-bucket-group">
+                      <h5>Direct-copy limits</h5>
+                      <div class="settings-route-target-stack">
+                        <label class="settings-inline-field">Max Mbps <input id="settings-builder-4k-route-bitrate" type="number" min="1" max="500" step="1" aria-label="4K max bitrate for direct copy"></label>
+                        <span class="settings-percent-readout" id="settings-bitrate-estimate-4k">If constant: 30m TV ~7.9 GB; 2h movie ~31.5 GB</span>
+                      </div>
+                    </section>
+                    <section class="settings-route-bucket-group settings-route-evidence-group">
+                      <h5>Height range</h5>
+                      <div class="settings-boundary-editor">
+                        <input id="settings-builder-4k-lower-tolerance" type="hidden" min="0" max="33.287037" step="1" aria-label="4K lower height tolerance percent" data-settings-preserve-input-type="true">
+                        <input id="settings-boundary-4k-start" type="hidden" min="1441" max="2160" step="1" aria-label="4K bucket start height">
+                        <span class="settings-percent-readout">Derived <output id="settings-builder-4k-lower-tolerance-readout">17%</output> tolerance; starts at <output id="settings-boundary-4k-start-readout">1800p</output></span>
+                      </div>
+                    </section>
+                  </div>
+                </article>
+              </div>
+              <p id="settings-height-pixel-summary" class="note">Pixel ranges assume 16:9 horizontal video. Boundary values route to the higher bucket.</p>
+              <p id="settings-route-consequence-summary" class="note">A 1440p Movie uses the 1440p Movie target and 1440p direct-copy cap. Height 1800p routes as 4K.</p>
+            </section>
+            <section class="settings-builder-subsection">
+              <h3>If encoded output is too large</h3>
+              <div class="form-grid launch-form-grid">
+                <label>
+                  Oversize result
+                  <select id="settings-builder-size-guard">
+                    <option value="advisory">Warn only</option>
+                    <option value="strict">Block publish</option>
+                    <option value="fallback_remux">Try remux fallback</option>
+                    <option value="off">Disabled</option>
+                  </select>
+                </label>
+                <label>
+                  Quality encode growth limit
+                  <span class="settings-input-with-unit"><input id="settings-builder-max-growth" type="number" min="0" step="1"><span aria-hidden="true">%</span></span>
+                </label>
+                <label>
+                  Compatibility encode growth limit
+                  <span class="settings-input-with-unit"><input id="settings-builder-compat-growth" type="number" min="0" step="1"><span aria-hidden="true">%</span></span>
+                </label>
+              </div>
+            </section>
+            <input id="settings-builder-routing-profile-key-readout" type="hidden" readonly>
+            <div class="action-row action-row-left">
+              <button type="button" id="settings-builder-apply-button" class="secondary-button">Update Save Changes</button>
+              <button type="button" id="settings-builder-reset-button" class="secondary-button">Reset From Current</button>
+            </div>
+            <pre id="settings-builder-guidance" class="prose-block">No builder guidance loaded.</pre>
+            <p class="note">Builder controls update the save candidate below. Save still goes through backend validation.</p>
+          </div>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Active Policy</h2>
+            <strong id="settings-active-media-policy-status">Not evaluated</strong>
+          </div>
+          <pre id="settings-active-media-policy-summary" class="prose-block">No active media-policy handoff loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Area</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Current Builder State</th>
+                  <th scope="col">Launch Handoff</th>
+                </tr>
+              </thead>
+              <tbody id="settings-active-media-policy-rows">
+                <tr><td colspan="4">No active media-policy handoff rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Policy not loaded</span>
+            <span class="empty-state-hint">Refresh or save settings to load the active policy handoff rows.</span>
+          </div>
+          </div>
+          <p id="settings-active-media-policy-legend" class="note table-legend">Active media-policy handoff rows are read-only and do not stage, save, launch, encode, remux, publish, or touch files.</p>
+          <p class="note">This summarizes visible builder state. Launch uses saved backend settings only after backend Save succeeds and settings reload/refresh completes.</p>
+        </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Current Changes</h2>
+            <strong id="settings-patch-status">No changes</strong>
+          </div>
+          <details class="settings-advanced-disclosure">
+            <summary>Advanced: edit raw settings JSON</summary>
+            <p class="note">Use the structured controls above for normal changes. This technical editor is reviewed and saved only through the same backend validation flow.</p>
+            <label class="full-field">
+              Save Changes JSON
+              <textarea id="settings-patch-json" rows="6" spellcheck="false">{
+  "RoutingProfile": "plex_direct_stream",
+  "SizeGuardMode": "advisory"
+}</textarea>
+            </label>
+          </details>
+          <label class="check-row">
+            <input id="settings-patch-summary-changed-only" type="checkbox"> Show changed / unknown only
+          </label>
+          <pre id="settings-patch-impact-summary" class="prose-block">No change summary loaded.</pre>
+          <div class="panel-heading panel-subheading">
+            <h3>Save Candidate</h3>
+            <strong id="settings-policy-delta-status">Not evaluated</strong>
+          </div>
+          <pre id="settings-policy-delta-summary" class="prose-block">No save-candidate media-policy delta loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Area</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Current Saved Posture</th>
+                  <th scope="col">New Candidate Posture</th>
+                  <th scope="col">Operator Check</th>
+                </tr>
+              </thead>
+              <tbody id="settings-policy-delta-rows">
+                <tr><td colspan="5">No save-candidate media-policy delta loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No changes</span>
+            <span class="empty-state-hint">Edit a setting and save to see current changes here.</span>
+          </div>
+          </div>
+          <p id="settings-policy-delta-legend" class="note table-legend">Save-candidate media-policy delta is read-only; backend Save remains authoritative.</p>
+          <div class="panel-heading panel-subheading">
+            <h3>Active Policy</h3>
+            <strong id="settings-effective-policy-status">Not evaluated</strong>
+          </div>
+          <pre id="settings-effective-policy-summary" class="prose-block">No effective policy trust summary loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Checkpoint</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Saved Backend State</th>
+                  <th scope="col">Current WebView State</th>
+                  <th scope="col">Operator Action</th>
+                </tr>
+              </thead>
+              <tbody id="settings-effective-policy-rows">
+                <tr><td colspan="5">No effective policy trust rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No active policy loaded</span>
+            <span class="empty-state-hint">Save settings or refresh to load the active policy.</span>
+          </div>
+          </div>
+          <p id="settings-effective-policy-legend" class="note table-legend">Effective policy trust rows are read-only; backend Save remains the only settings persistence boundary.</p>
+          <pre id="settings-effective-policy-detail" class="prose-block">Select an effective policy row to inspect launch-active state, current-edit limitations, and proof requirements.</pre>
+          <div class="panel-heading panel-subheading">
+            <h3>Save Status</h3>
+            <strong id="settings-save-readiness-status">Not evaluated</strong>
+          </div>
+          <pre id="settings-save-readiness" class="prose-block">No settings save readiness checklist loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Checkpoint</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Safe Next Step</th>
+                </tr>
+              </thead>
+              <tbody id="settings-save-review-rows">
+                <tr><td colspan="4">No settings save review rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No save result</span>
+            <span class="empty-state-hint">The result of the last settings save appears here.</span>
+          </div>
+          </div>
+          <p id="settings-save-review-legend" class="note table-legend">Settings save review rows: no selectable rows.</p>
+          <pre id="settings-save-review-detail" class="prose-block">No settings save review row selected.</pre>
+          <div class="panel-heading panel-subheading">
+            <h3>Launch Impact</h3>
+            <strong id="settings-launch-impact-status">Not evaluated</strong>
+          </div>
+          <pre id="settings-launch-impact-summary" class="prose-block">No settings-to-launch impact loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Area</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Launch Check</th>
+                </tr>
+              </thead>
+              <tbody id="settings-launch-impact-rows">
+                <tr><td colspan="4">No settings-to-launch impact rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No impact data</span>
+            <span class="empty-state-hint">Impact data appears here after a settings save.</span>
+          </div>
+          </div>
+          <p id="settings-launch-impact-legend" class="note table-legend">Settings-to-launch handoff is read-only; backend launch validation remains authoritative.</p>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Key</th>
+                  <th scope="col">Setting</th>
+                  <th scope="col">Current</th>
+                  <th scope="col">New Value</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody id="settings-patch-summary-rows">
+                <tr><td colspan="5">No settings change summary loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No changes</span>
+            <span class="empty-state-hint">Edit a setting and save to see current changes here.</span>
+          </div>
+          </div>
+          <div class="action-row action-row-left">
+            <button type="button" id="settings-summarize-patch-button" class="secondary-button">Summarize Changes</button>
+            <button type="button" id="settings-save-patch-button" class="primary-button">Save Settings</button>
+          </div>
+          <p id="settings-patch-summary-status" class="note">Summary is local only. Backend save validates the current candidate before writing.</p>
+          <pre id="settings-patch-detail" class="prose-block">No settings change summary loaded. This does not save the PSD1.</pre>
+          <div id="settings-save-progress-bars" class="progress-bar-list" aria-live="polite">
+            <p class="note">No settings save/reload progress loaded.</p>
+          </div>
+          <div class="panel-heading panel-subheading">
+            <h3>Save Result</h3>
+            <strong id="settings-backend-result-status">No backend result</strong>
+          </div>
+          <pre id="settings-backend-result-summary" class="prose-block">No backend settings save result loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Signal</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Operator Action</th>
+                </tr>
+              </thead>
+              <tbody id="settings-backend-result-rows">
+                <tr><td colspan="4">No backend settings result rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No save result</span>
+            <span class="empty-state-hint">The result of the last settings save appears here.</span>
+          </div>
+          </div>
+          <p id="settings-backend-result-legend" class="note table-legend">Backend result rows are read-only; Save Settings remains the backend-owned persistence command.</p>
+          <pre id="settings-backend-result-detail" class="prose-block">Select a backend save result row to inspect review items, errors, redacted diff, risk summary, and reload evidence.</pre>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Commands Evidence</h2>
+            <strong id="settings-command-history-status">No commands</strong>
+          </div>
+          <pre id="settings-command-history" class="prose-block">No settings command history loaded.</pre>
+        </section>
+        </div>
+

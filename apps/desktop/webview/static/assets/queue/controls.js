@@ -58,6 +58,7 @@
         getSelectedRows: getSelectedPriorityRows,
         overrideMarkers: deps.overrideMarkers,
         refreshAll,
+        requestQueueScan,
         renderBreakdown,
         renderRows,
         renderSummary,
@@ -74,6 +75,7 @@
       clearPriorityManifest = noop,
       confirmBulk = () => true,
       endCommand: endPriorityCommand = noop,
+      exportPriorityQueue = noop,
       getInFlight: isPriorityCommandInFlight = falseValue,
       isCurrentCommand: isCurrentPriorityCommand = falseValue,
       normalizedLevel: priorityNormalizedLevel = emptyString,
@@ -107,6 +109,7 @@
         queueRowKey,
         refreshDisplayedQueuePriorityRows: refreshPriorityRows,
         renderQueueRows: renderRows,
+        requestQueueScan,
         sendQueuePriorityBulk: sendPriorityBulk,
         setText,
         updateQueuePriorityControls: updatePriorityControls,
@@ -149,6 +152,7 @@
       wire("queue-priority-promote-movies-btn", () => sendBulkForMediaType("movie", "Movie"));
       wire("queue-priority-promote-tv-btn", () => sendBulkForMediaType("tv", "TV"));
       wire("queue-priority-clear-all-btn", clearPriorityManifest);
+      wire("queue-priority-export-btn", exportPriorityQueue);
       updatePriorityControls();
     }
 
@@ -164,6 +168,7 @@
         renderRows,
         setActiveStrategy: (value) => { state.activeStrategy = value; },
         strategyRoute,
+        requestQueueScan,
         updateManualOrderControls: (...args) => updateManualOrderControls(...args),
       })
       : {};

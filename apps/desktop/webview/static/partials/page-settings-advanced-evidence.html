@@ -1,0 +1,114 @@
+        <!-- TAB: ADVANCED -->
+        <div class="settings-tab-pane" data-settings-tab="advanced-evidence">
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Safety Locks</h2>
+            <strong id="settings-safety-lock-status">Not loaded</strong>
+          </div>
+          <pre id="settings-safety-lock-summary" class="prose-block">No safety lock review loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Setting</th>
+                  <th scope="col">Current</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Operator Action</th>
+                </tr>
+              </thead>
+              <tbody id="settings-safety-lock-rows">
+                <tr><td colspan="4">No safety lock review loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Safety locks not loaded</span>
+            <span class="empty-state-hint">Refresh to load the saved high-risk settings review.</span>
+          </div>
+          </div>
+          <p class="note">Read-only view of saved high-risk settings. Changes still require backend Save.</p>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Advanced Keys</h2>
+            <strong id="settings-raw-triage-status">Not loaded</strong>
+          </div>
+          <pre id="settings-raw-triage" class="prose-block">No raw-key triage loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Key</th>
+                  <th scope="col">Coverage</th>
+                  <th scope="col">Impact</th>
+                  <th scope="col">Review Note</th>
+                </tr>
+              </thead>
+              <tbody id="settings-raw-triage-rows">
+                <tr><td colspan="4">No raw-key triage loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Keys not loaded</span>
+            <span class="empty-state-hint">Refresh to load the advanced settings key triage.</span>
+          </div>
+          </div>
+          <p id="settings-raw-triage-legend" class="note table-legend">Settings raw-key triage: no selectable rows.</p>
+          <pre id="settings-raw-triage-detail" class="prose-block">Select a raw-key row to inspect current value, schema help, and recommended next step.</pre>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Advanced Key Plan</h2>
+            <strong id="settings-raw-action-plan-status">Not loaded</strong>
+          </div>
+          <pre id="settings-raw-action-plan-summary" class="prose-block">No raw-key action plan loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Area</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Operator Action</th>
+                </tr>
+              </thead>
+              <tbody id="settings-raw-action-plan-rows">
+                <tr><td colspan="4">No raw-key action plan loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Plan not loaded</span>
+            <span class="empty-state-hint">Refresh to load the raw-key action plan.</span>
+          </div>
+          </div>
+          <p id="settings-raw-action-plan-legend" class="note table-legend">Settings raw-key action plan: no selectable rows.</p>
+          <pre id="settings-raw-action-plan-detail" class="prose-block">Select an action-plan row to inspect evidence, recommended operator action, and no-mutation boundary.</pre>
+        </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Raw Config</h2>
+            <strong id="settings-count">0 keys</strong>
+          </div>
+          <label class="filter-field">
+            Filter settings
+            <input id="settings-filter" type="search" autocomplete="off" placeholder="Key or value">
+          </label>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Key</th>
+                  <th scope="col">Value</th>
+                </tr>
+              </thead>
+              <tbody id="settings-rows">
+                <tr><td colspan="2">No config loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Config not loaded</span>
+            <span class="empty-state-hint">Refresh to load the full raw config key table.</span>
+          </div>
+          </div>
+        </section>
+        </div>
+      </section>

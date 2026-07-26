@@ -1,5 +1,8 @@
 ---
 file: src/mediapipeline/core/queue/policy_parts/track_metadata.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
@@ -11,6 +14,7 @@ sha256: 3ac0fd58eaf763f63090659ac1102e8aa6689960329625ed6bd39f7285d0f6df
 
 **Purpose:** Queue preview stream and track metadata helpers.
 
-**Public functions:** `queue_preview_track_metadata_summary()`
+**Public symbols:** `queue_preview_track_metadata_summary`
+**In-repo imports:** `.row_identity`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/queue/policy_parts/track_metadata.py`._

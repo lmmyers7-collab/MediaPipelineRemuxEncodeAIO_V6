@@ -1,0 +1,68 @@
+{
+  "id": "MP-CHANGE-2026-0723-006",
+  "title": "Disable fabricated PG-2 sample attestation",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": "2026-07-23",
+  "summary": "Remove the debug PG-2 auto-attestation generator and make its legacy harness fail closed before launching or writing evidence.",
+  "reason": "Remediate P1 AUDIT-FIND-W09-008. The automation authored exact media-validation claims from caller paths and fixed narrative instead of current backend/filesystem provenance.",
+  "affected_areas": [
+    "PG-2 sample-validation evidence integrity",
+    "Tauri debug automation",
+    "operator sample-validation workflow",
+    "release validation harness safety"
+  ],
+  "behavior_before": "Debug automation accepted arbitrary source/output paths and decision text, hard-coded successful media checks and exact route/publish/ActiveJobs claims, then appended a sample_validation_record.v1 without proving those facts.",
+  "behavior_after": "The Tauri debug shell supports only the PG-2 WebView launch automation; it has no sample-validation request generator. The obsolete append harness always returns a nonzero actionable error before launching Tauri/backend/pipeline or writing a record, and directs operators to backend preview plus the operator-controlled WebView append flow.",
+  "files_touched": [
+    "apps/desktop/tauri/Test-TauriShell-PG2SampleValidationAppend.ps1",
+    "apps/desktop/tauri/src-tauri/src/debug_webview.rs",
+    "apps/desktop/tauri/src-tauri/src/lib_tests/mod.rs",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/apps/desktop/tauri/Test-TauriShell-PG2SampleValidationAppend.ps1.md",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/debug_webview.rs.md",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/lib_tests/mod.rs.md",
+    "docs/generated/summaries/docs/sample-validation/SAMPLE_VALIDATION_RECORD_OPERATOR_GUIDE.md.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-006.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_tauri_pg2_sample_validation_fail_closed.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_tauri_shell_scaffold.py.md",
+    "docs/sample-validation/SAMPLE_VALIDATION_RECORD_OPERATOR_GUIDE.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-006.json",
+    "tests/python/desktop/test_tauri_pg2_sample_validation_fail_closed.py",
+    "tests/python/desktop/test_tauri_shell_scaffold.py"
+  ],
+  "tests_added": [
+    "A static Rust test forbids the removed automation mode, request generator, append route, exact-path proof, and hard-coded successful FFmpeg check.",
+    "A subprocess test passes nonexistent media paths and Decision=accepted, requires a nonzero refusal, and proves no sample-validation log is created.",
+    "The Tauri scaffold now requires the legacy harness to advertise the disabled flow and forbids fabricated proof fields or append/launch routes."
+  ],
+  "manual_validation": [
+    "Active doc reference check reports only the known unrelated AUDIT-FIND-W12-ACTIVE-001 V-line baseline",
+    "Focused Tauri scaffold checks - passed: 2 tests.",
+    "Focused fail-closed pytest - passed: 2 tests and 6 subtests.",
+    "Global summary freshness reports only the same six pre-existing stale files outside this packet",
+    "God-file guard - 0 errors and baseline 51 warnings",
+    "PowerShell parser check for the fail-closed harness - passed.",
+    "Project index/dependency graph and feature file map --check - passed",
+    "Risky-file registry and architecture guardrails - passed",
+    "Sample-validation API and browser smoke pytest - passed: 11 tests",
+    "Summary integrity, feature cards, and risky registry tooling - passed: 30 tests and 70 subtests",
+    "Tauri production surface audit - passed",
+    "Tauri scaffold and fail-closed suite excluding known W09-013 route baseline - passed: 97 tests, 1 deselected, 6 subtests",
+    "cargo fmt and cargo check --release --locked - passed",
+    "cargo test --locked --lib - passed: 62 tests.",
+    "git diff --check - passed",
+    "validate_changes --require-worktree-coverage - passed with 1,148 valid packets before completion"
+  ],
+  "rollback_plan": "Revert the debug automation removal, fail-closed wrapper, operator guide, tests, generated summaries/maps, and packet together. Do not restore the former hard-coded attestation generator without a backend-authored run-bound evidence projection and its required validation.",
+  "related_changes": [
+    "AUDIT-FIND-W09-008"
+  ],
+  "notes": "This is a refusal-only safety remediation: it removes an invalid evidence producer and does not add a new acceptance path. No source/output media is read or mutated; no pipeline, backend, append, publish, or cleanup command runs. Representative real-media validation is therefore not required for this batch. Future restoration of automation is a separate high-risk task requiring backend evidence binding and representative source/output hash/playback validation."
+}

@@ -16,7 +16,6 @@ from mediapipeline.core.final_library.promotion_parts.planning import PromotionF
 from mediapipeline.core.final_library.promotion_parts.transfer import (
     companion_sidecars,
     copy_files_transactionally,
-    sha256_file,
 )
 from mediapipeline.core.kernel.contracts.pending_publish import PendingPushManifest
 from mediapipeline.core.kernel.dto_commands import CommandResult
@@ -32,6 +31,10 @@ from mediapipeline.core.processes.rerun_policy import (
 from mediapipeline.core.processes.rerun_rules import (
     RERUN_RULE_DECISION_SCHEMA_VERSION,
     rerun_rule_decision_from_mapping,
+)
+from mediapipeline.core.processes.source_probe import (
+    run_source_probe,
+    source_content_hash_timeout_seconds,
 )
 
 
@@ -207,15 +210,54 @@ def _network_terminal_destination_result(row: Mapping[str, Any]) -> dict[str, An
     return result
 
 
-def _network_output_hash_evidence(path: Path) -> dict[str, Any]:
-    evidence: dict[str, Any] = {"path": str(path), "exists": path.exists()}
-    if not path.exists():
-        return evidence
+def _network_output_stat_evidence(path: Path) -> dict[str, Any]:
+    evidence: dict[str, Any] = {
+        "path": str(path),
+        "exists": False,
+        "probe_status": "missing",
+        "stale": False,
+    }
     try:
-        evidence["size_bytes"] = path.stat().st_size
-        evidence["sha256"] = sha256_file(path)
-    except OSError as exc:
-        evidence["error"] = str(exc)
+        stat_evidence = run_source_probe("stat", path, timeout_seconds=2.0)
+    except FileNotFoundError:
+        return evidence
+    except (TimeoutError, PermissionError, OSError) as exc:
+        evidence.update(
+            {
+                "probe_status": "access_failed",
+                "stale": True,
+                "error": str(exc),
+            }
+        )
+        return evidence
+    if stat_evidence.get("kind") != "file":
+        evidence["probe_status"] = "not_file"
+        return evidence
+    size_bytes = max(0, int(stat_evidence.get("size") or 0))
+    evidence.update({"exists": True, "size_bytes": size_bytes, "probe_status": "ok"})
+    return evidence
+
+
+def _network_output_hash_evidence(path: Path) -> dict[str, Any]:
+    evidence = _network_output_stat_evidence(path)
+    if evidence.get("probe_status") != "ok":
+        return evidence
+    size_bytes = max(0, int(evidence.get("size_bytes") or 0))
+    try:
+        hash_evidence = run_source_probe(
+            "sha256",
+            path,
+            timeout_seconds=source_content_hash_timeout_seconds(size_bytes),
+        )
+        evidence["sha256"] = str(hash_evidence.get("digest") or "")
+    except (TimeoutError, PermissionError, OSError) as exc:
+        evidence.update(
+            {
+                "probe_status": "access_failed",
+                "stale": True,
+                "error": str(exc),
+            }
+        )
     return evidence
 
 
@@ -320,9 +362,14 @@ def _apply_network_pending_publish(
             return result
 
     output_before = _network_output_hash_evidence(output)
+    if output_before.get("probe_status") != "ok":
+        result["errors"].append("verified_handoff_output_access_failed")
+        result["message"] = "Network rerun handoff output could not be revalidated before Pending Publish mutation."
+        result["completed_at_utc"] = datetime.now(UTC).isoformat()
+        return result
     source_size_raw = row.get("source_size")
     try:
-        source_size = int(source_size_raw)
+        source_size = int(str(source_size_raw or "0"))
     except (TypeError, ValueError):
         source_size = 0
     source_identity = _clean_text(row.get("source_identity_v2")) or row_key
@@ -348,7 +395,9 @@ def _apply_network_pending_publish(
         "source_identity": source_identity,
         "source_identity_v2": source_identity,
         "source_identity_v2_algorithm": row.get("source_identity_v2_algorithm") or "network_rerun_destination_v1",
-        "output_size": output.stat().st_size,
+        "output_size": int(output_before.get("size_bytes") or 0),
+        "output_sha256": output_before.get("sha256") or "",
+        "output_hash_algorithm": "SHA256",
         "publish_mode": "pending_publish",
         "sidecar_files": sidecar_entries,
         "tx3g_srt_tracks": [],
@@ -394,7 +443,7 @@ def _apply_network_pending_publish(
         PendingPushManifest.from_mapping(payload)
         atomic_write_text(manifest_path, json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
     except Exception as exc:
-        if output.exists() and not manifest_path.exists():
+        if _network_output_stat_evidence(output).get("exists") is True and not manifest_path.exists():
             for copied in copied_sidecars:
                 copied.unlink(missing_ok=True)
         result["errors"].append("network_rerun_pending_publish_failed")
@@ -525,9 +574,15 @@ def apply_network_rerun_destination_policy(
         result["completed_at_utc"] = datetime.now(UTC).isoformat()
         return result
     output = Path(_clean_text(row.get("verified_output_path")))
-    if not output.is_file():
+    output_before = _network_output_hash_evidence(output)
+    if output_before.get("exists") is not True or output_before.get("probe_status") != "ok":
         result["errors"].append("verified_handoff_output_missing")
-        result["message"] = "Verified handoff output is missing before destination policy."
+        if output_before.get("probe_status") == "access_failed":
+            result["errors"].append("verified_handoff_output_access_failed")
+            result["message"] = "Verified handoff output could not be probed within the bounded deadline."
+        else:
+            result["message"] = "Verified handoff output is missing before destination policy."
+        result["output_before"] = output_before
         result["completed_at_utc"] = datetime.now(UTC).isoformat()
         return result
     final_output_text = _first_text(row, "final_output_path", "server_out", "published_path")
@@ -537,7 +592,7 @@ def apply_network_rerun_destination_policy(
         result["completed_at_utc"] = datetime.now(UTC).isoformat()
         return result
     final_output = Path(final_output_text) if final_output_text else output
-    result["output_before"] = _network_output_hash_evidence(output)
+    result["output_before"] = output_before
     result["final_output_path"] = str(final_output)
     if action == "review_workspace":
         return _apply_network_review_workspace(result, output=output)
@@ -587,6 +642,7 @@ __all__ = (
     "_network_destination_behavior",
     "_network_destination_result_base",
     "_network_terminal_destination_result",
+    "_network_output_stat_evidence",
     "_network_output_hash_evidence",
     "_network_destination_root",
     "_network_sidecar_targets",

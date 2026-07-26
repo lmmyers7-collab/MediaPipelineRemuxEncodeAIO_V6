@@ -14,6 +14,7 @@ def save_active_worker_state(
     notify_status: Callable[[str], None],
     safe_log_cluster_event: Callable[..., None],
     log: Any,
+    claim_context_evidence: dict[str, str] | None = None,
 ) -> None:
     """Write active-job crash-recovery state and report persistence failures."""
     source_path = str(job.record.source_path)
@@ -23,6 +24,7 @@ def save_active_worker_state(
             state_path,
             job_id=job_id,
             source_path=source_path,
+            **dict(claim_context_evidence or {}),
         )
     except Exception as exc:
         log.warning("Failed to save worker_state.json for job %s: %s", job_id, exc)
@@ -47,17 +49,19 @@ def save_pending_worker_report(
     notify_status: Callable[[str], None],
     safe_log_cluster_event: Callable[..., None],
     log: Any,
+    claim_context_evidence: dict[str, str] | None = None,
 ) -> bool:
     """Persist a pending done/release report and report retry-save failures."""
     record = job.record
     source_path = str(getattr(record, "source_path", "")) if record else ""
     job_id = job.job_id
     try:
+        report = {**payload, **dict(claim_context_evidence or {})}
         save_state(
             state_path,
             job_id=job_id,
             source_path=source_path,
-            pending_done_report=payload,
+            pending_done_report=report,
         )
     except Exception as exc:
         log.warning("Failed to save pending done report for job %s: %s", job_id, exc)

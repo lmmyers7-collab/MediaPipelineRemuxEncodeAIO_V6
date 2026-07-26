@@ -1,0 +1,229 @@
+{
+  "schema_version": "mediapipeline_code_retrieval_cases.v1",
+  "groups": [
+    {
+      "id": "tauri-lifecycle",
+      "expected_features": ["tauri-lifecycle"],
+      "authority_paths": ["apps/desktop/tauri/src-tauri/src/close_readiness.rs", "apps/desktop/tauri/src-tauri/src/backend_contract/routes.rs", "src/mediapipeline/desktop/backend_bootstrap.py"],
+      "expected_test_paths": ["tests/python/desktop/test_application_facade_close_readiness.py"],
+      "boundary_paths": ["docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md"],
+      "required_layers": ["webview-tauri", "python-domain", "tests"],
+      "high_risk": true,
+      "tasks": [
+        {"id": "tauri-close-readiness", "task": "fix Tauri close readiness during active work"},
+        {"id": "tauri-backend-contract", "task": "explain Tauri backend lifecycle route contract"},
+        {"id": "tauri-bootstrap-token", "task": "debug desktop backend bootstrap token shutdown"}
+      ]
+    },
+    {
+      "id": "local-api",
+      "expected_features": ["local-api"],
+      "authority_paths": ["src/mediapipeline/desktop/api/contract_read.py", "src/mediapipeline/contracts/api_routes.py", "src/mediapipeline/core/validation/strict_json.py", "src/mediapipeline/core/api/commands.py", "src/mediapipeline/desktop/api/handler_policy.py"],
+      "expected_test_paths": ["tests/python/desktop/test_api_command_contracts.py"],
+      "boundary_paths": ["docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md"],
+      "required_layers": ["local-api", "state-config", "tests"],
+      "high_risk": true,
+      "tasks": [
+        {"id": "api-strict-json", "task": "validate strict JSON confirmation for mutation routes"},
+        {"id": "api-contract-read", "task": "change Local API contract read route"},
+        {"id": "api-route-registry", "task": "find the authoritative API route registry"}
+      ]
+    },
+    {
+      "id": "desktop-application",
+      "expected_features": ["desktop-application"],
+      "authority_paths": ["src/mediapipeline/desktop/application/dto.py", "src/mediapipeline/core/application/utilities.py", "src/mediapipeline/core/library/facade.py", "src/mediapipeline/core/failures/facade.py"],
+      "expected_test_paths": ["tests/python/desktop/test_application_facade.py"],
+      "boundary_paths": [],
+      "required_layers": ["python-domain", "tests"],
+      "high_risk": false,
+      "tasks": [
+        {"id": "application-dto", "task": "add an operator DTO in src/mediapipeline/desktop/application/dto.py"},
+        {"id": "application-library-facade", "task": "debug desktop library facade response"},
+        {"id": "application-failure-facade", "task": "change application failure facade projection"}
+      ]
+    },
+    {
+      "id": "webview",
+      "expected_features": ["webview"],
+      "authority_paths": ["apps/desktop/webview/static/assets/apiClient.js", "apps/desktop/webview/static/assets/app/dashboard.js", "apps/desktop/webview/static/assets/app/home/queueProjection.js", "apps/desktop/webview/static/assets/app/lifecycle.js", "apps/desktop/webview/static/assets/queue/tableView.js", "apps/desktop/webview/static/assets/queue/sourceModel.js"],
+      "expected_test_paths": ["tests/webview/test_webview_api_client_smoke.py"],
+      "boundary_paths": [],
+      "required_layers": ["webview-tauri", "tests"],
+      "high_risk": false,
+      "tasks": [
+        {"id": "webview-api-client", "task": "update WebView API client error handling"},
+        {"id": "webview-dashboard", "task": "fix operator dashboard live state display"},
+        {"id": "webview-queue-projection", "task": "change home queue projection display name"}
+      ]
+    },
+    {
+      "id": "settings-config",
+      "expected_features": ["settings-config"],
+      "authority_paths": ["src/mediapipeline/core/config/library_profiles.py", "src/mediapipeline/core/config/library_profile_defaults.py", "src/mediapipeline/core/config/library_profile_state.py", "src/mediapipeline/core/config/library_profile_normalization.py", "src/mediapipeline/core/config/preset_migration.py", "ops/pipeline/config/MediaPipeline_config_template.psd1"],
+      "expected_test_paths": ["tests/python/desktop/test_library_profiles.py"],
+      "boundary_paths": ["docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md"],
+      "required_layers": ["python-domain", "state-config", "tests"],
+      "high_risk": true,
+      "tasks": [
+        {"id": "settings-library-profiles", "task": "change library profile settings inheritance"},
+        {"id": "settings-preset-migration", "task": "debug preset configuration migration"},
+        {"id": "settings-template", "task": "find ops/pipeline/config/MediaPipeline_config_template.psd1 authority"}
+      ]
+    },
+    {
+      "id": "queue-launch",
+      "expected_features": ["queue-launch"],
+      "authority_paths": ["src/mediapipeline/core/queue/snapshot.py", "src/mediapipeline/core/queue/contracts.py", "ops/pipeline/engine/queue/engine_plan.ps1", "apps/desktop/webview/static/assets/queue/sourceModel.js", "apps/desktop/webview/static/assets/queue/tableView.js"],
+      "expected_test_paths": ["tests/python/desktop/test_service_queue_snapshot.py"],
+      "boundary_paths": ["docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md"],
+      "required_layers": ["webview-tauri", "python-domain", "powershell-engine", "tests"],
+      "high_risk": true,
+      "tasks": [
+        {"id": "queue-snapshot", "task": "fix backend queue snapshot ordering"},
+          {"id": "queue-source-name", "task": "change WebView queue source display name", "high_risk": false},
+        {"id": "queue-engine-plan", "task": "debug queue launch engine plan"}
+      ]
+    },
+    {
+      "id": "media-processing",
+      "expected_features": ["media-processing"],
+      "authority_paths": ["ops/pipeline/engine/decide/encode_policy.ps1", "ops/pipeline/engine/decide/codec_policy.ps1", "ops/pipeline/engine/process/encode_command_builder.ps1", "ops/pipeline/engine/process/remux_ffmpeg_av_stage.ps1"],
+      "expected_test_paths": ["ops/pipeline/tests/Unit/Invoke-EncodeCoreSplitChecks.ps1"],
+      "boundary_paths": ["docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md"],
+      "required_layers": ["powershell-engine", "tests", "boundary-validation-docs"],
+      "high_risk": true,
+      "tasks": [
+        {"id": "media-encode-policy", "task": "change FFmpeg encode policy planning"},
+        {"id": "media-codec-policy", "task": "debug remux codec decision policy"},
+        {"id": "media-stream-map", "task": "find FFmpeg stream mapping authority"}
+      ]
+    },
+    {
+      "id": "subtitles-audio",
+      "expected_features": ["subtitles-audio"],
+      "authority_paths": ["src/mediapipeline/pipeline/ass_to_srt_cli.py", "ops/pipeline/engine/subtitles/ass.ps1", "ops/pipeline/engine/audio/audio/stream_decisions.ps1"],
+      "expected_test_paths": ["tests/python/core/subtitles/test_ass_to_srt_helpers.py", "ops/pipeline/tests/Unit/Invoke-AudioPolicyChecks.ps1"],
+      "boundary_paths": ["docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md"],
+      "required_layers": ["python-domain", "powershell-engine", "tests", "boundary-validation-docs"],
+      "high_risk": true,
+      "tasks": [
+        {"id": "subtitle-ass-srt", "task": "fix ASS to SRT subtitle conversion"},
+        {"id": "audio-stream-decisions", "task": "change audio stream passthrough decisions"},
+        {"id": "subtitle-preservation", "task": "validate original subtitle preservation policy"}
+      ]
+    },
+    {
+      "id": "pending-publish",
+      "expected_features": ["pending-publish"],
+      "authority_paths": ["src/mediapipeline/core/publish/pending_service.py", "src/mediapipeline/core/publish/pending_manifest.py", "ops/pipeline/engine/publish/pending_drain_transaction.ps1"],
+      "expected_test_paths": ["tests/python/desktop/test_pending_publish_service.py", "ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1"],
+      "boundary_paths": ["docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md", "docs/inventories/STATE_FILE_SCHEMA_REFERENCE.md"],
+      "required_layers": ["python-domain", "powershell-engine", "tests", "boundary-validation-docs"],
+      "high_risk": true,
+      "tasks": [
+        {"id": "publish-drain", "task": "fix pending publish drain transaction safety"},
+        {"id": "publish-manifest", "task": "change pending publish manifest service"},
+        {"id": "publish-park", "task": "debug unsafe final output park and drain"}
+      ]
+    },
+    {
+      "id": "rename",
+      "expected_features": ["rename"],
+      "authority_paths": ["src/mediapipeline/core/rename/preview.py", "src/mediapipeline/core/rename/preview_runner.py", "src/mediapipeline/core/rename/filename_preview.py", "src/mediapipeline/core/rename/apply.py", "src/mediapipeline/core/rename/undo_runner.py", "src/mediapipeline/core/rename/path_authority.py"],
+      "expected_test_paths": ["tests/python/desktop/test_application_facade_local_api_rename.py"],
+      "boundary_paths": ["docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md"],
+      "required_layers": ["python-domain", "tests", "boundary-validation-docs"],
+      "high_risk": true,
+      "tasks": [
+        {"id": "rename-preview", "task": "fix rename preview collision planning"},
+        {"id": "rename-apply", "task": "validate rename apply path authority"},
+        {"id": "rename-undo", "task": "debug rename undo runner evidence"}
+      ]
+    },
+    {
+      "id": "diagnostics-maintenance",
+      "expected_features": ["diagnostics-maintenance"],
+      "authority_paths": ["src/mediapipeline/core/diagnostics/state_summary.py", "src/mediapipeline/core/maintenance/facade.py", "src/mediapipeline/core/maintenance/command_policy.py", "src/mediapipeline/core/repair_reconcile/dry_run.py"],
+      "expected_test_paths": ["tests/python/desktop/test_application_facade_local_api_diagnostics.py"],
+      "boundary_paths": [],
+      "required_layers": ["python-domain", "tests"],
+      "high_risk": false,
+      "tasks": [
+        {"id": "diagnostics-summary", "task": "change diagnostics state summary"},
+        {"id": "maintenance-dry-run", "task": "fix maintenance dry run command facade"},
+        {"id": "maintenance-reconcile", "task": "debug repair reconcile command policy"}
+      ]
+    },
+    {
+      "id": "storage-runtime",
+      "expected_features": ["storage-runtime"],
+      "authority_paths": ["src/mediapipeline/core/storage/db.py", "src/mediapipeline/core/storage/state_migration.py", "ops/pipeline/engine/paths/effective_settings.ps1", "ops/pipeline/engine/observability/logging.ps1"],
+      "expected_test_paths": ["tests/python/desktop/test_service_path_state_migration.py"],
+      "boundary_paths": [],
+      "required_layers": ["python-domain", "powershell-engine", "tests"],
+      "high_risk": false,
+      "tasks": [
+        {"id": "storage-sqlite", "task": "debug SQLite runtime state migration"},
+        {"id": "storage-paths", "task": "find effective settings path authority"},
+        {"id": "storage-logging", "task": "change PowerShell observability logging"}
+      ]
+    },
+    {
+      "id": "network-mode",
+      "expected_features": ["network-mode"],
+      "authority_paths": ["src/mediapipeline/core/network/facade.py", "src/mediapipeline/core/network/lifecycle_facade.py", "src/mediapipeline/core/network/auth.py", "src/mediapipeline/core/network/path_map.py", "src/mediapipeline/core/network/worker_state.py", "src/mediapipeline/desktop/network/processing_policy.py", "src/mediapipeline/desktop/network/worker.py", "src/mediapipeline/desktop/network/worker_state.py", "ops/pipeline/engine/queue/worker_claim_store.ps1"],
+      "expected_test_paths": ["tests/python/desktop/test_network_coordinator_startup.py"],
+      "boundary_paths": ["docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md"],
+      "required_layers": ["python-domain", "tests", "boundary-validation-docs"],
+      "high_risk": true,
+      "tasks": [
+        {"id": "network-coordinator", "task": "fix network coordinator worker claim lifecycle"},
+        {"id": "network-auth", "task": "change network worker authentication policy"},
+        {"id": "network-path-map", "task": "debug distributed worker path mapping"}
+      ]
+    },
+    {
+      "id": "generated-context",
+      "expected_features": ["generated-context"],
+      "authority_paths": ["src/mediapipeline/tools/dev/code_context_service.py", "src/mediapipeline/tools/dev/generate_project_index.py", "src/mediapipeline/tools/dev/refresh_summaries.py", "src/mediapipeline/tools/dev/context_slice.py"],
+      "expected_test_paths": ["tests/python/tooling/test_code_context_mcp.py", "tests/python/tooling/test_context_slice.py"],
+      "boundary_paths": [],
+      "required_layers": ["python-domain", "tests"],
+      "high_risk": false,
+      "tasks": [
+        {"id": "context-mcp", "task": "improve repo_context MCP retrieval cache"},
+        {"id": "context-index", "task": "validate generated project index JSONL"},
+        {"id": "context-summaries", "task": "refresh stale generated source summaries"}
+      ]
+    },
+    {
+      "id": "release-validation",
+      "expected_features": ["release-validation"],
+      "authority_paths": ["ops/scripts/release/release_policy.ps1", "src/mediapipeline/tools/dev/release_package_scope.py", "ops/scripts/release/test.ps1", "ops/scripts/smoke/Test-WebViewBrowserHighRiskSmoke.ps1", "ops/scripts/release/Test-PrivateBetaPublishedRelease.ps1", "ops/scripts/release/Test-PrivateBetaInstalledLayout.ps1"],
+      "expected_test_paths": ["ops/pipeline/tests/Unit/Invoke-ReleasePackagePolicyChecks.ps1"],
+      "boundary_paths": [],
+      "required_layers": ["python-domain", "powershell-engine", "tests"],
+      "high_risk": false,
+      "tasks": [
+        {"id": "release-package", "task": "validate release package scope policy"},
+        {"id": "release-smoke", "task": "find PowerShell Test-WebViewBrowserHighRiskSmoke wrapper"},
+        {"id": "release-private-beta", "task": "debug private beta release validation"}
+      ]
+    },
+    {
+      "id": "cross-cutting",
+      "expected_features": ["local-api", "storage-runtime", "pending-publish", "tauri-lifecycle"],
+      "authority_paths": ["src/mediapipeline/core/validation/strict_json.py", "src/mediapipeline/desktop/api/command_journal.py", "src/mediapipeline/desktop/api/command_journal_policy.py", "src/mediapipeline/desktop/backend_bootstrap.py", "apps/desktop/tauri/src-tauri/src/close_readiness.rs", "apps/desktop/tauri/src-tauri/src/backend_contract/routes.rs", "src/mediapipeline/core/publish/pending_service.py", "src/mediapipeline/core/storage/db.py"],
+      "expected_test_paths": ["tests/python/desktop/test_api_command_journal_policy.py", "tests/python/desktop/test_application_facade_close_readiness.py"],
+      "boundary_paths": ["docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md", "docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md", "docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md"],
+      "required_layers": ["local-api", "python-domain", "tests"],
+      "high_risk": true,
+      "tasks": [
+        {"id": "cross-command-journal", "task": "debug duplicate command journal strict JSON guard"},
+        {"id": "cross-source-publish", "task": "validate source scratch output pending publish boundary"},
+        {"id": "cross-close-active", "task": "fix Tauri close readiness while pipeline command is active"}
+      ]
+    }
+  ]
+}

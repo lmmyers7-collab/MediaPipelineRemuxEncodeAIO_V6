@@ -41,6 +41,11 @@ function Assert-Equal {
     }
 }
 
+# ProgressState owns the production Stop After Current correlation contract and
+# is loaded before LocalWorkerSlots by the entrypoint. These lifecycle tests
+# isolate child/claim failure handling, so keep that dispatch boundary inactive.
+function Test-MediaPipelineStopAfterCurrentBoundary { return $false }
+
 function New-LocalWorkerLifecycleEntry {
     param([Parameter(Mandatory)][string] $SourcePath)
 

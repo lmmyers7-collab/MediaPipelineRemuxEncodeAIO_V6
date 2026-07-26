@@ -172,7 +172,7 @@ For browser-free sample-validation route coverage, run the local API sample vali
 .\ops/scripts/smoke\Test-WebViewBrowserLibraryProfilesSaveSmoke.ps1
 ```
 
-23. Run the bounded launch smoke. This opens the Tauri shell, verifies the Rust shell can bootstrap/validate the local API backend, verifies the backend-served WebView index and critical JS assets are present, closes the window, and checks process cleanup:
+23. Run the bounded launch smoke. This opens the Tauri shell, verifies the Rust shell can bootstrap/validate the local API backend, verifies the backend-served WebView index and critical JS assets are present, closes the window, and checks process cleanup. Harness process discovery is restricted to the exact launcher ancestry and cleanup revalidates PID plus creation time; an unrelated concurrently started backend is never a cleanup target:
 
 ```powershell
 .\apps\desktop\tauri\Test-TauriShell-Launch.ps1 -TimeoutSeconds 180 -CloseTimeoutSeconds 30

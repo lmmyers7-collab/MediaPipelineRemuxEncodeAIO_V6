@@ -1,11 +1,14 @@
 use std::{
-    io::{Read, Write},
+    io::{self, Read, Write},
     net::{TcpStream, ToSocketAddrs},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use crate::dialogs::shell_error;
 use crate::{ShellResult, MAX_BACKEND_RESPONSE_BYTES};
+
+const BACKEND_IO_TIMEOUT: Duration = Duration::from_secs(2);
+const BACKEND_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 
 pub(crate) fn request_backend_json(
     backend_url: &str,
@@ -14,6 +17,54 @@ pub(crate) fn request_backend_json(
     token: &str,
     body: &str,
 ) -> ShellResult<String> {
+    request_backend_json_inner(
+        backend_url,
+        method,
+        path,
+        token,
+        body,
+        None,
+        BACKEND_REQUEST_TIMEOUT,
+    )
+}
+
+pub(crate) fn request_backend_json_with_command_id(
+    backend_url: &str,
+    method: &str,
+    path: &str,
+    token: &str,
+    body: &str,
+    command_id: &str,
+) -> ShellResult<String> {
+    let value = command_id.trim();
+    if !(8..=128).contains(&value.len())
+        || !value.bytes().enumerate().all(|(index, byte)| {
+            byte.is_ascii_alphanumeric() || (index > 0 && b"._:-".contains(&byte))
+        })
+    {
+        return Err(shell_error("Backend command ID is invalid."));
+    }
+    request_backend_json_inner(
+        backend_url,
+        method,
+        path,
+        token,
+        body,
+        Some(value),
+        BACKEND_REQUEST_TIMEOUT,
+    )
+}
+
+fn request_backend_json_inner(
+    backend_url: &str,
+    method: &str,
+    path: &str,
+    token: &str,
+    body: &str,
+    command_id: Option<&str>,
+    total_timeout: Duration,
+) -> ShellResult<String> {
+    let deadline = Instant::now() + total_timeout;
     let parsed = validate_loopback_backend_url(backend_url)?;
     let host = parsed
         .host_str()
@@ -30,9 +81,9 @@ pub(crate) fn request_backend_json(
     let address = addresses
         .next()
         .ok_or_else(|| shell_error("Backend URL did not resolve to a socket address."))?;
-    let mut stream = TcpStream::connect_timeout(&address, Duration::from_secs(2))?;
-    stream.set_read_timeout(Some(Duration::from_secs(2)))?;
-    stream.set_write_timeout(Some(Duration::from_secs(2)))?;
+    let connect_timeout = remaining_backend_request_time(deadline)?.min(BACKEND_IO_TIMEOUT);
+    let mut stream = TcpStream::connect_timeout(&address, connect_timeout)
+        .map_err(|error| backend_request_io_error(error, deadline))?;
     let authorization = if token.trim().is_empty() {
         String::new()
     } else {
@@ -46,11 +97,15 @@ pub(crate) fn request_backend_json(
             body.len()
         )
     };
+    let command_header = command_id
+        .map(|value| format!("X-MediaPipeline-Command-ID: {value}\r\n"))
+        .unwrap_or_default();
     let request = format!(
-        "{method} {path} HTTP/1.1\r\nHost: {host}\r\n{authorization}{content_headers}Connection: close\r\n\r\n{body}",
+        "{method} {path} HTTP/1.1\r\nHost: {host}\r\n{authorization}{command_header}{content_headers}Connection: close\r\n\r\n{body}",
     );
-    stream.write_all(request.as_bytes())?;
-    let response = read_backend_response_capped(&mut stream, MAX_BACKEND_RESPONSE_BYTES)?;
+    write_backend_request_until(&mut stream, request.as_bytes(), deadline)?;
+    let response =
+        read_backend_response_capped_until(&mut stream, MAX_BACKEND_RESPONSE_BYTES, deadline)?;
     if !(response.starts_with("HTTP/1.1 200") || response.starts_with("HTTP/1.0 200")) {
         let status_line = response.lines().next().unwrap_or("<no response>");
         let preview = backend_response_body_preview(&response, 500);
@@ -69,6 +124,73 @@ pub(crate) fn request_backend_json(
         ));
     };
     Ok(body.to_string())
+}
+
+fn remaining_backend_request_time(deadline: Instant) -> ShellResult<Duration> {
+    deadline
+        .checked_duration_since(Instant::now())
+        .filter(|remaining| !remaining.is_zero())
+        .ok_or_else(|| shell_error("Backend request exceeded its total deadline."))
+}
+
+fn backend_request_io_error(error: io::Error, deadline: Instant) -> Box<dyn std::error::Error> {
+    if matches!(
+        error.kind(),
+        io::ErrorKind::TimedOut | io::ErrorKind::WouldBlock
+    ) && Instant::now() >= deadline
+    {
+        shell_error("Backend request exceeded its total deadline.")
+    } else {
+        error.into()
+    }
+}
+
+fn write_backend_request_until(
+    stream: &mut TcpStream,
+    request: &[u8],
+    deadline: Instant,
+) -> ShellResult<()> {
+    let mut written = 0;
+    while written < request.len() {
+        let remaining = remaining_backend_request_time(deadline)?;
+        stream.set_write_timeout(Some(remaining.min(BACKEND_IO_TIMEOUT)))?;
+        match stream.write(&request[written..]) {
+            Ok(0) => return Err(io::Error::from(io::ErrorKind::WriteZero).into()),
+            Ok(count) => written += count,
+            Err(error) => return Err(backend_request_io_error(error, deadline)),
+        }
+    }
+    Ok(())
+}
+
+fn read_backend_response_capped_until(
+    stream: &mut TcpStream,
+    max_bytes: usize,
+    deadline: Instant,
+) -> ShellResult<String> {
+    let mut response: Vec<u8> = Vec::new();
+    let mut buffer = [0_u8; 8192];
+    loop {
+        let remaining = remaining_backend_request_time(deadline)?;
+        stream.set_read_timeout(Some(remaining.min(BACKEND_IO_TIMEOUT)))?;
+        let count = stream
+            .read(&mut buffer)
+            .map_err(|error| backend_request_io_error(error, deadline))?;
+        if Instant::now() >= deadline {
+            return Err(shell_error("Backend request exceeded its total deadline."));
+        }
+        if count == 0 {
+            break;
+        }
+        if response.len().saturating_add(count) > max_bytes {
+            return Err(shell_error(format!(
+                "Backend response exceeded {max_bytes} byte limit."
+            )));
+        }
+        response.extend_from_slice(&buffer[..count]);
+    }
+    String::from_utf8(response)
+        .map_err(|error| shell_error(format!("Backend response was not UTF-8: {error}")))
 }
 
 pub(crate) fn validate_loopback_backend_url(backend_url: &str) -> ShellResult<url::Url> {
@@ -114,6 +236,7 @@ pub(crate) fn bounded_text(value: &str, max_chars: usize) -> String {
     preview
 }
 
+#[cfg(test)]
 pub(crate) fn read_backend_response_capped(
     reader: &mut impl Read,
     max_bytes: usize,
@@ -138,7 +261,14 @@ pub(crate) fn read_backend_response_capped(
 
 #[cfg(test)]
 mod tests {
-    use super::validate_loopback_backend_url;
+    use std::{
+        io::{Read, Write},
+        net::TcpListener,
+        thread,
+        time::{Duration, Instant},
+    };
+
+    use super::{request_backend_json_inner, validate_loopback_backend_url};
 
     #[test]
     fn validate_loopback_backend_url_accepts_explicit_http_loopback_hosts() {
@@ -166,5 +296,39 @@ mod tests {
                 "{url} should be rejected"
             );
         }
+    }
+
+    #[test]
+    fn backend_request_total_deadline_rejects_slow_drip_response() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback listener");
+        let address = listener.local_addr().expect("listener address");
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept request");
+            let mut request = [0_u8; 4096];
+            let _ = stream.read(&mut request).expect("read request");
+            for byte in b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}" {
+                if stream.write_all(&[*byte]).is_err() {
+                    break;
+                }
+                thread::sleep(Duration::from_millis(15));
+            }
+        });
+
+        let started = Instant::now();
+        let error = request_backend_json_inner(
+            &format!("http://{address}"),
+            "GET",
+            "/api/slow",
+            "",
+            "",
+            None,
+            Duration::from_millis(120),
+        )
+        .expect_err("slow-drip response must exceed the total deadline");
+        let elapsed = started.elapsed();
+
+        assert!(error.to_string().contains("total deadline"), "{error}");
+        assert!(elapsed < Duration::from_secs(1), "elapsed: {elapsed:?}");
+        server.join().expect("join slow-drip server");
     }
 }

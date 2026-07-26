@@ -1,17 +1,20 @@
 ---
 file: tests/python/desktop/test_service_process_spawn_runner.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-12
+last_modified: 2026-07-16
 last_reviewed: 2026-06-04
-sha256: de342b1b10ff0e63da9e1401d10db9b13f07293a9eabdfd4ea604de8fb2e8d3f
+sha256: c65960667ede736b2934df75ce20f66f03aca06b4720d2c078ae6aff38ef35e8
 ---
 # `tests/python/desktop/test_service_process_spawn_runner.py`
 
-**Purpose:** (no module docstring)
+**Purpose:** Python implementation for test service process spawn runner; exposes DummyProcessLifecycleService, DummySpawnRunnerService, FakeSpawnProcess.
 
-**Classes:** `DummyProcessLifecycleService`, `DummySpawnRunnerService`, `FakeSpawnProcess`, `SpawnRunnerTests`
-**In-repo imports:** `mediapipeline.core.processes.lifecycle`, `mediapipeline.core.processes.spawn_runner`, `mediapipeline.tools.paths`
+**Public symbols:** `DummyProcessLifecycleService`, `DummySpawnRunnerService`, `FakeSpawnProcess`, `IntegratedProcessLifecycleService`, `SpawnRunnerTests`
+**In-repo imports:** `mediapipeline.core.processes.guard_facade`, `mediapipeline.core.processes.kill`, `mediapipeline.core.processes.lifecycle`, `mediapipeline.core.processes.spawn_runner`, `mediapipeline.tools.paths`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths tests/python/desktop/test_service_process_spawn_runner.py`._

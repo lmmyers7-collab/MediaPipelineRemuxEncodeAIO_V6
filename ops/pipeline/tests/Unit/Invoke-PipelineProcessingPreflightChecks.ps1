@@ -219,4 +219,97 @@ Assert-Equal $outputUnsupported.Effects[0].SkipStat 'PathUnsupported' 'Unsupport
 Assert-Equal $outputUnsupported.Effects[1].FailureRegistration.SuggestedAction 'rename the output' 'Unsupported output path suggested action mismatch.'
 Assert-Equal $outputUnsupported.Effects[1].FailureRegistration.SuggestedRename 'safe-LongName.mkv' 'Unsupported output path suggested rename mismatch.'
 
+$script:AcceptedNamingReaderCalls = 0
+$script:ExecutionPlannerCalls = 0
+$script:AcceptedNamingEvidence = $null
+$script:ExecutionPlannedName = 'Edge of Tomorrow (2014).mkv'
+function Get-MediaPipelineRunMonitorAcceptedNamingEvidence {
+    param([string] $RunId, [string] $JobId, [string] $SourcePath)
+    $script:AcceptedNamingReaderCalls++
+    return $script:AcceptedNamingEvidence
+}
+function Get-OutputPaths {
+    param($File, [bool] $IsTV, $TvInfo, [string] $SafeName)
+    $script:ExecutionPlannerCalls++
+    return [pscustomobject]@{
+        PlexPlan = [pscustomobject]@{ FileName = [string]$script:ExecutionPlannedName }
+        ServerOut = Join-Path 'C:\Out' ([string]$script:ExecutionPlannedName)
+    }
+}
+
+$script:PipelineRunId = ''
+$script:CurrentRunMonitorJobId = ''
+$directNaming = Test-MediaPipelineAcceptedDestinationNamePreflight -File (New-TestFile) -MediaType 'movie'
+Assert-True (-not [bool]$directNaming.Terminal) 'Direct/manual processing without Run Monitor correlation must remain compatible.'
+Assert-Equal $directNaming.Checks[0].State 'not_applicable' 'Direct/manual naming guard state mismatch.'
+Assert-Equal $script:AcceptedNamingReaderCalls 0 'Direct/manual processing must not read accepted Queue naming evidence.'
+Assert-Equal $script:ExecutionPlannerCalls 0 'Direct/manual processing must not add a redundant destination-plan call.'
+
+$script:PipelineRunId = 'legacy-run'
+$script:CurrentRunMonitorJobId = 'legacy-run-item-00000001'
+$script:AcceptedNamingEvidence = [pscustomobject]@{
+    Applies = $false; Verified = $false; LegacyCompatible = $true
+    Reason = 'The correlated run predates fingerprinted accepted-name enforcement.'
+    QueuePlanFingerprint = ''
+}
+$legacyNaming = Test-MediaPipelineAcceptedDestinationNamePreflight -File (New-TestFile) -MediaType 'movie'
+Assert-True (-not [bool]$legacyNaming.Terminal) 'A pre-fingerprint legacy run must remain compatible.'
+Assert-Equal $legacyNaming.Checks[0].State 'legacy_compatible' 'Legacy naming guard state mismatch.'
+Assert-Equal $script:ExecutionPlannerCalls 0 'Legacy compatibility must not claim a newly verified execution plan.'
+
+$script:PipelineRunId = 'verified-run'
+$script:CurrentRunMonitorJobId = 'verified-run-item-00000001'
+$script:AcceptedNamingEvidence = [pscustomobject]@{
+    Applies = $true; Verified = $true; LegacyCompatible = $false
+    ExpectedDisplayName = 'Edge of Tomorrow (2014).mkv'
+    QueuePlanFingerprint = 'verified-queue-plan'
+    Reason = 'Accepted production destination-name evidence is verified for execution.'
+}
+$script:ExecutionPlannedName = 'Edge of Tomorrow (2014).mkv'
+$matchedNaming = Test-MediaPipelineAcceptedDestinationNamePreflight -File (New-TestFile -Name 'Edge.of.Tomorrow.2014.1080p.BluRay.DDP5.1.x265.10bit-GalaxyRG265.mkv') -MediaType 'movie'
+Assert-True (-not [bool]$matchedNaming.Terminal) 'A matching verified destination name must continue.'
+Assert-Equal $matchedNaming.Checks[0].State 'matched' 'Verified destination-name match state mismatch.'
+Assert-Equal $matchedNaming.Checks[0].Data.queue_plan_fingerprint 'verified-queue-plan' 'Matched destination-name evidence must retain the accepted Queue fingerprint.'
+
+$script:ExecutionPlannedName = 'Edge of Tomorrow GalaxyRG265 (2014).mkv'
+$driftedNaming = Test-MediaPipelineAcceptedDestinationNamePreflight -File (New-TestFile -Name 'Edge.of.Tomorrow.2014.1080p.BluRay.DDP5.1.x265.10bit-GalaxyRG265.mkv') -MediaType 'movie'
+Assert-True ([bool]$driftedNaming.Terminal) 'A verified accepted/execution destination-name mismatch must fail closed.'
+Assert-Equal $driftedNaming.Status 'skipped' 'Destination-name drift must terminally skip the stale accepted item without creating a sticky source failure.'
+Assert-Equal $driftedNaming.ErrorCode 'DESTINATION_NAMING_PLAN_MISMATCH' 'Destination-name drift error code mismatch.'
+Assert-True (-not [bool]$driftedNaming.Retryable) 'Destination-name drift must not retry inside the stale accepted run.'
+Assert-True ([bool]$driftedNaming.QueueTerminal) 'Destination-name drift must terminate the accepted queue item.'
+Assert-True ($driftedNaming.Reason -match 'Edge of Tomorrow \(2014\)\.mkv' -and $driftedNaming.Reason -match 'GalaxyRG265') 'Destination-name drift reason must expose accepted and execution filenames.'
+Assert-Equal @($driftedNaming.Effects | Where-Object Kind -eq 'register_failure').Count 0 'Destination-name drift must not create a sticky per-source failure marker.'
+
+$plannerCallsBeforeMissing = $script:ExecutionPlannerCalls
+$script:AcceptedNamingEvidence = [pscustomobject]@{
+    Applies = $true; Verified = $false; LegacyCompatible = $false
+    ExpectedDisplayName = ''; QueuePlanFingerprint = 'verified-queue-plan'
+    Reason = "Fingerprint-backed accepted display-name source is 'legacy_internal_seed', not plex_destination_plan.v1."
+    ErrorCode = 'DESTINATION_NAMING_EVIDENCE_MISSING'
+}
+$missingNaming = Test-MediaPipelineAcceptedDestinationNamePreflight -File (New-TestFile) -MediaType 'movie'
+Assert-True ([bool]$missingNaming.Terminal) 'Missing naming evidence in a fingerprint-backed Backend Queue job must fail closed.'
+Assert-Equal $missingNaming.ErrorCode 'DESTINATION_NAMING_EVIDENCE_MISSING' 'Missing naming evidence error code mismatch.'
+Assert-Equal $script:ExecutionPlannerCalls $plannerCallsBeforeMissing 'Missing accepted evidence must block before recomputing an execution destination.'
+
+$processingPath = Join-Path $repoRoot 'ops\pipeline\engine\process\pipeline_processing.ps1'
+$processingText = Get-Content -LiteralPath $processingPath -Raw
+$overridePushIndex = $processingText.IndexOf('$activeConfigOverrideSnapshot = Push-MediaPipelineActiveConfigOverrides', [System.StringComparison]::Ordinal)
+$destinationGuardIndex = $processingText.IndexOf('$destinationNameDecision = Test-MediaPipelineAcceptedDestinationNamePreflight', [System.StringComparison]::Ordinal)
+$probeIndex = $processingText.IndexOf('$routeHints = Get-ActiveMediaRouteHints', [System.StringComparison]::Ordinal)
+Assert-True ($overridePushIndex -ge 0 -and $destinationGuardIndex -gt $overridePushIndex) 'Destination-name guard must run only after effective config overrides are active.'
+Assert-True ($probeIndex -gt $destinationGuardIndex) 'Destination-name guard must run before probe and downstream media work.'
+Assert-True ($processingText -match '\$script:CurrentAcceptedOutputPaths\s*=\s*\$destinationNameDecision\.OutputPaths') 'The verified destination plan must be retained for downstream encode/remux stages.'
+Assert-True ($processingText -match '\$script:CurrentAcceptedOutputPaths\s*=\s*\$null[\s\S]+finally\s*\{[\s\S]+\$script:CurrentAcceptedOutputPaths\s*=\s*\$null') 'The accepted destination-plan runtime slot must be initialized and cleared per file.'
+
+$encodeOrchestratorText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\process\encode_orchestrator.ps1') -Raw
+$remuxOrchestratorText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\process\remux_orchestrator.ps1') -Raw
+$encodePreflightText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\process\encode_preflight.ps1') -Raw
+$remuxPreflightText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\process\remux_preflight.ps1') -Raw
+Assert-True ($encodeOrchestratorText -match 'CurrentAcceptedOutputPaths[\s\S]+New-MediaPipelineEncodeContext[\s\S]+-OutputPaths \$acceptedOutputPaths') 'Encode must receive the verified destination plan.'
+Assert-True ($remuxOrchestratorText -match 'CurrentAcceptedOutputPaths[\s\S]+New-MediaPipelineRemuxContext[\s\S]+-OutputPaths \$acceptedOutputPaths') 'Remux and remux fallbacks must receive the verified destination plan.'
+Assert-True ($encodePreflightText -match 'if \(-not \$Context\.Paths\)\s*\{\s*\$Context\.Paths = Get-OutputPaths') 'Encode preflight may plan output paths only when no verified plan was supplied.'
+Assert-True ($remuxPreflightText -match 'if \(-not \$Context\.Paths\)\s*\{\s*\$Context\.Paths = Get-OutputPaths') 'Remux preflight may plan output paths only when no verified plan was supplied.'
+
 Write-Host 'Pipeline processing preflight checks passed.'

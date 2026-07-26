@@ -1,0 +1,53 @@
+{
+  "id": "MP-CHANGE-2026-0723-029",
+  "title": "Make release history publication immutable and atomic",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": "2026-07-23",
+  "summary": "Make versioned release-history directories immutable by default and publish each new history snapshot from a complete owned sibling staging directory through one final rename.",
+  "reason": "Remediate P1 AUDIT-FIND-W11-015. Release finalization previously copied live metadata directly into an existing history/<version> directory, overwriting prior evidence, and rollback deliberately left those overwritten bytes in place.",
+  "affected_areas": [
+    "documentation",
+    "generated-context",
+    "release",
+    "tests"
+  ],
+  "behavior_before": "The finalizer collision-checks released packet targets but not history/<version>. Existing or partial version-history files are overwritten in place before summary publication, and later failure restores live metadata while leaving damaged historical evidence.",
+  "behavior_after": "Finalization refuses an existing history path before any live or packet mutation, including symlink paths. New history bytes and RELEASE_SUMMARY.md are copied into an owned unique sibling staging directory; only a complete snapshot is renamed to the final version path. Copy or publication failure removes staging, restores live metadata and packets, and never deletes or overwrites a competing history path.",
+  "files_touched": [
+    "docs/change_control/CHANGE_INDEX.md",
+    "docs/change_control/README.md",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/docs/change_control/README.md.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-029.json.md",
+    "docs/generated/summaries/src/mediapipeline/tools/change_control/finalize_release.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_change_control.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-029.json",
+    "src/mediapipeline/tools/change_control/finalize_release.py",
+    "tests/python/tooling/test_change_control.py"
+  ],
+  "tests_added": [
+    "A competing history path created at publication time is preserved when the atomic rename fails.",
+    "A failure on the second archive copy restores packets and live metadata byte-for-byte and removes all owned partial history.",
+    "A successful staged history publication contains exact metadata bytes plus the release summary and leaves no staging residue.",
+    "Existing and partial version-history directories are refused before generators or live mutation and retain exact bytes."
+  ],
+  "manual_validation": [
+    "Canonical generated project/feature checks, risky-file registry validation, targeted git diff --check, and strict worktree coverage passed with 1,171 valid packets.",
+    "Focused change-control and adjacent completed-change archive suites passed: 38 tests and 4 subtests.",
+    "Full packaged release verification ran with required tests. Packet 029 tests, environment, Tauri prerequisites, package policy, tool integration, and end-to-end smoke passed; the gate remained red only on accumulated unrelated generated-context/inventory drift, missing packaged active-doc targets, the known package cycle, two unrelated Ruff B023 findings, and the current WebView static-assets assertion.",
+    "Packet-local atomicity suites and strict coverage passed; full release gate completed with documented unrelated baseline failures.",
+    "Targeted Ruff validation passed for the finalizer and change-control tests."
+  ],
+  "rollback_plan": "Revert the immutable-history preflight, staged publication helper, fault-injection tests, generated summaries/maps, and this packet together. Before rollback, verify no operator relies on reusing an existing version label because that unsafe practice would become possible again.",
+  "related_changes": [
+    "AUDIT-FIND-W11-015"
+  ],
+  "notes": "Release metadata/tooling only; no media paths or immutable audit-ledger artifacts are touched, and representative real-media validation is not required. The first expanded focused run had one test-only failure because the success assertion expected the wrong existing summary heading; archive bytes and cleanup were correct, the expectation was fixed, and the full focused/adjacent rerun passed. There is no fallible operation after the staged directory rename, so the rename is the history-publication commit point. The full release package was built at an exact isolated temporary path, its required tests completed with only the documented unrelated baseline failures, and the exact package tree was removed afterward."
+}

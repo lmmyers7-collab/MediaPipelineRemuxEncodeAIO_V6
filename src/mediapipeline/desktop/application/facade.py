@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+from types import SimpleNamespace
 
 from .. import APP_NAME, APP_VERSION
 from mediapipeline.core.audit.facade import AuditFacadeMixin
@@ -28,6 +29,7 @@ from mediapipeline.core.processes.preflight_facade import ProcessFacadeMixin
 from mediapipeline.core.processes.audit_facade import AuditLaunchFacadeMixin
 from mediapipeline.core.processes.control_facade import ProcessControlFacadeMixin
 from mediapipeline.core.processes.guard_facade import ProcessGuardFacadeMixin
+from mediapipeline.core.processes.lifecycle_reconciliation_facade import LifecycleReconciliationFacadeMixin
 from mediapipeline.core.processes.pipeline_facade import PipelineLaunchFacadeMixin
 from mediapipeline.core.processes.rerun_facade import RerunLaunchFacadeMixin
 from mediapipeline.core.processes.schedule_facade import ProcessScheduleFacadeMixin
@@ -52,6 +54,7 @@ from ..watch import WatchContext, WatchFolderManager, watch_folder_state_mapping
 from .network_lifecycle_provider import NetworkLifecycleProviderMixin
 from mediapipeline.desktop.network.mdns import ZeroconfUnavailable, discover_coordinators
 from mediapipeline.desktop.network.probe import probe_worker_auth
+from mediapipeline.desktop.network.rerun_claims import request_network_rerun_row_retry
 
 
 def _discover_network_coordinators_adapter(*, timeout_secs: float) -> list[str]:
@@ -92,6 +95,7 @@ class MediaPipelineApplicationFacade(
     PendingPublishFacadeMixin,
     PublishReconciliationFacadeMixin,
     RepairReconcileDryRunFacadeMixin,
+    LifecycleReconciliationFacadeMixin,
     PipelineLaunchFacadeMixin,
     AuditLaunchFacadeMixin,
     RerunLaunchFacadeMixin,
@@ -135,6 +139,7 @@ class MediaPipelineApplicationFacade(
         self._sample_validation_lock = threading.Lock()
         self._schedule_save_lock = threading.Lock()
         self._metrics_state_lock = threading.Lock()
+        self._metrics_completed_history_lock = threading.RLock()
         self._audit_source_state_lock = threading.Lock()
         self._network_lifecycle_lock = threading.RLock()
         self._network_lifecycle_state = {}
@@ -150,6 +155,16 @@ class MediaPipelineApplicationFacade(
 
     def get_recovery_status(self) -> dict:
         return dict(self._recovery_status)
+
+    def request_network_rerun_retry(self, resolved, request: dict):
+        return request_network_rerun_row_retry(
+            app=SimpleNamespace(resolved=resolved),
+            batch_id=str(request.get("batch_id") or ""),
+            row_key=str(request.get("row_key") or ""),
+            request_id=str(request.get("request_id") or ""),
+            reason=str(request.get("reason") or ""),
+            confirm_retry=request.get("confirm_retry") is True,
+        )
 
     def _start_watch_folder_manager(self, *, resolved_provider, resolved_reload=None) -> dict:
         latest_resolved = {"value": None}

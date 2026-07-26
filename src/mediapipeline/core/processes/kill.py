@@ -2,11 +2,14 @@ from __future__ import annotations
 
 from collections.abc import Callable
 import contextlib
+from dataclasses import dataclass, field
 import os
 from pathlib import Path
 import signal
 import subprocess
-from typing import Any, Protocol
+import threading
+import time
+from typing import Any, Protocol, cast
 
 from mediapipeline.core.paths.contracts import ResolvedPaths
 
@@ -16,6 +19,178 @@ class WarningLogger(Protocol):
 
 
 UpdateActiveJobFunc = Callable[..., None]
+
+
+_process_tree_cleanup_reconciliation_lock = threading.Lock()
+_process_tree_cleanup_reconciliation_processes: dict[int, object] = {}
+_PROCESS_TREE_CLEANUP_JOIN_TIMEOUT_SECONDS = 35.0
+
+
+@dataclass
+class _ProcessTreeCleanupAttempt:
+    proc: object
+    completed: threading.Event = field(default_factory=threading.Event)
+    result: str | None = None
+    error: BaseException | None = None
+
+
+@dataclass(frozen=True)
+class _ProcessTreeCleanupTerminalEvidence:
+    status: str
+    active_job_write_succeeded: bool
+
+
+@dataclass(frozen=True)
+class RelatedProcessKillEvidence:
+    """Machine-readable proof for one verified related-process termination."""
+
+    pid: int
+    matched_job_kinds: tuple[str, ...]
+    run_id: str
+    command_id: str
+    exit_verified: bool
+
+
+class RelatedProcessKillReport(list[str]):
+    """Backward-compatible messages plus exact termination evidence.
+
+    Existing callers continue to consume this value as ``list[str]``. Control
+    paths that mutate correlated state must use ``termination_evidence`` and
+    never parse the human-readable messages.
+    """
+
+    def __init__(
+        self,
+        messages: list[str] | tuple[str, ...] = (),
+        *,
+        termination_evidence: list[RelatedProcessKillEvidence] | tuple[RelatedProcessKillEvidence, ...] = (),
+    ) -> None:
+        super().__init__(messages)
+        self.termination_evidence = tuple(termination_evidence)
+
+
+_process_tree_cleanup_attempts: dict[int, _ProcessTreeCleanupAttempt] = {}
+
+
+def _mark_process_tree_cleanup_reconciliation_required(proc: object) -> None:
+    """Retain identity-safe evidence that descendant exit remains unverified."""
+
+    with _process_tree_cleanup_reconciliation_lock:
+        _process_tree_cleanup_reconciliation_processes[id(proc)] = proc
+
+
+def _process_tree_cleanup_reconciliation_required(proc: object) -> bool:
+    with _process_tree_cleanup_reconciliation_lock:
+        return _process_tree_cleanup_reconciliation_processes.get(id(proc)) is proc
+
+
+def _clear_process_tree_cleanup_reconciliation_required(proc: object) -> bool:
+    """Clear degraded evidence only for the exact process identity supplied."""
+
+    with _process_tree_cleanup_reconciliation_lock:
+        marked_proc = _process_tree_cleanup_reconciliation_processes.get(id(proc))
+        if marked_proc is not proc:
+            return False
+        del _process_tree_cleanup_reconciliation_processes[id(proc)]
+        return True
+
+
+def _begin_process_tree_cleanup_attempt(proc: object) -> tuple[_ProcessTreeCleanupAttempt, bool]:
+    with _process_tree_cleanup_reconciliation_lock:
+        existing = _process_tree_cleanup_attempts.get(id(proc))
+        if existing is not None and existing.proc is proc:
+            return existing, False
+        attempt = _ProcessTreeCleanupAttempt(proc=proc)
+        _process_tree_cleanup_attempts[id(proc)] = attempt
+    return attempt, True
+
+
+def _finish_process_tree_cleanup_attempt(
+    proc: object,
+    attempt: _ProcessTreeCleanupAttempt,
+    *,
+    result: str | None,
+    error: BaseException | None,
+) -> None:
+    with _process_tree_cleanup_reconciliation_lock:
+        attempt.result = result
+        attempt.error = error
+        if _process_tree_cleanup_attempts.get(id(proc)) is attempt:
+            del _process_tree_cleanup_attempts[id(proc)]
+    attempt.completed.set()
+
+
+def _wait_for_process_tree_cleanup_attempt(
+    proc: object,
+    *,
+    timeout_seconds: float = _PROCESS_TREE_CLEANUP_JOIN_TIMEOUT_SECONDS,
+) -> bool:
+    """Wait for any exact-identity tree cleanup already deciding terminal evidence."""
+
+    deadline = time.monotonic() + max(0.0, float(timeout_seconds))
+    while True:
+        with _process_tree_cleanup_reconciliation_lock:
+            attempt = _process_tree_cleanup_attempts.get(id(proc))
+            if attempt is None or attempt.proc is not proc:
+                return True
+            completed = attempt.completed
+        remaining = deadline - time.monotonic()
+        if remaining <= 0 or not completed.wait(timeout=remaining):
+            _mark_process_tree_cleanup_reconciliation_required(proc)
+            return False
+
+
+def _process_tree_cleanup_attempt_in_progress(proc: object) -> bool:
+    with _process_tree_cleanup_reconciliation_lock:
+        attempt = _process_tree_cleanup_attempts.get(id(proc))
+        return attempt is not None and attempt.proc is proc
+
+
+def _set_process_tree_cleanup_terminal_evidence(
+    proc: object,
+    *,
+    status: str,
+    active_job_write_succeeded: bool,
+) -> None:
+    with contextlib.suppress(Exception):
+        cast(Any, proc)._mediapipeline_tree_cleanup_terminal_evidence = (
+            _ProcessTreeCleanupTerminalEvidence(
+                status=status, active_job_write_succeeded=active_job_write_succeeded
+            )
+        )
+
+
+def _process_tree_cleanup_terminal_evidence(
+    proc: object,
+) -> _ProcessTreeCleanupTerminalEvidence | None:
+    evidence = getattr(proc, "_mediapipeline_tree_cleanup_terminal_evidence", None)
+    return evidence if isinstance(evidence, _ProcessTreeCleanupTerminalEvidence) else None
+
+
+def _record_process_tree_cleanup_active_job_status(
+    proc: object,
+    *,
+    status: str,
+    update_active_job_record: UpdateActiveJobFunc,
+    logger: WarningLogger,
+) -> bool:
+    succeeded = False
+    try:
+        update_active_job_record(proc, status=status, return_code=getattr(proc, "returncode", None))
+        succeeded = True
+    except Exception as exc:
+        logger.warning(
+            "Process-tree cleanup was classified as %s for PID %s, but ActiveJobs evidence could not be updated: %s",
+            status,
+            getattr(proc, "pid", "?"),
+            exc,
+        )
+    _set_process_tree_cleanup_terminal_evidence(
+        proc,
+        status=status,
+        active_job_write_succeeded=succeeded,
+    )
+    return succeeded
 
 
 def wait_for_process_exit(proc: subprocess.Popen[Any], timeout_seconds: float = 5.0) -> bool:
@@ -57,10 +232,12 @@ def kill_psutil_process_tree(
 ) -> None:
     if psutil_module is None:
         return
+    descendant_enumeration_error: Exception | None = None
     try:
         children = process.children(recursive=True)
-    except Exception:
+    except Exception as exc:
         children = []
+        descendant_enumeration_error = exc
     targets = children + [process]
     for target in targets:
         with contextlib.suppress(Exception):
@@ -74,6 +251,34 @@ def kill_psutil_process_tree(
             target.terminate()
     if alive:
         psutil_module.wait_procs(alive, timeout=2.0)
+    survivors: list[int | str] = []
+    unverifiable: list[int | str] = []
+    no_such_process = getattr(psutil_module, "NoSuchProcess", None)
+    for target in targets:
+        target_pid = getattr(target, "pid", "?")
+        try:
+            is_alive = bool(target.is_running()) and target.status() != psutil_module.STATUS_ZOMBIE
+        except Exception as exc:
+            if isinstance(no_such_process, type) and isinstance(exc, no_such_process):
+                continue
+            unverifiable.append(target_pid)
+            continue
+        if is_alive:
+            survivors.append(target_pid)
+    if unverifiable:
+        raise RuntimeError(
+            f"{label} captured process tree exit could not be verified for PID(s) "
+            f"{', '.join(str(pid) for pid in unverifiable)}"
+        )
+    if survivors:
+        raise RuntimeError(
+            f"{label} captured process tree has PID(s) {', '.join(str(pid) for pid in survivors)} still running"
+        )
+    if descendant_enumeration_error is not None:
+        raise RuntimeError(
+            f"{label} descendant enumeration could not be verified before root termination: "
+            f"{descendant_enumeration_error}"
+        )
 
 
 def process_text_contains_any(proc: Any, needles: list[str]) -> bool:
@@ -100,6 +305,45 @@ def _normalized_related_job_kinds(job_kinds: set[str] | None) -> set[str] | None
         if key:
             normalized.add(key)
     return normalized
+
+
+def _matched_related_job_kinds(
+    proc: Any,
+    resolved: ResolvedPaths,
+    *,
+    job_kinds: set[str] | None,
+) -> tuple[str, ...]:
+    requested = _normalized_related_job_kinds(job_kinds)
+    candidates = ("pipeline", "audit", "rerun_csv")
+    matched: list[str] = []
+    for job_kind in candidates:
+        if requested is not None and job_kind not in requested:
+            continue
+        needles = related_pipeline_needles(resolved, job_kinds={job_kind})
+        if needles and process_text_contains_any(proc, needles):
+            matched.append(job_kind)
+    return tuple(matched)
+
+
+def _process_command_option(proc: Any, option: str) -> str:
+    """Read an exact backend-authored process argument without fuzzy matching."""
+
+    try:
+        args = [str(value) for value in (proc.cmdline() or [])]
+    except Exception:
+        return ""
+    normalized_option = option.strip().casefold()
+    for index, value in enumerate(args):
+        normalized = value.strip().casefold()
+        if normalized == normalized_option:
+            if index + 1 >= len(args):
+                return ""
+            candidate = args[index + 1].strip()
+            return candidate if candidate and not candidate.startswith("-") else ""
+        prefix = f"{normalized_option}="
+        if normalized.startswith(prefix):
+            return value.strip()[len(prefix) :].strip()
+    return ""
 
 
 def related_pipeline_needles(resolved: ResolvedPaths, *, job_kinds: set[str] | None = None) -> list[str]:
@@ -162,15 +406,22 @@ def kill_related_pipeline_processes(
     psutil_module: Any,
     logger: WarningLogger,
     job_kinds: set[str] | None = None,
-) -> list[str]:
+) -> RelatedProcessKillReport:
     messages: list[str] = []
+    termination_evidence: list[RelatedProcessKillEvidence] = []
     label = "related MediaPipeline"
     normalized_job_kinds = _normalized_related_job_kinds(job_kinds)
     if normalized_job_kinds is not None:
         label = f"related MediaPipeline {'/'.join(sorted(normalized_job_kinds))}"
     for proc in find_related_pipeline_processes(resolved, psutil_module=psutil_module, job_kinds=job_kinds):
         pid = getattr(proc, "pid", None)
+        matched_job_kinds = _matched_related_job_kinds(proc, resolved, job_kinds=job_kinds)
+        run_id = _process_command_option(proc, "-RunId") if "pipeline" in matched_job_kinds else ""
+        command_id = _process_command_option(proc, "-CommandId") if "pipeline" in matched_job_kinds else ""
         try:
+            if pid is None:
+                raise RuntimeError(f"{label} process has no verifiable PID")
+            process_pid = int(pid)
             if not proc.is_running():
                 continue
             logger.warning("Force-killing %s process tree for PID %s", label, pid)
@@ -178,10 +429,134 @@ def kill_related_pipeline_processes(
             if proc.is_running() and proc.status() != psutil_module.STATUS_ZOMBIE:
                 raise RuntimeError(f"{label} process PID {pid} is still running after kill")
             messages.append(f"Force-killed {label} process tree (PID {pid}).")
+            termination_evidence.append(
+                RelatedProcessKillEvidence(
+                    pid=process_pid,
+                    matched_job_kinds=matched_job_kinds,
+                    run_id=run_id,
+                    command_id=command_id,
+                    exit_verified=True,
+                )
+            )
         except Exception as exc:
             logger.warning("%s process kill did not complete cleanly for PID %s: %s", label, pid, exc)
             raise
-    return messages
+    return RelatedProcessKillReport(messages, termination_evidence=termination_evidence)
+
+
+def _kill_running_process_tree(
+    proc: subprocess.Popen[Any],
+    label: str,
+    *,
+    psutil_module: Any,
+    logger: WarningLogger,
+    update_active_job_record: UpdateActiveJobFunc,
+) -> str:
+    pid = proc.pid
+    logger.warning("Force-killing %s process tree for PID %s", label, pid)
+    if os.name == "nt":
+        taskkill_failure_reason = ""
+        try:
+            result = subprocess.run(
+                ["taskkill", "/PID", str(pid), "/T", "/F"],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=10,
+            )
+        except subprocess.TimeoutExpired as exc:
+            result = None
+            taskkill_detail = str(exc)
+            taskkill_failure_reason = f"taskkill timed out: {taskkill_detail}"
+            logger.warning("taskkill timed out for %s PID %s after 10s: %s", label, pid, taskkill_detail)
+        if result is not None and result.returncode != 0:
+            detail = (result.stderr or result.stdout or "").strip()
+            taskkill_failure_reason = f"taskkill reported a failure with exit code {result.returncode}"
+            if detail:
+                taskkill_failure_reason = f"{taskkill_failure_reason}: {detail}"
+            logger.warning("taskkill reported a failure for %s PID %s: %s", label, pid, detail)
+        if taskkill_failure_reason:
+            _mark_process_tree_cleanup_reconciliation_required(proc)
+        if not wait_for_process_exit(proc, timeout_seconds=5.0):
+            fallback_kill_process_handle(proc, label, logger=logger)
+        if proc.poll() is None and psutil_module is not None:
+            with contextlib.suppress(Exception):
+                kill_psutil_process_tree(psutil_module.Process(pid), label, psutil_module=psutil_module, logger=logger)
+        root_exit_verified = proc.poll() is not None
+        if taskkill_failure_reason:
+            _record_process_tree_cleanup_active_job_status(
+                proc,
+                status="kill_degraded",
+                update_active_job_record=update_active_job_record,
+                logger=logger,
+            )
+            root_detail = (
+                "The root process exited, but descendant exit could not be verified."
+                if root_exit_verified
+                else "Root and descendant exit could not be verified."
+            )
+            return (
+                f"Kill requested for {label} process tree (PID {pid}); {taskkill_failure_reason}. "
+                f"{root_detail} Existing fallback attempts completed without blocking the control path."
+            )
+        if not root_exit_verified:
+            raise RuntimeError(f"Unable to verify {label} process tree exited for PID {pid}.")
+        _clear_process_tree_cleanup_reconciliation_required(proc)
+        _record_process_tree_cleanup_active_job_status(
+            proc,
+            status="killed",
+            update_active_job_record=update_active_job_record,
+            logger=logger,
+        )
+        return f"Force-killed {label} process tree (PID {pid})."
+
+    process_group_kill_issued = False
+    process_group_absent = False
+    process_group_id = os.getpgid(proc.pid)  # type: ignore[attr-defined]
+    try:
+        os.killpg(process_group_id, signal.SIGKILL)  # type: ignore[attr-defined]
+        process_group_kill_issued = True
+    except ProcessLookupError:
+        process_group_absent = True
+    root_exit_without_fallback = wait_for_process_exit(proc, timeout_seconds=5.0)
+    if not root_exit_without_fallback:
+        if not process_group_kill_issued:
+            _mark_process_tree_cleanup_reconciliation_required(proc)
+        fallback_kill_process_handle(proc, label, logger=logger)
+    if proc.poll() is None:
+        raise RuntimeError(f"Unable to verify {label} process exited for PID {pid}.")
+    try:
+        os.killpg(process_group_id, 0)  # type: ignore[attr-defined]
+    except ProcessLookupError:
+        process_group_absent = True
+    except Exception as exc:
+        process_group_absent = False
+        logger.warning("Could not verify %s process group %s exited: %s", label, process_group_id, exc)
+    else:
+        process_group_absent = False
+    process_tree_exit_verified = process_group_absent and (
+        process_group_kill_issued or root_exit_without_fallback
+    )
+    if not process_tree_exit_verified:
+        _mark_process_tree_cleanup_reconciliation_required(proc)
+        _record_process_tree_cleanup_active_job_status(
+            proc,
+            status="kill_degraded",
+            update_active_job_record=update_active_job_record,
+            logger=logger,
+        )
+        return (
+            f"Kill requested for {label} process tree (PID {pid}). The root process exited, but process group "
+            "exit could not be verified."
+        )
+    _clear_process_tree_cleanup_reconciliation_required(proc)
+    _record_process_tree_cleanup_active_job_status(
+        proc,
+        status="killed",
+        update_active_job_record=update_active_job_record,
+        logger=logger,
+    )
+    return f"Force-killed {label} process (PID {pid})."
 
 
 def kill_process_tree(
@@ -194,55 +569,69 @@ def kill_process_tree(
 ) -> str:
     if proc is None:
         return f"No app-owned {label} process is running."
-
-    pid = proc.pid
-    if proc.poll() is not None:
-        update_active_job_record(proc, return_code=proc.returncode)
-        return f"App-owned {label} process already exited."
-
-    logger.warning("Force-killing %s process tree for PID %s", label, pid)
-    if os.name == "nt":
-        taskkill_timed_out = False
-        try:
-            result = subprocess.run(
-                ["taskkill", "/PID", str(pid), "/T", "/F"],
-                capture_output=True,
-                text=True,
-                check=False,
-                timeout=10,
+    attempt, owns_attempt = _begin_process_tree_cleanup_attempt(proc)
+    if not owns_attempt:
+        if not attempt.completed.wait(timeout=_PROCESS_TREE_CLEANUP_JOIN_TIMEOUT_SECONDS):
+            _mark_process_tree_cleanup_reconciliation_required(proc)
+            _record_process_tree_cleanup_active_job_status(
+                proc,
+                status="kill_degraded",
+                update_active_job_record=update_active_job_record,
+                logger=logger,
             )
-        except subprocess.TimeoutExpired as exc:
-            result = None
-            taskkill_timed_out = True
-            taskkill_detail = str(exc)
-            logger.warning("taskkill timed out for %s PID %s after 10s: %s", label, pid, taskkill_detail)
-        if result is not None and result.returncode != 0 and proc.poll() is None:
-            detail = (result.stderr or result.stdout or "").strip()
-            logger.warning("taskkill reported a failure for %s PID %s: %s", label, pid, detail)
-        if not wait_for_process_exit(proc, timeout_seconds=5.0):
-            fallback_kill_process_handle(proc, label, logger=logger)
-        if proc.poll() is None and psutil_module is not None:
-            with contextlib.suppress(Exception):
-                kill_psutil_process_tree(psutil_module.Process(pid), label, psutil_module=psutil_module, logger=logger)
-        if proc.poll() is None:
-            if taskkill_timed_out:
-                update_active_job_record(proc, status="kill_degraded", return_code=proc.returncode)
-                return (
-                    f"Kill requested for {label} process tree (PID {pid}), but taskkill timed out "
-                    "and exit could not be verified. Existing fallback attempts completed without "
-                    f"blocking the control path. Detail: {taskkill_detail}"
-                )
-            raise RuntimeError(f"Unable to verify {label} process tree exited for PID {pid}.")
-        update_active_job_record(proc, status="killed", return_code=proc.returncode)
-        return f"Force-killed {label} process tree (PID {pid})."
+            return (
+                f"Kill requested for {label} process tree (PID {getattr(proc, 'pid', '?')}), but another exact-process "
+                "cleanup attempt did not complete within the bounded reconciliation wait."
+            )
+        if attempt.error is not None:
+            raise RuntimeError(
+                f"The joined {label} process-tree cleanup attempt failed: {attempt.error}"
+            ) from attempt.error
+        if attempt.result is not None:
+            return attempt.result
+        _mark_process_tree_cleanup_reconciliation_required(proc)
+        return (
+            f"Kill requested for {label} process tree (PID {getattr(proc, 'pid', '?')}), but the joined cleanup "
+            "attempt produced no conclusive result."
+        )
 
+    result: str | None = None
+    error: BaseException | None = None
     try:
-        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-    except ProcessLookupError:
-        pass
-    if not wait_for_process_exit(proc, timeout_seconds=5.0):
-        fallback_kill_process_handle(proc, label, logger=logger)
-    if proc.poll() is None:
-        raise RuntimeError(f"Unable to verify {label} process exited for PID {pid}.")
-    update_active_job_record(proc, status="killed", return_code=proc.returncode)
-    return f"Force-killed {label} process (PID {pid})."
+        if proc.poll() is not None:
+            if _process_tree_cleanup_reconciliation_required(proc):
+                result = (
+                    f"App-owned {label} root process already exited, but descendant cleanup still requires "
+                    "reconciliation."
+                )
+                return result
+            terminal_evidence = _process_tree_cleanup_terminal_evidence(proc)
+            if terminal_evidence is not None and terminal_evidence.status == "killed":
+                result = f"App-owned {label} process-tree cleanup was already proven."
+                return result
+            try:
+                update_active_job_record(proc, return_code=proc.returncode)
+            except Exception as exc:
+                logger.warning("Failed to record already-exited %s process PID %s: %s", label, proc.pid, exc)
+            result = f"App-owned {label} process already exited."
+            return result
+        result = _kill_running_process_tree(
+            proc,
+            label,
+            psutil_module=psutil_module,
+            logger=logger,
+            update_active_job_record=update_active_job_record,
+        )
+        return result
+    except Exception as exc:
+        error = exc
+        _mark_process_tree_cleanup_reconciliation_required(proc)
+        _record_process_tree_cleanup_active_job_status(
+            proc,
+            status="kill_degraded",
+            update_active_job_record=update_active_job_record,
+            logger=logger,
+        )
+        raise
+    finally:
+        _finish_process_tree_cleanup_attempt(proc, attempt, result=result, error=error)

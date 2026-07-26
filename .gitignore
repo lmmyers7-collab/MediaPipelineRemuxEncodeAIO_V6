@@ -98,6 +98,7 @@ vlc-help.txt
 
 # Editor / assistant worktrees nested inside the bundle
 .claude/worktrees/
+.codex-remote-attachments/
 
 # Generated deployable/release copies if built inside the workspace
 *_Deployable*/

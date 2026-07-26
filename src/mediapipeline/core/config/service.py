@@ -36,6 +36,7 @@ from mediapipeline.core.config.settings_store import (
     import_psd1_settings_for_service,
     import_psd1_settings_preview_for_service,
     load_settings_authority_for_service,
+    read_settings_authority_for_service,
     save_settings_authority_for_service,
     settings_store_metadata_for_service,
 )
@@ -67,6 +68,9 @@ class ConfigProfileServiceMixin:
             powershell_host,
             psd1_loader=self._load_psd1_mapping_for_settings_authority,
         )
+
+    def read_settings_authority(self, config_path: Path, powershell_host: str | None) -> dict[str, Any]:
+        return read_settings_authority_for_service(self, config_path, powershell_host)
 
     def split_list_input(self, raw: str) -> list[str]:
         return split_config_list_input(raw)
@@ -149,11 +153,18 @@ class ConfigProfileServiceMixin:
             powershell_host=powershell_host,
         )
 
-    def save_settings_authority(self, resolved: ResolvedPaths, candidate_settings: dict[str, Any]) -> ConfigSaveResult:
+    def save_settings_authority(
+        self,
+        resolved: ResolvedPaths,
+        candidate_settings: dict[str, Any],
+        *,
+        expected_authority_digest: str,
+    ) -> ConfigSaveResult:
         return save_settings_authority_for_service(
             self,
             resolved,
             candidate_settings,
+            expected_authority_digest=expected_authority_digest,
             psd1_loader=self._load_psd1_mapping_for_settings_authority,
         )
 

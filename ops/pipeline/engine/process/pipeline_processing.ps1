@@ -26,8 +26,18 @@ function New-MediaPipelineProcessFileResult {
         [long] $OutputSizeBytes = 0,
         $SizeGuardEvidence = $null,
         $VerificationEvidence = $null,
-        $PublishEvidence = $null
+        $PublishEvidence = $null,
+        [string] $RunId = '',
+        [string] $RunMonitorJobId = ''
     )
+
+    $publishedPath = if ($PublishEvidence) { [string](Get-MediaPipelineProfileProperty -Profile $PublishEvidence -Name 'published_path' -Default '') } else { '' }
+    $parkedPath = if ($PublishEvidence) { [string](Get-MediaPipelineProfileProperty -Profile $PublishEvidence -Name 'parked_path' -Default '') } else { '' }
+    $intendedFinalPath = if ($PublishEvidence) { [string](Get-MediaPipelineProfileProperty -Profile $PublishEvidence -Name 'intended_final_path' -Default '') } else { '' }
+    $manifestPath = if ($PublishEvidence) { [string](Get-MediaPipelineProfileProperty -Profile $PublishEvidence -Name 'manifest_path' -Default '') } else { '' }
+    $pipelineSidecarPath = if ($PublishEvidence) { [string](Get-MediaPipelineProfileProperty -Profile $PublishEvidence -Name 'pipeline_sidecar_path' -Default '') } else { '' }
+    $sidecarPaths = if ($PublishEvidence) { @(Get-MediaPipelineProfileProperty -Profile $PublishEvidence -Name 'sidecar_paths' -Default @()) } else { @() }
+    $publishTransactionId = if ($PublishEvidence) { [string](Get-MediaPipelineProfileProperty -Profile $PublishEvidence -Name 'publish_transaction_id' -Default '') } else { '' }
 
     return [pscustomobject]@{
         SchemaVersion    = 'process_file_result.v1'
@@ -46,9 +56,18 @@ function New-MediaPipelineProcessFileResult {
         PublishMode      = [string]$PublishMode
         OutputPath       = [string]$OutputPath
         OutputSizeBytes  = [long]$OutputSizeBytes
+        PublishedPath    = $publishedPath
+        ParkedPath       = $parkedPath
+        IntendedFinalPath = $intendedFinalPath
+        ManifestPath     = $manifestPath
+        PipelineSidecarPath = $pipelineSidecarPath
+        SidecarPaths     = @($sidecarPaths)
+        PublishTransactionId = $publishTransactionId
         SizeGuardEvidence = $SizeGuardEvidence
         VerificationEvidence = $VerificationEvidence
         PublishEvidence  = $PublishEvidence
+        RunId            = if ([string]::IsNullOrWhiteSpace($RunId)) { [string]$script:PipelineRunId } else { $RunId }
+        RunMonitorJobId  = if ([string]::IsNullOrWhiteSpace($RunMonitorJobId)) { [string]$script:CurrentRunMonitorJobId } else { $RunMonitorJobId }
     }
 }
 
@@ -102,6 +121,8 @@ function Write-MediaPipelineProcessCompletedEvent {
         publish_mode       = [string]$Result.PublishMode
         output_path        = [string]$Result.OutputPath
         output_size_bytes  = [long]$Result.OutputSizeBytes
+        run_id             = [string]$Result.RunId
+        run_monitor_job_id = [string]$Result.RunMonitorJobId
         size_guard_evidence = $Result.SizeGuardEvidence
         verification_evidence = $Result.VerificationEvidence
         publish_evidence  = $Result.PublishEvidence
@@ -244,6 +265,11 @@ function Invoke-MediaPipelineProcessFile {
         $PriorityInfo = $null,
         [string]$LibraryProfileId = ''
     )
+
+    # Populated only after Queue naming evidence has been verified under the
+    # execution-time override stack. Route fallbacks reuse the same object so
+    # no later stage can silently re-plan the accepted filename.
+    $script:CurrentAcceptedOutputPaths = $null
 
     if ($script:ProgressWriteFailures -ge 3) {
         Write-Log "Progress persistence failed $($script:ProgressWriteFailures) consecutive time(s); stopping before next file." "ERROR"
@@ -422,15 +448,48 @@ function Invoke-MediaPipelineProcessFile {
     )
     $activeConfigOverrideSnapshot = Push-MediaPipelineActiveConfigOverrides -Overrides $script:ActiveOverrides
     try {
+        # Queue acceptance already froze the production filename under the
+        # accepted override stack. Recompute it only after the execution-time
+        # stack is active, then fail closed before probe, scratch copy, or any
+        # encode/remux work if the immutable accepted name no longer matches.
+        $destinationNameDecision = Test-MediaPipelineAcceptedDestinationNamePreflight `
+            -File $file `
+            -IsTV:$isTV `
+            -TvInfo $tvInfo `
+            -MediaType $mediaType
+        $result = Invoke-MediaPipelineProcessPreflightDecision -Decision $destinationNameDecision -File $file -CollectedChecks $preflightChecks
+        if ($result) { return $result }
+        $script:CurrentAcceptedOutputPaths = $destinationNameDecision.OutputPaths
+
         $script:CurrentSizePolicyResult = $null
         $script:LastQualityVerification = $null
         $routeHints = Get-ActiveMediaRouteHints
-        $sourceMediaProfile = Get-SourceMediaRouteProfile -FilePath $file.FullName -FileSizeBytes ([long]$file.Length)
+        if (Get-Command -Name Set-MediaPipelineCurrentRunMonitorStage -ErrorAction SilentlyContinue) {
+            Set-MediaPipelineCurrentRunMonitorStage -StageId 'probe' -State 'active' -Detail 'Probing source media streams and codec facts.' -EvidenceSource 'media_probe' -Indeterminate | Out-Null
+        }
+        Set-ProgressStage -Stage 'probe' -Status 'Probing source media streams and codec facts' -Percent $null -SaveNow
+        $sourceProbePollHandler = if (Get-Command -Name New-MediaPipelineCurrentStageNativePollHandler -ErrorAction SilentlyContinue) {
+            New-MediaPipelineCurrentStageNativePollHandler `
+                -Stage 'probe' `
+                -Status 'Probing source media streams and codec facts' `
+                -MinimumIntervalSeconds 15 `
+                -EvidenceSource 'media_probe_heartbeat'
+        } else {
+            $null
+        }
+        $sourceMediaProfile = Get-SourceMediaRouteProfile `
+            -FilePath $file.FullName `
+            -FileSizeBytes ([long]$file.Length) `
+            -PollHandler $sourceProbePollHandler `
+            -PollMilliseconds 1000
         if ($sourceMediaProfile -and $sourceMediaProfile.PSObject.Properties['probe_ok'] -and -not [bool]$sourceMediaProfile.probe_ok) {
             $probeFailure = Resolve-MediaPipelineSourceProbeFailure -SourceMediaProfile $sourceMediaProfile
             $reason = [string]$probeFailure.Reason
             $suggestedAction = [string]$probeFailure.SuggestedAction
             $errorCode = [string]$probeFailure.ErrorCode
+            if (Get-Command -Name Set-MediaPipelineCurrentRunMonitorStage -ErrorAction SilentlyContinue) {
+                Set-MediaPipelineCurrentRunMonitorStage -StageId 'probe' -State 'failed' -Detail $reason -ReasonCode $errorCode -EvidenceSource 'media_probe' | Out-Null
+            }
             Write-Log "${queuePrefix}$reason" "ERROR"
             try {
                 Register-SourceFailure `
@@ -456,11 +515,29 @@ function Invoke-MediaPipelineProcessFile {
             Write-MediaPipelineProcessCompletedEvent -Result $result -Stage 'source-probe' -MediaType $queueLabel.ToLowerInvariant()
             return $result
         }
+        if (Get-Command -Name Set-MediaPipelineCurrentRunMonitorStage -ErrorAction SilentlyContinue) {
+            Set-MediaPipelineCurrentRunMonitorStage -StageId 'probe' -State 'completed' -Detail 'Source media probe completed.' -EvidenceSource 'media_probe' | Out-Null
+            Set-MediaPipelineCurrentRunMonitorStage -StageId 'route_decision' -State 'active' -Detail 'Applying backend route policy.' -EvidenceSource 'route_policy' -Indeterminate | Out-Null
+        }
         $routePlan = Resolve-InitialMediaRoutePlan -File $file -IsTV:$isTV -MediaProfile $sourceMediaProfile -RouteHints $routeHints
         $encode    = [bool]$routePlan.ShouldEncode
         $script:CurrentRoutePlan = $routePlan
         $script:CurrentRouteReasonCode = [string]$routePlan.ReasonCode
         $script:CurrentRouteReason = [string]$routePlan.Reason
+        $script:CurrentExecutedRoute = [string]$routePlan.Route
+        $script:CurrentExecutedRouteReasonCode = [string]$routePlan.ReasonCode
+        $script:CurrentExecutedRouteReason = [string]$routePlan.Reason
+        if (Get-Command -Name Set-MediaPipelineCurrentRunMonitorStage -ErrorAction SilentlyContinue) {
+            Set-MediaPipelineCurrentRunMonitorStage -StageId 'route_decision' -State 'completed' -Detail ([string]$routePlan.Reason) -ReasonCode ([string]$routePlan.ReasonCode) -EvidenceSource 'route_policy' | Out-Null
+        }
+        if (Get-Command -Name Set-MediaPipelineRunMonitorExecutedRoute -ErrorAction SilentlyContinue) {
+            try {
+                Set-MediaPipelineRunMonitorExecutedRoute -RunId ([string]$script:PipelineRunId) -JobId ([string]$script:CurrentRunMonitorJobId) -Route ([string]$routePlan.Route) -ReasonCode ([string]$routePlan.ReasonCode) -Reason ([string]$routePlan.Reason) | Out-Null
+            } catch {
+                $script:RunMonitorPersistenceHealthy = $false
+                Write-Log "Run Monitor executed-route evidence failed: $($_.Exception.Message)" 'WARN'
+            }
+        }
         Write-Log "${queuePrefix}SIZE: $([math]::Round([double]$routePlan.SizeGB,2)) GB | Route: $($routePlan.DisplayRoute)"
         DebugLog "${queuePrefix}ROUTE REASON: $($routePlan.ReasonCode) - $($routePlan.Reason)"
         $sourceRuntimeFacts = [ordered]@{
@@ -680,6 +757,10 @@ function Invoke-MediaPipelineProcessFile {
         $script:LastPublishResult = $null
         $script:CurrentRouteReasonCode = $null
         $script:CurrentRouteReason = $null
+        $script:CurrentExecutedRoute = $null
+        $script:CurrentExecutedRouteReasonCode = $null
+        $script:CurrentExecutedRouteReason = $null
+        $script:CurrentAcceptedOutputPaths = $null
         if (-not $script:StopRequested) {
             Reset-ProgressItemContext
         }

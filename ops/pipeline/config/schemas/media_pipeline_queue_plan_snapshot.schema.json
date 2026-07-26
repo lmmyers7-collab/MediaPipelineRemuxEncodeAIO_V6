@@ -29,12 +29,57 @@
       "type": "array",
       "items": { "$ref": "#/$defs/excludedRow" }
     },
+    "accepted_run_rows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/acceptedRunRow" }
+    },
+    "accepted_run_rows_fingerprint_schema": {
+      "type": "string",
+      "const": "accepted_run_rows_fingerprint.v1"
+    },
+    "accepted_run_rows_fingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
     "rows": {
       "type": "array",
       "items": { "$ref": "#/$defs/queueRow" }
     }
   },
   "$defs": {
+    "acceptedRunRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_identity",
+        "source_identity_algorithm",
+        "source_path",
+        "display_name",
+        "planned_display_name",
+        "planned_display_name_source",
+        "parent_context",
+        "run_queue_index",
+        "run_queue_total",
+        "route",
+        "route_reason_code",
+        "route_reason"
+      ],
+      "properties": {
+        "source_identity": { "type": "string", "minLength": 1 },
+        "source_identity_algorithm": { "type": "string", "minLength": 1 },
+        "source_path": { "type": "string", "minLength": 1 },
+        "display_name": { "type": "string", "minLength": 1 },
+        "planned_display_name": { "type": "string", "minLength": 1 },
+        "planned_display_name_source": { "const": "plex_destination_plan.v1" },
+        "parent_context": { "type": "string" },
+        "run_queue_index": { "type": "integer", "minimum": 1 },
+        "run_queue_total": { "type": "integer", "minimum": 1 },
+        "route": { "type": "string" },
+        "route_reason_code": { "type": "string" },
+        "route_reason": { "type": "string" },
+        "intended_final_path": { "type": "string" }
+      }
+    },
     "queueRow": {
       "type": "object",
       "additionalProperties": true,

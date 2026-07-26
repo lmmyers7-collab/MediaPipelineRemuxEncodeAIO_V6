@@ -3,6 +3,7 @@
   function createAppLifecycleNavigation(deps) {
     const { completedTabStorageKey: COMPLETED_TAB_STORAGE_KEY } = deps;
     let uiQuickLinkEventsInitialized = false;
+    const pageFocusHistory = new Map();
 
   function visiblePagePanel() {
     return document.querySelector(".page.is-visible[data-page-panel]");
@@ -16,8 +17,6 @@
     node = document.createElement("section");
     node.className = "page-panel-empty-window";
     node.dataset.pageEmptyState = "panel-visibility";
-    node.setAttribute("role", "status");
-    node.setAttribute("aria-live", "polite");
     node.setAttribute("aria-hidden", "true");
 
     const title = document.createElement("strong");
@@ -208,12 +207,64 @@
     panels.forEach((panel) => panel.classList.toggle("is-visible", panel.dataset.pagePanel === normalized));
     if (current && current !== normalized) resetWorkspaceScroll();
     updatePagePanelEmptyStates();
-    if (typeof refreshAll === "function") void refreshAll({ automatic: true, page: normalized });
+    if (typeof refreshAll === "function") void refreshAll({ automatic: true, queueRefresh: true, page: normalized });
     if (document.body.classList.contains("layout-editor-open")) _layoutRenderDrawer();
     const maintenanceView = window.mediaPipelineMaintenanceView || {};
     if (normalized === "maintenance" && typeof maintenanceView.hasMaintenanceLoaded === "function" && !maintenanceView.hasMaintenanceLoaded()) {
       maintenanceView.refreshMaintenance?.();
     }
+  }
+
+  function rememberPageFocus(pageName) {
+    const page = String(pageName || "").trim();
+    const active = document.activeElement;
+    if (!page || !active || active === document.body || typeof active.closest !== "function") return;
+    const panel = active.closest(`[data-page-panel="${page}"]`);
+    if (!panel) return;
+    pageFocusHistory.set(page, active);
+  }
+
+  function defaultPageFocusTarget(panel) {
+    if (!panel) return null;
+    return panel.querySelector(
+      "[data-page-focus-target], h1, .panel-heading h2, h2",
+    );
+  }
+
+  function focusElementTarget(target) {
+    if (!target || !target.isConnected) return false;
+    if (typeof target.matches === "function" && !target.matches("a[href], button, input, select, textarea, summary, [tabindex]")) {
+      target.setAttribute("tabindex", "-1");
+    }
+    target.scrollIntoView?.({ block: "start", inline: "nearest" });
+    target.focus?.({ preventScroll: true });
+    return document.activeElement === target;
+  }
+
+  function focusPageDestination(pageName, options = {}) {
+    const page = String(pageName || "").trim();
+    const panel = document.querySelector(`[data-page-panel="${page}"]`);
+    if (!panel) return false;
+    const exact = options.focusSelector ? panel.querySelector(options.focusSelector) || document.querySelector(options.focusSelector) : null;
+    if (exact && focusElementTarget(exact)) return true;
+    if (options.restoreFocus !== false) {
+      const saved = pageFocusHistory.get(page);
+      if (saved && panel.contains(saved) && focusElementTarget(saved)) return true;
+    }
+    if (page === "home" && window.mediaPipelineRunMonitor?.focusSelectedFile?.({ detail: options.detail === true })) {
+      return true;
+    }
+    return focusElementTarget(defaultPageFocusTarget(panel));
+  }
+
+  function navigateToPage(page, options = {}) {
+    const normalized = String(page || "").trim();
+    if (!normalized) return false;
+    const current = document.querySelector("[data-page-panel].is-visible")?.dataset?.pagePanel || "";
+    if (current && current !== normalized) rememberPageFocus(current);
+    showPage(normalized);
+    window.setTimeout(() => focusPageDestination(normalized, options), 0);
+    return true;
   }
 
   function applyDefaultActionTooltips() {
@@ -372,13 +423,16 @@
 
   function showCompletedOutputTab(tabId) {
     activateCompletedTab(tabId);
-    showPage("completed");
+    navigateToPage("completed", { restoreFocus: false });
   }
 
   function activateCrossPageTarget(button) {
     const target = button?.dataset?.crossPageTarget || "";
     if (!target) return;
-    showPage(target);
+    navigateToPage(target, {
+      focusSelector: button.dataset.crossPageFocus || "",
+      restoreFocus: button.dataset.crossPageRestoreFocus !== "false",
+    });
     if (target === "reports" && button.dataset.crossPageReportsTab) {
       const reportsView = window.mediaPipelineReportsView || {};
       reportsView.activateReportsTab?.(button.dataset.crossPageReportsTab);
@@ -395,7 +449,22 @@
       && target.matches("a[href], button, input, select, textarea, summary, [tabindex]");
     if (!focusable && typeof target.setAttribute === "function") target.setAttribute("tabindex", "-1");
     if (typeof target.focus === "function") target.focus({ preventScroll: true });
-    return true;
+    return document.activeElement === target;
+  }
+
+  function focusUiQuickLinkWhenReady(selector, attemptsRemaining = 40, stableChecks = 0, focusClaimed = false) {
+    const target = selector ? document.querySelector(selector) : null;
+    const ready = Boolean(target && !target.disabled && target.getAttribute?.("aria-busy") !== "true");
+    const active = document.activeElement;
+    if (ready && focusClaimed && active !== target && active && active !== document.body && active.isConnected) return;
+    if (ready && active !== target) focusUiQuickLinkTarget(selector);
+    const nextStableChecks = ready && document.activeElement === target ? stableChecks + 1 : 0;
+    const nextFocusClaimed = focusClaimed || nextStableChecks > 0;
+    if (nextStableChecks >= 4 || attemptsRemaining <= 0) return;
+    window.setTimeout(
+      () => focusUiQuickLinkWhenReady(selector, attemptsRemaining - 1, nextStableChecks, nextFocusClaimed),
+      50,
+    );
   }
 
   function activateUiQuickLinkModule(moduleName, action, trigger) {
@@ -415,7 +484,17 @@
   function activateUiQuickLink(trigger) {
     const dataset = trigger?.dataset || {};
     const page = String(dataset.quickLinkPage || "").trim();
-    if (page) showPage(page);
+    if (page) {
+      const current = document.querySelector("[data-page-panel].is-visible")?.dataset?.pagePanel || "";
+      if (current === page && dataset.quickLinkFocus) {
+        window.setTimeout(() => focusUiQuickLinkWhenReady(dataset.quickLinkFocus), 0);
+      } else {
+        navigateToPage(page, {
+          focusSelector: dataset.quickLinkFocus || "",
+          restoreFocus: !dataset.quickLinkFocus,
+        });
+      }
+    }
     if (dataset.quickLinkReportsTab) {
       window.mediaPipelineReportsView?.activateReportsTab?.(dataset.quickLinkReportsTab);
     }
@@ -430,8 +509,8 @@
     if (dataset.quickLinkModule || dataset.quickLinkAction) {
       activateUiQuickLinkModule(dataset.quickLinkModule, dataset.quickLinkAction, trigger);
     }
-    if (dataset.quickLinkFocus) {
-      window.setTimeout(() => focusUiQuickLinkTarget(dataset.quickLinkFocus), 0);
+    if (dataset.quickLinkFocus && !page) {
+      window.setTimeout(() => focusUiQuickLinkWhenReady(dataset.quickLinkFocus), 0);
     }
   }
 
@@ -473,7 +552,14 @@
     const buttons = Array.from(document.querySelectorAll(".nav-button"));
     buttons.forEach((button) => {
       button.addEventListener("click", () => {
-        showPage(button.dataset.page);
+        navigateToPage(button.dataset.page, { restoreFocus: true });
+      });
+      button.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.repeat) return;
+        navigateToPage(button.dataset.page, { restoreFocus: true });
       });
     });
     document.querySelectorAll("[data-cross-page-target]").forEach((button) => {
@@ -483,9 +569,9 @@
     syncTabAccessibility();
     // S15: topbar health/readiness buttons navigate to Diagnostics.
     const refreshHealthBadge = byId("refresh-health");
-    if (refreshHealthBadge) refreshHealthBadge.addEventListener("click", () => showPage("diagnostics"));
+    if (refreshHealthBadge) refreshHealthBadge.addEventListener("click", () => navigateToPage("diagnostics", { restoreFocus: true }));
     const closeReadinessBadge = byId("close-readiness");
-    if (closeReadinessBadge) closeReadinessBadge.addEventListener("click", () => showPage("diagnostics"));
+    if (closeReadinessBadge) closeReadinessBadge.addEventListener("click", () => navigateToPage("diagnostics", { restoreFocus: true }));
   }
 
   function sparkKind(event) {
@@ -590,6 +676,9 @@
       updatePagePanelEmptyStates,
       syncTabAccessibility,
       showPage,
+      navigateToPage,
+      focusPageDestination,
+      focusUiQuickLinkTarget,
       applyDefaultActionTooltips,
       initSettingsTabNav,
       activateDiagnosticsTab,

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import tempfile
 import threading
@@ -18,6 +19,12 @@ from .application import MediaPipelineApplicationFacade
 from .config_keys import KEY_COMPATIBILITY_ENCODE_GROWTH_PERCENT, KEY_MAX_ENCODE_GROWTH_PERCENT
 from .models import ResolvedPaths
 from .services import DesktopAppService
+from mediapipeline.core.config.settings_store import (
+    settings_projection_last_good_path,
+    settings_projection_path_for_config,
+    settings_store_last_good_path,
+    settings_store_path_for_config,
+)
 from .webview_settings_live_smoke import (
     _resolved_from_config,
     _require_fragment,
@@ -181,7 +188,7 @@ class _SmokeResolvedState:
         self._resolved = self._resolve()
 
     def _resolve(self) -> ResolvedPaths:
-        config = self.service.load_config_data(self.config_path, self.powershell_host)
+        config = self.service.load_settings_authority(self.config_path, self.powershell_host)
         return _resolved_from_config(
             self.service,
             pipeline_path=self.pipeline_path,
@@ -250,13 +257,49 @@ def _require_command_result(payload: dict[str, Any], *, command: str, ok: bool) 
         raise RuntimeError(f"{command} ok={payload.get('ok')}; expected {ok}.")
 
 
-def _run_smoke_in_root(*, app_root: Path, pipeline_path: Path, work_root: Path) -> dict[str, Any]:
+def _require_paths_within_root(paths: list[Path], root: Path, *, label: str) -> list[Path]:
+    resolved_root = root.resolve()
+    resolved_paths = [path.resolve() for path in paths]
+    outside = [path for path in resolved_paths if not path.is_relative_to(resolved_root)]
+    if outside:
+        raise RuntimeError(f"{label} escaped the smoke work root {resolved_root}: {outside}")
+    return resolved_paths
+
+
+def _settings_artifact_bytes(resolved: ResolvedPaths) -> dict[str, bytes | None]:
+    store_path = settings_store_path_for_config(resolved.config_path)
+    projection_path = settings_projection_path_for_config(resolved.config_path)
+    local_config_root = resolved.local_base / "State" / "Config" if resolved.local_base is not None else None
+    paths = [
+        resolved.config_path,
+        resolved.config_path.with_suffix(".backup.psd1"),
+        store_path,
+        projection_path,
+        settings_store_last_good_path(store_path),
+        settings_projection_last_good_path(projection_path),
+    ]
+    if local_config_root is not None:
+        paths.extend((local_config_root / store_path.name, local_config_root / projection_path.name))
+    return {str(path): path.read_bytes() if path.is_file() else None for path in paths}
+
+
+def _run_smoke_in_root(*, app_root: Path, pipeline_path: Path | None, work_root: Path) -> dict[str, Any]:
     config_path = _write_temp_config(work_root).resolve()
     service = DesktopAppService(app_root)
+    selected_pipeline = (pipeline_path or service.default_pipeline_path()).resolve()
+    product_roots = getattr(service, "product_runtime_roots", None)
+    runtime_paths = [service.desktop_log_path, service.command_journal_path, service.app_state_path]
+    if isinstance(product_roots, dict):
+        runtime_paths.extend(Path(path) for path in product_roots.values())
+    resolved_runtime_paths = _require_paths_within_root(runtime_paths, work_root, label="Desktop service runtime paths")
+    logger_paths = [Path(handler.baseFilename) for handler in service.logger.handlers if hasattr(handler, "baseFilename")]
+    if not logger_paths:
+        raise RuntimeError("Desktop service did not attach an isolated file logger for the smoke.")
+    resolved_logger_paths = _require_paths_within_root(logger_paths, work_root, label="Desktop logger handlers")
     powershell_host = service.resolve_powershell_host()
     resolved_state = _SmokeResolvedState(
         service,
-        pipeline_path=pipeline_path,
+        pipeline_path=selected_pipeline,
         config_path=config_path,
         powershell_host=powershell_host,
     )
@@ -275,6 +318,7 @@ def _run_smoke_in_root(*, app_root: Path, pipeline_path: Path, work_root: Path) 
 
         workspace_before_status, workspace_before = _get_json(f"{server.url}/api/settings/workspace", server.token)
         _require_status(workspace_before_status, "/api/settings/workspace")
+        preview_artifacts_before = _settings_artifact_bytes(resolved_state.get())
 
         preview_status, preview = _post_json(
             f"{server.url}/api/settings/preview-patch",
@@ -283,6 +327,14 @@ def _run_smoke_in_root(*, app_root: Path, pipeline_path: Path, work_root: Path) 
         )
         _require_status(preview_status, "/api/settings/preview-patch")
         _require_command_result(preview, command="settings.preview_patch", ok=True)
+        preview_artifacts_after = _settings_artifact_bytes(resolved_state.get())
+        if preview_artifacts_after != preview_artifacts_before:
+            changed_artifacts = sorted(
+                path
+                for path in set(preview_artifacts_before) | set(preview_artifacts_after)
+                if preview_artifacts_before.get(path) != preview_artifacts_after.get(path)
+            )
+            raise RuntimeError(f"Preview Patch mutated settings persistence artifacts: {changed_artifacts}")
         preview_data = preview.get("data") if isinstance(preview.get("data"), dict) else {}
         if preview_data.get("writes_config") is not False:
             raise RuntimeError("Preview Patch reported writes_config=true.")
@@ -296,9 +348,21 @@ def _run_smoke_in_root(*, app_root: Path, pipeline_path: Path, work_root: Path) 
             if key not in preview_data.get("changed_keys", []):
                 raise RuntimeError(f"Preview Patch did not report changed key {key}.")
 
-        denied_status, denied_save = _post_json(
+        missing_confirmation_status, missing_confirmation = _post_json(
             f"{server.url}/api/settings/save-patch",
             {"changes": PATCH_CHANGES},
+            server.token,
+        )
+        if missing_confirmation_status != 400 or "confirm_save: Field required" not in str(
+            missing_confirmation.get("error") or ""
+        ):
+            raise RuntimeError(
+                "Save Patch without confirm_save did not return the strict HTTP 400 field-required rejection."
+            )
+
+        denied_status, denied_save = _post_json(
+            f"{server.url}/api/settings/save-patch",
+            {"changes": PATCH_CHANGES, "confirm_save": False},
             server.token,
         )
         _require_status(denied_status, "/api/settings/save-patch denied")
@@ -354,7 +418,9 @@ def _run_smoke_in_root(*, app_root: Path, pipeline_path: Path, work_root: Path) 
     return {
         "schema_version": "webview_settings_patch_evidence_smoke.v1",
         "config_path": str(config_path),
-        "pipeline_path": str(pipeline_path),
+        "pipeline_path": str(selected_pipeline),
+        "runtime_paths": [str(path) for path in resolved_runtime_paths],
+        "logger_paths": [str(path) for path in resolved_logger_paths],
         "patch": dict(PATCH_CHANGES),
         "before": {
             KEY_MAX_ENCODE_GROWTH_PERCENT: workspace_before.get("config", {}).get(KEY_MAX_ENCODE_GROWTH_PERCENT),
@@ -364,6 +430,8 @@ def _run_smoke_in_root(*, app_root: Path, pipeline_path: Path, work_root: Path) 
             "ok": bool(preview.get("ok")),
             "changed_keys": preview_data.get("changed_keys", []),
             "writes_config": preview_data.get("writes_config"),
+            "artifacts_unchanged": preview_artifacts_after == preview_artifacts_before,
+            "artifact_count": len(preview_artifacts_before),
             "review_confirmation_preview_id": str(review_confirmation.get("preview_id") or ""),
             "review_entries_schema_version": preview_data.get("review_entries_schema_version"),
             "progress": preview_progress.get("status"),
@@ -372,6 +440,10 @@ def _run_smoke_in_root(*, app_root: Path, pipeline_path: Path, work_root: Path) 
         "denied_save": {
             "ok": bool(denied_save.get("ok")),
             "warnings": denied_save.get("warnings", []),
+        },
+        "missing_confirmation": {
+            "status": missing_confirmation_status,
+            "error": str(missing_confirmation.get("error") or ""),
         },
         "confirmed_save": {
             "ok": bool(confirmed_save.get("ok")),
@@ -398,8 +470,7 @@ def run_smoke(
     work_root: Path | None = None,
 ) -> dict[str, Any]:
     app_root = app_root.resolve()
-    service = DesktopAppService(app_root)
-    selected_pipeline = (pipeline_path or service.default_pipeline_path()).resolve()
+    selected_pipeline = pipeline_path.resolve() if pipeline_path is not None else None
     if work_root is not None:
         work_root.mkdir(parents=True, exist_ok=True)
         resolved_root = work_root.resolve()
@@ -420,20 +491,42 @@ def run_smoke(
 def _run_smoke_with_isolated_localappdata(
     *,
     app_root: Path,
-    pipeline_path: Path,
+    pipeline_path: Path | None,
     work_root: Path,
 ) -> dict[str, Any]:
     isolated_localappdata = work_root / "AppData" / "Local"
     isolated_localappdata.mkdir(parents=True, exist_ok=True)
-    previous = os.environ.get("LOCALAPPDATA")
-    os.environ["LOCALAPPDATA"] = str(isolated_localappdata)
+    isolated_appdata_root = isolated_localappdata / "MediaPipelineRemuxEncodeAIO"
+    isolated_environment = {
+        "LOCALAPPDATA": str(isolated_localappdata),
+        "MEDIAPIPELINE_APPDATA_ROOT": str(isolated_appdata_root),
+        "MEDIAPIPELINE_PRODUCTIZED_APP": "1",
+    }
+    previous_environment = {name: os.environ.get(name) for name in isolated_environment}
+    desktop_logger = logging.getLogger("mediapipeline.desktop")
+    previous_handlers = tuple(desktop_logger.handlers)
+    previous_level = desktop_logger.level
+    previous_disabled = desktop_logger.disabled
+    previous_propagate = desktop_logger.propagate
+    for handler in previous_handlers:
+        desktop_logger.removeHandler(handler)
+    os.environ.update(isolated_environment)
     try:
         return _run_smoke_in_root(app_root=app_root, pipeline_path=pipeline_path, work_root=work_root)
     finally:
-        if previous is None:
-            os.environ.pop("LOCALAPPDATA", None)
-        else:
-            os.environ["LOCALAPPDATA"] = previous
+        for handler in tuple(desktop_logger.handlers):
+            desktop_logger.removeHandler(handler)
+            handler.close()
+        for handler in previous_handlers:
+            desktop_logger.addHandler(handler)
+        desktop_logger.setLevel(previous_level)
+        desktop_logger.disabled = previous_disabled
+        desktop_logger.propagate = previous_propagate
+        for name, previous in previous_environment.items():
+            if previous is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = previous
 
 
 def _print_summary(summary: dict[str, Any]) -> None:

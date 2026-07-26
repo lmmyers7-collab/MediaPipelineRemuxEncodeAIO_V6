@@ -201,6 +201,41 @@ class RenameApplyHelperTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "same path"):
                 build_rename_operations(plan, same_file=resolve_same_file, casefold_path=casefold_path)
 
+    def test_build_rename_operations_rejects_overlapping_parsed_tv_identities(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            first = root / "Example Show S01E01-E02.mkv"
+            second = root / "Example Show S01E02.mkv"
+            first.write_text("first", encoding="utf-8")
+            second.write_text("second", encoding="utf-8")
+            plan = [
+                {
+                    "source": first,
+                    "destination": root / "Example Show - S01E01-E02.mkv",
+                    "rename_sidecars": False,
+                    "parsed_identity": {
+                        "show": "Example Show",
+                        "season": 1,
+                        "episode_start": 1,
+                        "episode_end": 2,
+                    },
+                },
+                {
+                    "source": second,
+                    "destination": root / "Example Show - S01E02.mkv",
+                    "rename_sidecars": False,
+                    "parsed_identity": {
+                        "show": "Example Show",
+                        "season": 1,
+                        "episode_start": 2,
+                        "episode_end": None,
+                    },
+                },
+            ]
+
+            with self.assertRaisesRegex(RuntimeError, "overlapping TV episode"):
+                build_rename_operations(plan, same_file=resolve_same_file, casefold_path=casefold_path)
+
     def test_build_rename_operations_rejects_cross_root_destination(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

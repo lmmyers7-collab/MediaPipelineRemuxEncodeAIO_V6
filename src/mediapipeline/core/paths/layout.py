@@ -60,7 +60,7 @@ def _absolute_path_text(path: Path) -> str:
     return os.path.normcase(text) if os.name == "nt" else text
 
 
-def _path_is_reparse(path: Path) -> bool:
+def _path_is_reparse(path: Path) -> bool | None:
     try:
         if path.is_symlink():
             return True
@@ -69,7 +69,7 @@ def _path_is_reparse(path: Path) -> bool:
         reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x0400)
         return bool(attrs & reparse_flag)
     except OSError:
-        return False
+        return None
 
 
 def _existing_path_chain(path: Path, root: Path) -> list[Path]:
@@ -122,7 +122,18 @@ def path_boundary_check(
         return PathBoundaryCheck(False, "PATH_MISSING", "path does not exist", path_text, root_text)
 
     for candidate in _existing_path_chain(path_abs, root_abs):
-        if _path_is_reparse(candidate):
+        is_reparse = _path_is_reparse(candidate)
+        if is_reparse is None:
+            return PathBoundaryCheck(
+                False,
+                "REPARSE_INSPECTION_FAILED",
+                "unable to inspect path component for symlink, junction, or reparse-point status; "
+                "retry after confirming the component is accessible",
+                path_text,
+                root_text,
+                str(candidate),
+            )
+        if is_reparse:
             return PathBoundaryCheck(
                 False,
                 "REPARSE_POINT_COMPONENT",
@@ -148,7 +159,10 @@ def ensure_path_boundary_safe_for_mutation(
         allow_root_target=allow_root_target,
     )
     if not result.ok:
-        raise RuntimeError(f"Unsafe filesystem mutation target ({result.reason_code}): {path}. {result.reason}")
+        component = f" Component: {result.reparse_path}." if result.reparse_path else ""
+        raise RuntimeError(
+            f"Unsafe filesystem mutation target ({result.reason_code}): {path}. {result.reason}.{component}"
+        )
 
 
 def path_within_root(path: Path, root: Path) -> bool:

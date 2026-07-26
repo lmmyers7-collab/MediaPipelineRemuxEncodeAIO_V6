@@ -201,19 +201,7 @@
         'extras',
         'featurette',
         'deleted scenes',
-        'behind the scenes',
-        '01',
-        '02',
-        '03',
-        '04',
-        '05',
-        '06',
-        '07',
-        '08',
-        '09',
-        '10',
-        '11',
-        '12'
+        'behind the scenes'
     )
     ValidExtensions = @(
         '.mkv',
@@ -246,6 +234,7 @@
     )
     DebugMode = $true
     LogRetentionDays = 7
+    InterruptedToolLogRetentionDays = 3
     PipelineDebugLogMaxBytes = 104857600
     FailureArtifactWarningThresholdGB = 100
     FailureArtifactRetentionDays = 0
@@ -304,6 +293,7 @@
     PauseFlagBlockSeconds = 21600
     LocalWorkerHeartbeatGraceSeconds = 900
     QueueExecutionMaxRunnablePerRound = 500
+    QueueLaunchSnapshotFreshnessSeconds = 60
     StateDbMaintenanceIntervalSeconds = 21600
     StateDbWalReviewBytes = 33554432
     StateDbCompletedJobsMaxRows = 250000

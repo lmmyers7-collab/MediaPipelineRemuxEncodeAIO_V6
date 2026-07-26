@@ -1,5 +1,8 @@
 ---
 file: src/mediapipeline/desktop/application/settings_risk_policy_rules.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: application
@@ -9,7 +12,7 @@ sha256: 8694b56f8cd2be7a8328237508b6e600295da40f0183b1b6969fffb7034e7b1f
 ---
 # `src/mediapipeline/desktop/application/settings_risk_policy_rules.py`
 
-**Purpose:** Compatibility shim for settings risk policy rule helpers.
+**Purpose:** Compatibility shim for settings risk policy rule helpers. New code should import from ``mediapipeline.core.config.settings_risk_policy_rules``.
 
 **In-repo imports:** `mediapipeline.core.config.settings_risk_policy_rules`
 

@@ -35,6 +35,117 @@ function Write-Log {
     Write-Verbose "[$Level] $Message"
 }
 
+function Test-JsonObject {
+    param($Value)
+
+    if ($null -eq $Value) { return $false }
+    if ($Value -is [System.Collections.IDictionary]) { return $true }
+    return $Value.GetType().FullName -eq 'System.Management.Automation.PSCustomObject'
+}
+
+function Get-RequiredJsonProperty {
+    param(
+        [Parameter(Mandatory)] $Object,
+        [Parameter(Mandatory)] [string]$Name,
+        [Parameter(Mandatory)] [string]$Context
+    )
+
+    if (-not (Test-JsonObject $Object)) {
+        throw "$Context must be a JSON object."
+    }
+    if ($Object -is [System.Collections.IDictionary]) {
+        if (-not $Object.Contains($Name)) { throw "$Context.$Name is required." }
+        $value = $Object[$Name]
+        if ($value -is [System.Array]) { return ,$value }
+        return $value
+    }
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property) { throw "$Context.$Name is required." }
+    if ($property.Value -is [System.Array]) { return ,$property.Value }
+    return $property.Value
+}
+
+function Assert-JsonBooleanMap {
+    param(
+        [Parameter(Mandatory)] $Value,
+        [Parameter(Mandatory)] [string]$Context
+    )
+
+    if (-not (Test-JsonObject $Value)) { throw "$Context must be a JSON object." }
+    foreach ($property in @($Value.PSObject.Properties)) {
+        if ($property.Value -isnot [bool]) {
+            throw "$Context.$($property.Name) must be a boolean."
+        }
+    }
+}
+
+function Assert-JsonTermMap {
+    param(
+        [Parameter(Mandatory)] $Value,
+        [Parameter(Mandatory)] [string]$Context
+    )
+
+    if (-not (Test-JsonObject $Value)) { throw "$Context must be a JSON object." }
+    foreach ($property in @($Value.PSObject.Properties)) {
+        Assert-JsonStringArray -Value $property.Value -Context "$Context.$($property.Name)"
+    }
+}
+
+function Assert-JsonStringArray {
+    param(
+        $Value,
+        [Parameter(Mandatory)] [string]$Context
+    )
+
+    if ($Value -is [string] -or $Value -isnot [System.Collections.IEnumerable] -or (Test-JsonObject $Value)) {
+        throw "$Context must be a JSON array of strings."
+    }
+    foreach ($item in @($Value)) {
+        if ($item -isnot [string]) { throw "$Context must contain only strings." }
+    }
+}
+
+function Set-NamingPreviewCleaningPolicy {
+    param([Parameter(Mandatory)] $Policy)
+
+    $policySchema = [string](Get-RequiredJsonProperty -Object $Policy -Name 'schema_version' -Context 'rename_cleaning_policy')
+    if ($policySchema -ne 'rename_cleaning_policy.v1') {
+        throw "Unsupported rename cleaning policy schema: $policySchema"
+    }
+    $policyFingerprint = [string](Get-RequiredJsonProperty -Object $Policy -Name 'policy_fingerprint' -Context 'rename_cleaning_policy')
+    if ($policyFingerprint -notmatch '^[0-9A-Fa-f]{64}$') {
+        throw 'rename_cleaning_policy.policy_fingerprint must be a 64-character SHA-256 hex digest.'
+    }
+
+    $movie = Get-RequiredJsonProperty -Object $Policy -Name 'movie' -Context 'rename_cleaning_policy'
+    $tv = Get-RequiredJsonProperty -Object $Policy -Name 'tv' -Context 'rename_cleaning_policy'
+    $movieOptions = Get-RequiredJsonProperty -Object $movie -Name 'options' -Context 'rename_cleaning_policy.movie'
+    $movieTerms = Get-RequiredJsonProperty -Object $movie -Name 'terms' -Context 'rename_cleaning_policy.movie'
+    $movieRemoveTerms = Get-RequiredJsonProperty -Object $movie -Name 'remove_terms' -Context 'rename_cleaning_policy.movie'
+    $tvOptions = Get-RequiredJsonProperty -Object $tv -Name 'options' -Context 'rename_cleaning_policy.tv'
+    $tvTerms = Get-RequiredJsonProperty -Object $tv -Name 'terms' -Context 'rename_cleaning_policy.tv'
+    $tvRemoveTerms = Get-RequiredJsonProperty -Object $tv -Name 'remove_terms' -Context 'rename_cleaning_policy.tv'
+
+    Assert-JsonBooleanMap -Value $movieOptions -Context 'rename_cleaning_policy.movie.options'
+    Assert-JsonTermMap -Value $movieTerms -Context 'rename_cleaning_policy.movie.terms'
+    Assert-JsonStringArray -Value $movieRemoveTerms -Context 'rename_cleaning_policy.movie.remove_terms'
+    Assert-JsonBooleanMap -Value $tvOptions -Context 'rename_cleaning_policy.tv.options'
+    Assert-JsonTermMap -Value $tvTerms -Context 'rename_cleaning_policy.tv.terms'
+    Assert-JsonStringArray -Value $tvRemoveTerms -Context 'rename_cleaning_policy.tv.remove_terms'
+
+    # The preview boundary accepts only the six documented nested policy
+    # values. Compatibility aliases or unrelated payload properties never
+    # become script variables.
+    $script:RenameMovieFilterOptions = $movieOptions
+    $script:RenameMovieFilterTerms = $movieTerms
+    $script:RenameMovieRemoveTerms = @($movieRemoveTerms)
+    $script:RenameTVFilterOptions = $tvOptions
+    $script:RenameTVFilterTerms = $tvTerms
+    $script:RenameTVRemoveTerms = @($tvRemoveTerms)
+
+    return $policyFingerprint
+}
+
 $script:PriorityMarkers = @('!')
 $script:AggressiveEpisodeParsing = $true
 $script:ValidExtensions = @('.mkv','.mp4','.m4v','.avi','.mov','.ts','.m2ts','.webm')
@@ -49,6 +160,22 @@ if (-not (Test-Path -LiteralPath $namingModule)) { throw "Naming module not foun
 . $namingModule
 
 $payload = Get-Content -LiteralPath $InputJsonPath -Raw | ConvertFrom-Json -ErrorAction Stop
+$requestSchema = [string](Get-RequiredJsonProperty -Object $payload -Name 'schema_version' -Context 'naming preview request')
+$responseSchema = ''
+$appliedPolicyFingerprint = ''
+switch ($requestSchema) {
+    'naming_preview_request.v1' {
+        $responseSchema = 'naming_preview.v1'
+    }
+    'naming_preview_request.v2' {
+        $responseSchema = 'naming_preview.v2'
+        $policy = Get-RequiredJsonProperty -Object $payload -Name 'rename_cleaning_policy' -Context 'naming preview request'
+        $appliedPolicyFingerprint = Set-NamingPreviewCleaningPolicy -Policy $policy
+    }
+    default {
+        throw "Unsupported naming preview request schema: $requestSchema"
+    }
+}
 $rows = [System.Collections.Generic.List[object]]::new()
 
 foreach ($item in @($payload.items)) {
@@ -63,16 +190,53 @@ foreach ($item in @($payload.items)) {
     }
     $mediaKind = ([string]$item.media_kind).Trim()
     if ([string]::IsNullOrWhiteSpace($mediaKind)) { $mediaKind = 'Movie' }
+    $synthetic = $false
+    $syntheticProperty = $item.PSObject.Properties['synthetic']
+    if ($null -ne $syntheticProperty) {
+        if ($syntheticProperty.Value -isnot [bool]) {
+            throw 'naming preview item.synthetic must be a JSON boolean.'
+        }
+        $synthetic = [bool]$syntheticProperty.Value
+    }
+    $assumedMediaExtension = $false
+    $assumedExtensionProperty = $item.PSObject.Properties['assumed_media_extension']
+    if ($null -ne $assumedExtensionProperty) {
+        if ($assumedExtensionProperty.Value -isnot [bool]) {
+            throw 'naming preview item.assumed_media_extension must be a JSON boolean.'
+        }
+        $assumedMediaExtension = [bool]$assumedExtensionProperty.Value
+    }
+    $sourceFolder = [string]$item.source_folder
 
     try {
+        $parsedIdentity = $null
         if ($mediaKind -eq 'Movie') {
             $plan = New-PlexMovieDestinationPlan -OriginalName $originalName -Extension $extension
+            if ($requestSchema -eq 'naming_preview_request.v2') {
+                $movieTitle = [string]$plan.MovieTitle
+                $title = $movieTitle
+                $year = $null
+                $movieMatch = [regex]::Match($movieTitle, '^\s*(?<title>.+?)\s+\((?<year>(?:18|19|20|21)\d{2})\)\s*$')
+                if ($movieMatch.Success) {
+                    $title = $movieMatch.Groups['title'].Value.Trim()
+                    $year = [int]$movieMatch.Groups['year'].Value
+                }
+                $parsedIdentity = [ordered]@{
+                    media_kind = 'Movie'
+                    movie_title = $movieTitle
+                    title = $title
+                    year = $year
+                    identity_key = [string]$plan.IdentityKey
+                }
+            }
         } elseif ($mediaKind -eq 'TV') {
             $file = $null
-            if (-not [string]::IsNullOrWhiteSpace($sourcePath) -and (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
+            if (-not $synthetic -and -not [string]::IsNullOrWhiteSpace($sourcePath) -and (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
                 $file = Get-Item -LiteralPath $sourcePath -ErrorAction Stop
             } else {
-                $directoryName = if (-not [string]::IsNullOrWhiteSpace($sourcePath)) {
+                $directoryName = if ($synthetic -and -not [string]::IsNullOrWhiteSpace($sourceFolder)) {
+                    $sourceFolder
+                } elseif (-not [string]::IsNullOrWhiteSpace($sourcePath)) {
                     [System.IO.Path]::GetDirectoryName($sourcePath)
                 } else {
                     [System.IO.Path]::GetTempPath()
@@ -90,27 +254,53 @@ foreach ($item in @($payload.items)) {
                 throw $tvInfo.ParseError
             }
             $plan = New-PlexDestinationPlan -MediaKind TV -File $file -TvInfo $tvInfo -OriginalName $originalName -Extension $extension
+            if ($requestSchema -eq 'naming_preview_request.v2') {
+                $episodeEnd = $plan.EpisodeEnd
+                $parsedIdentity = [ordered]@{
+                    media_kind = 'TV'
+                    show = [string]$plan.ShowTitle
+                    show_name = [string]$plan.ShowTitle
+                    season = [int]$plan.SeasonNumber
+                    episode_start = [int]$plan.EpisodeNumber
+                    episode = [int]$plan.EpisodeNumber
+                    episode_end = if ($null -eq $episodeEnd) { $null } else { [int]$episodeEnd }
+                    episode_title = [string]$plan.EpisodeTitle
+                    revision = if ($null -eq $tvInfo.Revision) { $null } else { [int]$tvInfo.Revision }
+                    parse_mode = [string]$plan.ParseMode
+                    reliable = [bool]$tvInfo.IsReliable
+                    parse_error = [string]$tvInfo.ParseError
+                    identity_key = [string]$plan.IdentityKey
+                }
+            }
         } else {
             throw "Unsupported naming preview media kind: $mediaKind"
         }
-        $rows.Add([pscustomobject]@{
+        $successRow = [ordered]@{
             ok = $true
             source_path = $sourcePath
             original_name = $originalName
             media_kind = $mediaKind
+            synthetic = $synthetic
+            assumed_media_extension = $assumedMediaExtension
             file_base_name = [string]$plan.FileBaseName
             file_name = [string]$plan.FileName
             relative_directory = [string]$plan.RelativeDirectory
             relative_path = [string]$plan.RelativePath
             identity_key = [string]$plan.IdentityKey
             error = ''
-        })
+        }
+        if ($requestSchema -eq 'naming_preview_request.v2') {
+            $successRow['parsed_identity'] = $parsedIdentity
+        }
+        $rows.Add([pscustomobject]$successRow)
     } catch {
         $rows.Add([pscustomobject]@{
             ok = $false
             source_path = $sourcePath
             original_name = $originalName
             media_kind = $mediaKind
+            synthetic = $synthetic
+            assumed_media_extension = $assumedMediaExtension
             file_base_name = ''
             file_name = ''
             relative_directory = ''
@@ -121,7 +311,11 @@ foreach ($item in @($payload.items)) {
     }
 }
 
-Write-JsonAtomic -Path $OutputJsonPath -Payload ([ordered]@{
-    schema_version = 'naming_preview.v1'
+$responsePayload = [ordered]@{
+    schema_version = $responseSchema
     rows = @($rows)
-})
+}
+if ($requestSchema -eq 'naming_preview_request.v2') {
+    $responsePayload['applied_policy_fingerprint'] = $appliedPolicyFingerprint
+}
+Write-JsonAtomic -Path $OutputJsonPath -Payload $responsePayload

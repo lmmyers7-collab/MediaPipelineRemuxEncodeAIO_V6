@@ -71,7 +71,7 @@ def release_dry_run_builder_kwargs(request: dict[str, Any], timeout_seconds: int
         "destination_root": str(request.get("destination_root") or "").strip(),
         "zip_package": request_bool_option(request, "zip_package", True),
         "verify": request_bool_option(request, "verify", True),
-        "include_tests": request_bool_option(request, "include_tests", False),
+        "include_tests": request_bool_option(request, "include_tests", True),
         "include_dev_docs": request_bool_option(request, "include_dev_docs", False),
         "include_optional_tools": request_bool_option(request, "include_optional_tools", False),
         "include_tool_docs": request_bool_option(request, "include_tool_docs", False),
@@ -647,7 +647,7 @@ def release_dry_run_result(result: dict[str, Any], request: dict[str, Any]) -> C
                 "options": {
                     "zip_package": request_bool_option(request, "zip_package", True),
                     "verify": request_bool_option(request, "verify", True),
-                    "include_tests": request_bool_option(request, "include_tests", False),
+                    "include_tests": request_bool_option(request, "include_tests", True),
                     "include_dev_docs": request_bool_option(request, "include_dev_docs", False),
                     "include_optional_tools": request_bool_option(request, "include_optional_tools", False),
                     "include_tool_docs": request_bool_option(request, "include_tool_docs", False),
@@ -708,7 +708,7 @@ def release_build_result(result: dict[str, Any], request: dict[str, Any]) -> Com
                 "options": {
                     "zip_package": request_bool_option(request, "zip_package", True),
                     "verify": request_bool_option(request, "verify", True),
-                    "include_tests": request_bool_option(request, "include_tests", False),
+                    "include_tests": request_bool_option(request, "include_tests", True),
                     "include_dev_docs": request_bool_option(request, "include_dev_docs", False),
                     "include_optional_tools": request_bool_option(request, "include_optional_tools", False),
                     "include_tool_docs": request_bool_option(request, "include_tool_docs", False),

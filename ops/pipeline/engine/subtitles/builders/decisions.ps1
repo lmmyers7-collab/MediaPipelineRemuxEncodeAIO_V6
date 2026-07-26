@@ -41,7 +41,7 @@ function New-SubtitleBuilderTrackDecisionRecord {
         [string] $Builder,
 
         [Parameter(Mandatory)]
-        [ValidateSet('Keep','ConvertAss','ConvertTx3g','ConvertBdpgs','ConvertVobSub')]
+        [ValidateSet('Keep','Drop','Burn','ConvertAss','ConvertTx3g','ConvertBdpgs','ConvertVobSub')]
         [string] $Action,
 
         [Parameter(Mandatory)]
@@ -55,8 +55,65 @@ function New-SubtitleBuilderTrackDecisionRecord {
         [string] $ReviewReason = '',
         [string] $ReviewFailureKind = '',
         [string] $ContainerLogMessage = '',
-        [string] $ConversionKind = ''
+        [string] $ConversionKind = '',
+        [string] $PolicyReason = ''
     )
+
+    $sourceKind = ''
+    if ($Entry -is [System.Collections.IDictionary] -and $Entry.Contains('SourceKind')) {
+        $sourceKind = [string]$Entry['SourceKind']
+    } elseif ($Entry.PSObject.Properties['SourceKind']) {
+        $sourceKind = [string]$Entry.SourceKind
+    }
+    if ([string]::IsNullOrWhiteSpace($sourceKind)) { $sourceKind = 'embedded' }
+    $sourceKind = $sourceKind.Trim().ToLowerInvariant()
+    $trackId = ''
+    if ($Entry -is [System.Collections.IDictionary] -and $Entry.Contains('TrackId')) {
+        $trackId = [string]$Entry['TrackId']
+    } elseif ($Entry.PSObject.Properties['TrackId']) {
+        $trackId = [string]$Entry.TrackId
+    }
+    if ([string]::IsNullOrWhiteSpace($trackId)) {
+        $sourceOrdinal = $null
+        if ($Entry -is [System.Collections.IDictionary] -and $Entry.Contains('SubtitleOrdinal')) {
+            $sourceOrdinal = $Entry['SubtitleOrdinal']
+        } elseif ($Entry.PSObject.Properties['SubtitleOrdinal']) {
+            $sourceOrdinal = $Entry.SubtitleOrdinal
+        }
+        if ($null -eq $sourceOrdinal -or [string]::IsNullOrWhiteSpace([string]$sourceOrdinal)) {
+            $stream = if ($Entry -is [System.Collections.IDictionary] -and $Entry.Contains('Stream')) { $Entry['Stream'] } elseif ($Entry.PSObject.Properties['Stream']) { $Entry.Stream } else { $null }
+            $streamIndex = if ($stream -and $null -ne $stream.PSObject.Properties['index']) { $stream.index } else { $null }
+            if ($sourceKind -eq 'embedded' -and $null -ne $streamIndex -and [int]$streamIndex -ge 0) {
+                $sourceOrdinal = "stream-$([int]$streamIndex)"
+            } else {
+                throw "SUBTITLE_TRACK_IDENTITY_MISSING: subtitle source kind '$sourceKind' has no backend source ordinal"
+            }
+        }
+        $trackId = "subtitle:$sourceKind`:$sourceOrdinal"
+    }
+    if ($Entry -is [System.Collections.IDictionary]) {
+        $Entry['TrackId'] = $trackId
+    } elseif ($Entry.PSObject.Properties['TrackId']) {
+        $Entry.TrackId = $trackId
+    } else {
+        $Entry | Add-Member -NotePropertyName TrackId -NotePropertyValue $trackId
+    }
+    $isConversion = $Action -in @('ConvertAss','ConvertTx3g','ConvertBdpgs','ConvertVobSub')
+    $isOcr = $Action -in @('ConvertBdpgs','ConvertVobSub')
+    $isDrop = $Action -eq 'Drop'
+    $isBurn = $Action -eq 'Burn'
+    $sourceType = if ($Action -in @('ConvertBdpgs','ConvertVobSub') -or [bool]$Entry.IsBdpgs -or [bool]$Entry.IsVobSub) { 'image' } elseif (-not [string]::IsNullOrWhiteSpace([string]$Entry.Codec)) { 'text' } else { 'unknown' }
+    $mp4CompatibilityMode = ($Builder -eq 'FFmpeg' -and (Test-ConfiguredOutputContainerIsMp4))
+    $writeEmbedded = (-not $RoutesToReview -and -not $isDrop -and -not $isBurn -and -not $mp4CompatibilityMode)
+    $plannedAction = switch ($Action) {
+        'Keep' { 'preserve' }
+        'Drop' { 'drop' }
+        'Burn' { 'burn_in' }
+        'ConvertAss' { 'convert_ass_to_srt' }
+        'ConvertTx3g' { 'convert_tx3g_to_srt' }
+        'ConvertBdpgs' { 'ocr_bdpgs_to_srt' }
+        'ConvertVobSub' { 'ocr_vobsub_to_srt' }
+    }
 
     [pscustomobject]@{
         Builder                          = $Builder
@@ -71,6 +128,18 @@ function New-SubtitleBuilderTrackDecisionRecord {
         ReviewFailureKind                = [string]$ReviewFailureKind
         ContainerLogMessage              = [string]$ContainerLogMessage
         ConversionKind                   = [string]$ConversionKind
+        TrackId                          = $trackId
+        track_id                         = $trackId
+        SourceType                       = $sourceType
+        SourceKind                       = $sourceKind
+        Extract                          = [bool]$isConversion
+        Convert                          = [bool]$isConversion
+        Ocr                              = [bool]$isOcr
+        Drop                             = [bool]$isDrop
+        WriteEmbedded                    = [bool]$writeEmbedded
+        WriteSidecar                     = $false
+        PlannedAction                    = $plannedAction
+        PolicyReason                     = [string]$PolicyReason
         ConversionFailureRoutesToReview  = ($Action -in @('ConvertAss','ConvertTx3g','ConvertBdpgs','ConvertVobSub'))
         IsPreferredDefaultCandidate      = (Test-SubtitleBuilderPreferredDefaultCandidate -Entry $Entry)
         IsFallbackDefaultCandidate       = (Test-SubtitleBuilderFallbackDefaultCandidate -Entry $Entry)
@@ -188,7 +257,7 @@ function Get-SubtitleBuilderTrackDecisionRecords {
         $CanPreserveVobSub = $false
     }
 
-    foreach ($entry in @($FilterResult.Convert)) {
+    foreach ($entry in @($FilterResult.Convert | Where-Object { $null -ne $_ })) {
         $preserveAssOriginal = -not $effectiveDropAss
         $assPreserveReason = if ($effectiveDropAss) { 'drop_original_ass_enabled' } else { 'preserved' }
         $records.Add((New-SubtitleBuilderTrackDecisionRecord `
@@ -201,7 +270,7 @@ function Get-SubtitleBuilderTrackDecisionRecords {
             -ConversionKind 'ass_to_srt')) | Out-Null
     }
 
-    foreach ($entry in @($FilterResult.Tx3gConvert)) {
+    foreach ($entry in @($FilterResult.Tx3gConvert | Where-Object { $null -ne $_ })) {
         $preserveOriginal = $false
         $preserveReason = 'drop_original_tx3g_enabled'
         $containerLogMessage = ''
@@ -230,7 +299,7 @@ function Get-SubtitleBuilderTrackDecisionRecords {
             -ConversionKind 'tx3g_to_srt')) | Out-Null
     }
 
-    foreach ($entry in @($FilterResult.BdpgsConvert)) {
+    foreach ($entry in @($FilterResult.BdpgsConvert | Where-Object { $null -ne $_ })) {
         $preserveOriginal = $false
         $preserveReason = 'drop_original_bdpgs_enabled'
         $containerLogMessage = ''
@@ -287,7 +356,7 @@ function Get-SubtitleBuilderTrackDecisionRecords {
             -ConversionKind 'vobsub_to_srt')) | Out-Null
     }
 
-    foreach ($entry in @($FilterResult.Keep)) {
+    foreach ($entry in @($FilterResult.Keep | Where-Object { $null -ne $_ })) {
         $routesToReview = $false
         $reviewErrorCode = ''
         $reviewReason = ''
@@ -355,6 +424,32 @@ function Get-SubtitleBuilderTrackDecisionRecords {
             -ReviewErrorCode $reviewErrorCode `
             -ReviewReason $reviewReason `
             -ReviewFailureKind $reviewKind)) | Out-Null
+    }
+
+    foreach ($entry in @($FilterResult.Burn | Where-Object { $null -ne $_ })) {
+        $records.Add((New-SubtitleBuilderTrackDecisionRecord `
+            -Builder $Builder `
+            -Action 'Burn' `
+            -Entry $entry `
+            -PolicyReason 'file_override_burn_in')) | Out-Null
+    }
+
+    foreach ($entry in @($FilterResult.Drop | Where-Object { $null -ne $_ })) {
+        $entryStreamIndex = if ($entry.Stream -and $null -ne $entry.Stream.index -and [int]$entry.Stream.index -ge 0) { [int]$entry.Stream.index } else { $null }
+        $entrySubtitleOrdinal = if ($entry.ContainsKey('SubtitleOrdinal')) { [int]$entry.SubtitleOrdinal } else { $null }
+        $matchingDecision = @($FilterResult.Decisions | Where-Object {
+            if ($null -ne $entryStreamIndex) {
+                $null -ne $_.source_stream_index -and [int]$_.source_stream_index -eq $entryStreamIndex
+            } else {
+                [string]$_.source_kind -eq 'sidecar' -and $null -ne $_.subtitle_ordinal -and [int]$_.subtitle_ordinal -eq $entrySubtitleOrdinal
+            }
+        } | Select-Object -First 1)
+        $policyReason = if ($matchingDecision.Count -gt 0 -and -not [string]::IsNullOrWhiteSpace([string]$matchingDecision[0].reason)) { [string]$matchingDecision[0].reason } else { 'backend_subtitle_policy_drop' }
+        $records.Add((New-SubtitleBuilderTrackDecisionRecord `
+            -Builder $Builder `
+            -Action 'Drop' `
+            -Entry $entry `
+            -PolicyReason $policyReason)) | Out-Null
     }
 
     return @($records.ToArray())

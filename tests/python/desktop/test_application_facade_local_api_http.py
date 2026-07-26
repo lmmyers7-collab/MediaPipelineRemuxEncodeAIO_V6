@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import csv
+import hashlib
 from datetime import datetime, timedelta
 import io
 import json
@@ -25,8 +26,13 @@ from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.core.api.commands_process import LocalApiProcessCommandPayloadMixin
 from mediapipeline.core.failures.cleanup_service import FailureCleanupServiceMixin
 from mediapipeline.core.paths.layout import path_within_root
+from mediapipeline.core.status.run_monitor import RunMonitorStore
 from mediapipeline.desktop.api.handler import build_local_api_handler_class
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
+from mediapipeline.desktop.backend_instance import (
+    BACKEND_INSTANCE_ERROR_SCHEMA_VERSION,
+    BackendInstanceAlreadyRunning,
+)
 from mediapipeline.desktop.local_api_main import BOOTSTRAP_SCHEMA_VERSION, bootstrap_payload, build_backend, main as local_api_main
 from mediapipeline.desktop.models import ResolvedPaths, Snapshot
 from tests.python.desktop.application_facade_test_support import (
@@ -40,9 +46,252 @@ from tests.python.desktop.application_facade_test_support import (
     _render_static_index_html,
     _resolved,
 )
+from tests.python.core.contract.test_run_monitor_contract import RUN_ID, _item, _payload
 
 
 class LocalApiHttpTests(LocalApiHttpTestMixin, unittest.TestCase):
+    def test_run_monitor_stop_requires_exact_displayed_backend_queue_run_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            assert resolved.active_jobs_path is not None
+            resolved.active_jobs_path.mkdir(parents=True, exist_ok=True)
+            (resolved.active_jobs_path / "launch-b.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": "desktop_active_job.v1",
+                        "launch_id": "launch-b",
+                        "job_kind": "pipeline",
+                        "mode": "once",
+                        "status": "active",
+                        "pid": 24680,
+                        "metadata": {
+                            "run_id": "run-b",
+                            "mode": "once",
+                            "single_file": "",
+                            "expected_queue_plan_fingerprint": "accepted-plan-b",
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root), app_version="v6-test")
+            server = LocalApiServer(
+                facade,
+                token="test-token",
+                resolved_provider=lambda: resolved,
+            )
+            try:
+                server.start()
+                absent_status, absent = self._post_json(
+                    f"{server.url}/api/pipeline/control",
+                    {"action": "stop"},
+                    token="test-token",
+                )
+                mismatch_status, mismatch = self._post_json(
+                    f"{server.url}/api/pipeline/control",
+                    {"action": "stop", "expected_run_id": "run-a"},
+                    token="test-token",
+                )
+                invalid_status, invalid = self._post_json(
+                    f"{server.url}/api/pipeline/control",
+                    {"action": "stop", "expected_run_id": ""},
+                    token="test-token",
+                )
+                flag_before_exact = resolved.stop_after_current_flag.exists()
+                exact_status, exact = self._post_json(
+                    f"{server.url}/api/pipeline/control",
+                    {"action": "stop", "expected_run_id": "run-b"},
+                    token="test-token",
+                )
+                marker = json.loads(resolved.stop_after_current_flag.read_text(encoding="utf-8"))
+            finally:
+                server.stop()
+
+        self.assertEqual(absent_status, 200)
+        self.assertFalse(absent["ok"])
+        self.assertIn("expected_run_id", absent["message"])
+        self.assertEqual(mismatch_status, 200)
+        self.assertFalse(mismatch["ok"])
+        self.assertIn("does not match", mismatch["message"])
+        self.assertEqual(invalid_status, 400)
+        self.assertIn("expected_run_id", invalid["error"])
+        self.assertFalse(flag_before_exact)
+        self.assertEqual(exact_status, 200)
+        self.assertTrue(exact["ok"])
+        self.assertEqual(exact["data"]["run_id"], "run-b")
+        self.assertEqual(marker["run_id"], "run-b")
+        self.assertEqual(marker["target_launch_id"], "launch-b")
+
+    def test_run_monitor_route_returns_versioned_unavailable_envelope_when_paths_are_unresolved(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            facade = MediaPipelineApplicationFacade(DummyFacadeService(root), app_version="v6-test")
+            server = LocalApiServer(
+                facade,
+                token="test-token",
+                resolved_provider=lambda: None,
+            )
+            try:
+                server.start()
+                status, payload = self._get_json(
+                    f"{server.url}/api/run-monitor",
+                    token="test-token",
+                )
+            finally:
+                server.stop()
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["schema_version"], "desktop_run_monitor.v1")
+        self.assertIsNone(payload["run"])
+        self.assertEqual(payload["freshness"]["state"], "unavailable")
+        self.assertEqual(payload["freshness"]["reason_code"], "resolved_paths_unavailable")
+        self.assertEqual(payload["freshness"]["backend_state"], "unavailable")
+        self.assertEqual(payload["items"], [])
+        self.assertEqual(payload["current_workers"], [])
+        self.assertFalse(payload["compatibility"]["legacy_current_work_used"])
+
+    def test_run_monitor_route_rejects_unsafe_or_ambiguous_run_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            resolved.state_root = root / "State"
+            facade = MediaPipelineApplicationFacade(DummyFacadeService(root), app_version="v6-test")
+            server = LocalApiServer(
+                facade,
+                token="test-token",
+                resolved_provider=lambda: resolved,
+            )
+            try:
+                server.start()
+                requests = (
+                    f"{server.url}/api/run-monitor?run_id=..%2Fescape",
+                    f"{server.url}/api/run-monitor?run_id=first&run_id=second",
+                )
+                responses = [self._get_json(url, token="test-token") for url in requests]
+            finally:
+                server.stop()
+
+        for status, payload in responses:
+            with self.subTest(payload=payload):
+                self.assertEqual(status, 400)
+                self.assertEqual(payload["path"], "/api/run-monitor")
+                self.assertIn("run_id", payload["error"])
+
+    def test_run_monitor_route_fails_missing_and_partial_evidence_honestly(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            resolved.state_root = root / "State"
+            facade = MediaPipelineApplicationFacade(DummyFacadeService(root), app_version="v6-test")
+            server = LocalApiServer(
+                facade,
+                token="test-token",
+                resolved_provider=lambda: resolved,
+            )
+            try:
+                server.start()
+                missing_status, missing = self._get_json(
+                    f"{server.url}/api/run-monitor?run_id=missing-run",
+                    token="test-token",
+                )
+                monitor_root = resolved.state_root / "RunMonitor"
+                monitor_root.mkdir(parents=True)
+                (monitor_root / "partial-run.json").write_text(
+                    json.dumps({"schema_version": "pipeline_run_monitor.v1", "run": {"run_id": "partial-run"}}),
+                    encoding="utf-8",
+                )
+                partial_status, partial = self._get_json(
+                    f"{server.url}/api/run-monitor?run_id=partial-run",
+                    token="test-token",
+                )
+            finally:
+                server.stop()
+
+        self.assertEqual(missing_status, 200)
+        self.assertEqual(missing["schema_version"], "desktop_run_monitor.v1")
+        self.assertEqual(missing["freshness"]["state"], "unavailable")
+        self.assertEqual(missing["freshness"]["reason_code"], "monitor_not_found")
+        self.assertEqual(missing["items"], [])
+        self.assertEqual(missing["current_workers"], [])
+        self.assertEqual(partial_status, 200)
+        self.assertEqual(partial["schema_version"], "desktop_run_monitor.v1")
+        self.assertEqual(partial["freshness"]["state"], "unavailable")
+        self.assertEqual(partial["freshness"]["reason_code"], "invalid_contract")
+        self.assertEqual(partial["items"], [])
+        self.assertEqual(partial["current_workers"], [])
+
+    def test_run_monitor_route_returns_selected_durable_terminal_run(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            resolved.state_root = root / "State"
+            item = _item(
+                1,
+                1,
+                lifecycle_state="completed",
+                leaf_name="Raw.Terminal.Release.2026.mkv",
+            )
+            published_path = r"\\SERVER\Library\Clean Terminal Name (2026).mkv"
+            item["output"].update(
+                {
+                    "state": "published",
+                    "published_path": published_path,
+                    "intended_final_path": published_path,
+                    "verification_state": "completed",
+                    "evidence": {
+                        "source": "output_evidence",
+                        "provenance": "terminal",
+                        "recorded_at": "2026-07-16T15:00:00Z",
+                    },
+                }
+            )
+            item["terminal_references"] = [
+                {
+                    "kind": "completed",
+                    "reference": published_path,
+                    "path": published_path,
+                    "evidence": {
+                        "source": "completed_artifact",
+                        "provenance": "terminal",
+                        "recorded_at": "2026-07-16T15:00:01Z",
+                    },
+                }
+            ]
+            record = _payload([item], lifecycle_state="completed")
+            record["run"]["counts"]["completed"] = 1
+            RunMonitorStore(resolved.state_root).write(record)
+            facade = MediaPipelineApplicationFacade(DummyFacadeService(root), app_version="v6-test")
+            server = LocalApiServer(
+                facade,
+                token="test-token",
+                resolved_provider=lambda: resolved,
+            )
+            try:
+                server.start()
+                denied_status, denied = self._get_json(
+                    f"{server.url}/api/run-monitor?run_id={RUN_ID}",
+                )
+                status, payload = self._get_json(
+                    f"{server.url}/api/run-monitor?run_id={RUN_ID}",
+                    token="test-token",
+                )
+            finally:
+                server.stop()
+
+        self.assertEqual(denied_status, 401)
+        self.assertEqual(denied["error"], "unauthorized")
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["schema_version"], "desktop_run_monitor.v1")
+        self.assertEqual(payload["run"]["run_id"], RUN_ID)
+        self.assertEqual(payload["freshness"]["state"], "terminal")
+        self.assertEqual(payload["items"][0]["lifecycle_state"], "completed")
+        self.assertEqual(payload["items"][0]["display_name"], "Clean Terminal Name (2026).mkv")
+        self.assertEqual(payload["items"][0]["accepted_display_name"], "Raw.Terminal.Release.2026.mkv")
+        self.assertEqual(payload["items"][0]["display_name_basis"], "terminal_output")
+        self.assertEqual(payload["items"][0]["display_name_evidence"]["source"], "completed_artifact")
+        self.assertEqual(payload["items"][0]["display_name_evidence"]["provenance"], "terminal")
+
     def test_snapshot_returns_initializing_placeholder_while_background_refresh_runs(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -385,11 +634,55 @@ class LocalApiHttpTests(LocalApiHttpTestMixin, unittest.TestCase):
         self.assertEqual(missing_env, 2)
         self.assertEqual(non_loopback, 2)
 
+    def test_local_api_main_fails_closed_before_backend_build_when_instance_is_owned(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            emitted: list[str] = []
+            with (
+                patch(
+                    "mediapipeline.desktop.local_api_main.BackendInstanceGuard.acquire",
+                    side_effect=BackendInstanceAlreadyRunning(
+                        "another backend owns the lifecycle lease"
+                    ),
+                ),
+                patch("mediapipeline.desktop.local_api_main.build_backend") as build_backend_mock,
+                patch(
+                    "builtins.print",
+                    side_effect=lambda value, **_kwargs: emitted.append(str(value)),
+                ),
+            ):
+                result = local_api_main(
+                    [
+                        "--app-root",
+                        str(root),
+                        "--instance-state-root",
+                        str(root / "instance-state"),
+                    ]
+                )
+
+        self.assertEqual(result, 3)
+        build_backend_mock.assert_not_called()
+        self.assertEqual(len(emitted), 1)
+        payload = json.loads(emitted[0])
+        self.assertEqual(payload["schema_version"], BACKEND_INSTANCE_ERROR_SCHEMA_VERSION)
+        self.assertIn("owns the lifecycle lease", payload["error"])
+
     def test_local_api_main_runs_lifecycle_recovery_with_server_resolved_provider(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             resolved = _resolved(root)
             recovery_instances: list[object] = []
+            instance_phases: list[str] = []
+
+            class FakeInstanceGuard:
+                def mark_listening(self, _url: str) -> None:
+                    instance_phases.append("listening")
+
+                def mark_cleanup(self) -> None:
+                    instance_phases.append("cleanup")
+
+                def release(self) -> None:
+                    instance_phases.append("released")
 
             class FakeService:
                 def start_background_tasks(self) -> None:
@@ -446,6 +739,10 @@ class LocalApiHttpTests(LocalApiHttpTestMixin, unittest.TestCase):
 
             with (
                 patch("mediapipeline.desktop.local_api_main.build_backend", return_value=(FakeService(), resolved, FakeServer())),
+                patch(
+                    "mediapipeline.desktop.local_api_main.BackendInstanceGuard.acquire",
+                    return_value=FakeInstanceGuard(),
+                ),
                 patch("mediapipeline.desktop.local_api_main.LifecycleRecoveryCoordinator", FakeRecovery),
                 patch("mediapipeline.desktop.local_api_main.threading.Event", return_value=StopEvent()),
                 patch("builtins.print"),
@@ -455,6 +752,7 @@ class LocalApiHttpTests(LocalApiHttpTestMixin, unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertEqual(len(recovery_instances), 1)
         self.assertIs(recovery_instances[0].resolved, resolved)  # type: ignore[attr-defined]
+        self.assertEqual(instance_phases, ["listening", "cleanup", "released"])
 
     def test_local_api_request_threads_are_not_daemonized(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -988,6 +1286,8 @@ class LocalApiHttpTests(LocalApiHttpTestMixin, unittest.TestCase):
                         "source_path": str(source),
                         "source_size": 4096,
                         "output_size": parked_file.stat().st_size,
+                        "output_sha256": hashlib.sha256(parked_file.read_bytes()).hexdigest(),
+                        "output_hash_algorithm": "SHA256",
                         "publish_mode": "deferred",
                         "sidecar_files": [],
                         "tx3g_srt_tracks": [],

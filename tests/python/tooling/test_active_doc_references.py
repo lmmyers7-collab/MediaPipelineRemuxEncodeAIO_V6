@@ -63,7 +63,8 @@ class ActiveDocReferenceTests(unittest.TestCase):
         removed_name = "T" + "LDR"
         for rel in (
             "docs/archive/old.md",
-            "docs/REMEDIATION_CHANGELOG.md",
+            "docs/archive/remediation-changelog/entries-0001-0250.md",
+            "docs/REMEDIATION_CHANGELOG.md",  # compact legacy-navigation index
             "docs/change_control/CHANGELOG.md",
         ):
             findings = docs_check.findings_for_text(f"Historical reference to docs/{removed_name}.md.", rel)

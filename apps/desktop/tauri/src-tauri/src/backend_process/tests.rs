@@ -1,16 +1,146 @@
 use super::{
-    backend_shutdown_request_body, parse_backend_shutdown_outcome, terminate_child, BackendProcess,
-    BackendProcessExit, BackendShutdownMode, BackendShutdownOutcome,
+    backend_shutdown_request_body, inspect_managed_child, parse_backend_shutdown_outcome,
+    read_bounded_physical_line, resolve_shutdown_with_child, terminate_child,
+    BackendOutputLogEvent, BackendOutputLogLimiter, BackendProcess, BackendProcessExit,
+    BackendShutdownMode, BackendShutdownOutcome, BoundedOutputLine, ChildPoll, ManagedChildProcess,
+    ShutdownRequestState, WaitClock, BACKEND_OUTPUT_LOG_SUMMARY_INTERVAL,
+    MAX_BACKEND_OUTPUT_INITIAL_PREVIEWS,
 };
 use std::{
-    fs,
-    io::{Read, Write},
+    collections::VecDeque,
+    fs, io,
+    io::{BufReader, Cursor, Read, Write},
     net::TcpListener,
     process::{Child, Command, Stdio},
     sync::Mutex,
     thread,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
+
+#[test]
+fn bounded_reader_caps_multimegabyte_unterminated_physical_line() {
+    let retained_limit = 4 * 1024;
+    let physical_line_bytes = (3 * 1024 * 1024) + 137;
+    let input = vec![b'x'; physical_line_bytes];
+    let mut reader = BufReader::with_capacity(257, Cursor::new(input));
+
+    let line = read_bounded_physical_line(&mut reader, retained_limit)
+        .expect("bounded line read")
+        .expect("unterminated physical line");
+
+    assert_eq!(line.text.len(), retained_limit);
+    assert_eq!(
+        line.discarded_bytes,
+        (physical_line_bytes - retained_limit) as u64
+    );
+    assert!(read_bounded_physical_line(&mut reader, retained_limit)
+        .expect("bounded EOF read")
+        .is_none());
+}
+
+#[test]
+fn bounded_reader_preserves_bootstrap_payload_split_across_small_buffers() {
+    let payload = r#"{"schema_version":"desktop_local_api_bootstrap.v1","url":"http://127.0.0.1:3210","token":"test-token"}"#;
+    let mut bytes = payload.as_bytes().to_vec();
+    bytes.extend_from_slice(b"\r\n");
+    let mut reader = BufReader::with_capacity(3, Cursor::new(bytes));
+
+    let line = read_bounded_physical_line(&mut reader, 16 * 1024)
+        .expect("bounded bootstrap read")
+        .expect("bootstrap line");
+
+    assert_eq!(line.text, payload);
+    assert_eq!(line.discarded_bytes, 0);
+}
+
+#[test]
+fn flooding_output_is_fully_drained_with_rate_limited_content_free_summary() {
+    let line_count = 100_000_u64;
+    let input = "diagnostic line with bounded content\n".repeat(line_count as usize);
+    let mut reader = BufReader::with_capacity(113, Cursor::new(input.into_bytes()));
+    let started = Instant::now();
+    let mut limiter = BackendOutputLogLimiter::new(started);
+    let mut drained_lines = 0_u64;
+    let mut previews = 0_usize;
+
+    while let Some(line) =
+        read_bounded_physical_line(&mut reader, 128).expect("bounded flooding read")
+    {
+        drained_lines += 1;
+        if matches!(
+            limiter.observe(&line, started),
+            Some(BackendOutputLogEvent::Preview(_))
+        ) {
+            previews += 1;
+        }
+    }
+
+    assert_eq!(drained_lines, line_count);
+    assert_eq!(previews, MAX_BACKEND_OUTPUT_INITIAL_PREVIEWS);
+    assert_eq!(
+        limiter.take_summary(),
+        Some(BackendOutputLogEvent::SuppressionSummary {
+            suppressed_lines: line_count - MAX_BACKEND_OUTPUT_INITIAL_PREVIEWS as u64,
+            discarded_bytes: 0,
+        })
+    );
+
+    let truncated = BoundedOutputLine {
+        text: "safe preview".to_string(),
+        discarded_bytes: 8192,
+    };
+    assert_eq!(
+        limiter.observe(&truncated, started + BACKEND_OUTPUT_LOG_SUMMARY_INTERVAL),
+        Some(BackendOutputLogEvent::SuppressionSummary {
+            suppressed_lines: 1,
+            discarded_bytes: 8192,
+        })
+    );
+}
+
+#[derive(Default)]
+struct FakeWaitClock {
+    elapsed: Duration,
+    waits: usize,
+}
+
+impl WaitClock for FakeWaitClock {
+    fn elapsed(&self) -> Duration {
+        self.elapsed
+    }
+
+    fn wait(&mut self, duration: Duration) {
+        self.waits += 1;
+        self.elapsed += duration;
+    }
+}
+
+struct FakeManagedChild {
+    polls: VecDeque<io::Result<ChildPoll>>,
+    terminate_result: Result<(), String>,
+    terminate_calls: usize,
+}
+
+impl FakeManagedChild {
+    fn new(polls: impl IntoIterator<Item = io::Result<ChildPoll>>) -> Self {
+        Self {
+            polls: polls.into_iter().collect(),
+            terminate_result: Ok(()),
+            terminate_calls: 0,
+        }
+    }
+}
+
+impl ManagedChildProcess for FakeManagedChild {
+    fn poll(&mut self) -> io::Result<ChildPoll> {
+        self.polls.pop_front().unwrap_or(Ok(ChildPoll::Running))
+    }
+
+    fn terminate_tree_and_verify(&mut self) -> Result<(), String> {
+        self.terminate_calls += 1;
+        self.terminate_result.clone()
+    }
+}
 
 fn backend_for_child(child: Option<Child>) -> BackendProcess {
     backend_for_child_and_url(child, "http://127.0.0.1:1")
@@ -73,6 +203,117 @@ fn backend_shutdown_response_parser_allows_ok_shutdown() {
         .expect("ok response should parse");
 
     assert_eq!(outcome, BackendShutdownOutcome::Requested);
+}
+
+#[test]
+fn normal_close_releases_child_only_after_verified_exit() {
+    let mut child = FakeManagedChild::new([Ok(ChildPoll::Exited(Some(0)))]);
+    let mut clock = FakeWaitClock::default();
+
+    let resolution = resolve_shutdown_with_child(
+        &mut child,
+        ShutdownRequestState::Acknowledged,
+        &mut clock,
+        Duration::from_secs(3),
+    );
+
+    assert_eq!(resolution.outcome, BackendShutdownOutcome::Requested);
+    assert!(resolution.release_ownership);
+    assert_eq!(child.terminate_calls, 0);
+    assert_eq!(clock.waits, 0);
+}
+
+#[test]
+fn child_wait_error_after_acknowledgement_is_failed_and_retains_ownership() {
+    let mut child = FakeManagedChild::new([Err(io::Error::new(
+        io::ErrorKind::PermissionDenied,
+        "injected wait handle failure",
+    ))]);
+    let mut clock = FakeWaitClock::default();
+
+    let resolution = resolve_shutdown_with_child(
+        &mut child,
+        ShutdownRequestState::Acknowledged,
+        &mut clock,
+        Duration::from_secs(3),
+    );
+
+    assert_eq!(resolution.outcome, BackendShutdownOutcome::Failed);
+    assert!(!resolution.release_ownership);
+    assert_eq!(child.terminate_calls, 0);
+    assert!(resolution.detail.contains("injected wait handle failure"));
+}
+
+#[test]
+fn child_wait_error_after_transport_failure_is_not_verified_exit() {
+    let mut child = FakeManagedChild::new([Err(io::Error::new(
+        io::ErrorKind::Other,
+        "injected try_wait error",
+    ))]);
+    let mut clock = FakeWaitClock::default();
+
+    let resolution = resolve_shutdown_with_child(
+        &mut child,
+        ShutdownRequestState::TransportFailed,
+        &mut clock,
+        Duration::from_secs(3),
+    );
+
+    assert_eq!(resolution.outcome, BackendShutdownOutcome::Failed);
+    assert!(!resolution.release_ownership);
+    assert_eq!(child.terminate_calls, 0);
+}
+
+#[test]
+fn descendants_refusing_termination_cannot_report_successful_shutdown() {
+    let mut child = FakeManagedChild::new([
+        Ok(ChildPoll::Running),
+        Ok(ChildPoll::Running),
+        Ok(ChildPoll::Running),
+    ]);
+    child.terminate_result = Err("descendant PID 77 remained alive".to_string());
+    let mut clock = FakeWaitClock::default();
+
+    let resolution = resolve_shutdown_with_child(
+        &mut child,
+        ShutdownRequestState::Acknowledged,
+        &mut clock,
+        Duration::from_millis(200),
+    );
+
+    assert_eq!(resolution.outcome, BackendShutdownOutcome::Failed);
+    assert!(!resolution.release_ownership);
+    assert_eq!(child.terminate_calls, 1);
+    assert!(resolution
+        .detail
+        .contains("descendant PID 77 remained alive"));
+}
+
+#[test]
+fn backend_exit_between_health_checks_is_observed_as_exit_not_health() {
+    let mut child =
+        FakeManagedChild::new([Ok(ChildPoll::Running), Ok(ChildPoll::Exited(Some(91)))]);
+
+    assert_eq!(
+        inspect_managed_child(&mut child).expect("first lifecycle inspection"),
+        BackendProcessExit::Running
+    );
+    assert_eq!(
+        inspect_managed_child(&mut child).expect("second lifecycle inspection"),
+        BackendProcessExit::Exited(Some(91))
+    );
+}
+
+#[test]
+fn backend_crash_wait_error_remains_monitor_error_not_false_exit() {
+    let mut child = FakeManagedChild::new([Err(io::Error::new(
+        io::ErrorKind::BrokenPipe,
+        "injected monitor wait failure",
+    ))]);
+
+    let error = inspect_managed_child(&mut child).expect_err("wait failure must propagate");
+
+    assert!(error.to_string().contains("injected monitor wait failure"));
 }
 
 fn wait_for_non_running(process: &BackendProcess) -> BackendProcessExit {

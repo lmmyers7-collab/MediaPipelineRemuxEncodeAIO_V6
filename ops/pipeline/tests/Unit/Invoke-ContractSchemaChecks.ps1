@@ -70,6 +70,14 @@ foreach ($schemaName in $expectedSchemas) {
 
 $completedSchema = Get-Content -LiteralPath (Join-Path $schemasRoot 'media_pipeline_completed_job.schema.json') -Raw | ConvertFrom-Json -ErrorAction Stop
 $pendingSchema = Get-Content -LiteralPath (Join-Path $schemasRoot 'media_pipeline_pending_push_manifest.schema.json') -Raw | ConvertFrom-Json -ErrorAction Stop
+$queueSnapshotSchema = Get-Content -LiteralPath (Join-Path $schemasRoot 'media_pipeline_queue_plan_snapshot.schema.json') -Raw | ConvertFrom-Json -ErrorAction Stop
+$acceptedRunRowRequired = @($queueSnapshotSchema.'$defs'.acceptedRunRow.required)
+foreach ($field in @('planned_display_name', 'planned_display_name_source')) {
+    Assert-True ($field -in $acceptedRunRowRequired) "Queue snapshot accepted rows must require $field."
+}
+Assert-Equal $queueSnapshotSchema.'$defs'.acceptedRunRow.properties.planned_display_name_source.const 'plex_destination_plan.v1' 'Queue snapshot accepted planned-name evidence source mismatch.'
+Assert-Equal $queueSnapshotSchema.properties.accepted_run_rows_fingerprint_schema.const 'accepted_run_rows_fingerprint.v1' 'Queue snapshot accepted workload fingerprint schema mismatch.'
+Assert-Equal $queueSnapshotSchema.properties.accepted_run_rows_fingerprint.pattern '^[0-9a-f]{64}$' 'Queue snapshot accepted workload fingerprint format mismatch.'
 $subtitleEvidenceFields = @(
     'tx3g_srt_tracks',
     'tx3g_srt_failures',
@@ -139,6 +147,24 @@ $queueSnapshot = Convert-RoundTripJson ([pscustomobject]@{
     tv_count_total    = 0
     priority_count    = 0
     runnable_count    = 1
+    accepted_run_rows_fingerprint_schema = 'accepted_run_rows_fingerprint.v1'
+    accepted_run_rows_fingerprint = ('a' * 64)
+    accepted_run_rows = @(
+        [ordered]@{
+            source_identity = 'source-1'
+            source_identity_algorithm = 'path_size_mtime_sha256.v1'
+            source_path = 'C:\Media\Source\Movie.mkv'
+            display_name = 'Movie (2026).mkv'
+            planned_display_name = 'Movie (2026).mkv'
+            planned_display_name_source = 'plex_destination_plan.v1'
+            parent_context = 'C:\Media\Source'
+            run_queue_index = 1
+            run_queue_total = 1
+            route = 'REMUX'
+            route_reason_code = 'CONTAINER_ONLY'
+            route_reason = 'Container normalization only'
+        }
+    )
     rows              = @(
         [ordered]@{
             global_order      = 0
@@ -159,6 +185,8 @@ $queueSnapshot = Convert-RoundTripJson ([pscustomobject]@{
 })
 Assert-Equal $queueSnapshot.schema_version 'queue_plan_snapshot.v1' 'Queue snapshot schema_version mismatch.'
 Assert-Equal @($queueSnapshot.rows).Count 1 'Queue snapshot rows did not round-trip as an array.'
+Assert-Equal ([string]$queueSnapshot.accepted_run_rows[0].planned_display_name) 'Movie (2026).mkv' 'Queue snapshot planned display name did not round-trip.'
+Assert-Equal ([string]$queueSnapshot.accepted_run_rows[0].planned_display_name_source) 'plex_destination_plan.v1' 'Queue snapshot planned display-name source did not round-trip.'
 
 $pendingManifest = Convert-RoundTripJson ([ordered]@{
     schema_version         = 'pending_push_manifest.v1'
@@ -266,11 +294,15 @@ Assert-Equal @($completedJob.subtitle_output_reduction).Count 1 'Completed manif
 
 . (Join-Path $repoRoot 'ops\pipeline\engine\publish\publish_result.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\publish\publish_partial.ps1')
-$publishResult = New-PipelinePublishResult -Ok:$true -DeleteLocalOutput:$true -PublishState 'published' -PublishMode 'immediate' -OutputPath 'C:\Out\Movie.mkv' -OutputSizeBytes 42
+$publishResult = New-PipelinePublishResult -Ok:$true -DeleteLocalOutput:$true -PublishState 'published' -PublishMode 'immediate' -OutputPath 'C:\Out\Movie.mkv' -OutputSizeBytes 42 -PublishedPath 'C:\Out\Movie.mkv' -IntendedFinalPath 'C:\Out\Movie.mkv' -SidecarPaths @('C:\Out\Movie.mkv.pipeline.json') -PublishTransactionId 'publish-42'
 Assert-True ([bool]$publishResult.Ok) 'Publish result Ok did not round-trip as bool.'
 Assert-True ([bool]$publishResult.DeleteLocalOutput) 'Publish result DeleteLocalOutput did not round-trip as bool.'
 Assert-Equal $publishResult.PublishState 'published' 'Publish result state mismatch.'
 Assert-Equal $publishResult.OutputSizeBytes 42 'Publish result output size mismatch.'
+Assert-Equal $publishResult.PublishedPath 'C:\Out\Movie.mkv' 'Publish result should expose the verified published path.'
+Assert-Equal $publishResult.IntendedFinalPath 'C:\Out\Movie.mkv' 'Publish result should expose the intended final destination.'
+Assert-Equal @($publishResult.SidecarPaths).Count 1 'Publish result should retain terminal sidecar references.'
+Assert-Equal $publishResult.PublishTransactionId 'publish-42' 'Publish result should retain transaction correlation.'
 $partialPath = New-PublishPartialMediaPath -ServerOut 'C:\Out\Movie.mkv' -PublishTransactionId 'tx-test'
 Assert-True ($partialPath -like '*Movie.mkv.mp-publish-partial.tx-test') 'Publish partial path format changed.'
 

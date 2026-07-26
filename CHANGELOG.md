@@ -13,6 +13,12 @@ intent is worth keeping, it goes here and/or in an ADR.
 
 ### Added
 
+- Priority-only queue export and Run Once scope: Queue can prepare a
+  backend-owned, versioned export of runnable effective-High items, while
+  Launch submits only its export ID. Python and PowerShell rebuild and compare
+  queue-input, plan, and accepted-membership fingerprints before dispatch;
+  stale, empty, malformed, or changed exports fail closed without falling back
+  to the full queue or clearing priority settings.
 - Private-beta productization foundation: Tauri is now NSIS-first with aligned
   calendar-build package metadata, updater plugin scaffolding, CI scripts for
   signed NSIS/updater artifacts and GitHub channel JSON, backend-owned
@@ -212,6 +218,13 @@ intent is worth keeping, it goes here and/or in an ADR.
 
 ### Changed
 
+- Active status documentation was condensed around present truth:
+  `docs/CURRENT_PROJECT_STATE.md` now carries only current architecture,
+  capabilities, limitations, and release posture, while
+  `docs/OPEN_WORK_CHECKLIST.md` carries only unresolved work and recurring
+  gates. Closed detail remains reachable through this changelog, the remediation
+  history, decision history, archive index, review ledgers, validation records,
+  and change packets; legacy checklist anchors are retained where practical.
 - Architecture/operator documentation now resolves moved doc paths under
   `docs/architecture/` and `docs/operator/`, removes active references to
   deleted `Pipeline\Modules` compatibility surfaces, records the enabled
@@ -318,6 +331,14 @@ intent is worth keeping, it goes here and/or in an ADR.
 
 ### Fixed
 
+- Main Queue now contains normal pipeline rows only; dedicated local/Network CSV rerun state stays in the CSV Rerun tab with deterministic current-batch selection and separate aggregate history. Blank Run Once blocks only on a fresh matching zero-runnable snapshot, stale queue age is advisory, and rerun recovery controls use backend-authored actions instead of synthesized frontend requests.
+- Audited operator workflows now keep Maintenance progress polling, Queue
+  strategy refresh, and Rename command gating inside their injected module
+  contracts; primary navigation activates consistently from Enter and Space;
+  Settings builders use display-unit constraints, reset owned patch keys,
+  preserve explicit-empty list intent, and guide Library edits to their exact
+  controls; release builds default to verified, test-inclusive packages while
+  leaving the optional Tauri binary opt-in.
 - Settings Preview/Save now rejects non-canonical casing for known persisted
   config keys, and settings/launch BDPGS OCR display fallbacks now match the
   contract default of disabled when `ConvertBdpgsToSrt` is missing.

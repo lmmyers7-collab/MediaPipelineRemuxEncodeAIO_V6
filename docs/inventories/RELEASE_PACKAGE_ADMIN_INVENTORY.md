@@ -32,8 +32,10 @@ normalized release identity, then validates an extracted copy with
 ### Private backup / machine-to-machine mirror
 
 ```powershell
-.\ops\scripts\release\build.ps1 -Zip -KeepPersonalConfig
+.\ops\scripts\release\build.ps1 -KeepPersonalConfig
 ```
+
+`-KeepPersonalConfig` is directory-only and cannot be combined with `-Zip`.
 
 **Warning**: `-KeepPersonalConfig` includes `ops\pipeline\config\MediaPipeline_config.psd1` and the legacy `ops\pipeline\config\MediaPipeline_config_chatgpt.psd1` when present. These files may contain the operator's private UNC paths, source/output locations, and scheduling settings. Use only for private machine-to-machine mirrors — never for distribution.
 
@@ -109,7 +111,7 @@ normalized release identity, then validates an extracted copy with
 | `DesktopApp\encode_speed_history.json` | Desktop local telemetry |
 | `docs\RealMediaValidationRuns\*` (except README.md) | Operator real-media validation evidence |
 | `LocalBase\*` (if present in source folder) | Runtime state |
-| `ops\release\changes\unreleased\*`, its generated summaries, `docs\CURRENT_PROJECT_STATE.md`, `docs\OPEN_WORK_CHECKLIST.md`, and `docs\REMEDIATION_CHANGELOG.md` | Developer history, volatile status, and remediation ledger |
+| `ops\release\changes\unreleased\*`, `ops\release\changes\archived\*`, their generated summaries, `docs\CURRENT_PROJECT_STATE.md`, `docs\OPEN_WORK_CHECKLIST.md`, `docs\REMEDIATION_CHANGELOG.md`, and `docs\archive\remediation-changelog\*` | Developer change evidence, volatile status, compact remediation index, and preserved remediation ledger segments |
 | `docs\reviews\*`, clean-machine reports, real-media worksheets, generated evidence | Operator/review evidence that can contain personal paths or runtime history |
 
 ### Development and Build Artifacts

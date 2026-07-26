@@ -86,10 +86,10 @@ def _backend_library_override_keys() -> set[str]:
 def _webview_settings_consumer_keys() -> set[str]:
     static_root = find_repo_root(Path(__file__)) / "apps" / "desktop" / "webview" / "static"
     paths = [
-        static_root / "partials" / "page-settings.html",
         static_root / "assets" / "settingsView.js",
         static_root / "assets" / "settingsMetadata.js",
     ]
+    paths.extend(sorted((static_root / "partials").glob("page-settings*.html")))
     paths.extend(sorted((static_root / "assets" / "settings").glob("*.js")))
 
     keys: set[str] = set()

@@ -54,6 +54,19 @@ class NetworkFacadeMixin:
     service: object
     app_version: str
 
+    if TYPE_CHECKING:
+        def _settings_patch_request_with_network_credentials(
+            self,
+            resolved: ResolvedPaths,
+            request: dict[str, Any],
+        ) -> dict[str, Any]: ...
+
+        def _save_settings_patch_with_network_credentials(
+            self,
+            resolved: ResolvedPaths,
+            request: dict[str, Any],
+        ) -> CommandResult: ...
+
     def _network_probe_worker_auth_adapter(self, base_url: str, token: str, *, timeout_seconds: int = 4) -> Any:
         probe = getattr(self, "_network_probe_worker_auth", None)
         if not callable(probe):
@@ -97,11 +110,37 @@ class NetworkFacadeMixin:
             return False, f"coordinator token app-state save failed: {redact_network_secret_text(exc)}"
         return True, ""
 
+    def _coordinator_join_token_candidate(
+        self,
+        resolved: ResolvedPaths,
+        *,
+        rotate: bool,
+    ) -> str:
+        if rotate:
+            return generate_token()
+
+        dispatcher = self._network_dispatcher_for_role("coordinator")
+        getter = getattr(dispatcher, "get_auth_token", None)
+        if callable(getter):
+            running_token = str(getter() or "").strip()
+            if running_token:
+                return running_token
+
+        config_token = str((resolved.config_data or {}).get("CoordinatorAuthToken", "") or "").strip()
+        if config_token:
+            return config_token
+
+        app_state_token = self._load_coordinator_app_state_token()
+        if app_state_token:
+            return app_state_token
+        return generate_token()
+
     def _coordinator_join_token(
         self,
         resolved: ResolvedPaths,
         *,
         rotate: bool,
+        candidate_token: str,
     ) -> tuple[str, str, list[str], dict[str, Any]]:
         warnings: list[str] = []
         write_evidence: dict[str, Any] = {
@@ -115,13 +154,13 @@ class NetworkFacadeMixin:
         running_token = str(getter() or "").strip() if callable(getter) else ""
 
         if rotate:
-            token = generate_token()
+            token = candidate_token
             if config_token:
-                save_request = self.settings_patch_request_with_review_confirmation(
+                save_request = self._settings_patch_request_with_network_credentials(
                     resolved,
                     {"changes": {"CoordinatorAuthToken": token}},
                 )
-                save_result = self.save_settings_patch(
+                save_result = self._save_settings_patch_with_network_credentials(
                     resolved,
                     {**save_request, "confirm_save": True},
                 )
@@ -141,11 +180,11 @@ class NetworkFacadeMixin:
                 except Exception as exc:
                     rollback_errors: list[str] = []
                     if write_evidence["writes_config"] and config_token:
-                        rollback_request = self.settings_patch_request_with_review_confirmation(
+                        rollback_request = self._settings_patch_request_with_network_credentials(
                             resolved,
                             {"changes": {"CoordinatorAuthToken": config_token}},
                         )
-                        rollback_result = self.save_settings_patch(
+                        rollback_result = self._save_settings_patch_with_network_credentials(
                             resolved,
                             {**rollback_request, "confirm_save": True},
                         )
@@ -183,7 +222,7 @@ class NetworkFacadeMixin:
         if app_state_token:
             return app_state_token, "app_state", warnings, write_evidence
 
-        token = generate_token()
+        token = candidate_token
         saved, message = self._save_coordinator_app_state_token(token)
         if not saved:
             raise RuntimeError(message)
@@ -241,24 +280,28 @@ class NetworkFacadeMixin:
         try:
             libraries = library_roots_from_config(resolved.config_data or {})
             created_at_utc = datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-            # Validate every non-secret blob field before a requested rotation can
-            # mutate config, app state, or a running coordinator token.
-            encode_network_join_blob(
+            candidate_token = self._coordinator_join_token_candidate(
+                resolved,
+                rotate=rotate,
+            )
+            # Encode the complete exact-token transfer before any credential
+            # authority can be changed. The validated blob is the one returned;
+            # there is no post-mutation serialization step.
+            blob, payload = encode_network_join_blob(
                 coordinator_url=coordinator_url,
-                token="preflight-token-0123456789",
+                token=candidate_token,
                 libraries=libraries,
                 created_at_utc=created_at_utc,
             )
             token, token_source, warnings, write_evidence = self._coordinator_join_token(
                 resolved,
                 rotate=rotate,
+                candidate_token=candidate_token,
             )
-            blob, payload = encode_network_join_blob(
-                coordinator_url=coordinator_url,
-                token=token,
-                libraries=libraries,
-                created_at_utc=created_at_utc,
-            )
+            if token != candidate_token:
+                raise RuntimeError(
+                    "Coordinator token authority changed while the join blob was being prepared; no blob was returned."
+                )
         except Exception as exc:
             return CommandResult(
                 command="network.coordinator.join_blob",
@@ -356,11 +399,11 @@ class NetworkFacadeMixin:
         hot_apply: list[dict[str, Any]] = []
         warnings: list[str] = []
         if changes_to_save:
-            save_request = self.settings_patch_request_with_review_confirmation(
+            save_request = self._settings_patch_request_with_network_credentials(
                 resolved,
                 {"changes": changes_to_save},
             )
-            save_result = self.save_settings_patch(
+            save_result = self._save_settings_patch_with_network_credentials(
                 resolved,
                 {**save_request, "confirm_save": True},
             )

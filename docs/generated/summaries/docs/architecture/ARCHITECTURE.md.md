@@ -1,14 +1,19 @@
 ---
 file: docs/architecture/ARCHITECTURE.md
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Markdown
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-11
+last_modified: 2026-07-20
 last_reviewed: 2026-06-02
-sha256: 9de2bb09705f7b9ae77620b94d6515ab66fceda45d35468b7644380c1af26185
+sha256: c191ffa9d9b2a8a1cd5ef1608a8cac1a917945d9ae0b92f46002fd14d974d4ab
 ---
 # `docs/architecture/ARCHITECTURE.md`
 
-**Purpose:** (unparsed)
+**Purpose:** Markdown implementation for architecture.
+
+**State/config identifiers:** `config.v1.schema.json`, `media_pipeline_config.schema.json`, `settings.v1.json`, `settings_projection.v1.json`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths docs/architecture/ARCHITECTURE.md`._

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 import unittest
+from datetime import date
 from pathlib import Path
 
 from mediapipeline.tools.paths import find_repo_root
@@ -40,6 +41,90 @@ class RenameMovieHelperTests(unittest.TestCase):
         for file_name, expected in examples.items():
             with self.subTest(file_name=file_name):
                 self.assertEqual(clean_pipeline_movie_name(file_name), expected)
+
+    def test_movie_cleaner_uses_rightmost_plausible_release_year(self) -> None:
+        examples = {
+            "2001.A.Space.Odyssey.1968.1080p.BluRay.x265.mkv": "2001 A Space Odyssey (1968)",
+            "Blade.Runner.2049.2017.1080p.BluRay.x265.mkv": "Blade Runner 2049 (2017)",
+            "1917.2019.1080p.BluRay.x265.mkv": "1917 (2019)",
+            "1984.1984.1080p.BluRay.x265.mkv": "1984 (1984)",
+        }
+
+        for file_name, expected in examples.items():
+            with self.subTest(file_name=file_name):
+                self.assertEqual(clean_pipeline_movie_name(file_name), expected)
+
+    def test_movie_year_candidates_use_plausible_bounds_and_bracket_precedence(self) -> None:
+        next_year = date.today().year + 1
+        too_future = next_year + 1
+        examples = {
+            "Roundhay.Garden.Scene.1888.mkv": "Roundhay Garden Scene (1888)",
+            "Pre-Cinema.1887.mkv": "Pre-Cinema 1887",
+            f"Near.Future.{next_year}.mkv": f"Near Future ({next_year})",
+            f"Far.Future.{too_future}.mkv": f"Far Future {too_future}",
+            f"{date.today().year}.mkv": str(date.today().year),
+            "Movie.(2020).2021.mkv": "Movie 2021 (2020)",
+        }
+
+        for file_name, expected in examples.items():
+            with self.subTest(file_name=file_name):
+                self.assertEqual(clean_pipeline_movie_name(file_name), expected)
+
+    def test_movie_cleaner_preserves_title_words_that_resemble_metadata(self) -> None:
+        examples = {
+            "12.Angry.Men.1957.mkv": "12 Angry Men (1957)",
+            "10.Cloverfield.Lane.2016.mkv": "10 Cloverfield Lane (2016)",
+            "DC.League.of.Super-Pets.2022.mkv": "DC League of Super-Pets (2022)",
+            "Ma.2019.mkv": "Ma (2019)",
+            "Cam.2018.mkv": "Cam (2018)",
+            "The.Web.2013.mkv": "The Web (2013)",
+            "The.DVD.2024.mkv": "The Dvd (2024)",
+            "Movie.UpScaled.2024.mkv": "Movie UpScaled (2024)",
+            "4K.Killer.2024.mkv": "4K Killer (2024)",
+            "Atmos.Fear.2024.mkv": "Atmos Fear (2024)",
+            "AVC.2024.mkv": "AVC (2024)",
+            "The.Remux.2024.mkv": "The Remux (2024)",
+            "Audio.Drama.2024.mkv": "Audio Drama (2024)",
+        }
+
+        for file_name, expected in examples.items():
+            with self.subTest(file_name=file_name):
+                self.assertEqual(clean_pipeline_movie_name(file_name), expected)
+
+    def test_movie_cleaner_removes_revision_and_ambiguous_terms_only_in_verified_metadata_tails(self) -> None:
+        for revision in ("PROPER", "REPACK", "RERIP"):
+            with self.subTest(revision=revision):
+                self.assertEqual(clean_pipeline_movie_name(f"Movie.{revision}.2024.mkv"), "Movie (2024)")
+
+        self.assertEqual(clean_pipeline_movie_name("A.Proper.Man.2024.mkv"), "A Proper Man (2024)")
+        self.assertEqual(
+            clean_pipeline_movie_name(
+                "Hoppers.2160p.MA.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-BYNDR.2026.mkv",
+                movie_filter_terms={"services_containers": ["MA"], "release_groups": ["BYNDR"]},
+            ),
+            "Hoppers (2026)",
+        )
+        self.assertEqual(clean_pipeline_movie_name("Movie.1080p.CAM.2024.mkv"), "Movie (2024)")
+        self.assertEqual(
+            clean_pipeline_movie_name(
+                "Cast Away (2000) UpScaled 2160p H265 10 bit DV HDR10+ ita eng AC3 5.1 sub ita eng Licdom.mkv"
+            ),
+            "Cast Away (2000)",
+        )
+        self.assertEqual(clean_pipeline_movie_name("Movie.2024.Asiimov.mkv"), "Movie (2024)")
+
+    def test_explicit_movie_remove_terms_remain_global_and_token_bounded(self) -> None:
+        self.assertEqual(
+            clean_pipeline_movie_name("The.Web.Story.2024.mkv", remove_terms=["web"]),
+            "The Story (2024)",
+        )
+        self.assertEqual(
+            clean_pipeline_movie_name("Webster.2024.mkv", remove_terms=["web"]),
+            "Webster (2024)",
+        )
+
+    def test_movie_cleaner_does_not_fall_back_to_metadata_when_title_is_empty(self) -> None:
+        self.assertEqual(clean_pipeline_movie_name("1080p.WEB-DL.x265.2024.mkv"), "")
 
     def test_movie_filter_options_preserve_disabled_categories(self) -> None:
         options = normalize_movie_filter_options({"video_source": False, "unknown": False})

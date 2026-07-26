@@ -5,8 +5,9 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import threading
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -47,6 +48,17 @@ from mediapipeline.core.processes.rerun_control import (
     build_rerun_continue_pending_request,
     request_rerun_stop_after_current,
 )
+from mediapipeline.core.processes.rerun_lifecycle import (
+    RerunCorrelation,
+    create_rerun_enrollment,
+    new_rerun_correlation,
+    read_rerun_enrollment,
+    record_rerun_spawn_transition_ambiguity,
+    record_rerun_spawn_transition_failure,
+    transition_rerun_enrollment,
+)
+from mediapipeline.core.processes.kill import _process_tree_cleanup_reconciliation_required
+from mediapipeline.core.processes.spawn_runner import _launch_cleanup_reconciliation_required
 from mediapipeline.core.config.identity import config_operation_block_data, config_operation_block_message
 
 RERUN_NETWORK_START_DRY_RUN_SCHEMA_VERSION = "desktop_rerun_network_start_dry_run.v1"
@@ -54,9 +66,54 @@ RERUN_NETWORK_START_DRY_RUN_COMMAND = "rerun.network.start_dry_run"
 RERUN_NETWORK_START_SCHEMA_VERSION = "desktop_rerun_network_start.v1"
 RERUN_NETWORK_START_COMMAND = "rerun.network.start"
 RERUN_NETWORK_BATCH_SCHEMA_VERSION = "desktop_rerun_network_batch.v1"
+_RERUN_CONTINUE_LOCK = threading.RLock()
 RERUN_NETWORK_ACTIVE_BATCH_STATUSES = frozenset(
     {"starting", "running", "active", "stopping", "stopped_after_current", "paused", "claim_disabled"}
 )
+
+
+def _spawn_stop_exit_verified(proc: Any, stop_result: str) -> bool:
+    normalized = str(stop_result or "").strip().casefold()
+    if any(
+        marker in normalized
+        for marker in (
+            "timed out",
+            "timeout",
+            "could not be verified",
+            "unable to verify",
+            "still running",
+            "kill_degraded",
+            "nonzero",
+            "non-zero",
+            "already exited",
+            "descendant state is unknown",
+            "descendants unknown",
+            "reported a failure",
+            "failed",
+        )
+    ):
+        return False
+    poll = getattr(proc, "poll", None)
+    if callable(poll):
+        try:
+            return poll() is not None
+        except Exception:
+            return False
+    return any(marker in normalized for marker in ("stopped", "killed", "terminated"))
+
+
+def _launch_guard_lease_evidence(launch_guard: object | None) -> tuple[object | None, int, bool]:
+    if not isinstance(launch_guard, dict):
+        return None, 0, False
+    lease = launch_guard.get("lease")
+    payload = getattr(lease, "payload", None)
+    if not isinstance(payload, Mapping):
+        return lease, 0, False
+    try:
+        child_pid = int(payload.get("child_pid") or 0)
+    except (TypeError, ValueError):
+        child_pid = 0
+    return lease, child_pid, child_pid <= 0
 
 
 def _network_rerun_precondition(key: str, status: str, evidence: str, guidance: str) -> dict[str, str]:
@@ -170,14 +227,19 @@ def _network_rerun_batch_rows(preview: dict[str, Any]) -> list[dict[str, Any]]:
         if not isinstance(row, dict):
             continue
         original_claimable = row.get("claimable") is True
-        preview_status = str(row.get("status") or ("claimable" if original_claimable else "blocked"))
-        if original_claimable:
+        skipped = row.get("skipped") is True
+        preview_status = str(
+            row.get("local_preview_status")
+            or ("skipped" if skipped else "claimable" if original_claimable else "blocked")
+        )
+        row_claimable = original_claimable and row.get("start_ready") is True
+        if row_claimable:
             status = "pending_claim"
-        elif preview_status == "skipped":
+        elif skipped:
             status = "skipped"
         else:
-            status = "blocked"
-        row_claimable = original_claimable and row.get("start_ready") is True
+            status = "review_required"
+        terminal = status in {"skipped", "review_required"}
         rows.append(
             {
                 "schema_version": "desktop_rerun_network_batch_row.v1",
@@ -188,6 +250,13 @@ def _network_rerun_batch_rows(preview: dict[str, Any]) -> list[dict[str, Any]]:
                 "source_mtime_utc": str(row.get("source_mtime_utc") or ""),
                 "source_identity_v2": str(row.get("source_identity_v2") or ""),
                 "source_identity_v2_algorithm": str(row.get("source_identity_v2_algorithm") or ""),
+                "source_content_sha256": str(row.get("source_content_sha256") or ""),
+                "source_content_sha256_algorithm": str(
+                    row.get("source_content_sha256_algorithm") or ""
+                ),
+                "source_content_hash_evidence": dict(
+                    row.get("source_content_hash_evidence") or {}
+                ),
                 "planned_output_path": str(row.get("planned_output_path") or ""),
                 "library_id": str(row.get("library_id") or ""),
                 "media_kind": str(row.get("media_kind") or ""),
@@ -199,7 +268,16 @@ def _network_rerun_batch_rows(preview: dict[str, Any]) -> list[dict[str, Any]]:
                 "preview_status": preview_status,
                 "preview_claimable": original_claimable,
                 "claimable": row_claimable,
-                "claim_status": "pending_claim" if row_claimable else "blocked_before_claim",
+                "claim_status": (
+                    "pending_claim"
+                    if row_claimable
+                    else "skipped"
+                    if skipped
+                    else "review_required"
+                ),
+                "terminal": terminal,
+                "manual_recovery_required": status == "review_required",
+                "operator_action_required": status == "review_required",
                 "claim_disabled_reason": "" if row_claimable else "Row is not start-ready for Network CSV rerun worker claims.",
                 "source_mapping": dict(row.get("source_mapping") or {}),
                 "output_handoff": dict(row.get("output_handoff") or {}),
@@ -233,10 +311,18 @@ def _network_rerun_batch_payload(
 ) -> dict[str, Any]:
     preview = dict(dry_run_data.get("preview") or {})
     rows = _network_rerun_batch_rows(preview)
+    claimable_count = sum(1 for row in rows if row.get("claimable") is True)
+    skipped_count = sum(1 for row in rows if str(row.get("status") or "") == "skipped")
+    review_count = sum(1 for row in rows if str(row.get("status") or "") == "review_required")
+    terminal_count = sum(1 for row in rows if row.get("terminal") is True)
+    active_count = max(0, len(rows) - terminal_count)
+    batch_status = "active"
+    if rows and active_count == 0:
+        batch_status = "review_required" if review_count else "completed_with_skips" if skipped_count else "complete"
     return {
         "schema_version": RERUN_NETWORK_BATCH_SCHEMA_VERSION,
         "batch_id": str(dry_run_data.get("batch_id") or ""),
-        "status": "active",
+        "status": batch_status,
         "phase": "phase_4b_csv_row_claim_execution",
         "created_at_utc": created_at_utc,
         "updated_at_utc": created_at_utc,
@@ -258,14 +344,19 @@ def _network_rerun_batch_payload(
         "claim_provider_status": "enabled_csv_rerun_row_claims",
         "worker_execution_enabled": True,
         "destination_policy_application_enabled": True,
-        "rows_claimable": any(row.get("claimable") is True for row in rows),
+        "rows_claimable": claimable_count > 0,
         "output_handoff": dict(dry_run_data.get("output_handoff") or preview.get("output_handoff") or {}),
         "handoff_probe": dict(dry_run_data.get("handoff_probe") or {}),
         "rows": rows,
         "counts": dict(preview.get("counts") or {}),
         "row_count": len(rows),
-        "claimable_row_count": sum(1 for row in rows if row.get("claimable") is True),
-        "claim_disabled_row_count": 0,
+        "claimable_row_count": claimable_count,
+        "claim_disabled_row_count": len(rows) - claimable_count,
+        "skipped_row_count": skipped_count,
+        "review_row_count": review_count,
+        "terminal_row_count": terminal_count,
+        "active_row_count": active_count,
+        "batch_terminal": bool(rows) and active_count == 0,
         "precondition_results": list(dry_run_data.get("precondition_results") or []),
         "state_files": list(dry_run_data.get("state_files_would_write") or []),
         "would_not_touch": dict(dry_run_data.get("would_not_touch") or {}),
@@ -391,6 +482,21 @@ class RerunLaunchFacadeMixin:
                     f"output_handoff_ready_rows={preview_counts.get('output_handoff_ready_rows') or 0}"
                 ),
                 "Configure NetworkRerunHandoffRoot outside source/output/LocalBase/Pending Publish roots before starting.",
+            )
+        )
+        strong_hash_unavailable = int(
+            preview_counts.get("source_content_sha256_unavailable_rows") or 0
+        )
+        preconditions.append(
+            _network_rerun_precondition(
+                "network_source_content_sha256_ready",
+                "pass" if claimable_rows > 0 and strong_hash_unavailable == 0 else "blocked",
+                (
+                    f"claimable_rows={claimable_rows}; "
+                    f"strong_hash_ready_rows={preview_counts.get('source_content_sha256_ready_rows') or 0}; "
+                    f"strong_hash_unavailable_rows={strong_hash_unavailable}"
+                ),
+                "Restore source access and rerun preview so the backend can capture a full SHA-256 baseline.",
             )
         )
         state_path_available, state_path_evidence = _network_rerun_state_path_evidence(state_files)
@@ -734,7 +840,13 @@ class RerunLaunchFacadeMixin:
     def request_rerun_stop_after_current(self, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
         return request_rerun_stop_after_current(resolved, request)
 
-    def start_rerun_csv_process(self, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
+    def start_rerun_csv_process(
+        self,
+        resolved: ResolvedPaths,
+        request: dict[str, Any],
+        *,
+        _recovery_metadata: dict[str, Any] | None = None,
+    ) -> CommandResult:
         config_identity = dict(getattr(resolved, "config_identity", {}) or {})
         if config_identity.get("blocks_operations") is True:
             return rerun_start_config_blocked_result(
@@ -768,7 +880,7 @@ class RerunLaunchFacadeMixin:
         scoped_csv_path = None
         scoped_info: dict[str, Any] = {}
         needs_scoped_csv = request_needs_scoped_csv(request, preview)
-        command_id = str(request.get("_command_id") or "")
+        command_id = str(request.get("_command_id") or "").strip() or uuid.uuid4().hex
         launch_lock, lock_message = self._acquire_process_launch_lock(
             "CSV rerun start",
             resolved=resolved,
@@ -777,6 +889,13 @@ class RerunLaunchFacadeMixin:
         )
         if lock_message:
             return rerun_start_active_work_result(lock_message)
+        correlation: RerunCorrelation | None = None
+        enrollment_path: Path | None = None
+        manifest_path: Path | None = None
+        proc: Any | None = None
+        persisted_lifecycle_state = ""
+        spawn_cleanup_exit_unverified = False
+        spawn_cleanup_detail = ""
         try:
             self._set_process_launch_recovery_descriptor(launch_lock, route="/api/rerun/start", request=request)
             block_message = self._active_work_block_message(resolved, "CSV rerun start")
@@ -786,6 +905,30 @@ class RerunLaunchFacadeMixin:
                 scoped_info = materialize_scoped_rerun_csv(resolved, request, preview=preview, service=self.service)
                 launch_csv_path = Path(str(scoped_info.get("scoped_csv_path") or csv_path))
                 scoped_csv_path = launch_csv_path
+            if not plan_only:
+                correlation = new_rerun_correlation(resolved, command_id=command_id)
+                enrollment_path = correlation.enrollment_path
+                manifest_path = correlation.manifest_path
+                enrollment_lifecycle = {
+                    "execution_mode": lifecycle.execution_mode,
+                    "destination_mode": lifecycle.destination_mode,
+                    "original_policy": lifecycle.original_policy,
+                    "collision_policy": lifecycle.collision_policy,
+                    "window_size": lifecycle.window_size,
+                    "stage_mode": lifecycle.stage_mode,
+                    "original_mode": lifecycle.original_mode,
+                    "return_mode": lifecycle.return_mode,
+                }
+                if _recovery_metadata:
+                    enrollment_lifecycle.update(dict(_recovery_metadata))
+                create_rerun_enrollment(
+                    resolved,
+                    correlation=correlation,
+                    csv_path=launch_csv_path,
+                    source_csv_path=csv_path,
+                    dry_run=dry_run,
+                    lifecycle=enrollment_lifecycle,
+                )
             starter = getattr(self.service, "start_rerun_csv", None)
             if not callable(starter):
                 raise RuntimeError("CSV rerun start service is not available.")
@@ -807,6 +950,11 @@ class RerunLaunchFacadeMixin:
                 confirm_source_overwrite=lifecycle.confirm_source_overwrite,
                 confirm_original_policy=lifecycle.confirm_original_policy,
                 confirm_delete_original=lifecycle.confirm_delete_original,
+                command_id=correlation.command_id if correlation is not None else command_id,
+                launch_id=correlation.launch_id if correlation is not None else "",
+                batch_id=correlation.batch_id if correlation is not None else "",
+                enrollment_path=enrollment_path,
+                manifest_path=manifest_path,
                 show_console=False,
             )
             self._transfer_process_launch_lease(launch_lock, proc)
@@ -815,8 +963,208 @@ class RerunLaunchFacadeMixin:
             log_method = getattr(self.service, "launch_log_summary", None)
             if callable(log_method):
                 launch_logs = str(log_method() or "")
+            if enrollment_path is not None:
+                try:
+                    transitioned = transition_rerun_enrollment(
+                        enrollment_path,
+                        "process_spawned",
+                        expected_states={"accepted"},
+                        pid=pid,
+                        logs=launch_logs,
+                    )
+                except Exception:
+                    transitioned = read_rerun_enrollment(enrollment_path)
+                if transitioned is None:
+                    transitioned = read_rerun_enrollment(enrollment_path)
+                persisted_lifecycle_state = str(
+                    (transitioned or {}).get("lifecycle_state")
+                    or (transitioned or {}).get("status")
+                    or ""
+                ).strip()
+                persisted_state_key = persisted_lifecycle_state.casefold()
+                if persisted_state_key in {
+                    "complete",
+                    "completed",
+                    "completed_with_failures",
+                    "completed_with_failed_rows",
+                    "failed",
+                    "failed_before_manifest",
+                    "retry_exhausted",
+                    "cancelled",
+                }:
+                    raise RuntimeError(
+                        "CSV rerun process exited before the start response completed; "
+                        f"durable enrollment state is {persisted_lifecycle_state}."
+                    )
+                spawn_proven_states = {
+                    "process_spawned",
+                    "starting",
+                    "staging",
+                    "processing",
+                    "waiting",
+                    "waiting_for_source",
+                    "retry_scheduled",
+                    "retrying",
+                }
+                if persisted_state_key not in spawn_proven_states:
+                    stop_detail = " safe child stop was requested"
+                    stop_result = ""
+                    stop_evidence_unverified = False
+                    try:
+                        kill_tree = getattr(self.service, "kill_process_tree", None)
+                        if callable(kill_tree):
+                            stop_result = str(
+                                kill_tree(proc, "CSV rerun enrollment transition failure") or ""
+                            )
+                        else:
+                            kill = getattr(proc, "kill", None)
+                            if callable(kill):
+                                kill()
+                                stop_evidence_unverified = True
+                                stop_detail = (
+                                    " direct root-process stop was requested, but descendant exit was not verified"
+                                )
+                            else:
+                                stop_evidence_unverified = True
+                                stop_detail = " spawned process did not expose a safe stop method"
+                    except Exception as exc:
+                        stop_evidence_unverified = True
+                        stop_detail = f" safe child stop failed: {exc}"
+                    failure_reason = (
+                        "The child process was started, but its process-spawn lifecycle transition was not "
+                        f"durably persisted;{stop_detail}. {stop_result}".strip()
+                    )
+                    exit_verified = not stop_evidence_unverified and _spawn_stop_exit_verified(
+                        proc,
+                        stop_result,
+                    )
+                    if exit_verified:
+                        record_rerun_spawn_transition_failure(
+                            enrollment_path,
+                            reason=failure_reason,
+                        )
+                    else:
+                        spawn_cleanup_exit_unverified = True
+                        spawn_cleanup_detail = (
+                            f"{failure_reason} Child exit is unverified, so duplicate work remains blocked."
+                        )
+                        record_rerun_spawn_transition_ambiguity(
+                            enrollment_path,
+                            reason=spawn_cleanup_detail,
+                            pid=pid or None,
+                        )
+                    raise RuntimeError(
+                        "CSV rerun enrollment did not durably prove the process-spawn transition "
+                        f"(state={persisted_lifecycle_state or '<unavailable>'});{stop_detail}."
+                    )
         except Exception as exc:
-            return rerun_start_exception_result(exc)
+            process_tree_reconciliation_required = False
+            if proc is not None:
+                try:
+                    process_tree_reconciliation_required = (
+                        _process_tree_cleanup_reconciliation_required(proc)
+                    )
+                except Exception:
+                    process_tree_reconciliation_required = True
+            cleanup_reconciliation_required = bool(
+                process_tree_reconciliation_required or spawn_cleanup_exit_unverified
+            )
+            reconciliation_guidance = (
+                "Child or descendant exit remains unverified; preserve the enrollment, keep duplicate launch "
+                "blocked, and reconcile the correlated process evidence before retrying."
+                if cleanup_reconciliation_required
+                else ""
+            )
+            if enrollment_path is not None:
+                try:
+                    current = read_rerun_enrollment(enrollment_path) or {}
+                    current_state = str(
+                        current.get("lifecycle_state") or current.get("status") or ""
+                    ).strip().casefold()
+                    if current_state in {"accepted", "process_spawned"}:
+                        lease, lease_child_pid, lease_reserved_without_child = _launch_guard_lease_evidence(
+                            launch_lock
+                        )
+                        cleanup_reconciliation_required = bool(
+                            cleanup_reconciliation_required
+                            or (
+                                lease is not None
+                                and _launch_cleanup_reconciliation_required(lease)
+                            )
+                        )
+                        if cleanup_reconciliation_required:
+                            reconciliation_guidance = (
+                                "Child or descendant exit remains unverified; preserve the enrollment, keep "
+                                "duplicate launch blocked, and reconcile the correlated process evidence before retrying."
+                            )
+                        try:
+                            proc_pid = int(getattr(proc, "pid", 0) or 0)
+                        except (TypeError, ValueError):
+                            proc_pid = 0
+                        pid = proc_pid or lease_child_pid
+                        process_exit_verified = bool(
+                            proc is not None
+                            and not cleanup_reconciliation_required
+                            and _spawn_stop_exit_verified(proc, "")
+                        )
+                        lease_exit_verified = bool(
+                            proc is None
+                            and lease_child_pid > 0
+                            and getattr(lease, "released", False) is True
+                            and not cleanup_reconciliation_required
+                        )
+                        pre_spawn_failure_verified = bool(
+                            proc is None
+                            and lease_reserved_without_child
+                            and not cleanup_reconciliation_required
+                        )
+                        if process_exit_verified or lease_exit_verified or pre_spawn_failure_verified:
+                            transition_rerun_enrollment(
+                                enrollment_path,
+                                "failed_before_manifest",
+                                expected_states={"accepted", "process_spawned"},
+                                reason_code="rerun_process_spawn_failed",
+                                reason=str(exc),
+                                pid=pid or None,
+                                extra_fields={
+                                    "process_exit_verified": True,
+                                    "duplicate_launch_blocked": False,
+                                },
+                            )
+                        else:
+                            record_rerun_spawn_transition_ambiguity(
+                                enrollment_path,
+                                reason=(
+                                    f"CSV rerun start failed with an ambiguous child outcome: {exc}. "
+                                    f"{spawn_cleanup_detail or reconciliation_guidance or 'Child exit is unverified, so duplicate work remains blocked.'}"
+                                ),
+                                pid=pid or None,
+                            )
+                except Exception:
+                    pass
+            reported_exc: Exception = exc
+            if reconciliation_guidance:
+                reported_exc = RuntimeError(f"{exc} {reconciliation_guidance}")
+            result = rerun_start_exception_result(reported_exc)
+            if correlation is not None:
+                enrollment = read_rerun_enrollment(correlation.enrollment_path) or {}
+                result.data.update(
+                    {
+                        "command_id": correlation.command_id,
+                        "launch_id": correlation.launch_id,
+                        "batch_id": correlation.batch_id,
+                        "enrollment_path": str(correlation.enrollment_path),
+                        "manifest_path": str(correlation.manifest_path),
+                        "durably_enrolled": correlation.enrollment_path.exists(),
+                        "inserted_into_normal_queue": False,
+                        "queue_source": "csv_rerun",
+                        "uses_pipeline_start": False,
+                        "lifecycle_state": str(
+                            enrollment.get("lifecycle_state") or enrollment.get("status") or ""
+                        ),
+                    }
+                )
+            return result
         finally:
             self._release_process_launch_lock(launch_lock)
         return rerun_start_success_result(
@@ -839,20 +1187,60 @@ class RerunLaunchFacadeMixin:
             scoped_csv_path=scoped_csv_path,
             scope=dict(preview.get("scope") or scoped_info.get("scope") or {}),
             preview_counts=dict(preview.get("counts") or {}),
+            command_id=correlation.command_id if correlation is not None else command_id,
+            launch_id=correlation.launch_id if correlation is not None else "",
+            batch_id=correlation.batch_id if correlation is not None else "",
+            enrollment_path=enrollment_path,
+            manifest_path=manifest_path,
+            durably_enrolled=enrollment_path is not None,
+            lifecycle_state=persisted_lifecycle_state or ("process_spawned" if correlation is not None else ""),
         )
 
     def continue_rerun_pending_rows(self, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
-        error, continue_request, scoped_info = build_rerun_continue_pending_request(resolved, request)
-        if error is not None:
-            return error
-        assert continue_request is not None
-        assert scoped_info is not None
-        launch = self.start_rerun_csv_process(resolved, continue_request)
+        with _RERUN_CONTINUE_LOCK:
+            error, continue_request, scoped_info = build_rerun_continue_pending_request(resolved, request)
+            if error is not None:
+                return error
+            assert continue_request is not None
+            assert scoped_info is not None
+            recovery_metadata = {
+                key: scoped_info[key]
+                for key in (
+                    "recovery_request_id",
+                    "recovery_key",
+                    "recovery_root_key",
+                    "recovery_generation",
+                    "recovery_supersedes_enrollment_path",
+                    "recovery_supersedes_recovery_key",
+                    "recovery_supersedes_batch_id",
+                    "recovery_source_command_id",
+                    "recovery_source_launch_id",
+                    "recovery_source_batch_id",
+                    "recovery_source_manifest_path",
+                    "recovery_source_manifest_key",
+                    "recovery_scope",
+                    "recovery_row_selectors",
+                )
+                if key in scoped_info
+            }
+            launch = self.start_rerun_csv_process(
+                resolved,
+                continue_request,
+                _recovery_metadata=recovery_metadata,
+            )
+        launch_mapping = launch.to_mapping()
+        launch_data = dict(launch_mapping.get("data") or {})
         data = {
             "schema_version": "desktop_rerun_continue.v1",
             **dict(scoped_info),
-            "launch": launch.to_mapping(),
+            "launch": launch_mapping,
             "launches_work": bool(launch.ok),
+            "durably_enrolled": launch_data.get("durably_enrolled") is True,
+            "command_id": str(launch_data.get("command_id") or ""),
+            "launch_id": str(launch_data.get("launch_id") or ""),
+            "batch_id": str(launch_data.get("batch_id") or ""),
+            "enrollment_path": str(launch_data.get("enrollment_path") or ""),
+            "manifest_path": str(launch_data.get("manifest_path") or ""),
         }
         if not launch.ok:
             return CommandResult(
@@ -869,7 +1257,7 @@ class RerunLaunchFacadeMixin:
             command="rerun.continue",
             ok=True,
             severity="info",
-            message="Started CSV rerun continuation for pending rows only.",
+            message="Accepted CSV rerun continuation; the scoped batch was durably enrolled and its process spawned.",
             refresh_hint="snapshot",
             data=data,
         )

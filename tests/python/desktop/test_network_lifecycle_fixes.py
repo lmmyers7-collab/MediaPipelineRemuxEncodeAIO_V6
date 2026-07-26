@@ -317,6 +317,34 @@ class CoordinatorQueueRefreshTests(unittest.TestCase):
 
 
 class RunningWorkerSettingsHotApplyTests(unittest.TestCase):
+    def test_active_claim_http_context_survives_url_and_token_hot_apply(self) -> None:
+        worker = WorkerDispatcher.__new__(WorkerDispatcher)
+        worker._base_url = "http://old-coordinator.test:7830"
+        worker._auth_token = "old-token"
+        worker._source_path_map = []
+        worker._active_job_lock = threading.Lock()
+        worker._active_job = SimpleNamespace(job_id="job-1")
+        worker._claim_http_contexts = {}
+        worker._wakeup = threading.Event()
+        worker._register_claim_http_context(
+            "job-1",
+            ("http://old-coordinator.test:7830", "old-token"),
+        )
+
+        worker.update_auth_token("new-token")
+        worker.update_coordinator_url("http://new-coordinator.test:7830")
+        posts: list[tuple[str, str, str]] = []
+        worker._http_post_with_context = (  # type: ignore[method-assign]
+            lambda path, _data, context: posts.append((path, context[0], context[1])) or {"status": "ok"}
+        )
+        worker._http_post_for_claim("job-1", "/api/heartbeat", {"job_id": "job-1"})
+
+        self.assertEqual(
+            posts,
+            [("/api/heartbeat", "http://old-coordinator.test:7830", "old-token")],
+        )
+        self.assertEqual(worker._runtime_http_context(), ("http://new-coordinator.test:7830", "new-token"))
+
     def test_worker_dispatcher_hot_apply_methods_update_runtime_descriptor_and_wake_poll(self) -> None:
         worker = WorkerDispatcher.__new__(WorkerDispatcher)
         worker._base_url = "http://old-coordinator.test:7830"
@@ -337,12 +365,15 @@ class RunningWorkerSettingsHotApplyTests(unittest.TestCase):
         self.assertTrue(worker._wakeup.is_set())
         self.assertNotIn("new-token", json.dumps(descriptor))
 
-    def test_settings_save_patch_hot_applies_running_worker_settings(self) -> None:
+    def test_settings_save_patch_hot_applies_running_worker_noncredential_settings(self) -> None:
         class Dispatcher:
             def __init__(self) -> None:
                 self.urls: list[str] = []
                 self.tokens: list[str] = []
                 self.path_maps: list[str] = []
+
+            def get_active_job(self) -> object:
+                return object()
 
             def update_coordinator_url(self, value: str) -> None:
                 self.urls.append(value)
@@ -380,7 +411,6 @@ class RunningWorkerSettingsHotApplyTests(unittest.TestCase):
             request = {
                 "changes": {
                     "WorkerCoordinatorUrl": "http://new-coordinator.test:7830",
-                    "WorkerAuthToken": "new-token",
                     "WorkerSourcePathMap": path_map,
                 },
             }
@@ -392,19 +422,22 @@ class RunningWorkerSettingsHotApplyTests(unittest.TestCase):
 
         self.assertTrue(result.ok)
         self.assertEqual(dispatcher.urls, ["http://new-coordinator.test:7830"])
-        self.assertEqual(dispatcher.tokens, ["new-token"])
+        self.assertEqual(dispatcher.tokens, [])
         self.assertEqual(dispatcher.path_maps, [path_map])
         hot_apply = result.data["network_worker_hot_apply"]
         self.assertEqual(
             [(item["key"], item["status"]) for item in hot_apply],
             [
                 ("WorkerCoordinatorUrl", "applied"),
-                ("WorkerAuthToken", "applied"),
                 ("WorkerSourcePathMap", "applied"),
             ],
         )
         self.assertEqual(running_resolved.config_data["WorkerCoordinatorUrl"], "http://new-coordinator.test:7830")
         self.assertNotIn("new-token", json.dumps(hot_apply))
+        connection_updates = [
+            item for item in hot_apply if item["key"] in {"WorkerCoordinatorUrl", "WorkerAuthToken"}
+        ]
+        self.assertTrue(all(item["active_claim_affinity"] == "preserved" for item in connection_updates))
 
 
 class StopJournalFailureCommitsStoppedTests(unittest.TestCase):

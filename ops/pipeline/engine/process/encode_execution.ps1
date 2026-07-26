@@ -24,6 +24,7 @@ function Invoke-MediaPipelineEncodeAttemptExecution {
         ReproStage        = $Plan.ReproStage
         OutputPath        = $OutputPath
         WasteGuardContext = $WasteGuardContext
+        TrackAudioWork    = $true
     }
     if ($CpuEncode) {
         $callArgs['CpuEncode'] = $true

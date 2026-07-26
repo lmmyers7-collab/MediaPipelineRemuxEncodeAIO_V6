@@ -1,5 +1,8 @@
 ---
 file: apps/desktop/webview/static/assets/settings/presetLibrary.js
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: JavaScript
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
@@ -9,6 +12,12 @@ sha256: 12671dc4d729a42c8d90fce4f19c5901aa9515ae1d3892c533694fea07bf0fea
 ---
 # `apps/desktop/webview/static/assets/settings/presetLibrary.js`
 
-**Purpose:** (unparsed)
+**Purpose:** JavaScript implementation for preset library; exposes apply, applyPreview, byId.
+
+**Public symbols:** `apply`, `applyPreview`, `byId`, `compare`, `exportPreset`, `importPreview`, `initPresetLibraryEvents`, `isStoredRecord`, `load`, `parseEditor`, `postResult`, `presetPayload`, `recordFromEditor`, `records`, `renderLibrary`, `renderResult`, `renderSelected`, `safeError`, `save`, `selectedId`, `selectedRecord`, `setStatus`, `text`, `validate`
+**In-repo imports:** `);
+    const exported = result?.data?.record;
+    if (exported && byId(`, `, exportPreset], [`, `, importPreview], [`, `, payload),`, `, { records: candidates }),`, `window.apiGet`, `window.apiPost`, `window.mediaPipelinePresetLibraryView`, `window.refreshAll`
+**HTTP routes:** `/api/settings/preset-library`, `/api/settings/preset-library/apply`, `/api/settings/preset-library/apply-preview`, `/api/settings/preset-library/compare`, `/api/settings/preset-library/export`, `/api/settings/preset-library/import-preview`, `/api/settings/preset-library/save`, `/api/settings/preset-library/validate`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/settings/presetLibrary.js`._

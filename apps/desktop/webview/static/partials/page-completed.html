@@ -34,7 +34,7 @@
             <strong id="completed-status" class="completed-output-status">No rows</strong>
           </div>
           <details class="completed-output-strip-detail">
-            <summary>Details</summary>
+            <summary data-touchpoint-id="completed-output-strip-details-toggle">Details</summary>
             <pre id="completed-summary" class="prose-block completed-output-detail-line">No completed history loaded.</pre>
             <pre id="completed-reconciliation-hint" class="prose-block completed-output-detail-line">Backend publish reconciliation status has not been evaluated for the loaded Output rows.</pre>
           </details>
@@ -112,8 +112,8 @@
             </label>
             <div class="completed-column-mode-control" role="group" aria-label="Completed numeric column display">
               <span class="completed-column-mode-label">Column</span>
-              <button type="button" class="secondary-button completed-column-mode-button is-active" data-completed-size-column-mode="size" aria-pressed="true">Size</button>
-              <button type="button" class="secondary-button completed-column-mode-button" data-completed-size-column-mode="bitrate" aria-pressed="false">Bitrate</button>
+              <button type="button" class="secondary-button completed-column-mode-button is-active" data-touchpoint-id="completed-current-output-size-column" data-completed-size-column-mode="size" aria-pressed="true">Size</button>
+              <button type="button" class="secondary-button completed-column-mode-button" data-touchpoint-id="completed-current-output-bitrate-column" data-completed-size-column-mode="bitrate" aria-pressed="false">Bitrate</button>
             </div>
             <div class="form-actions-inline completed-current-filter-actions">
               <button id="completed-refresh-current-output-button" class="secondary-button completed-current-filter-button" type="button">Refresh Current Output Status</button>
@@ -121,7 +121,7 @@
             </div>
           </div>
           <details id="completed-current-details" class="completed-current-details">
-            <summary>Details</summary>
+            <summary data-touchpoint-id="completed-current-output-details-toggle">Details</summary>
             <pre id="completed-current-summary" class="completed-current-detail-text">No current output status loaded.</pre>
             <pre id="completed-filter-summary" class="completed-current-detail-text">Current output filter inactive. No rows loaded.</pre>
           </details>
@@ -265,8 +265,8 @@
             </label>
             <div class="completed-column-mode-control" role="group" aria-label="Completed numeric column display">
               <span class="completed-column-mode-label">Column</span>
-              <button type="button" class="secondary-button completed-column-mode-button is-active" data-completed-size-column-mode="size" aria-pressed="true">Size</button>
-              <button type="button" class="secondary-button completed-column-mode-button" data-completed-size-column-mode="bitrate" aria-pressed="false">Bitrate</button>
+              <button type="button" class="secondary-button completed-column-mode-button is-active" data-touchpoint-id="completed-history-size-column" data-completed-size-column-mode="size" aria-pressed="true">Size</button>
+              <button type="button" class="secondary-button completed-column-mode-button" data-touchpoint-id="completed-history-bitrate-column" data-completed-size-column-mode="bitrate" aria-pressed="false">Bitrate</button>
             </div>
             <div class="form-actions-inline">
               <button id="completed-history-clear-filters-button" class="secondary-button" type="button">Clear History Filters</button>

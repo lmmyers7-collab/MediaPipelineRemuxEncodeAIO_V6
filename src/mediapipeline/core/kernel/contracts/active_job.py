@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+import math
 from typing import Any
 
 from .base import ContractError, bool_field, dict_field, list_field, require_mapping, require_schema_version, text_field
@@ -16,6 +17,7 @@ ACTIVE_JOB_STATUSES = frozenset(
         "failed",
         "completed_immediate",
         "failed_immediate",
+        "kill_degraded",
         "killed",
         "orphaned",
     }
@@ -40,6 +42,19 @@ def _nullable_nonnegative_int_field(payload: Mapping[str, Any], key: str) -> int
     return value
 
 
+def _nullable_nonnegative_float_field(payload: Mapping[str, Any], key: str) -> float | None:
+    value = payload.get(key)
+    if value is None or value == "":
+        return None
+    try:
+        result = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ContractError(f"{key} must be a finite nonnegative number or null") from exc
+    if not math.isfinite(result) or result < 0:
+        raise ContractError(f"{key} must be a finite nonnegative number or null")
+    return result
+
+
 def _string_list_field(payload: Mapping[str, Any], key: str) -> list[str]:
     return [str(item) for item in list_field(payload, key)]
 
@@ -52,6 +67,7 @@ class ActiveJobRecord:
     status: str
     mode: str = ""
     pid: int | None = None
+    process_create_time: float | None = None
     app_pid: int | None = None
     command_line: str = ""
     args: list[str] = field(default_factory=list)
@@ -89,6 +105,7 @@ class ActiveJobRecord:
             status=status,
             mode=text_field(data, "mode").strip(),
             pid=_nullable_nonnegative_int_field(data, "pid"),
+            process_create_time=_nullable_nonnegative_float_field(data, "process_create_time"),
             app_pid=_nullable_nonnegative_int_field(data, "app_pid"),
             command_line=text_field(data, "command_line"),
             args=_string_list_field(data, "args"),
@@ -113,6 +130,7 @@ class ActiveJobRecord:
             "mode": self.mode,
             "status": self.status,
             "pid": self.pid,
+            "process_create_time": self.process_create_time,
             "app_pid": self.app_pid,
             "command_line": self.command_line,
             "args": list(self.args),

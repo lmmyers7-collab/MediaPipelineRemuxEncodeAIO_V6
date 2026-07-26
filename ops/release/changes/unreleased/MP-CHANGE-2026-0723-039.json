@@ -1,0 +1,71 @@
+{
+  "id": "MP-CHANGE-2026-0723-039",
+  "title": "Route beta updates through a stable channel pointer",
+  "version_target": "2026.06.04.001",
+  "status": "in_progress",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": null,
+  "summary": "Replace the prerelease-incompatible releases/latest beta updater route with a serialized, stable, integrity-verified channel metadata pointer.",
+  "reason": "Remediate AUDIT-FIND-W10-011, where GitHub's latest-release endpoint excludes prereleases, and the coupled AUDIT-FIND-W10-015 publication race that could advance mixed or competing channel state.",
+  "affected_areas": [
+    "ci",
+    "documentation",
+    "release-tooling",
+    "updater-routing",
+    "tests"
+  ],
+  "behavior_before": "Beta clients were configured for releases/latest/download/latest-beta.json even though GitHub excludes prereleases from latest-release resolution.",
+  "behavior_after": "Beta and stable clients use dedicated updater-<channel> pointer releases; serialized publication advances a pointer only after versioned assets succeed and accepts it only when the exact public endpoint returns the just-published bytes.",
+  "files_touched": [
+    ".github/workflows/private-beta-windows.yml",
+    "docs/change_control/CHANGELOG.md",
+    "docs/change_control/CHANGE_INDEX.md",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/feature-cards/release-validation.md",
+    "docs/generated/summaries/docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-039.json.md",
+    "docs/generated/summaries/ops/scripts/dev/check-github-audit-spine.ps1.md",
+    "docs/generated/summaries/ops/scripts/release/New-TauriProductizationConfig.ps1.md",
+    "docs/generated/summaries/ops/scripts/release/Publish-TauriUpdaterChannelPointer.ps1.md",
+    "docs/generated/summaries/ops/scripts/release/Test-PrivateBetaReleasePreflight.ps1.md",
+    "docs/generated/summaries/tests/python/tooling/test_private_beta_release_preflight.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_tauri_updater_channel_pointer.py.md",
+    "docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md",
+    "docs/operator/PRIVATE_BETA_INSTALL_UPDATE_RUNBOOK.md",
+    "docs/testing/PRIVATE_BETA_RELEASE_CHECKLIST.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-039.json",
+    "ops/scripts/dev/check-github-audit-spine.ps1",
+    "ops/scripts/release/New-TauriProductizationConfig.ps1",
+    "ops/scripts/release/Publish-TauriUpdaterChannelPointer.ps1",
+    "ops/scripts/release/Test-PrivateBetaReleasePreflight.ps1",
+    "tests/python/tooling/test_private_beta_release_preflight.py",
+    "tests/python/tooling/test_tauri_updater_channel_pointer.py"
+  ],
+  "tests_added": [
+    "New pointer publication creates a prerelease, explicitly excludes it from latest selection, targets the exact source SHA, and verifies the exact configured endpoint.",
+    "Existing pointer publication replaces only the channel JSON asset after validating tag, title, draft/prerelease, mutability, and asset-scope policy.",
+    "Mismatched channel version or installer provenance is rejected before remote access, and stale endpoint bytes fail post-publication acceptance.",
+    "Workflow policy asserts repository/channel serialization with cancellation disabled and versioned release publication before pointer advancement."
+  ],
+  "manual_validation": [
+    "PowerShell and workflow YAML parsing passed; the GitHub audit-spine checker passed.",
+    "Touched Python Ruff and compileall passed; 58 private-beta/updater-pointer tooling tests passed.",
+    "Risky-file registry, test-subsystem inventory, architecture, naming, and god-file checks passed; god-file output contained warnings only.",
+    "A full Windows release build with -Zip -Verify -IncludeTests copied 18,470 files and ran for 924 seconds. Package policy, environment, Tauri prerequisites, tool integration, and end-to-end smoke passed; aggregate verification exited 1 only on established WebView static-asset, dependency-cycle, generated/status-document, tracked-office-document, and unrelated Ruff baselines.",
+    "A fresh -IncludeTests release-policy copy contained 18,470 files; 22 included implementation, test, documentation, and generated paths matched the source tree by SHA-256, and focused packaged tests passed 9 tests with 3 expected skips for workflow/change-control metadata intentionally omitted from deployable packages.",
+    "Not run locally: Rung 6 isolated GitHub repository publication, exact real HTTP endpoint retrieval, updater client canary, simultaneous dispatch serialization, forced interruption, and retry/coherence validation. This external prerequisite keeps the packet in_progress."
+  ],
+  "rollback_plan": "Revert the channel-pointer publication, endpoint generation and verification, focused tests, documentation, generated artifacts, and packet metadata together.",
+  "related_changes": [
+    "AUDIT-FIND-W10-011",
+    "AUDIT-FIND-W10-015",
+    "MP-CHANGE-2026-0723-037",
+    "MP-CHANGE-2026-0723-038"
+  ],
+  "notes": "High-risk release/updater boundary. Local tests use disposable fake GitHub and endpoint-fetcher scripts only. No GitHub mutation, release publication, signing, lifecycle action, media access, or source-media mutation occurred. Disposable release candidates under C:\\Users\\lmmye\\AppData\\Local\\Temp\\mediapipeline-updater-pointer-039-* were manifest-checked and removed after validation. Existing dirty worktree changes belong to prior bounded audit batches and were preserved. Immutable audit evidence remained read-only."
+}

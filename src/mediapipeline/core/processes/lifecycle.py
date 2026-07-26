@@ -37,6 +37,7 @@ from .control_runner import (
     toggle_pause_flag_for_service,
     write_control_flag_for_service,
     write_flag_for_service,
+    write_stop_after_current_for_service,
 )
 from .launch_env import build_launch_environment, iter_bundled_launch_dirs
 from .launch_runner import (
@@ -45,6 +46,7 @@ from .launch_runner import (
     start_rerun_csv_for_service,
 )
 from .kill import (
+    _process_tree_cleanup_reconciliation_required,
     fallback_kill_process_handle,
     find_related_pipeline_processes,
     kill_process_tree,
@@ -65,7 +67,11 @@ from .runtime_runner import (
     runtime_state_root_for_service,
     validate_runtime_artifact_target_for_service,
 )
-from .spawn_runner import spawn_process_for_service
+from .spawn_runner import (
+    _finalize_process_ownership_after_tree_proof,
+    _process_ownership_finalization_context,
+    spawn_process_for_service,
+)
 
 
 def _normalized_spawned_job_kinds(job_kinds: set[str] | None) -> set[str] | None:
@@ -114,7 +120,11 @@ class ProcessLifecycleServiceMixin:
         extra_args: str,
         show_console: bool,
         single_file: str | None = None,
+        priority_only: bool = False,
         extra_argv: list[str] | tuple[str, ...] | None = None,
+        expected_queue_plan_fingerprint: str = "",
+        command_id: str = "",
+        run_id: str = "",
     ) -> subprocess.Popen[Any]:
         return start_pipeline_for_service(
             self,
@@ -126,6 +136,10 @@ class ProcessLifecycleServiceMixin:
             extra_argv=extra_argv,
             show_console=show_console,
             single_file=single_file,
+            priority_only=priority_only,
+            expected_queue_plan_fingerprint=expected_queue_plan_fingerprint,
+            command_id=command_id,
+            run_id=run_id,
         )
 
     def start_audit(
@@ -165,6 +179,11 @@ class ProcessLifecycleServiceMixin:
         confirm_original_policy: bool = False,
         confirm_delete_original: bool = False,
         plan_only: bool = False,
+        command_id: str = "",
+        launch_id: str = "",
+        batch_id: str = "",
+        enrollment_path: Path | None = None,
+        manifest_path: Path | None = None,
     ) -> subprocess.Popen[Any]:
         return start_rerun_csv_for_service(
             self,
@@ -184,6 +203,11 @@ class ProcessLifecycleServiceMixin:
             confirm_source_overwrite=confirm_source_overwrite,
             confirm_original_policy=confirm_original_policy,
             confirm_delete_original=confirm_delete_original,
+            command_id=command_id,
+            launch_id=launch_id,
+            batch_id=batch_id,
+            enrollment_path=enrollment_path,
+            manifest_path=manifest_path,
             show_console=show_console,
         )
 
@@ -216,6 +240,11 @@ class ProcessLifecycleServiceMixin:
         if lock is None or not isinstance(active, dict):
             return
         with lock:
+            existing = active.get(pid)
+            if existing is not None and existing[0] is not proc:
+                raise RuntimeError(
+                    f"Spawned process PID {pid} is already owned by a different exact process identity."
+                )
             active[pid] = (proc, str(job_kind or "process"))
 
     def _unregister_active_spawned_process(self, proc: subprocess.Popen[Any]) -> bool:
@@ -227,7 +256,11 @@ class ProcessLifecycleServiceMixin:
         if lock is None or not isinstance(active, dict):
             return False
         with lock:
-            return active.pop(pid, None) is not None
+            existing = active.get(pid)
+            if existing is None or existing[0] is not proc:
+                return False
+            del active[pid]
+            return True
 
     def _active_spawned_process_is_registered(self, proc: subprocess.Popen[Any]) -> bool:
         pid = int(getattr(proc, "pid", 0) or 0)
@@ -238,7 +271,8 @@ class ProcessLifecycleServiceMixin:
         if lock is None or not isinstance(active, dict):
             return False
         with lock:
-            return pid in active
+            existing = active.get(pid)
+            return existing is not None and existing[0] is proc
 
     def kill_active_spawned_processes(self, *, job_kinds: set[str] | None = None) -> list[str]:
         lock = getattr(self, "_active_spawned_processes_lock", None)
@@ -255,18 +289,44 @@ class ProcessLifecycleServiceMixin:
             ]
         messages: list[str] = []
         for _pid, (proc, job_kind) in items:
+            if not self._active_spawned_process_is_registered(proc):
+                continue
             poll = getattr(proc, "poll", None)
             return_code = poll() if callable(poll) else None
-            was_registered = self._unregister_active_spawned_process(proc)
-            try:
-                if return_code is None:
-                    messages.append(self.kill_process_tree(proc, job_kind))
+            if return_code is not None and _process_tree_cleanup_reconciliation_required(proc):
+                messages.append(
+                    f"App-owned {job_kind} root process already exited, but descendant cleanup still requires "
+                    "reconciliation."
+                )
+                continue
+            if return_code is not None:
+                context = _process_ownership_finalization_context(proc)
+                if context is not None:
+                    _finalize_process_ownership_after_tree_proof(proc, return_code)
                 else:
                     self.update_active_job_record(proc, return_code=return_code)
-            except Exception:
-                if was_registered:
-                    self._register_active_spawned_process(proc, job_kind)
-                raise
+                    self._unregister_active_spawned_process(proc)
+                    lease = getattr(proc, "_mediapipeline_lifecycle_lease", None)
+                    release = getattr(lease, "release", None)
+                    if callable(release):
+                        release(outcome="completed" if return_code == 0 else "failed")
+                continue
+
+            messages.append(self.kill_process_tree(proc, job_kind))
+            if _process_tree_cleanup_reconciliation_required(proc):
+                continue
+            return_code = poll() if callable(poll) else getattr(proc, "returncode", None)
+            if return_code is None:
+                continue
+            context = _process_ownership_finalization_context(proc)
+            if context is not None:
+                _finalize_process_ownership_after_tree_proof(proc, return_code)
+            else:
+                self._unregister_active_spawned_process(proc)
+                lease = getattr(proc, "_mediapipeline_lifecycle_lease", None)
+                release = getattr(lease, "release", None)
+                if callable(release):
+                    release(outcome="completed" if return_code == 0 else "failed")
         return messages
 
     def _active_jobs_dir_for_resolved(self, resolved: ResolvedPaths | None) -> Path | None:
@@ -487,3 +547,19 @@ class ProcessLifecycleServiceMixin:
 
     def write_flag(self, flag_path: Path | None, label: str) -> str:
         return write_flag_for_service(self, flag_path, label)
+
+    def write_stop_after_current_flag(
+        self,
+        flag_path: Path | None,
+        *,
+        run_id: str = "",
+        target_pid: int | None = None,
+        target_launch_id: str = "",
+    ) -> str:
+        return write_stop_after_current_for_service(
+            self,
+            flag_path,
+            run_id=run_id,
+            target_pid=target_pid,
+            target_launch_id=target_launch_id,
+        )

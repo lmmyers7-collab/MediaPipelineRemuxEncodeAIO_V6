@@ -218,6 +218,15 @@ ADVANCED_CONFIG_FIELD_DEFINITIONS = (
     {
         "page": "Advanced",
         "section": "Logging",
+        "key": "InterruptedToolLogRetentionDays",
+        "label": "Interrupted Tool Log Retention Days",
+        "kind": "int",
+        "default": 3,
+        "help": "Number of days to retain diagnostic logs from stopped or force-terminated native-tool work.",
+    },
+    {
+        "page": "Advanced",
+        "section": "Logging",
         "key": "PipelineDebugLogMaxBytes",
         "label": "Pipeline Debug Log Max Bytes",
         "kind": "int",
@@ -438,6 +447,15 @@ ADVANCED_CONFIG_FIELD_DEFINITIONS = (
         "kind": "int",
         "default": 500,
         "help": "Maximum runnable queue rows processed in one round before later rows continue in the next round.",
+    },
+    {
+        "page": "Advanced",
+        "section": "Long-Run Reliability",
+        "key": "QueueLaunchSnapshotFreshnessSeconds",
+        "label": "Queue Snapshot Age Advisory (s)",
+        "kind": "int",
+        "default": 60,
+        "help": "Age threshold for labeling queue snapshot generation and file timestamps older than preferred. It never blocks Run Once; runtime rebuilds and fingerprint-verifies the queue before media dispatch.",
     },
     {
         "page": "Advanced",

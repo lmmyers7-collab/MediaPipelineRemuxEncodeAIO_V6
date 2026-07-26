@@ -13,6 +13,8 @@ param(
 
     [switch]$PublishRelease,
 
+    [switch]$AllowSameCommitRebuild,
+
     [switch]$SkipSetupPreflight,
 
     [switch]$DryRun,
@@ -120,8 +122,12 @@ Add-Check 'version:format' ($Version -match '^\d+\.\d+\.\d+\+\d+$') `
     'Version must be Tauri-compatible semver with build metadata, for example 2026.6.4+001.'
 Add-Check 'release_tag:format' ($ReleaseTag -match '^app-v\d+\.\d+\.\d+\+\d+$') `
     'Release tag must use app-v<version>.'
+Add-Check 'release_tag:version_identity' ($ReleaseTag -ceq "app-v$Version") `
+    'Release tag must equal app-v<version> exactly.'
 Add-Check 'publish_default:safe' (-not $PublishRelease -or $Channel -in @('beta', 'stable')) `
     'Workflow dispatch defaults to publish_release=false; publication requires explicit -PublishRelease.'
+Add-Check 'rebuild:publish_required' (-not $AllowSameCommitRebuild -or $PublishRelease) `
+    'Same-commit rebuild can be requested only with explicit release publication.'
 
 $ghArgs = [System.Collections.Generic.List[string]]::new()
 foreach ($arg in @(
@@ -139,7 +145,9 @@ foreach ($arg in @(
     '-f',
     "release_tag=$ReleaseTag",
     '-f',
-    ("publish_release={0}" -f ($(if ($PublishRelease) { 'true' } else { 'false' })))
+    ("publish_release={0}" -f ($(if ($PublishRelease) { 'true' } else { 'false' }))),
+    '-f',
+    ("allow_same_commit_rebuild={0}" -f ($(if ($AllowSameCommitRebuild) { 'true' } else { 'false' })))
 )) {
     $ghArgs.Add($arg) | Out-Null
 }
@@ -204,6 +212,7 @@ $result = [pscustomobject][ordered]@{
     repository = $Repository
     ref = $Ref
     publish_release = [bool]$PublishRelease
+    allow_same_commit_rebuild = [bool]$AllowSameCommitRebuild
     workflow = $workflowFile
     gh_args = @($ghArgs)
     error_count = $errorCount

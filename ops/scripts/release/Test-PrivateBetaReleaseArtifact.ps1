@@ -16,7 +16,11 @@ param(
     [Parameter(Mandatory)]
     [string]$Version,
 
+    [string]$SevenZipPath,
+
     [switch]$SkipAuthenticode,
+
+    [switch]$SkipInstallerPayloadInventory,
 
     [switch]$AsJson
 )
@@ -68,6 +72,22 @@ function Test-ChecksumLine {
     return [bool]($Lines | Where-Object { $_ -match ("^\s*{0}\s+{1}\s*$" -f $hash, $leaf) } | Select-Object -First 1)
 }
 
+function ConvertTo-InventoryPath {
+    param([string]$Path)
+    return $Path.Replace('\', '/').Trim().TrimStart('.', '/').ToLowerInvariant()
+}
+
+function Test-InventorySuffix {
+    param(
+        [string[]]$Paths,
+        [string]$RequiredPath
+    )
+    $required = ConvertTo-InventoryPath -Path $RequiredPath
+    return [bool]($Paths | Where-Object {
+        $_ -eq $required -or $_.EndsWith('/' + $required, [System.StringComparison]::OrdinalIgnoreCase)
+    } | Select-Object -First 1)
+}
+
 $nsisRoot = Join-Path $BundleRoot 'nsis'
 $installer = Get-FirstFile -Root $nsisRoot -Filter '*.exe'
 $signaturePath = if ($installer) { "$($installer.FullName).sig" } else { $null }
@@ -83,6 +103,12 @@ $artifactEvidence = [ordered]@{
     checksums = $checksumPath
     authenticode_status = $null
     msi_artifacts_found = 0
+    installer_payload_inventory = [ordered]@{
+        tool = $null
+        path_count = 0
+        required_path_count = 0
+        forbidden_path_count = 0
+    }
 }
 
 Add-Check 'bundle_root' (Test-Path -LiteralPath $BundleRoot -PathType Container) `
@@ -150,6 +176,106 @@ if (Test-Path -LiteralPath $checksumPath -PathType Leaf) {
 }
 
 if ($installer) {
+    if ($SkipInstallerPayloadInventory) {
+        Add-Check 'installer_payload:skipped' $true `
+            'Installer payload inventory was skipped by explicit test-only flag.' 'warning'
+    } else {
+        $sevenZipCommand = $null
+        if ($SevenZipPath) {
+            if (Test-Path -LiteralPath $SevenZipPath -PathType Leaf) {
+                $sevenZipCommand = (Resolve-Path -LiteralPath $SevenZipPath).Path
+            } else {
+                $resolvedSevenZip = Get-Command -Name $SevenZipPath -CommandType Application -ErrorAction SilentlyContinue
+                if ($resolvedSevenZip) {
+                    $sevenZipCommand = $resolvedSevenZip.Source
+                }
+            }
+        } else {
+            $resolvedSevenZip = Get-Command -Name '7z.exe' -CommandType Application -ErrorAction SilentlyContinue
+            if ($resolvedSevenZip) {
+                $sevenZipCommand = $resolvedSevenZip.Source
+            } else {
+                foreach ($candidate in @(
+                    (Join-Path $env:ProgramFiles '7-Zip\7z.exe'),
+                    $(if (${env:ProgramFiles(x86)}) { Join-Path ${env:ProgramFiles(x86)} '7-Zip\7z.exe' })
+                )) {
+                    if ($candidate -and (Test-Path -LiteralPath $candidate -PathType Leaf)) {
+                        $sevenZipCommand = $candidate
+                        break
+                    }
+                }
+            }
+        }
+
+        Add-Check 'installer_payload:seven_zip' (-not [string]::IsNullOrWhiteSpace($sevenZipCommand)) `
+            '7-Zip is required to enumerate the exact NSIS installer payload.'
+        if ($sevenZipCommand) {
+            $artifactEvidence.installer_payload_inventory.tool = Split-Path -Leaf $sevenZipCommand
+            try {
+                $inventoryOutput = @(& $sevenZipCommand 'l' '-slt' $installer.FullName 2>&1 | ForEach-Object { [string]$_ })
+                $inventoryExitCode = $LASTEXITCODE
+                Add-Check 'installer_payload:list' ($inventoryExitCode -eq 0) `
+                    '7-Zip must successfully enumerate the NSIS installer payload.'
+
+                $inventoryPaths = @($inventoryOutput | ForEach-Object {
+                    if ($_ -match '^\s*Path\s*=\s*(?<path>.+?)\s*$') {
+                        ConvertTo-InventoryPath -Path $Matches['path']
+                    }
+                } | Where-Object {
+                    $_ -and $_ -ne (ConvertTo-InventoryPath -Path $installer.FullName)
+                } | Sort-Object -Unique)
+                $artifactEvidence.installer_payload_inventory.path_count = $inventoryPaths.Count
+
+                $requiredPayloads = @(
+                    'release_manifest.json',
+                    'pyproject.toml',
+                    'apps/desktop/webview/static/index.html',
+                    'apps/desktop/runtime/Python/python.exe',
+                    'src/mediapipeline/desktop/local_api_main.py',
+                    'ops/pipeline/entrypoints/MediaPipeline.ps1',
+                    'ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe',
+                    'ops/pipeline/tools/ffmpeg/bin/ffmpeg.exe',
+                    'ops/pipeline/tools/ffmpeg/bin/ffprobe.exe',
+                    'ops/pipeline/tools/MKVToolNix/mkvmerge.exe',
+                    'ops/pipeline/tools/PgsToSrt/PgsToSrt.exe'
+                )
+                $requiredFound = 0
+                foreach ($requiredPath in $requiredPayloads) {
+                    $present = Test-InventorySuffix -Paths $inventoryPaths -RequiredPath $requiredPath
+                    if ($present) { $requiredFound++ }
+                    $checkName = 'installer_payload:required:' + ($requiredPath -replace '[^A-Za-z0-9]+', '_').Trim('_')
+                    Add-Check $checkName $present "NSIS installer must contain required payload: $requiredPath"
+                }
+                $artifactEvidence.installer_payload_inventory.required_path_count = $requiredFound
+
+                $forbiddenPatterns = @(
+                    '(^|/)localbase(/|$)',
+                    '(^|/)runlogs(/|$)',
+                    '(^|/)apps/desktop/runlogs(/|$)',
+                    '(^|/)ops/pipeline/config/mediapipeline_config\.psd1$',
+                    '(^|/)ops/pipeline/config/mediapipeline_config_chatgpt\.psd1$',
+                    '(^|/)\.codex(?:-remote-attachments)?(/|$)',
+                    '(^|/)\.git(/|$)',
+                    '(^|/)\.ruff_cache(/|$)',
+                    '(^|/)\.vscode(/|$)',
+                    '^tests/(python|webview)(/|$)',
+                    '^docs/reviews(/|$)',
+                    '^ops/release/changes(/|$)',
+                    '^apps/desktop/tauri/src-tauri(/|$)'
+                )
+                $forbiddenFound = @($inventoryPaths | Where-Object {
+                    $candidate = $_
+                    $forbiddenPatterns | Where-Object { $candidate -match $_ } | Select-Object -First 1
+                })
+                $artifactEvidence.installer_payload_inventory.forbidden_path_count = $forbiddenFound.Count
+                Add-Check 'installer_payload:no_mutable_or_personal_state' ($forbiddenFound.Count -eq 0) `
+                    'NSIS installer must not contain mutable runtime roots or personal configuration.'
+            } catch {
+                Add-Check 'installer_payload:list' $false "Installer payload inventory failed: $($_.Exception.Message)"
+            }
+        }
+    }
+
     if ($SkipAuthenticode) {
         Add-Check 'authenticode:skipped' $true `
             'Authenticode validation was skipped by explicit test-only flag.' 'warning'

@@ -330,6 +330,213 @@ class ApplicationFacadeRenameTests(unittest.TestCase):
         self.assertIn("saved_terms", catalog)
         self.assertIn("saved_options", catalog)
 
+    def test_rename_workbench_uses_the_synthetic_production_destination_plan_as_actual(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            captured: dict[str, object] = {}
+
+            def fake_production_preview(**kwargs: object) -> dict[str, object]:
+                captured.update(kwargs)
+                policy = dict(kwargs["cleaning_policy"])  # type: ignore[arg-type]
+                fingerprint = str(policy["policy_fingerprint"])
+                return {
+                    "ok": True,
+                    "requested_policy_fingerprint": fingerprint,
+                    "applied_policy_fingerprint": fingerprint,
+                    "policy_fingerprint_match": True,
+                    "row": {
+                        "ok": True,
+                        "synthetic": True,
+                        "file_base_name": "Edge of Tomorrow (2014)",
+                        "file_name": "Edge of Tomorrow (2014)",
+                        "relative_directory": "Edge of Tomorrow (2014)",
+                        "relative_path": "Edge of Tomorrow (2014)\\Edge of Tomorrow (2014)",
+                        "identity_key": "Edge of Tomorrow (2014)",
+                        "parsed_identity": {
+                            "media_kind": "Movie",
+                            "title": "Edge of Tomorrow",
+                            "year": 2014,
+                        },
+                    },
+                    "error": "",
+                }
+
+            service._load_synthetic_pipeline_name_preview = fake_production_preview  # type: ignore[method-assign]
+            facade = MediaPipelineApplicationFacade(service)
+
+            preview = facade.get_rename_clean_filename_preview(
+                {
+                    "mode": "movie",
+                    "filename": "Edge.of.Tomorrow.2014.1080p.BluRay.DDP5.1.x265.10bit-GalaxyRG265",
+                    "expected_movie_title": "Edge of Tomorrow",
+                    "expected_year": "2014",
+                    "include_case_analysis": True,
+                    "_rename_movie_filter_policy_source": "staged",
+                },
+                powershell_host="C:/Runtime/pwsh.exe",
+                require_production=True,
+            )
+
+        self.assertEqual(captured["filename"], "Edge.of.Tomorrow.2014.1080p.BluRay.DDP5.1.x265.10bit-GalaxyRG265")
+        self.assertEqual(captured["source_folder"], "")
+        self.assertEqual(captured["media_kind"], "Movie")
+        self.assertEqual(captured["powershell_host"], "C:/Runtime/pwsh.exe")
+        self.assertEqual(preview["target_name"], "Edge of Tomorrow (2014)")
+        self.assertEqual(preview["preview_source"], "pipeline_movie_destination_plan")
+        self.assertEqual(preview["evidence_authority"], "production_naming_plan")
+        self.assertTrue(preview["policy_fingerprint_match"])
+        self.assertEqual(preview["requested_policy_fingerprint"], preview["applied_policy_fingerprint"])
+        self.assertEqual(preview["comparison"]["status"], "match")
+        self.assertEqual(preview["comparison"]["authority"], "production_naming_plan")
+        self.assertTrue(preview["comparison"]["ok"], preview["comparison"])
+
+    def test_rename_workbench_exposes_production_drift_instead_of_the_python_cleaner_result(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            service = DummyWorkflowFacadeService(Path(raw_root))
+
+            def fake_drifted_preview(**kwargs: object) -> dict[str, object]:
+                fingerprint = str(dict(kwargs["cleaning_policy"])["policy_fingerprint"])  # type: ignore[arg-type]
+                return {
+                    "ok": True,
+                    "requested_policy_fingerprint": fingerprint,
+                    "applied_policy_fingerprint": fingerprint,
+                    "policy_fingerprint_match": True,
+                    "row": {
+                        "ok": True,
+                        "synthetic": True,
+                        "file_base_name": "Edge of Tomorrow GalaxyRG265 (2014)",
+                        "file_name": "Edge of Tomorrow GalaxyRG265 (2014)",
+                        "parsed_identity": {
+                            "media_kind": "Movie",
+                            "title": "Edge of Tomorrow GalaxyRG265",
+                            "year": 2014,
+                        },
+                    },
+                    "error": "",
+                }
+
+            service._load_synthetic_pipeline_name_preview = fake_drifted_preview  # type: ignore[method-assign]
+            facade = MediaPipelineApplicationFacade(service)
+            preview = facade.get_rename_clean_filename_preview(
+                {
+                    "mode": "movie",
+                    "filename": "Edge.of.Tomorrow.2014.1080p.BluRay.DDP5.1.x265.10bit-GalaxyRG265",
+                    "expected_movie_title": "Edge of Tomorrow",
+                    "expected_year": "2014",
+                    "include_case_analysis": True,
+                },
+                powershell_host="pwsh",
+                require_production=True,
+            )
+
+        self.assertEqual(preview["target_name"], "Edge of Tomorrow GalaxyRG265 (2014)")
+        self.assertFalse(preview["comparison"]["ok"])
+        self.assertEqual(preview["comparison"]["status"], "mismatch")
+        self.assertIn("movie_title", preview["comparison"]["failed_fields"])
+
+    def test_rename_workbench_pass_requires_exact_runtime_parity_even_when_production_matches_expected(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            service = DummyWorkflowFacadeService(Path(raw_root))
+            service._clean_pipeline_movie_name = lambda *_args, **_kwargs: "EDGE OF TOMORROW (2014)"  # type: ignore[method-assign]
+
+            def fake_production_preview(**kwargs: object) -> dict[str, object]:
+                fingerprint = str(dict(kwargs["cleaning_policy"])["policy_fingerprint"])  # type: ignore[arg-type]
+                return {
+                    "ok": True,
+                    "requested_policy_fingerprint": fingerprint,
+                    "applied_policy_fingerprint": fingerprint,
+                    "policy_fingerprint_match": True,
+                    "row": {
+                        "ok": True,
+                        "synthetic": True,
+                        "file_base_name": "Edge of Tomorrow (2014)",
+                        "file_name": "Edge of Tomorrow (2014)",
+                        "parsed_identity": {
+                            "media_kind": "Movie",
+                            "title": "Edge of Tomorrow",
+                            "year": 2014,
+                        },
+                    },
+                    "error": "",
+                }
+
+            service._load_synthetic_pipeline_name_preview = fake_production_preview  # type: ignore[method-assign]
+            facade = MediaPipelineApplicationFacade(service)
+            preview = facade.get_rename_clean_filename_preview(
+                {
+                    "mode": "movie",
+                    "filename": "Edge.of.Tomorrow.2014.1080p.BluRay.x265-GalaxyRG265",
+                    "expected_movie_title": "Edge of Tomorrow",
+                    "expected_year": "2014",
+                    "include_case_analysis": True,
+                },
+                powershell_host="pwsh",
+                require_production=True,
+            )
+
+        self.assertTrue(preview["comparison"]["expected_match"])
+        self.assertFalse(preview["comparison"]["ok"])
+        self.assertEqual(preview["production_parity"]["status"], "mismatch")
+        self.assertEqual(preview["production_parity"]["reference_target_name"], "EDGE OF TOMORROW (2014)")
+        self.assertEqual(preview["production_parity"]["production_target_name"], "Edge of Tomorrow (2014)")
+        self.assertIn("runtime_parity", preview["comparison"]["failed_fields"])
+
+    def test_rename_workbench_fails_closed_when_production_preview_or_policy_evidence_is_unavailable(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            service = DummyWorkflowFacadeService(Path(raw_root))
+            facade = MediaPipelineApplicationFacade(service)
+            request = {
+                "mode": "movie",
+                "filename": "Edge.of.Tomorrow.2014.1080p.BluRay.x265-GalaxyRG265.mkv",
+                "expected_movie_title": "Edge of Tomorrow",
+                "expected_year": "2014",
+                "include_case_analysis": True,
+            }
+
+            for label, result in (
+                (
+                    "unavailable",
+                    {
+                        "ok": False,
+                        "requested_policy_fingerprint": "a" * 64,
+                        "applied_policy_fingerprint": "",
+                        "policy_fingerprint_match": False,
+                        "row": {},
+                        "error": "pipeline movie synthetic naming preview unavailable",
+                    },
+                ),
+                (
+                    "fingerprint mismatch",
+                    {
+                        "ok": True,
+                        "requested_policy_fingerprint": "a" * 64,
+                        "applied_policy_fingerprint": "b" * 64,
+                        "policy_fingerprint_match": False,
+                        "row": {
+                            "ok": True,
+                            "synthetic": True,
+                            "file_base_name": "Edge of Tomorrow (2014)",
+                            "file_name": "Edge of Tomorrow (2014).mkv",
+                        },
+                        "error": "pipeline movie naming preview policy fingerprint mismatch",
+                    },
+                ),
+            ):
+                with self.subTest(label=label):
+                    service._load_synthetic_pipeline_name_preview = lambda result=result, **_kwargs: result  # type: ignore[method-assign]
+                    preview = facade.get_rename_clean_filename_preview(
+                        request,
+                        powershell_host="pwsh",
+                        require_production=True,
+                    )
+                    self.assertFalse(preview["ok"])
+                    self.assertEqual(preview["target_name"], "")
+                    self.assertEqual(preview["comparison"]["status"], "unavailable")
+                    self.assertFalse(preview["comparison"]["ok"])
+                    self.assertEqual(preview["filter_suggestions"], [])
+                    self.assertTrue(preview["errors"])
+
     def test_rename_apply_requires_extra_confirmation_for_outside_configured_roots(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

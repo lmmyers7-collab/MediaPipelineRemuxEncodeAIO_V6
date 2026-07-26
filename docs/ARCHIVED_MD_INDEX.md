@@ -1,6 +1,6 @@
 # Archived Markdown Index
 
-Last updated: 2026-07-04
+Last updated: 2026-07-20
 
 This index reflects the current archive/quarantine layout after the housekeeping move and the operator's later manual deletion of some active docs. The old `docs/archive/admin-audits/`, `completed-audits/`, `completed-checklists/`, `historical-plans/`, `historical-reviews/`, `old-ai-directives/`, and `ui-impl-specs/` paths should no longer be treated as active archive roots. The preserved copies live under:
 
@@ -20,6 +20,11 @@ active docs tree on 2026-07-04 live under:
 
 `docs/archive/docs-housekeeping/2026-07-04-doc-cleanup/`
 
+The large remediation evidence ledger was mechanically segmented on 2026-07-20
+under `docs/archive/remediation-changelog/`. Its compact authoritative index
+remains at `docs/REMEDIATION_CHANGELOG.md`; the archive manifest records the
+original and preserved hashes, section count, order hash, and segment bounds.
+
 ## Archive Root Summary
 
 | Folder | Count | Meaning |
@@ -30,6 +35,7 @@ active docs tree on 2026-07-04 live under:
 | `../2026-06-04-completed-md-pass/` | 25 moved docs plus README | Completed/superseded historical audits, dependency-refactor tracker docs, and UX remediation tracker docs moved out of active topic folders. |
 | `../2026-06-24-doc-prune/` | Current docs cleanup archive | Completed implementation plans plus 2026-06 audit/review evidence snapshots moved out of active topic folders. |
 | `../2026-07-04-doc-cleanup/` | Current docs cleanup archive | Completed release/test-split/architecture-boundary docs, obsolete architecture proposals, and stale session notes moved out of active topic folders. |
+| `../../remediation-changelog/` | 5 ledger segments plus manifest | Verbatim 2026-05 remediation sections in original order, with explicit navigation anchors and byte-preservation evidence. |
 
 ## Historical Archive Groups
 
@@ -114,6 +120,37 @@ Under `docs/archive/docs-housekeeping/2026-07-04-doc-cleanup/`:
   and curation proposal not listed in the current active backlog.
 - `sessions/SESSION-2026-06-02-to-2026-06-23.md`: stale session log moved out
   of active guidance.
+
+## Active Status Consolidation - 2026-07-20
+
+No new status, checklist, or archive snapshot document was created. Completed
+detail removed from `CURRENT_PROJECT_STATE.md` and `OPEN_WORK_CHECKLIST.md`
+remains reachable through existing authority surfaces:
+
+| Removed active-doc material | Historical evidence |
+|---|---|
+| Promotion, launcher, package, legacy-removal, and release completions | Root `CHANGELOG.md`, `docs/RealMediaValidationRuns/README.md`, and change packets under `ops/release/changes/` |
+| WebView/UI, god-file split, settings, diagnostics, pending-publish, and remediation completion narratives | `docs/REMEDIATION_CHANGELOG.md` and the 2026-05-20/2026-06-04 archive groups indexed above |
+| FR-016, FR-042, dispatcher, architecture, and documentation decisions | `docs/architecture/DECISIONS_AND_HISTORY.md` |
+| Function/module, network, and security finding closure | Active `docs/reviews/*/DISPOSITION_LEDGER.md` files and the archived review packs indexed above |
+| Pre-consolidation wording and exact section-level edits | Repository history plus `MP-CHANGE-2026-0720-015` |
+
+The active checklist retains practical legacy anchor IDs for its former closed
+sections, but those anchors now route readers to a compact historical-evidence
+index instead of presenting completed work as backlog.
+
+## Remediation Ledger Segmentation - 2026-07-20
+
+- `docs/REMEDIATION_CHANGELOG.md` is the compact active index and keeps legacy
+  heading fragments as navigation aliases.
+- `docs/archive/remediation-changelog/entries-*.md` contains all 1,073 detailed
+  sections in contiguous original-order bands of 250 entries (73 in the final
+  band).
+- `docs/archive/remediation-changelog/manifest.json` records the original file
+  hash and size plus preserved payload, ordered-heading, and per-segment hashes.
+- `mediapipeline.tools.dev.remediation_changelog_archive verify` proves byte,
+  order, count, and link preservation. Root `CHANGELOG.md` remains the shipped
+  change authority.
 
 ## Active Docs Not Archived
 

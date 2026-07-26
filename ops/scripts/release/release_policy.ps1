@@ -5,6 +5,34 @@ function Normalize-MediaPipelineReleaseRelativePath {
     return (($RelativePath -replace '/', '\').TrimStart('\'))
 }
 
+function Get-MediaPipelineReleaseJsonStringValues {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)]$Value)
+
+    $values = [System.Collections.Generic.List[string]]::new()
+    $pending = [System.Collections.Generic.Stack[object]]::new()
+    $pending.Push($Value)
+    while ($pending.Count -gt 0) {
+        $current = $pending.Pop()
+        if ($null -eq $current) { continue }
+        if ($current -is [string]) {
+            [void]$values.Add([string]$current)
+            continue
+        }
+        if ($current -is [System.Collections.IDictionary]) {
+            foreach ($key in $current.Keys) {
+                $pending.Push($key)
+                $pending.Push($current[$key])
+            }
+            continue
+        }
+        if ($current -is [System.Collections.IEnumerable]) {
+            foreach ($item in $current) { $pending.Push($item) }
+        }
+    }
+    return @($values.ToArray())
+}
+
 function Find-MediaPipelineReleaseContentFinding {
     [CmdletBinding()]
     param(
@@ -15,7 +43,7 @@ function Find-MediaPipelineReleaseContentFinding {
     $checks = @(
         @{ Pattern = '(?i)[a-z]:[\\/]+users[\\/]'; Label = 'user-profile path' },
         @{ Pattern = '(?i)(?:%localappdata%|%appdata%|appdata[\\/]+local[\\/]+temp)'; Label = 'AppData or temp path' },
-        @{ Pattern = '(?<!\\)\\\\[^\\\s]+\\[^\\\s]+'; Label = 'UNC path' },
+        @{ Pattern = '(?<!\\)\\\\(?!\?)[^\\\s]+\\[^\\\s]+'; Label = 'UNC path' },
         @{ Pattern = '(?i)authorization\s*:\s*bearer\s+(?![<{])[^\s"'']{8,}'; Label = 'bearer token' },
         @{ Pattern = '(?i)-----BEGIN(?: [A-Z]+)? PRIVATE KEY-----'; Label = 'private key material' },
         @{ Pattern = '(?i)\b(?:password|credential|secret|workerauthtoken)\b\s*[:=]\s*["''][^"'']{8,}["'']'; Label = 'credential-like assignment' }
@@ -26,19 +54,32 @@ function Find-MediaPipelineReleaseContentFinding {
     if (Test-Path -LiteralPath $allowlistPath -PathType Leaf) {
         try { $allowlist = @((Get-Content -LiteralPath $allowlistPath -Raw | ConvertFrom-Json).entries) } catch { throw "Release content allowlist is invalid: $allowlistPath" }
     }
-    foreach ($check in $checks) {
-        $matches = [regex]::Matches($Content, $check.Pattern)
-        foreach ($match in $matches) {
-            $allowed = @($allowlist | Where-Object {
-                $_.relative_path -eq $RelativePath -and
-                $_.pattern -and
-                $_.reason -and
-                $_.expires_on -and
-                [datetime]$_.expires_on -ge (Get-Date) -and
-                [regex]::IsMatch([string]$match.Value, [string]$_.pattern)
-            }).Count -gt 0
-            if ($allowed) { continue }
-            return "$($check.Label) in $RelativePath"
+    $contentCandidates = @($Content)
+    if ([System.IO.Path]::GetExtension($RelativePath) -eq '.json') {
+        try {
+            $jsonValue = ConvertFrom-Json -InputObject $Content -AsHashtable -Depth 100
+            $contentCandidates = @(Get-MediaPipelineReleaseJsonStringValues -Value $jsonValue)
+        } catch {
+            # Malformed JSON remains subject to the conservative raw-text scan.
+            $contentCandidates = @($Content)
+        }
+    }
+
+    foreach ($candidate in $contentCandidates) {
+        foreach ($check in $checks) {
+            $matches = [regex]::Matches($candidate, $check.Pattern)
+            foreach ($match in $matches) {
+                $allowed = @($allowlist | Where-Object {
+                    $_.relative_path -eq $RelativePath -and
+                    $_.pattern -and
+                    $_.reason -and
+                    $_.expires_on -and
+                    [datetime]$_.expires_on -ge (Get-Date) -and
+                    [regex]::IsMatch([string]$match.Value, [string]$_.pattern)
+                }).Count -gt 0
+                if ($allowed) { continue }
+                return "$($check.Label) in $RelativePath"
+            }
         }
     }
     return $null
@@ -97,6 +138,7 @@ function Get-MediaPipelineReleaseExclusionReason {
     if ($relative -like 'LocalBase\*') { return 'local runtime state' }
     if ($relative -like 'RunLogs\*') { return 'root runtime logs' }
     if ($relative -like 'artifacts\*') { return 'generated proof artifact' }
+    if ($relative -match '^ops\\release\\evidence\\.*\.(bmp|gif|jpe?g|png|webp)$') { return 'raw release evidence screenshot omitted' }
     if ($segments.Count -eq 1 -and $name -eq '.release_in_progress.json') { return 'partial release build marker' }
     if ($segments.Count -eq 1 -and $name -like '*.log') { return 'root runtime log' }
     if ($segments.Count -eq 1 -and $name -like '*.state.json') { return 'root runtime state' }
@@ -144,6 +186,9 @@ function Get-MediaPipelineReleaseExclusionReason {
     if ($relative -like 'docs\reviews\*') { return 'active review/audit ledger omitted' }
     if ($relative -like 'ops\release\changes\unreleased\*') { return 'unreleased change record omitted' }
     if ($relative -like 'docs\generated\summaries\ops\release\changes\unreleased\*') { return 'unreleased change record summary omitted' }
+    if ($relative -like 'ops\release\changes\archived\*') { return 'archived unreleased change record omitted' }
+    if ($relative -like 'docs\generated\summaries\ops\release\changes\archived\*') { return 'archived unreleased change record summary omitted' }
+    if ($relative -like 'docs\archive\remediation-changelog\*') { return 'historical remediation ledger segment omitted' }
     if ($relative -eq 'docs\REMEDIATION_CHANGELOG.md') { return 'historical remediation ledger omitted' }
     if ($relative -eq 'docs\CURRENT_PROJECT_STATE.md') { return 'volatile project status omitted' }
     if ($relative -eq 'docs\OPEN_WORK_CHECKLIST.md') { return 'developer backlog omitted' }
@@ -165,6 +210,8 @@ function Get-MediaPipelineReleaseExclusionReason {
     if (-not $IncludeTests) {
         if ($relative -like 'ops\pipeline\tests\*') { return 'test suite omitted' }
         if ($relative -like 'tests\*') { return 'test suite omitted' }
+        if ($relative -like 'apps\desktop\tauri\src-tauri\src\lib_tests\*') { return 'Tauri Rust test module omitted' }
+        if ($relative -eq 'apps\desktop\tauri\src-tauri\src\backend_process\tests.rs') { return 'Tauri Rust test module omitted' }
     }
 
     if (-not $IncludeDevDocs) {
@@ -205,6 +252,7 @@ function Get-MediaPipelineReleaseHygieneRules {
     [CmdletBinding()]
     param(
         [bool]$PersonalConfigIncluded = $false,
+        [bool]$TestsIncluded = $false,
         [bool]$DevDocsIncluded = $false,
         [bool]$OptionalToolsIncluded = $false,
         [bool]$ToolDocsIncluded = $false,
@@ -265,6 +313,12 @@ function Get-MediaPipelineReleaseHygieneRules {
         (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern 'ops\pipeline\*_progress.json' -Label 'pipeline runtime progress files'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern 'src\*.log' -Label 'python source-tree runtime logs'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern 'src\*.egg-info\*' -Label 'python packaging metadata'),
+        (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern 'ops\release\evidence\*.bmp' -Label 'raw release evidence screenshots'),
+        (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern 'ops\release\evidence\*.gif' -Label 'raw release evidence screenshots'),
+        (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern 'ops\release\evidence\*.jpg' -Label 'raw release evidence screenshots'),
+        (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern 'ops\release\evidence\*.jpeg' -Label 'raw release evidence screenshots'),
+        (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern 'ops\release\evidence\*.png' -Label 'raw release evidence screenshots'),
+        (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern 'ops\release\evidence\*.webp' -Label 'raw release evidence screenshots'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern '~$*' -Label 'Office lock/temp files')
     )) {
         [void]$rules.Add($rule)
@@ -276,6 +330,11 @@ function Get-MediaPipelineReleaseHygieneRules {
 
     if (-not $DevDocsIncluded) {
         [void]$rules.Add((New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath 'docs\archive\docs-housekeeping' -Label 'docs housekeeping quarantine'))
+    }
+
+    if (-not $TestsIncluded) {
+        [void]$rules.Add((New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath 'apps\desktop\tauri\src-tauri\src\lib_tests' -Label 'Tauri Rust test modules'))
+        [void]$rules.Add((New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath 'apps\desktop\tauri\src-tauri\src\backend_process\tests.rs' -Label 'Tauri backend-process Rust tests'))
     }
 
     if ($TauriPreviewBinaryIncluded) {
@@ -328,6 +387,7 @@ function Get-MediaPipelineReleasePolicyManifest {
     $rules = @(
         Get-MediaPipelineReleaseHygieneRules `
             -PersonalConfigIncluded:$KeepPersonalConfig `
+            -TestsIncluded:$IncludeTests `
             -DevDocsIncluded:$IncludeDevDocs `
             -OptionalToolsIncluded:$IncludeOptionalTools `
             -ToolDocsIncluded:$IncludeToolDocs `

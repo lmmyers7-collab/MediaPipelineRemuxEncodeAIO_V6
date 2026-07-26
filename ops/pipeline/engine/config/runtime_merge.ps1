@@ -11,6 +11,15 @@ function Set-MediaPipelineRuntimeConfigVariables {
         [Parameter(Mandatory)] [string[]] $ArrayKeys
     )
 
+    $registryCommand = Get-Command -Name 'Get-MediaPipelineKnownConfigKeys' -CommandType Function -ErrorAction SilentlyContinue
+    if (-not $registryCommand) {
+        throw 'Canonical MediaPipeline config-key registry is unavailable; runtime config initialization was blocked.'
+    }
+    $knownConfigKeys = @(Get-MediaPipelineKnownConfigKeys)
+    if ($knownConfigKeys.Count -eq 0) {
+        throw 'Canonical MediaPipeline config-key registry is empty; runtime config initialization was blocked.'
+    }
+
     # Reserved names a config key must never overwrite: PowerShell preference
     # variables (they control error handling / progress / confirmation) and
     # automatic variables. Without this guard a config typo such as
@@ -26,19 +35,24 @@ function Set-MediaPipelineRuntimeConfigVariables {
         'true','false','null','Error','StackTrace'
     )
     foreach ($key in $Config.Keys) {
-        if ($key -in $reservedConfigVariableNames) {
-            Add-StartupWarning "Config key '$key' collides with a reserved PowerShell variable and was ignored."
+        $keyName = [string]$key
+        if ($keyName -in $reservedConfigVariableNames) {
+            Add-StartupWarning "Config key '$keyName' collides with a reserved PowerShell variable and was ignored."
+            continue
+        }
+        if ($knownConfigKeys -cnotcontains $keyName) {
+            Add-StartupWarning "Unregistered config key '$keyName' was ignored and cannot become a runtime variable."
             continue
         }
         $value = $Config[$key]
-        if ($key -in $ArrayKeys) {
+        if ($ArrayKeys -ccontains $keyName) {
             if ($null -eq $value)          { $value = @() }
             elseif ($value -isnot [array]) { $value = @($value) }
         }
         try {
-            Set-Variable -Name $key -Value $value -Scope Script
+            Set-Variable -Name $keyName -Value $value -Scope Script
         } catch {
-            Add-StartupWarning "Config key '$key' could not be applied as a variable: $($_.Exception.Message)"
+            Add-StartupWarning "Config key '$keyName' could not be applied as a variable: $($_.Exception.Message)"
         }
     }
 }

@@ -24,8 +24,14 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.core.api.commands_process import LocalApiProcessCommandPayloadMixin
 from mediapipeline.desktop.api.handler import build_local_api_handler_class
-from mediapipeline.desktop.application import MediaPipelineApplicationFacade
-from mediapipeline.desktop.local_api_main import BOOTSTRAP_SCHEMA_VERSION, bootstrap_payload, build_backend, main as local_api_main
+from mediapipeline.desktop.application import CommandResult, MediaPipelineApplicationFacade
+from mediapipeline.desktop.local_api_main import (
+    BOOTSTRAP_SCHEMA_VERSION,
+    _record_pipeline_terminal_command_evidence,
+    bootstrap_payload,
+    build_backend,
+    main as local_api_main,
+)
 from mediapipeline.desktop.models import ResolvedPaths, Snapshot
 from tests.python.desktop.application_facade_test_support import (
     COMMAND_HISTORY_ASSET_ORDER,
@@ -41,6 +47,64 @@ from tests.python.desktop.application_facade_test_support import (
 
 
 class LocalApiProcessCommandTests(LocalApiHttpTestMixin, unittest.TestCase):
+    def test_network_rerun_retry_http_route_is_strict_and_dispatches_exact_request(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root), app_version="v6-test")
+            resolved = _resolved(root)
+            dispatched: list[dict[str, object]] = []
+
+            def request_retry(_resolved_paths: ResolvedPaths, request: dict[str, object]) -> CommandResult:
+                dispatched.append(dict(request))
+                return CommandResult(
+                    command="rerun.network.retry",
+                    ok=True,
+                    message="Network CSV rerun row reopened.",
+                    data={"batch_id": request["batch_id"], "row_key": request["row_key"]},
+                )
+
+            facade.request_network_rerun_retry = request_retry  # type: ignore[method-assign]
+            server = LocalApiServer(
+                facade,
+                token="test-token",
+                resolved_provider=lambda: resolved,
+                command_journal_path=root / "RunLogs" / "local_api_command_history.json",
+            )
+            request = {
+                "batch_id": "batch-1",
+                "row_key": "row-1",
+                "request_id": "request-1",
+                "reason": "operator_requested_retry_after_source_restore",
+                "confirm_retry": True,
+            }
+            try:
+                server.start()
+                invalid_status, invalid = self._post_json(
+                    f"{server.url}/api/rerun/network/retry",
+                    {**request, "confirm_retry": "true"},
+                    token="test-token",
+                )
+                status, payload = self._post_json(
+                    f"{server.url}/api/rerun/network/retry",
+                    request,
+                    token="test-token",
+                )
+            finally:
+                server.stop()
+
+        self.assertEqual(invalid_status, 400)
+        self.assertEqual(invalid["path"], "/api/rerun/network/retry")
+        self.assertIn("confirm_retry", invalid["error"])
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["command"], "rerun.network.retry")
+        self.assertTrue(payload["data"]["strict_command_journal_recorded"])
+        self.assertRegex(payload["data"]["command_id"], r"^[0-9a-f]{32}$")
+        self.assertEqual(len(dispatched), 1)
+        self.assertEqual(
+            {key: dispatched[0][key] for key in request},
+            request,
+        )
+
     def test_local_api_process_commands_require_token_before_side_effects(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -80,8 +144,48 @@ class LocalApiProcessCommandTests(LocalApiHttpTestMixin, unittest.TestCase):
         self.assertFalse(side_effect_before_auth)
         self.assertEqual(ok_status, 200)
         self.assertEqual(ok["command"], "pipeline.start")
+        self.assertEqual(ok["data"]["evidence_phase"], "running")
+        self.assertEqual(service.started_pipeline["command_id"], ok["data"]["command_id"])
         self.assertTrue(hasattr(service, "started_pipeline"))
         self.assertEqual(service.started_pipeline["mode"], "validate")
+
+    def test_pipeline_terminal_command_evidence_is_correlated_and_durable(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+            resolved = _resolved(root)
+            server = LocalApiServer(
+                facade,
+                token="test-token",
+                resolved_provider=lambda: resolved,
+                command_journal_path=root / "RunLogs" / "local_api_command_history.json",
+            )
+
+            _record_pipeline_terminal_command_evidence(
+                server,
+                command_id="command-completed",
+                phase="completed",
+                return_code=0,
+                pid=1234,
+                mode="once",
+            )
+            _record_pipeline_terminal_command_evidence(
+                server,
+                command_id="command-failed",
+                phase="failed",
+                return_code=76,
+                pid=1235,
+                mode="once",
+            )
+            commands = server.command_journal.to_mapping(limit=5)
+
+        self.assertEqual([entry["data"]["command_id"] for entry in commands["entries"]], ["command-failed", "command-completed"])
+        self.assertEqual(commands["entries"][0]["data"]["evidence_phase"], "failed")
+        self.assertFalse(commands["entries"][0]["ok"])
+        self.assertEqual(commands["entries"][1]["data"]["evidence_phase"], "completed")
+        self.assertTrue(commands["entries"][1]["ok"])
+        self.assertEqual(commands["journal_persistence"]["json"]["status"], "ok")
 
     def test_local_api_rejects_invalid_command_payload_before_side_effects(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -122,7 +226,7 @@ class LocalApiProcessCommandTests(LocalApiHttpTestMixin, unittest.TestCase):
         self.assertEqual(entry["request"]["token"], "<redacted>")
         self.assertEqual(entry["request"]["extra_args"], "-NoDeleteSource")
 
-    def test_local_api_route_exception_is_recorded_in_command_journal(self) -> None:
+    def test_local_api_strict_route_exception_is_recorded_as_indeterminate_terminal(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             service = DummyWorkflowFacadeService(root)
@@ -150,22 +254,24 @@ class LocalApiProcessCommandTests(LocalApiHttpTestMixin, unittest.TestCase):
             finally:
                 server.stop()
 
-        self.assertEqual(status, 500)
-        self.assertEqual(payload["error"], "internal route error")
-        self.assertEqual(payload["path"], "/api/pipeline/start")
-        self.assertRegex(payload["error_id"], r"^[0-9a-f]{12}$")
+        self.assertEqual(status, 503)
+        self.assertEqual(payload["schema_version"], "desktop_command_result.v1")
+        self.assertEqual(payload["code"], "command_outcome_indeterminate")
+        self.assertEqual(payload["data"]["evidence_phase"], "indeterminate")
+        self.assertIsNone(payload["data"]["mutation_performed"])
+        self.assertTrue(payload["data"]["current_state_unverified"])
+        self.assertRegex(payload["data"]["error_id"], r"^[0-9a-f]{12}$")
         self.assertEqual(commands_status, 200)
         self.assertEqual(commands["schema_version"], "desktop_command_history.v1")
         self.assertEqual(commands["count"], 2)
         entry = commands["entries"][0]
-        self.assertEqual(entry["command"], "local_api.route_exception")
+        self.assertEqual(entry["command"], "pipeline.start")
         self.assertFalse(entry["ok"])
         self.assertEqual(entry["severity"], "error")
-        self.assertEqual(entry["refresh_hint"], "diagnostics")
-        self.assertEqual(entry["errors"], ["Internal route error."])
-        self.assertEqual(entry["data"]["path"], "/api/pipeline/start")
-        self.assertEqual(entry["data"]["status"], 500)
-        self.assertEqual(entry["data"]["error_id"], payload["error_id"])
+        self.assertEqual(entry["data"]["route"], "/api/pipeline/start")
+        self.assertEqual(entry["data"]["evidence_phase"], "indeterminate")
+        self.assertEqual(entry["data"]["error_id"], payload["data"]["error_id"])
+        self.assertTrue(entry["data"]["strict_command_journal_recorded"])
         self.assertEqual(entry["request"]["mode"], "validate")
         self.assertEqual(entry["request"]["sleep_seconds"], 1)
         self.assertNotIn("backend exploded", json.dumps(entry, sort_keys=True))

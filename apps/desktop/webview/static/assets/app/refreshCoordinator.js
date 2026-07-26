@@ -1,3 +1,4 @@
+/* global lastQueue: writable */
 /* Read-only API refresh coordination, payload shaping, and cross-page rendering handoffs. */
 function normalizeRefreshOptions(options = {}) {
   return {
@@ -29,7 +30,7 @@ const PAGE_REFRESH_REQUESTS = {
   pending: new Set(["pending publish", "completed"]),
   rename: new Set([]),
   reports: new Set(["failures", "failure artifacts", "audit results", "audit controls", "audit sources"]),
-  network: new Set(["network workers", "settings"]),
+  network: new Set(["network workers", "settings", "rerun results"]),
   libraries: new Set(["libraries summary", "libraries route map", "settings"]),
   schedule: new Set(["schedule", "watch folders", "settings"]),
   settings: new Set(["settings", "preset library"]),
@@ -74,7 +75,6 @@ async function refreshLiveRunTail(refreshOptions = {}) {
       stdoutTail: lastStdoutTail,
     };
     renderLiveWorkHomeSummary(liveRunContext);
-    renderHomeNextQueue({ ...liveRunContext, queue: lastQueue || {} });
   } catch (_error) {
     // The full refresh path owns route error reporting; this fast path keeps Home responsive.
   }
@@ -83,9 +83,9 @@ async function refreshLiveRunTail(refreshOptions = {}) {
 async function refreshAll(options = {}) {
   const refreshOptions = normalizeRefreshOptions(options);
   if (refreshInFlight) {
-    if (refreshOptions.automatic) return;
+    if (refreshOptions.automatic && !refreshOptions.queueRefresh) return;
     refreshQueued = true;
-    refreshQueuedOptions = mergeRefreshOptions(refreshQueuedOptions, refreshOptions);
+    refreshQueuedOptions = mergeRefreshOptions(refreshQueuedOptions || {}, refreshOptions);
     return;
   }
   refreshInFlight = true;
@@ -121,6 +121,9 @@ async function refreshAllNow(options = {}) {
   const refreshStartedMs = Date.now();
   const refreshStartScrollSnapshot = window.mediaPipelineDom?.captureScrollablePositions?.();
   renderRefreshInProgress(refreshOptions);
+  const runMonitorRequest = refreshPage === "home"
+    ? window.mediaPipelineRunMonitor?.refresh?.({ automatic: true })
+    : null;
   void refreshLiveRunTail(refreshOptions);
   window.mediaPipelineDom?.restoreScrollablePositions?.(refreshStartScrollSnapshot);
   const failureSourceMarkers = Boolean(byId("failure-source-markers")?.checked);
@@ -217,10 +220,11 @@ async function refreshAllNow(options = {}) {
   }
   if (values.commands) window.mediaPipelineCommandHistory?.renderCommandHistoryPayload?.(values.commands);
   if (values["rerun results"]) window.mediaPipelineQueueView?.renderRerunResults?.(values["rerun results"]);
+  const metricsRequested = requests.some(([name]) => name === "metrics");
   const metricsFailure = failures.find((item) => item.name === "metrics");
   if (values.metrics) {
     window.mediaPipelineMetricsView?.renderMetrics?.(values.metrics);
-  } else {
+  } else if (metricsRequested) {
     window.mediaPipelineMetricsView?.renderMetricsUnavailable?.(
       metricsFailure?.message || "Metrics route returned no current payload.",
     );
@@ -237,6 +241,7 @@ async function refreshAllNow(options = {}) {
     window.mediaPipelineCompletedView?.renderCompleted?.(values.completed);
     window.mediaPipelineProvenanceView?.renderCompletedProvenance?.(window.mediaPipelineCompletedView?.getSelectedCompletedRow?.());
   }
+  window.mediaPipelineRunMonitor?.reapplyTerminalHandoff?.("completed");
   // Reuse the final-library promotion status attached to the completed payload:
   // the completed read already computes it via the same builder
   // (annotate_final_library_promotion_rows -> get_final_library_promotion_status),
@@ -295,7 +300,9 @@ async function refreshAllNow(options = {}) {
       failures.find((item) => item.name === "audit sources")?.message || "Audit sources are unavailable.",
     );
   }
+  window.mediaPipelineRunMonitor?.reapplyTerminalHandoff?.("reports");
   if (values["pending publish"] || pendingPublishFailure) renderPendingPublish(pendingPublishPayload, values.snapshot || lastSnapshot);
+  window.mediaPipelineRunMonitor?.reapplyTerminalHandoff?.("pending");
   renderHomePendingCount(pendingPublishPayload);
   if (values.schedule) {
     lastSchedule = values.schedule;
@@ -372,11 +379,10 @@ async function refreshAllNow(options = {}) {
   renderLiveWorkHomeSummary(liveRunContext);
   const launchPanel = document.querySelector('[data-page-panel="launch"]');
   const launchVisible = Boolean(launchPanel && !launchPanel.hidden && launchPanel.getAttribute("aria-hidden") !== "true");
-  const launchAlertVisible = Boolean(document.querySelector(".launch-preflight-startup-alert"));
   const launchView = window.mediaPipelineLaunchView || {};
   if (
     typeof launchView.refreshLaunchBackendPreflight === "function"
-    && (!refreshOptions.automatic || launchVisible || launchAlertVisible)
+    && (!refreshOptions.automatic || launchVisible)
   ) {
     try {
       await launchView.refreshLaunchBackendPreflight();
@@ -471,9 +477,9 @@ async function refreshAllNow(options = {}) {
     stdoutTail: values["last stdout tail"] || lastStdoutTail,
     failures,
   };
-  renderHomeNextQueue(dashboardContext);
   renderHomeStorageHealth(dashboardContext);
   renderDailyDriverReadiness(dashboardContext);
+  if (runMonitorRequest && typeof runMonitorRequest.then === "function") await runMonitorRequest;
   window.mediaPipelineDom?.applyProseBoxDispositions?.(document);
   } finally {
     window.mediaPipelineDom?.restoreScrollablePositions?.(scrollSnapshot);

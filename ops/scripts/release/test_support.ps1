@@ -256,6 +256,37 @@ function Invoke-PythonUnittestDiscovery {
     Invoke-PythonModuleCheck -Label "$Label unit tests" -Module 'unittest' -Arguments @('discover', '-s', $RelativePath, '-p', 'test_*.py') -Required:$Required
 }
 
+function Invoke-PythonPytestStyleTests {
+    param(
+        [switch]$Required
+    )
+
+    $missingRoots = @(
+        @(
+            'tests\python',
+            'tests\webview'
+        ) | Where-Object {
+            -not (Test-Path -LiteralPath (Join-Path $script:BundleRoot $_) -PathType Container)
+        }
+    )
+    if ($missingRoots.Count -gt 0) {
+        $message = "pytest-style tests skipped; required test roots are missing: $($missingRoots -join ', ')"
+        if ($Required) {
+            Write-Fail $message
+            $script:Failed = $true
+        } else {
+            Record-ReleaseGateSkip $message
+        }
+        return
+    }
+
+    Invoke-PythonModuleCheck `
+        -Label 'pytest-style Python tests' `
+        -Module 'mediapipeline.tools.dev.pytest_style_tests' `
+        -Arguments @('--run') `
+        -Required:$Required
+}
+
 function Get-ObjectPropertyValue {
     param(
         $Object,

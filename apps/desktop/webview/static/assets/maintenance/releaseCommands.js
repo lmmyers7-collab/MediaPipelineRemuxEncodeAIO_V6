@@ -575,7 +575,7 @@
   }
 
   async function openDependencyAtlasFolder() {
-    if (dependencyAtlasOpenInFlight) return;
+    if (state.dependencyAtlasOpenInFlight) return;
     setDependencyAtlasOpenBusy(true);
     const previousDetail = byId("dependency-atlas-detail")?.textContent || "";
     setMaintenanceStatusText("dependency-atlas-status", "Opening...", "running");

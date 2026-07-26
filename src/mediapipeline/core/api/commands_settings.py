@@ -254,14 +254,15 @@ class LocalApiSettingsCommandPayloadMixin:
         if resolved is None:
             return resolved_paths_unavailable_payload("settings.save_patch", "settings")
         payload = self.facade.save_settings_patch(resolved, request).to_mapping()
-        if payload.get("ok") and self.resolved_reload is not None:
+        writes_config = dict(payload.get("data") or {}).get("writes_config") is True
+        if payload.get("ok") and writes_config and self.resolved_reload is not None:
             try:
                 reloaded = self.resolved_reload()
                 payload = settings_save_reload_success_payload(payload, reloaded)
             except Exception as exc:
                 self.logger.exception("local API settings reload after save failed")
                 payload = settings_save_reload_failure_payload(payload, exc)
-        elif payload.get("ok"):
+        elif payload.get("ok") and writes_config:
             data = dict(payload.get("data") or {})
             data["reloaded"] = False
             data["reload_config_digest"] = ""
@@ -283,6 +284,23 @@ class LocalApiSettingsCommandPayloadMixin:
                 "Use Reload From Disk to apply."
             )
             payload = {**payload, "data": data, "warnings": warnings}
+        elif payload.get("ok"):
+            data = dict(payload.get("data") or {})
+            data["reloaded"] = False
+            data["reload_config_digest"] = ""
+            data["reload_verification_digest"] = ""
+            data["reload_config_verified"] = False
+            verification = dict(data.get("save_verification") or {})
+            verification.update(
+                {
+                    "reload_config_digest": "",
+                    "reload_verification_digest": "",
+                    "verified_from_reload": False,
+                    "verification_reason": "No backend reload was needed because no settings artifact was written.",
+                }
+            )
+            data["save_verification"] = verification
+            payload = {**payload, "data": data}
         return payload
 
     def _settings_import_psd1_preview_payload(self, request: dict[str, Any]) -> dict[str, Any]:

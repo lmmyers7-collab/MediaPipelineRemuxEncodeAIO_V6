@@ -5,6 +5,7 @@
       appendCommandResult,
       apiClient,
       byId,
+      makeRowSelectable,
       setDiagnosticsPanelStatus,
       setInlineActionStatus,
       setText,
@@ -360,6 +361,7 @@
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
       checkbox.checked = Boolean(item.finding_key && tdarrMatrixConsoleState.selectedFindingKeys.has(item.finding_key));
+      checkbox.setAttribute("aria-label", `Select ${item.finding_key || "this finding"} for targeted rerun`);
       selectCell.title = "Select this finding for targeted rerun.";
       const updateCheckboxSelection = () => {
         if (!item.finding_key) return;
@@ -392,10 +394,27 @@
       appendTdarrMatrixAuditFindingCell(row, tdarrMatrixAuditFindingRoute(item));
       appendTdarrMatrixAuditFindingCell(row, tdarrMatrixAuditFindingMessage(item));
       appendTdarrMatrixAuditFindingCell(row, item.source_name || item.generated_path, item.generated_path || item.source_path);
-      row.addEventListener("click", () => {
+      const selectFinding = () => {
         tdarrMatrixConsoleState.selectedFindingKey = item.finding_key || "";
         renderTdarrMatrixAuditFindings({ findings: tdarrMatrixConsoleState.findings });
-      });
+      };
+      if (typeof makeRowSelectable === "function") {
+        makeRowSelectable(row, selectFinding, {
+          selected: Boolean(item.finding_key && item.finding_key === tdarrMatrixConsoleState.selectedFindingKey),
+          label: `Inspect Tdarr Matrix finding ${item.finding_key || item.code || "row"}`,
+        });
+      } else {
+        row.tabIndex = 0;
+        row.setAttribute("role", "row");
+        row.setAttribute("aria-selected", item.finding_key === tdarrMatrixConsoleState.selectedFindingKey ? "true" : "false");
+        row.addEventListener("click", selectFinding);
+        row.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            selectFinding();
+          }
+        });
+      }
       body.appendChild(row);
     });
     const shown = rows.length;

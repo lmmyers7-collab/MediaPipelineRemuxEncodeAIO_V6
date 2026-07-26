@@ -1,16 +1,20 @@
 ---
 file: ops/pipeline/engine/rerun/planning.ps1
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: PowerShell
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: rerun
-last_modified: 2026-07-11
+last_modified: 2026-07-23
 last_reviewed: 2026-07-11
-sha256: dcde181b3a75824b2f81a0291821b4ead55f5bbb4733a359f190c511e8805ea0
+sha256: 30926208abe1015413a4b0efdb89e035a1d60868f207fdc8382899a80f3d3a03
 ---
 # `ops/pipeline/engine/rerun/planning.ps1`
 
-**Purpose:** (no .SYNOPSIS block)
+**Purpose:** PowerShell implementation for planning; exposes Complete-RerunPlans, Invoke-RerunStagePlans, Merge-RerunReplannedPlan.
 
-**Functions:** `Complete-RerunPlans`, `Invoke-RerunStagePlans`, `Resolve-RerunFinalOutputPathFromRow`, `Resolve-RerunPlans`, `Resolve-RerunProducedOutput`
+**Public symbols:** `Complete-RerunPlans`, `Invoke-RerunStagePlans`, `Merge-RerunReplannedPlan`, `Resolve-RerunFinalOutputPathFromRow`, `Resolve-RerunPlans`, `Resolve-RerunProducedOutput`, `Set-RerunPlanningFailure`
+**Invoked stages:** `Root`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/pipeline/engine/rerun/planning.ps1`._

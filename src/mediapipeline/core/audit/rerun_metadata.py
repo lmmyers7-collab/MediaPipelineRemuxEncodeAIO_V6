@@ -8,7 +8,16 @@ from typing import Any
 from mediapipeline.core.paths.contracts import ResolvedPaths
 from mediapipeline.core.audit.rerun_contracts import RerunMetadataServiceProtocol, RunCaptureFunc
 from mediapipeline.core.audit.rerun_file_io import atomic_write_text, read_json_file
+from mediapipeline.core.audit.rerun_csv import (
+    normalize_source_content_sha256,
+    normalize_source_content_sha256_algorithm,
+)
 from mediapipeline.core.kernel.runtime.subprocess_runner import run_capture
+
+
+RERUN_METADATA_TIMEOUT_BASE_SECONDS = 300.0
+RERUN_METADATA_TIMEOUT_PER_SOURCE_SECONDS = 7200.0
+RERUN_METADATA_TIMEOUT_MAX_SECONDS = 86400.0
 
 
 def rerun_source_metadata_script_path_for_service(service: RerunMetadataServiceProtocol, resolved: ResolvedPaths) -> Path:
@@ -44,7 +53,10 @@ def load_rerun_source_metadata_for_service(
 
     script_path = service._rerun_source_metadata_script_path(resolved)
     if not resolved.powershell_host or not script_path.exists():
-        service.logger.warning("Rerun source metadata helper unavailable; exported CSV will rely on source size/mtime only.")
+        service.logger.warning(
+            "Rerun source metadata helper unavailable; exported CSV rows will be disabled without "
+            "full-content SHA-256 evidence."
+        )
         return {}
 
     with tempfile.TemporaryDirectory(prefix="mediapipeline-rerun-metadata-") as tmp_dir:
@@ -69,7 +81,11 @@ def load_rerun_source_metadata_for_service(
             "-OutputJsonPath",
             str(output_path),
         ]
-        timeout_seconds = max(30.0, min(1800.0, 15.0 * len(unique_paths)))
+        timeout_seconds = min(
+            RERUN_METADATA_TIMEOUT_MAX_SECONDS,
+            RERUN_METADATA_TIMEOUT_BASE_SECONDS
+            + (RERUN_METADATA_TIMEOUT_PER_SOURCE_SECONDS * len(unique_paths)),
+        )
         launch_cwd = service.workspace_root if service.workspace_root.exists() else service.app_root
         try:
             result = run_capture_func(
@@ -104,5 +120,30 @@ def load_rerun_source_metadata_for_service(
             continue
         source_path = str(row.get("source_path") or "").strip()
         if source_path:
-            metadata[source_path.casefold()] = row
+            normalized_row = dict(row)
+            raw_content_sha256 = str(row.get("source_content_sha256") or "").strip()
+            content_sha256 = normalize_source_content_sha256(raw_content_sha256)
+            raw_content_sha256_algorithm = str(
+                row.get("source_content_sha256_algorithm") or ""
+            ).strip()
+            content_sha256_algorithm = normalize_source_content_sha256_algorithm(
+                raw_content_sha256_algorithm
+            )
+            if not content_sha256_algorithm:
+                content_sha256 = ""
+            normalized_row["source_content_sha256"] = content_sha256
+            normalized_row["source_content_sha256_algorithm"] = content_sha256_algorithm
+            if not content_sha256 or not content_sha256_algorithm:
+                normalized_row["source_content_sha256_algorithm"] = ""
+                if not content_sha256_algorithm:
+                    reason = "invalid source_content_sha256_algorithm"
+                else:
+                    reason = (
+                        "invalid source_content_sha256"
+                        if raw_content_sha256
+                        else "missing source_content_sha256"
+                    )
+                existing_error = str(normalized_row.get("error") or "").strip()
+                normalized_row["error"] = f"{existing_error}; {reason}".strip("; ")
+            metadata[source_path.casefold()] = normalized_row
     return metadata

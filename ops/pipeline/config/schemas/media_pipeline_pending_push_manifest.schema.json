@@ -16,6 +16,8 @@
     "source_identity_v2_algorithm",
     "source_path",
     "output_size",
+    "output_sha256",
+    "output_hash_algorithm",
     "sidecar_files",
     "tx3g_srt_tracks",
     "tx3g_srt_failures",
@@ -80,11 +82,15 @@
       "items": {
         "type": "object",
         "additionalProperties": true,
+        "required": ["local_file", "server_out", "output_size", "output_sha256", "output_hash_algorithm"],
         "properties": {
-          "local_file": { "type": "string" },
+          "local_file": { "type": "string", "minLength": 1 },
           "original_local_file": { "type": "string" },
           "parked_file": { "type": "string" },
-          "server_out": { "type": "string" }
+          "server_out": { "type": "string", "minLength": 1 },
+          "output_size": { "type": "integer", "minimum": 0 },
+          "output_sha256": { "type": "string", "pattern": "^[A-Fa-f0-9]{64}$" },
+          "output_hash_algorithm": { "type": "string", "enum": ["SHA256"] }
         }
       }
     },

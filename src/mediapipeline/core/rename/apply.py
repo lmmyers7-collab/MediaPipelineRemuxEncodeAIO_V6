@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import json
+import re
 import tempfile
 import uuid
 from pathlib import Path
 from typing import Any
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 
 from mediapipeline.core.paths.layout import ensure_path_boundary_safe_for_mutation
 from mediapipeline.core.rename.constants import RENAME_TOOL_SIDECAR_SCHEMA_VERSION
@@ -95,6 +96,8 @@ def update_pipeline_sidecar_after_rename(path: Path, payload: dict[str, Any], de
             "renamed_path": payload["RenamedPath"],
             "final_name": payload["FinalName"],
             "force_pipeline_name": payload["ForcePipelineName"],
+            "tv_identity": payload.get("TVIdentity"),
+            "destination_identity_key": payload.get("DestinationIdentityKey", ""),
         }
     )
     existing["rename_history"] = history[-25:]
@@ -141,8 +144,9 @@ def build_rename_operations(
     *,
     same_file: SameFileFunc,
     casefold_path: PathKeyFunc,
-) -> list[dict[str, Path | str]]:
-    operations: list[dict[str, Path | str]] = []
+) -> list[dict[str, Any]]:
+    _reject_overlapping_tv_identities(plan)
+    operations: list[dict[str, Any]] = []
     destination_keys: set[str] = set()
     for row in plan:
         source = Path(row["source"])
@@ -159,7 +163,25 @@ def build_rename_operations(
             destination_keys.add(key)
             if destination.exists() and not same_file(source, destination):
                 raise FileExistsError(f"Destination already exists: {destination}")
-            operations.append({"kind": "media", "source": source, "destination": destination, "boundary_root": boundary_root})
+            parsed_identity = row.get("parsed_identity")
+            if not isinstance(parsed_identity, Mapping):
+                parsed_identity = row.get("tv_identity")
+            identity_payload = dict(parsed_identity) if isinstance(parsed_identity, Mapping) else None
+            operations.append(
+                {
+                    "kind": "media",
+                    "source": source,
+                    "destination": destination,
+                    "boundary_root": boundary_root,
+                    "parsed_identity": identity_payload,
+                    "tv_identity": (
+                        dict(row["tv_identity"])
+                        if isinstance(row.get("tv_identity"), Mapping)
+                        else identity_payload
+                    ),
+                    "destination_identity_key": str(row.get("destination_identity_key") or ""),
+                }
+            )
         if row.get("rename_sidecars"):
             for move in row.get("sidecar_moves") or []:
                 sidecar_source = Path(str(move["source"]))
@@ -178,8 +200,43 @@ def build_rename_operations(
     return operations
 
 
+def _parsed_tv_interval(row: Mapping[str, Any]) -> tuple[str, int, int, int] | None:
+    identity = row.get("parsed_identity")
+    if not isinstance(identity, Mapping):
+        identity = row.get("tv_identity")
+    if not isinstance(identity, Mapping):
+        return None
+    show = re.sub(r"[^a-z0-9]+", " ", str(identity.get("show") or "").casefold()).strip()
+    try:
+        season = int(identity.get("season"))
+        episode_start = int(identity.get("episode_start") or identity.get("episode"))
+        episode_end = int(identity.get("episode_end") or episode_start)
+    except (TypeError, ValueError):
+        return None
+    if not show or season < 0 or episode_start < 1 or episode_end < episode_start:
+        return None
+    return show, season, episode_start, episode_end
+
+
+def _reject_overlapping_tv_identities(plan: list[dict[str, Any]]) -> None:
+    intervals: list[tuple[dict[str, Any], tuple[str, int, int, int]]] = []
+    for row in plan:
+        interval = _parsed_tv_interval(row)
+        if interval is None:
+            continue
+        for previous_row, previous in intervals:
+            same_series = interval[:2] == previous[:2]
+            overlaps = interval[2] <= previous[3] and previous[2] <= interval[3]
+            if same_series and overlaps:
+                raise RuntimeError(
+                    "Two rename operations have overlapping TV episode identities: "
+                    f"{previous_row.get('source')} and {row.get('source')}"
+                )
+        intervals.append((row, interval))
+
+
 def rollback_rename_operations(
-    completed_ops: list[dict[str, Path | str]],
+    completed_ops: list[dict[str, Any]],
     *,
     rename_path: RenamePathFunc,
     same_file: SameFileFunc,

@@ -1,0 +1,39 @@
+{
+  "id": "MP-CHANGE-2026-0720-008",
+  "title": "Adversarial shell backend lifecycle ownership",
+  "version_target": "2026.07.20.003",
+  "status": "planned",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-20",
+  "date_completed": null,
+  "summary": "",
+  "reason": "",
+  "affected_areas": [
+    "api",
+    "desktop",
+    "tauri",
+    "tests"
+  ],
+  "behavior_before": "",
+  "behavior_after": "",
+  "files_touched": [
+    "apps/desktop/tauri/src-tauri/src/backend_process.rs",
+    "apps/desktop/tauri/src-tauri/src/backend_process/tests.rs",
+    "apps/desktop/tauri/src-tauri/src/close_readiness.rs",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0720-008.json",
+    "src/mediapipeline/core/api/command_results.py",
+    "src/mediapipeline/core/api/commands_process.py",
+    "src/mediapipeline/desktop/backend_instance.py",
+    "src/mediapipeline/desktop/local_api_main.py",
+    "tests/python/desktop/test_application_facade_local_api_http.py",
+    "tests/python/desktop/test_application_facade_local_api_lifecycle.py",
+    "tests/python/desktop/test_backend_instance_ownership.py",
+    "tests/python/desktop/test_tauri_shell_scaffold.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [],
+  "rollback_plan": "",
+  "related_changes": [],
+  "notes": "Add red forced-shutdown cleanup failure, false-result, and post-cleanup readiness regressions for CPA-2026-07-19-005.\nAdd red fake-child and fake-clock wait/error/termination lifecycle regressions for CPA-2026-07-19-006.\nAdd red deterministic backend-instance ownership, stale metadata, crash/restart, and cleanup-race regressions for CPA-2026-07-19-004.\nAdd red malformed close-readiness fail-closed parser regressions.\nAdd backend-owned OS lease plus stale-tolerant lifecycle metadata.\nAcquire backend ownership before initialization and retain it through cleanup.\nFail forced shutdown closed on cleanup errors or unsafe post-cleanup readiness; preserve unrelated run-monitor edits.\nPublish explicit cleanup uncertainty and reconciliation-required failure evidence.\nReplace boolean wait collapse with fakeable three-state child polling and verified termination ownership transitions.\nParse malformed close-readiness through a directly tested fail-closed boundary.\nKeep Local API main lifecycle test isolated from the production backend mutex and assert ownership persists through cleanup.\nUpdate lifecycle scaffold assertions for verified-exit and retained-ownership semantics."
+}

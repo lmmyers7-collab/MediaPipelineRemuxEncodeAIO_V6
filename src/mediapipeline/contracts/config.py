@@ -18,6 +18,7 @@ from mediapipeline.contracts.config_coercion import (
 )
 from mediapipeline.contracts.config_defaults import (
     _list_default,
+    _normalize_legacy_packaged_rename_movie_remove_terms,
     _rename_movie_filter_options_default,
     _rename_movie_remove_terms_default,
     _rename_tv_filter_options_default,
@@ -292,6 +293,7 @@ class Config(BaseModel):
 
     DebugMode: bool = True
     LogRetentionDays: int = Field(default=7, ge=0)
+    InterruptedToolLogRetentionDays: int = Field(default=3, ge=1, le=365)
     PipelineDebugLogMaxBytes: int = Field(default=104857600, ge=1048576, le=2147483647)
     FailureArtifactWarningThresholdGB: int = Field(default=100, ge=0)
     FailureArtifactRetentionDays: int = Field(default=0, ge=0)
@@ -371,6 +373,7 @@ class Config(BaseModel):
     PauseFlagBlockSeconds: int = Field(default=21600, ge=300, le=604800)
     LocalWorkerHeartbeatGraceSeconds: int = Field(default=900, ge=60, le=86400)
     QueueExecutionMaxRunnablePerRound: int = Field(default=500, ge=1, le=1000000)
+    QueueLaunchSnapshotFreshnessSeconds: int = Field(default=60, ge=15, le=3600)
     StateDbMaintenanceIntervalSeconds: int = Field(default=21600, ge=60, le=604800)
     StateDbWalReviewBytes: int = Field(default=33554432, ge=1048576, le=2147483647)
     StateDbCompletedJobsMaxRows: int = Field(default=250000, ge=1000, le=10000000)
@@ -448,7 +451,8 @@ class Config(BaseModel):
     @field_validator("RenameMovieRemoveTerms")
     @classmethod
     def _normalize_rename_movie_remove_terms(cls, value: list[str]) -> list[str]:
-        return _normalize_config_term_list(value)
+        normalized = _normalize_config_term_list(value)
+        return _normalize_legacy_packaged_rename_movie_remove_terms(normalized)
 
     @field_validator("RenameTVFilterOptions", mode="before")
     @classmethod

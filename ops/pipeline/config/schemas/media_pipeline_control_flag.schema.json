@@ -20,6 +20,7 @@
       "enum": [
         "pause",
         "stop",
+        "stop_after_current",
         "rescan"
       ]
     },
@@ -41,6 +42,58 @@
         "null"
       ],
       "minimum": 0
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "target_pid": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1
+    },
+    "target_launch_id": {
+      "type": "string"
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "action": {
+            "const": "stop_after_current"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      },
+      "then": {
+        "anyOf": [
+          {
+            "properties": {
+              "run_id": {
+                "minLength": 1
+              }
+            },
+            "required": [
+              "run_id"
+            ]
+          },
+          {
+            "properties": {
+              "target_pid": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "target_pid"
+            ]
+          }
+        ]
+      }
+    }
+  ]
 }

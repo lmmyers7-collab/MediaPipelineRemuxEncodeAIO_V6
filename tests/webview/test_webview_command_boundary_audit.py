@@ -30,6 +30,57 @@ def _contract_routes() -> set[tuple[str, str]]:
 
 
 class WebViewCommandBoundaryAuditTests(unittest.TestCase):
+    def _run_audit_module(self, body: str) -> subprocess.CompletedProcess[str]:
+        module_uri = AUDIT_SCRIPT.as_uri()
+        script = f"import * as audit from {json.dumps(module_uri)};{body}"
+        try:
+            return subprocess.run(
+                ["node", "--input-type=module", "-e", script],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=120,
+                check=False,
+            )
+        except FileNotFoundError as error:
+            raise unittest.SkipTest(
+                "Node.js is required for the WebView command-boundary audit"
+            ) from error
+
+    def test_route_contract_match_requires_exact_http_method(self) -> None:
+        result = self._run_audit_module(
+            """
+            const contracts = [
+              { method: "GET", path: "/api/example", effect: "read" },
+              { method: "POST", path: "/api/write", effect: "config-write" },
+            ];
+            console.log(JSON.stringify({
+              postToGet: audit.matchRouteContract(contracts, "POST", "/api/example"),
+              getToPost: audit.matchRouteContract(contracts, "GET", "/api/write"),
+              exactGet: audit.matchRouteContract(contracts, "GET", "/api/example"),
+              priorityExportGetOwners: audit.allowedOwnersForRoute("/api/queue/priority-export", "GET"),
+              priorityExportPostOwners: audit.allowedOwnersForRoute("/api/queue/priority-export", "POST"),
+            }));
+            """
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        matches = json.loads(result.stdout.strip())
+        self.assertIsNone(matches["postToGet"]["contract"])
+        self.assertEqual(matches["postToGet"]["availableMethods"], ["GET"])
+        self.assertIsNone(matches["getToPost"]["contract"])
+        self.assertEqual(matches["getToPost"]["availableMethods"], ["POST"])
+        self.assertEqual(matches["exactGet"]["contract"]["effect"], "read")
+        self.assertEqual(matches["exactGet"]["availableMethods"], [])
+        self.assertEqual(matches["priorityExportGetOwners"], ["Launch"])
+        self.assertEqual(matches["priorityExportPostOwners"], ["Queue"])
+
+        audit_source = AUDIT_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn(
+            "matchRouteContract(contracts, method, normalized)", audit_source
+        )
+        self.assertNotIn("routeContractsByPath", audit_source)
+
     def test_generated_audit_is_current_and_clean(self) -> None:
         result: subprocess.CompletedProcess[str] | None = None
         try:

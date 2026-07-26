@@ -53,6 +53,7 @@ from .identity import WORKER_ID_PATTERN as _WORKER_ID_PATTERN
 from .identity import WORKER_NAME_MAX_LEN as _WORKER_NAME_MAX_LEN
 from .identity import WORKER_NAME_PATTERN as _WORKER_NAME_PATTERN
 from .registry import InFlightRegistry
+from .rerun_claims import reconcile_orphaned_network_rerun_destination_policies
 
 if TYPE_CHECKING:
     from ..app import MediaPipelineApp
@@ -131,6 +132,7 @@ class CoordinatorDispatcher(
         # Crash-recovery: restore any jobs that were in-flight when the
         # coordinator last exited unexpectedly.
         self._restore_inflight_state()
+        reconcile_orphaned_network_rerun_destination_policies(self._app)
 
         # Start the coordinator HTTP server first. If a later startup step
         # fails, tear it back down so we do not leave a half-initialized

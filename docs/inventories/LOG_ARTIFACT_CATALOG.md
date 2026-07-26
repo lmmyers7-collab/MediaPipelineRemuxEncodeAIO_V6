@@ -1,6 +1,6 @@
 # Log Artifact Catalog
 
-Date: 2026-05-14
+Date: 2026-07-15
 
 Documents every log file, state file, and runtime artifact produced by MediaPipelineRemuxEncodeAIO: path pattern, producer service, WebView reader (if any), safe interpretation notes, and staleness behavior. Source: `contracts/`, `services/service_process_*.py`, `services/service_path_*.py`, `services/service_status_*.py`.
 
@@ -15,10 +15,14 @@ Path notation: `{local_base}` is the configured LocalBase (scratch root). `{stat
   State/
     ActiveJobs/         ← One JSON per running job
     Progress/           ← pipeline_progress.json, pipeline_events.jsonl, queue_snapshot.json
-    Pipeline/           ← Control flag files (pause, stop, rescan)
+    Pipeline/           ← Control flags plus native-tool diagnostic lifecycle
+      ToolLogs/
+        Active/         ← Live native-tool captures; never failure evidence by presence alone
+        Interrupted/    ← Stopped/force-terminated captures retained for short-term diagnostics
     Completed/          ← completed_jobs.jsonl (append-only manifest)
     PendingServerPush/  ← One JSON per parked output
     Failures/
+      Artifacts/        ← Captures promoted only after an actual tool failure/timeout/runner exception
       Reports/          ← round_failures_*.json, round_failures_*.txt
       Markers/          ← Per-source failure marker files
       ResolutionJournal/ ← Failure Resolution Center lifecycle events
@@ -136,6 +140,21 @@ Path notation: `{local_base}` is the configured LocalBase (scratch root). `{stat
 | **WebView access** | `GET /api/failures` (processed); `POST /api/diagnostics/open` (`failed_reports` target, `latest_failure_report` target, `latest_failure_json` target); `GET /api/diagnostics/tail` (`latest_failure_json`, `latest_failure_report` targets) |
 | **Staleness** | Written per failure round. The `latest_failure_json` and `latest_failure_report` targets always resolve to the most recent file by modification time. |
 | **Safe interpretation** | A failure report confirms the pipeline encountered an error for the named source. It does not mean the source is permanently unprocessable — the failure may be transient. |
+
+---
+
+### Native-Tool Diagnostic Captures
+
+| Field | Value |
+|---|---|
+| **Live path** | `{state_root}/Pipeline/ToolLogs/Active/*.log`; worker children use `{state_root}/Workers/slot-<n>/Logs/ToolLogs/Active/*.log` |
+| **Interrupted path** | `{state_root}/Pipeline/ToolLogs/Interrupted/*.log`; worker children use the equivalent slot-local path |
+| **Failure path** | `{state_root}/Failures/Artifacts/*.log`; worker children use their slot-local `Failures/Artifacts` path |
+| **Format** | Plain text streamed from native-tool stderr |
+| **Producer** | PowerShell native-tool wrapper (`tool_log_lifecycle.ps1`, currently FFmpeg integration) |
+| **WebView access** | No direct file route. `tool_started`/`tool_completed` events carry `diagnostic_log_path` and `diagnostic_log_disposition` evidence. |
+| **Staleness** | Successful captures are deleted. Operator stops move captures to `Interrupted`. Forced termination can leave `Active` files; the next exclusive startup reconciles them to `Interrupted`. Interrupted files older than `InterruptedToolLogRetentionDays` are deleted (default 3 days). |
+| **Safe interpretation** | An `Active` capture means a tool started or the prior process ended before finalization; it is not a failure report. Only a `failure` disposition promotes the capture into `Failures/Artifacts`. |
 
 ---
 

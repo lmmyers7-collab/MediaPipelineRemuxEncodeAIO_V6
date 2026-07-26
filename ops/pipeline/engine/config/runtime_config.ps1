@@ -71,6 +71,7 @@ $script:DoviToolPath = if ($config.ContainsKey('DoviToolPath')) { [string]$confi
 $script:Hdr10PlusToolPath = if ($config.ContainsKey('Hdr10PlusToolPath')) { [string]$config['Hdr10PlusToolPath'] } else { '' }
 $script:MergeThresholdMs  = Get-ConfigInt  'MergeThresholdMs'  150 0 5000
 $script:LogRetentionDays  = Get-ConfigInt  'LogRetentionDays'  7   1 365
+$script:InterruptedToolLogRetentionDays = Get-ConfigInt 'InterruptedToolLogRetentionDays' 3 1 365
 $script:FFmpegEncodeTimeoutSeconds = Get-ConfigInt 'FFmpegEncodeTimeoutSeconds' 21600 300 172800
 # CPU encodes can be 5-15x slower than NVENC. A separate ceiling lets the GPU
 # timeout stay tight without strangling a long-running libx265 fallback. If the
@@ -128,6 +129,7 @@ $script:PauseFlagReviewSeconds = Get-ConfigInt 'PauseFlagReviewSeconds' 1800 60 
 $script:PauseFlagBlockSeconds = Get-ConfigInt 'PauseFlagBlockSeconds' 21600 300 604800
 $script:LocalWorkerHeartbeatGraceSeconds = Get-ConfigInt 'LocalWorkerHeartbeatGraceSeconds' 900 60 86400
 $script:QueueExecutionMaxRunnablePerRound = Get-ConfigInt 'QueueExecutionMaxRunnablePerRound' 500 1 1000000
+$script:QueueLaunchSnapshotFreshnessSeconds = Get-ConfigInt 'QueueLaunchSnapshotFreshnessSeconds' 60 15 3600
 $script:StateDbMaintenanceIntervalSeconds = Get-ConfigInt 'StateDbMaintenanceIntervalSeconds' 21600 60 604800
 $script:StateDbWalReviewBytes = Get-ConfigInt 'StateDbWalReviewBytes' 33554432 1048576 2147483647
 $script:StateDbCompletedJobsMaxRows = Get-ConfigInt 'StateDbCompletedJobsMaxRows' 250000 1000 10000000

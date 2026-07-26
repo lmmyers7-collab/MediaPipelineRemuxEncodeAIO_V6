@@ -548,16 +548,107 @@
     renderAll();
   }
 
+  const hiddenRouteBoundaryByKey = {
+    Route1080pUpperHeightTolerancePercent: "first",
+    Route1440pLowerHeightTolerancePercent: "first",
+    Route1440pUpperHeightTolerancePercent: "second",
+    Route4KLowerHeightTolerancePercent: "second",
+  };
+  let guidedFocusGeneration = 0;
+
+  function visibleLibraryRouteTarget(target) {
+    if (!target) return null;
+    const hiddenFields = target.closest?.(".settings-library-route-hidden-fields[hidden]");
+    if (!hiddenFields) return target;
+    const key = target.getAttribute?.("data-library-override-key") || "";
+    const boundary = hiddenRouteBoundaryByKey[key] || "";
+    return boundary
+      ? target.closest?.("[data-library-id]")?.querySelector?.(`[data-library-route-boundary-input="${boundary}"]`) || null
+      : null;
+  }
+
+  function guidedFocusMovedElsewhere(target, focusTarget, focusClaimed) {
+    if (!focusClaimed) return false;
+    const active = document.activeElement;
+    return Boolean(
+      active
+      && active !== document.body
+      && active.isConnected
+      && active !== focusTarget
+      && !target.contains(active)
+    );
+  }
+
   function focusLibraryControl(libraryId, selector) {
+    const focusGeneration = ++guidedFocusGeneration;
+    const showPageLocal = typeof window.showPage === "function" ? window.showPage : null;
+    setText("settings-libraries-status", "Opening guided route control");
+    showPageLocal?.("libraries");
     selectProfile(libraryId, { source: "navigation" });
-    const target = selector ? document.querySelector(selector) : null;
-    const focusTarget = target?.matches?.("input, select, textarea, button, a") ? target : target?.querySelector?.("input, select, textarea, button, a");
-    if (target) {
-      target.scrollIntoView({ behavior: "smooth", block: "center" });
-      target.classList.add("is-selected");
-      window.setTimeout(() => target.classList.remove("is-selected"), 1600);
+    const focusAfterRender = (attemptsRemaining = 40, stableChecks = 0, focusClaimed = false) => {
+      if (focusGeneration !== guidedFocusGeneration) return;
+      let sourceTarget = null;
+      try {
+        sourceTarget = selector ? document.querySelector(selector) : null;
+      } catch (_error) {
+        sourceTarget = null;
+      }
+      const target = visibleLibraryRouteTarget(sourceTarget);
+      if (target) {
+        let ancestor = target.parentElement;
+        while (ancestor) {
+          if (ancestor.matches?.("details")) ancestor.open = true;
+          ancestor = ancestor.parentElement;
+        }
+        let focusTarget = target.matches?.("input, select, textarea, button, a")
+          ? target
+          : target.querySelector?.("[data-library-override-control], [data-library-field], input, select, textarea, button, a");
+        if (!focusTarget || focusTarget.disabled || focusTarget.hidden) {
+          target.tabIndex = -1;
+          focusTarget = target;
+        }
+        if (guidedFocusMovedElsewhere(target, focusTarget, focusClaimed)) return;
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        if (!target.classList.contains("is-selected")) {
+          target.classList.add("is-selected");
+          window.setTimeout(() => target.classList.remove("is-selected"), 1600);
+        }
+        focusTarget?.focus?.({ preventScroll: true });
+        setText("settings-libraries-status", "Guided route control focused");
+        const focused = document.activeElement === focusTarget || target.contains(document.activeElement);
+        const nextStableChecks = focused ? stableChecks + 1 : 0;
+        if (attemptsRemaining > 0) {
+          window.setTimeout(
+            () => focusAfterRender(attemptsRemaining - 1, nextStableChecks, focusClaimed || focused),
+            50,
+          );
+        }
+        return;
+      }
+
+      const profilePane = Array.from(document.querySelectorAll("[data-library-profile-pane]"))
+        .find((pane) => pane.getAttribute("data-library-profile-pane") === text(libraryId));
+      const fallback = profilePane?.querySelector?.("input, select, textarea, button, a") || profilePane;
+      profilePane?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+      fallback?.focus?.({ preventScroll: true });
+      setText("settings-libraries-status", "Guided target unavailable");
+      setStateText(
+        "library-route-map-warning-summary",
+        "Guided target unavailable. The requested profile is active; inspect its read-only route evidence or choose another guided control.",
+        "warning"
+      );
+      if (attemptsRemaining > 0) {
+        window.setTimeout(
+          () => focusAfterRender(attemptsRemaining - 1, 0, false),
+          50,
+        );
+      }
+    };
+    if (typeof window.requestAnimationFrame === "function") {
+      window.requestAnimationFrame(focusAfterRender);
+    } else {
+      window.setTimeout(focusAfterRender, 0);
     }
-    focusTarget?.focus?.({ preventScroll: true });
   }
 
   function initLibraryRouteMapEvents() {

@@ -9,9 +9,25 @@ from urllib.parse import urlsplit, urlunsplit
 
 _URL_RE = re.compile(r"\bhttps?://[^\s<>'\"]+", re.IGNORECASE)
 _SENSITIVE_ASSIGNMENT_RE = re.compile(
-    r"(?i)\b([A-Za-z0-9_]*(?:token|secret|password|authorization|auth|apikey|api_key)[A-Za-z0-9_]*)=([^&#\s;]+)"
+    r"(?i)\b([A-Za-z0-9_]*(?:token|secret|password|authorization|auth|credential|join_blob|joinblob|apikey|api_key)[A-Za-z0-9_]*)=([^&#\s;]+)"
 )
 _BEARER_TOKEN_RE = re.compile(r"(?i)\b(Authorization:\s*Bearer\s+)([^\s;]+)")
+_SENSITIVE_MAPPING_FIELD_RE = re.compile(
+    r'''(?ix)
+    (?P<prefix>
+        ["']?
+        [A-Za-z0-9_]*(?:token|secret|password|authorization|credential|join_blob|joinblob|apikey|api_key)[A-Za-z0-9_]*
+        ["']?\s*:\s*
+    )
+    (?P<value>
+        "(?:\\.|[^"\\])*"
+        |
+        '(?:\\.|[^'\\])*'
+        |
+        [^,}\]\s]+
+    )
+    ''',
+)
 
 
 def redact_url(value: Any) -> str:
@@ -47,9 +63,15 @@ def redact_network_secret_text(value: Any) -> str:
     def _redact_match(match: re.Match[str]) -> str:
         return redact_url(match.group(0))
 
+    def _redact_mapping_field(match: re.Match[str]) -> str:
+        raw_value = match.group("value")
+        quote = raw_value[0] if len(raw_value) >= 2 and raw_value[0] in {'"', "'"} and raw_value[-1] == raw_value[0] else ""
+        return f"{match.group('prefix')}{quote}<redacted>{quote}"
+
     redacted = _URL_RE.sub(_redact_match, text)
     redacted = _BEARER_TOKEN_RE.sub(lambda m: f"{m.group(1)}<redacted>", redacted)
-    return _SENSITIVE_ASSIGNMENT_RE.sub(lambda m: f"{m.group(1)}=<redacted>", redacted)
+    redacted = _SENSITIVE_ASSIGNMENT_RE.sub(lambda m: f"{m.group(1)}=<redacted>", redacted)
+    return _SENSITIVE_MAPPING_FIELD_RE.sub(_redact_mapping_field, redacted)
 
 
 def validate_coordinator_url(raw: str) -> str:

@@ -1,0 +1,55 @@
+{
+  "id": "MP-CHANGE-2026-0723-048",
+  "title": "Reserve standalone dispatcher claims atomically",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": "2026-07-23",
+  "summary": "Remediate AUDIT-FIND-W01-013 by giving the exported standalone QueueDispatcher a lock-backed claim, release, and terminal completion lifecycle.",
+  "reason": "The documented claim surface currently peeks at queue_records[0] without reserving it, so repeated or concurrent callers can receive the same source under distinct job IDs.",
+  "affected_areas": [
+    "dispatcher factory reachability",
+    "duplicate-work prevention",
+    "generated source summaries and change-control evidence",
+    "standalone QueueDispatcher public contract",
+    "synthetic queue claim ownership"
+  ],
+  "behavior_before": "Standalone claims leave the queue head visible, mark_done is a no-op, and concurrent calls can claim one record repeatedly.",
+  "behavior_after": "A successful claim removes exactly one record under a lock, tracks it by job ID, release restores it at most once, and mark_done terminalizes ownership without restoring the record.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/feature-cards/network-mode.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/standalone.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_network_workflow.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-048.json",
+    "src/mediapipeline/desktop/network/standalone.py",
+    "tests/python/desktop/test_network_workflow.py"
+  ],
+  "tests_added": [
+    "claim removes and reserves exactly one synthetic record",
+    "concurrent claims return unique records",
+    "public get_dispatcher factory reachability and standalone lifecycle smoke",
+    "release restores once and mark_done terminalizes once"
+  ],
+  "manual_validation": [
+    "All desktop test_network*.py modules with one documented pending-publish fixture baseline deselected: 481 passed, 1 deselected, 167 subtests passed",
+    "Architecture guardrails passed across 217 creation candidates",
+    "Bundled PowerShell Invoke-LocalWorkerClaimLifecycleChecks.ps1: passed",
+    "Bundled Ruff on both Batch 048 Python paths: passed",
+    "Bundled Ruff on standalone.py and test_network_workflow.py: passed",
+    "Bundled pytest tests/python/desktop/test_network_workflow.py -q: 61 passed, 4 subtests passed",
+    "Focused synthetic standalone dispatcher lifecycle/concurrency tests: 3 passed",
+    "Generated project-index and feature-map checks: passed; summary check reports only the two documented pre-existing stale summaries",
+    "Strict validate_changes --require-worktree-coverage: 1190 packets valid"
+  ],
+  "rollback_plan": "Revert only this packet's standalone reservation lifecycle, focused tests, and generated artifacts. The surface is currently latent, so no persisted state migration is required.",
+  "related_changes": [
+    "AUDIT-FIND-W01-013"
+  ],
+  "notes": "All tests use synthetic in-memory records. No pipeline process is launched and no source/output/scratch media is read or mutated. Python impact: existing standalone dispatcher and focused tests only; no new compatibility surface.\nThe dispatcher state is stored once on the application object, so separate public get_dispatcher factory instances share the same lock and in-flight reservations.\nThe obsolete generate_feature_map module name failed before execution; rerunning the maintained generate_feature_file_map entry point succeeded and its --check mode passed."
+}

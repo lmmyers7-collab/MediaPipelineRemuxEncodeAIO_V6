@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 import tempfile
@@ -83,6 +84,12 @@ class PendingPublishServiceTests(unittest.TestCase):
             "source_size": 123456,
             "source_mtime_utc": "2026-05-19T03:00:00Z",
             "output_size": payload.stat().st_size if payload.exists() else 123,
+            "output_sha256": (
+                hashlib.sha256(payload.read_bytes()).hexdigest()
+                if payload.exists()
+                else "0" * 64
+            ),
+            "output_hash_algorithm": "SHA256",
             "publish_mode": "deferred",
             "sidecar_files": [],
             "tx3g_srt_tracks": [],
@@ -101,6 +108,24 @@ class PendingPublishServiceTests(unittest.TestCase):
             "drop_vobsub_after_conversion": False,
         }
         manifest.update(overrides)
+        sidecars = manifest.get("sidecar_files")
+        if isinstance(sidecars, list):
+            normalized_sidecars: list[object] = []
+            for sidecar in sidecars:
+                if not isinstance(sidecar, dict):
+                    normalized_sidecars.append(sidecar)
+                    continue
+                normalized = dict(sidecar)
+                sidecar_path = Path(str(normalized.get("local_file") or ""))
+                if sidecar_path.is_file():
+                    normalized.setdefault("output_size", sidecar_path.stat().st_size)
+                    normalized.setdefault(
+                        "output_sha256",
+                        hashlib.sha256(sidecar_path.read_bytes()).hexdigest(),
+                    )
+                    normalized.setdefault("output_hash_algorithm", "SHA256")
+                normalized_sidecars.append(normalized)
+            manifest["sidecar_files"] = normalized_sidecars
         return manifest
 
     def test_missing_payload_is_reported_as_health_row(self) -> None:

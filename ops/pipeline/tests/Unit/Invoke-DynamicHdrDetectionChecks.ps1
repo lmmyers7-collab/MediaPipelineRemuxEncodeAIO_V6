@@ -244,7 +244,8 @@ $remuxText = (@(
 $publishText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\publish\publish_completion.ps1') -Raw
 Assert-True ($encodeText -match '\$script:CurrentDynamicHdrEvidence\s*=\s*\$null') 'Encode must reset dynamic HDR evidence per file.'
 Assert-True ($remuxText -match '\$script:CurrentDynamicHdrEvidence\s*=\s*\$null') 'Remux must reset dynamic HDR evidence per file.'
-Assert-True ($publishText -match '\[''dynamic_hdr''\]\s*=\s*\$script:CurrentDynamicHdrEvidence') 'Publish completion must add dynamic_hdr sidecar evidence.'
+Assert-True ($publishText -match '\$dynamicHdrEvidence\s*=\s*\$script:CurrentDynamicHdrEvidence') 'Publish completion must begin Dynamic HDR sidecar evidence from the current file-scoped backend evidence.'
+Assert-True ($publishText -match '\[''dynamic_hdr''\]\s*=\s*\$dynamicHdrEvidence') 'Publish completion must write the normalized Dynamic HDR evidence, including profile-support context, into the sidecar.'
 Assert-True ($encodeText -match 'Resolve-DynamicHdrEncodePreservationDecision') 'Encode must resolve Dynamic HDR preserve/remux/review policy before building encode attempts.'
 Assert-True ($encodeText -match "DynamicHdrPolicy=off; skipping Dynamic HDR probes") 'Encode must skip Dynamic HDR probes when the policy is off.'
 Assert-True ($encodeText -match "Register-SourceFailure[\s\S]+-Stage 'dynamic-hdr-policy'") 'Encode preserve_or_review must route unsupported Dynamic HDR encode sources to backend failure review.'

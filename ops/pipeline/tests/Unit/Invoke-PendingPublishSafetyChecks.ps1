@@ -217,6 +217,8 @@ function New-TestPendingManifest {
         source_size                    = 5
         source_mtime_utc               = '2026-05-19T00:00:00Z'
         output_size                    = 5
+        output_sha256                  = if (Test-Path -LiteralPath $LocalFile -PathType Leaf -ErrorAction SilentlyContinue) { Get-PendingFileSha256OrNull -Path $LocalFile } else { ('A' * 64) }
+        output_hash_algorithm          = 'SHA256'
         publish_mode                   = 'retry'
         sidecar_files                  = @()
         tx3g_srt_tracks                = @()
@@ -352,6 +354,10 @@ Invoke-WithTempRoot {
     Assert-Equal @($manifest.sidecar_files).Count 1 'Pending manifest did not preserve sidecar entry.'
     $parkedSidecar = [string]$manifest.sidecar_files[0].local_file
     Assert-True (Test-Path -LiteralPath $parkedSidecar -PathType Leaf) 'Parked sidecar file is missing.'
+    $index = Refresh-PendingPublishIndex
+    $sourcePathKey = ConvertTo-PendingPublishSourcePathKey $sourcePath
+    Assert-True ($index.BySourcePath.ContainsKey($sourcePathKey)) 'Pending publish index must preserve canonical source-path evidence.'
+    Assert-True (Test-PendingPublishMatch -SourceFile (Get-Item -LiteralPath $sourcePath) -ServerOut (Join-Path $script:Outsource 'different-output.mkv')) 'Queue exclusion should match a trusted pending item by source path even when the route-preview destination differs.'
 }
 
 Invoke-WithTempRoot {
@@ -365,6 +371,7 @@ Invoke-WithTempRoot {
     $manifest = New-TestPendingManifest -LocalFile $pendingLocal -ServerOut $serverOut -State 'pending_move'
     $manifest['original_local_file'] = $original
     $manifest['parked_file'] = $pendingLocal
+    $manifest['output_sha256'] = Get-PendingFileSha256OrNull -Path $original
     $manifestPath = Join-Path $script:LocalPendingPush 'read-refresh-must-not-recover.manifest.json'
     Write-PendingManifestFile -Path $manifestPath -Manifest $manifest | Out-Null
 
@@ -396,6 +403,8 @@ Invoke-WithTempRoot {
     $sourcePath = Join-Path $script:SourceMovies 'WrapperSize.mkv'
     [System.IO.File]::WriteAllText($localOut, 'media-size-proof')
     [System.IO.File]::WriteAllText($sourcePath, 'source')
+    $script:PipelineRunId = 'run-monitor-pending-test'
+    $script:CurrentRunMonitorJobId = 'run-monitor-pending-test-item-00000001'
 
     $parkResult = Invoke-ParkPendingPush `
         -LocalOut $localOut `
@@ -414,6 +423,8 @@ Invoke-WithTempRoot {
     Assert-Equal ([long]$parkResult.OutputSize) 16L 'Park wrapper did not return the parked media size proof.'
     $manifest = Read-PendingManifestFile -Path ([string]$parkResult.ManifestPath)
     Assert-Equal ([long]$manifest.output_size) 16L 'Pending manifest output_size should match the wrapper transaction size proof.'
+    Assert-Equal ([string]$manifest.run_id) 'run-monitor-pending-test' 'Pending manifest should retain exact run correlation.'
+    Assert-Equal ([string]$manifest.run_monitor_job_id) 'run-monitor-pending-test-item-00000001' 'Pending manifest should retain exact accepted job correlation.'
 }
 
 Invoke-WithTempRoot {
@@ -463,7 +474,19 @@ Invoke-WithTempRoot {
         'vobsub_embedded_srt_tracks'
     )
     foreach ($field in $requiredArrayFields) {
-        $manifest[$field] = @([pscustomobject]@{ field = $field; marker = 'single-item-array' })
+        $manifest[$field] = @(if ($field -eq 'sidecar_files') {
+            [pscustomobject]@{
+                field = $field
+                marker = 'single-item-array'
+                local_file = (Join-Path $script:LocalPendingPush 'single-array-fields.srt')
+                server_out = (Join-Path $script:Outsource 'single-array-fields.srt')
+                output_size = 1
+                output_sha256 = ('A' * 64)
+                output_hash_algorithm = 'SHA256'
+            }
+        } else {
+            [pscustomobject]@{ field = $field; marker = 'single-item-array' }
+        })
     }
     $manifestPath = Join-Path $script:LocalPendingPush 'single-array-fields.manifest.json'
     Write-PendingManifestFile -Path $manifestPath -Manifest $manifest | Out-Null
@@ -680,6 +703,9 @@ Invoke-WithTempRoot {
     $sidecar = [pscustomobject]@{
         local_file = $sidecarLocal
         server_out = $sidecarServer
+        output_size = (Get-Item -LiteralPath $sidecarLocal).Length
+        output_sha256 = Get-PendingFileSha256OrNull -Path $sidecarLocal
+        output_hash_algorithm = 'SHA256'
     }
     $sidecarTrust = Test-PendingSidecarTrustedForPublish -Manifest (Read-PendingManifestFile -Path $manifestPath) -Sidecar $sidecar -ManifestPath $manifestPath
     Assert-True ([bool]$sidecarTrust.Ok) 'Sidecar beside a confirmed source overwrite target should be trusted for pending publish.'
@@ -707,6 +733,9 @@ Invoke-WithTempRoot {
     $sidecar = [pscustomobject]@{
         local_file = $sidecarLocal
         server_out = $sidecarServer
+        output_size = (Get-Item -LiteralPath $sidecarLocal).Length
+        output_sha256 = Get-PendingFileSha256OrNull -Path $sidecarLocal
+        output_hash_algorithm = 'SHA256'
     }
     $sidecarTrust = Test-PendingSidecarTrustedForPublish -Manifest (Read-PendingManifestFile -Path $manifestPath) -Sidecar $sidecar -ManifestPath $manifestPath
     Assert-True ([bool]$sidecarTrust.Ok) "Sidecar beside a confirmed source overwrite target outside the output root should be trusted: $($sidecarTrust.Reason)"
@@ -808,6 +837,9 @@ Invoke-WithTempRoot {
         [pscustomobject]@{
             local_file = $sidecarOutsidePending
             server_out = $sidecarDestination
+            output_size = (Get-Item -LiteralPath $sidecarOutsidePending).Length
+            output_sha256 = Get-PendingFileSha256OrNull -Path $sidecarOutsidePending
+            output_hash_algorithm = 'SHA256'
             preserve_existing = $false
             tx3g_record = [pscustomobject]@{ stream_index = 1; language = 'eng' }
         }
@@ -944,6 +976,9 @@ Invoke-WithTempRoot {
         [pscustomobject]@{
             local_file = $localSidecar
             server_out = $serverSidecar
+            output_size = (Get-Item -LiteralPath $localSidecar).Length
+            output_sha256 = Get-PendingFileSha256OrNull -Path $localSidecar
+            output_hash_algorithm = 'SHA256'
             preserve_existing = $false
             tx3g_record = [pscustomobject]@{ stream_index = 2; language = 'eng'; title = 'English' }
         }
@@ -1065,10 +1100,145 @@ Invoke-WithTempRoot {
     }
 }
 
+# A successful deferred Run Once publish is terminally proven by its exact
+# pending-publish manifest. The canonical monitor must close Publish and must
+# classify Sidecar Writing explicitly instead of leaving either stage active or
+# untouched until generic item finalization.
+Invoke-WithTempRoot {
+    param($Root)
+    Set-TestPipelineRoots -Root $Root
+    $priorDeferredPublish = $script:DeferredPublish
+    try {
+        $script:DeferredPublish = $true
+        $script:PublishRunMonitorStages = @()
+
+        function Set-MediaPipelineCurrentRunMonitorStage {
+            param(
+                [string] $StageId,
+                [string] $State,
+                [string] $Detail,
+                [string] $ReasonCode,
+                [string] $EvidenceSource,
+                [switch] $Indeterminate
+            )
+            $script:PublishRunMonitorStages += ,([pscustomobject]@{
+                StageId = $StageId
+                State = $State
+                Detail = $Detail
+                ReasonCode = $ReasonCode
+                EvidenceSource = $EvidenceSource
+            })
+        }
+        function New-PublishEvidenceContext {
+            param($SourceFile, $Paths, [string] $StagePrefix, [string] $RouteReasonCode, [string] $RouteReason)
+            return [pscustomobject]@{
+                SourceIdentity = 'source-id'
+                SourceIdentityV2 = 'source-id-v2'
+                SourceMTimeUtc = '2026-07-16T00:00:00Z'
+                PublishTransactionId = 'publish-test'
+                StageName = $StagePrefix
+                LogPrefix = 'TEST'
+                RouteReasonCode = $RouteReasonCode
+                RouteReason = $RouteReason
+                FolderPolicyMetadata = $null
+                RoutePlanMetadata = $null
+                MediaType = 'movie'
+                LibraryProfileEvidence = $null
+            }
+        }
+        function New-PendingParkArguments {
+            param($EvidenceContext, $SourceFile, $Paths, [string] $Route, [string] $PublishMode, $Extra)
+            return @{ PublishMode = $PublishMode }
+        }
+        function Invoke-ParkPendingPushWithTx3gSidecars {
+            param(
+                $SourceFile,
+                [string] $ScratchPath,
+                [array] $Tx3gTracks,
+                [array] $BdpgsTracks,
+                [array] $VobSubTracks,
+                [array] $ConvertedSrtSidecarCandidates,
+                [array] $SubtitleOutputReduction,
+                [string] $MediaOutputPath,
+                $ParkArgs,
+                [string] $Context
+            )
+            return [pscustomobject]@{
+                LocalFile = (Join-Path $script:LocalPendingPush 'parked.mkv')
+                ServerOut = $MediaOutputPath
+                ManifestPath = (Join-Path $script:LocalPendingPush 'parked.manifest.json')
+                PublishTransactionId = 'publish-test'
+                SidecarEntries = @()
+                OutputSize = 123L
+            }
+        }
+        function Clear-SourceFailureState { param($SourceFile) }
+
+        $sourcePath = Join-Path $Root.FullName 'source.mkv'
+        [System.IO.File]::WriteAllText($sourcePath, 'source')
+        $paths = [pscustomobject]@{
+            LocalOut = (Join-Path $Root.FullName 'verified-output.mkv')
+            ServerOut = (Join-Path $script:Outsource 'published.mkv')
+        }
+        $result = Complete-PipelineOutputPublish `
+            -SourceFile (Get-Item -LiteralPath $sourcePath) `
+            -ScratchPath (Join-Path $Root.FullName 'scratch-input.mkv') `
+            -Paths $paths `
+            -Route 'remux' `
+            -ProgressRoute 'remux' `
+            -StagePrefix 'remux' `
+            -Context 'TEST: '
+
+        Assert-True ([bool]$result.Ok) 'Deferred publish fixture should return manifest-backed success.'
+        Assert-Equal ([string]$result.PublishState) 'pending_publish' 'Deferred publish fixture should remain pending_publish.'
+        $publishTerminal = @($script:PublishRunMonitorStages | Where-Object { $_.StageId -eq 'publish' }) | Select-Object -Last 1
+        $sidecarTerminal = @($script:PublishRunMonitorStages | Where-Object { $_.StageId -eq 'sidecar_writing' }) | Select-Object -Last 1
+        Assert-Equal ([string]$publishTerminal.State) 'completed' 'Manifest-backed park must explicitly complete the canonical Publish stage.'
+        Assert-Equal ([string]$publishTerminal.EvidenceSource) 'pending_publish_manifest' 'Park completion must name the manifest as stage authority.'
+        Assert-Equal ([string]$sidecarTerminal.State) 'not_applicable' 'A park with no sidecar payloads must explicitly mark Sidecar Writing not applicable.'
+        Assert-Equal ([string]$sidecarTerminal.EvidenceSource) 'pending_publish_manifest' 'Park sidecar applicability must use manifest authority.'
+    } finally {
+        $script:DeferredPublish = $priorDeferredPublish
+    }
+}
+
 $pendingSidecarTransactionsText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\publish\pending_sidecar_transactions.ps1') -Raw
 Assert-MatchText $pendingSidecarTransactionsText 'function Restore-PendingSidecarBackupIntoPlace' 'Pending sidecar restore overwrite fallback helper is missing.'
 Assert-MatchText $pendingSidecarTransactionsText '\[System\.IO\.File\]::Move\(\$BackupPath,\s*\$DestinationPath,\s*\$true\)' 'Pending sidecar restore fallback must use overwrite move.'
 Assert-MatchText $pendingSidecarTransactionsText 'if \(-not \$copy\.Ok\)[\s\S]+Restore-PendingSidecarBackupIntoPlace' 'Pending sidecar copy failure must restore an existing destination from backup.'
+
+$hashFixtureRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('mediapipeline-pending-hash-' + [guid]::NewGuid().ToString('N'))
+try {
+    [System.IO.Directory]::CreateDirectory($hashFixtureRoot) | Out-Null
+    $hashFixture = Join-Path $hashFixtureRoot 'verified-output.mkv'
+    $hashBytes = [byte[]]::new((3 * 1024 * 1024) + 17)
+    for ($hashIndex = 0; $hashIndex -lt $hashBytes.Length; $hashIndex++) {
+        $hashBytes[$hashIndex] = [byte](($hashIndex * 31) % 251)
+    }
+    [System.IO.File]::WriteAllBytes($hashFixture, $hashBytes)
+    $expectedHash = ([string](Get-FileHash -LiteralPath $hashFixture -Algorithm SHA256).Hash).ToUpperInvariant()
+    $script:PendingHashPollCount = 0
+    $script:PendingHashPollElapsedSeconds = @()
+    $actualHash = Get-PendingFileSha256OrNull -Path $hashFixture -PollHandler {
+        param($ElapsedSeconds, $Process)
+        $script:PendingHashPollCount++
+        $script:PendingHashPollElapsedSeconds += [double]$ElapsedSeconds
+    }
+    Assert-Equal $actualHash $expectedHash 'Heartbeat-capable pending hash must preserve exact SHA-256 proof.'
+    Assert-True ($script:PendingHashPollCount -ge 3) 'Large pending hash must invoke its supplied heartbeat throughout streaming work.'
+    Assert-True ([double]$script:PendingHashPollElapsedSeconds[-1] -lt 30.0) 'Pending hash callback must receive elapsed seconds, not byte position that defeats time throttling.'
+    Assert-Equal ([long](Get-Item -LiteralPath $hashFixture).Length) ([long]$hashBytes.Length) 'Pending hash heartbeat must not mutate the verified output.'
+} finally {
+    Remove-Item -LiteralPath $hashFixtureRoot -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+$pendingTransactionsText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\publish\pending_transactions.ps1') -Raw
+$pendingParkText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\publish\pending_park_transaction.ps1') -Raw
+Assert-MatchText $pendingTransactionsText 'function Get-PendingFileSha256OrNull[\s\S]+\[scriptblock\]\s*\$PollHandler[\s\S]+TransformBlock' 'Pending SHA-256 proof must stream bytes and support a supplied heartbeat instead of blocking inside Get-FileHash.'
+Assert-MatchText $pendingTransactionsText 'function Enter-PendingPublishDestinationLock[\s\S]+FileShare\]::None' 'Pending destination transactions must use an exclusive cross-process file lock.'
+Assert-MatchText $pendingTransactionsText 'function Exit-PendingPublishDestinationLock[\s\S]+Keep the empty hashed sentinel' 'Destination lock release must retain a stable sentinel instead of unlinking an open-lock identity.'
+Assert-MatchText $pendingParkText 'New-MediaPipelineCurrentStageNativePollHandler[\s\S]{0,500}-Stage\s+''push''' 'Pending park must create an exact publish-stage heartbeat for manifest hashing.'
+Assert-MatchText $pendingParkText 'New-PendingParkManifest[\s\S]{0,2200}-HashPollHandler\s+\$pendingHashPollHandler' 'Pending park must pass its exact publish-stage heartbeat into manifest hashing.'
 
 $publishCompletionText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\publish\publish_completion.ps1') -Raw
 $publishCompletionHelperText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\publish\publish_completion\context_builders.ps1') -Raw
@@ -1084,10 +1254,14 @@ Assert-MatchText $publishCompletionText 'New-PipelinePublishResult[\s\S]+-Publis
 Assert-MatchText $publishCompletionText 'Clear-SourceFailureState \$SourceFile[\s\S]+output-space deferred publish' 'Low-space deferred publish no longer clears source failure state only after successful parking.'
 
 $pendingDrainText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\publish\pending_drain_transaction.ps1') -Raw
+$pendingRepairText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\publish\pending_repair.ps1') -Raw
 Assert-MatchText $pendingDrainText 'Test-PublishSidecarBackupReadyForReveal[\s\S]+retry_sidecar_backup_failed' 'Pending drain must fail closed when an existing final sidecar cannot be backed up.'
 Assert-MatchText $pendingDrainText 'Get-PendingFileSha256OrNull \$serverPartial' 'Pending drain must verify the copied partial with SHA-256 before reveal.'
 Assert-MatchText $pendingDrainText 'Get-PendingFileSha256OrNull \$server' 'Pending drain must verify the revealed final output with SHA-256 before pending cleanup.'
 Assert-MatchText $pendingDrainText 'Update-PendingManifestDrainAttempt' 'Pending drain must persist per-manifest attempt evidence.'
 Assert-MatchText $pendingDrainText 'Restore-PublishMediaAfterRevealFailure' 'Pending final hash failure must restore prior media or remove the newly revealed media.'
+Assert-MatchText $pendingDrainText 'Enter-PendingPublishTransactionLock[\s\S]+Enter-PendingPublishDestinationLock[\s\S]+Read-PendingManifestFile[\s\S]+Invoke-PendingDrainTransactionCore[\s\S]+Exit-PendingPublishDestinationLock[\s\S]+Exit-PendingPublishTransactionLock' 'Pending drain must hold manifest then destination locks across re-read, final transaction, evidence, and cleanup.'
+Assert-MatchText $pendingDrainText 'Get-PendingPublishDuplicateDestinationManifestPaths[\s\S]+review_duplicate_destination[\s\S]+duplicate_destination' 'Duplicate destination manifests must fail closed into explicit review before drain.'
+Assert-MatchText $pendingRepairText 'Enter-PendingPublishTransactionLock[\s\S]+Enter-PendingPublishDestinationLock[\s\S]+Read-PendingManifestFile[\s\S]+Test-PendingDrainFinalProof[\s\S]+Exit-PendingPublishDestinationLock[\s\S]+Exit-PendingPublishTransactionLock' 'Stale-attempt recovery must hold manifest then destination locks across re-read, proof, rollback, evidence, and cleanup.'
 
 Write-Host 'OK: pending publish safety checks passed.'

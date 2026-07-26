@@ -11,6 +11,7 @@ dispatcher (client side) so the wire format is defined in one place.
 """
 from __future__ import annotations
 
+import json
 import math
 from dataclasses import dataclass, field
 from typing import Any
@@ -19,6 +20,7 @@ from .failure_reasons import bounded_failure_reason, normalize_failure_reason_co
 
 
 PING_RESPONSE_SCHEMA_VERSION = "desktop_network_coordinator_ping.v1"
+WORKER_RESULT_ARTIFACT_MAX_BYTES = 64 * 1024
 
 
 def coerce_finite_float(value: Any, field_name: str, *, minimum: float | None = None) -> float:
@@ -69,6 +71,26 @@ def _coerce_mapping_field(d: dict[str, Any], field_name: str) -> dict[str, Any]:
     if not isinstance(raw, dict):
         raise ValueError(f"{field_name} must be an object")
     return dict(raw)
+
+
+def _coerce_worker_result_artifact(d: dict[str, Any]) -> dict[str, Any]:
+    artifact = _coerce_mapping_field(d, "worker_result_artifact")
+    if not artifact:
+        return {}
+    try:
+        encoded = json.dumps(
+            artifact,
+            ensure_ascii=False,
+            allow_nan=False,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise ValueError("worker_result_artifact must contain strict JSON values") from exc
+    if len(encoded) > WORKER_RESULT_ARTIFACT_MAX_BYTES:
+        raise ValueError(
+            f"worker_result_artifact exceeds {WORKER_RESULT_ARTIFACT_MAX_BYTES} bytes"
+        )
+    return artifact
 
 
 def coerce_library_id_list(value: Any) -> list[str]:
@@ -259,6 +281,7 @@ class DoneRequest:
     worker_source_path: str = ""
     handoff_probe:     dict  = field(default_factory=dict)
     destination_policy_applied: bool = False
+    worker_result_artifact: dict = field(default_factory=dict)
     worker_result_artifact_path: str = ""
 
     def to_dict(self) -> dict[str, Any]:
@@ -290,6 +313,7 @@ class DoneRequest:
             "worker_source_path": self.worker_source_path,
             "handoff_probe":     self.handoff_probe,
             "destination_policy_applied": self.destination_policy_applied,
+            "worker_result_artifact": self.worker_result_artifact,
             "worker_result_artifact_path": self.worker_result_artifact_path,
         }
 
@@ -323,6 +347,7 @@ class DoneRequest:
             worker_source_path=str(d.get("worker_source_path", "")),
             handoff_probe=_coerce_mapping_field(d, "handoff_probe"),
             destination_policy_applied=coerce_optional_bool(d, "destination_policy_applied", default=False),
+            worker_result_artifact=_coerce_worker_result_artifact(d),
             worker_result_artifact_path=str(d.get("worker_result_artifact_path", "")),
         )
 

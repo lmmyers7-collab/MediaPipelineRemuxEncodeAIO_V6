@@ -355,12 +355,11 @@ function Test-PendingManifestCurrentContractFields {
 
     $outputHash = Get-PendingManifestText -Object $Manifest -Name 'output_sha256'
     $hashAlgorithm = Get-PendingManifestText -Object $Manifest -Name 'output_hash_algorithm'
-    if (-not [string]::IsNullOrWhiteSpace($outputHash)) {
-        if ($outputHash -notmatch '^[A-Fa-f0-9]{64}$' -or $hashAlgorithm -ne 'SHA256') {
-            return New-PendingManifestTrustResult -Ok:$false -ReasonCode 'OUTPUT_HASH_INVALID' -Reason 'output_sha256 must be a SHA256 hexadecimal value when present.' -Status 'invalid_manifest' -ManifestPath $ManifestPath -LocalFile $localFile -ServerOut $serverOut -SourcePath $sourcePath
-        }
-    } elseif (-not [string]::IsNullOrWhiteSpace($hashAlgorithm)) {
-        return New-PendingManifestTrustResult -Ok:$false -ReasonCode 'OUTPUT_HASH_INVALID' -Reason 'output_hash_algorithm requires output_sha256.' -Status 'invalid_manifest' -ManifestPath $ManifestPath -LocalFile $localFile -ServerOut $serverOut -SourcePath $sourcePath
+    if ([string]::IsNullOrWhiteSpace($outputHash)) {
+        return New-PendingManifestTrustResult -Ok:$false -ReasonCode 'OUTPUT_HASH_MISSING' -Reason 'Current pending manifests require output_sha256 before automatic drain.' -Status 'invalid_manifest' -ManifestPath $ManifestPath -LocalFile $localFile -ServerOut $serverOut -SourcePath $sourcePath
+    }
+    if ($outputHash -notmatch '^[A-Fa-f0-9]{64}$' -or $hashAlgorithm -ne 'SHA256') {
+        return New-PendingManifestTrustResult -Ok:$false -ReasonCode 'OUTPUT_HASH_INVALID' -Reason 'output_sha256 must be a SHA256 hexadecimal value with output_hash_algorithm=SHA256.' -Status 'invalid_manifest' -ManifestPath $ManifestPath -LocalFile $localFile -ServerOut $serverOut -SourcePath $sourcePath
     }
 
     foreach ($key in @(
@@ -379,6 +378,20 @@ function Test-PendingManifestCurrentContractFields {
         $value = Get-PendingObjectProperty -Object $Manifest -Name $key
         if ($null -ne $value -and ($value -is [string] -or ($value -isnot [System.Array] -and $value -isnot [System.Collections.IEnumerable]))) {
             return New-PendingManifestTrustResult -Ok:$false -ReasonCode 'REQUIRED_ARRAY_INVALID' -Reason "$key must be an array in current pending manifest." -Status 'invalid_manifest' -ManifestPath $ManifestPath -LocalFile $localFile -ServerOut $serverOut -SourcePath $sourcePath
+        }
+    }
+
+    foreach ($sidecar in @(Get-PendingSidecarEntries -Manifest $Manifest)) {
+        $sidecarSize = Get-PendingObjectProperty -Object $sidecar -Name 'output_size'
+        try {
+            if ($null -eq $sidecarSize -or [long]$sidecarSize -lt 0) { throw 'invalid' }
+        } catch {
+            return New-PendingManifestTrustResult -Ok:$false -ReasonCode 'SIDECAR_SIZE_INVALID' -Reason 'Every pending sidecar requires a non-negative output_size.' -Status 'invalid_manifest' -ManifestPath $ManifestPath -LocalFile $localFile -ServerOut $serverOut -SourcePath $sourcePath
+        }
+        $sidecarHash = Get-PendingManifestText -Object $sidecar -Name 'output_sha256'
+        $sidecarHashAlgorithm = Get-PendingManifestText -Object $sidecar -Name 'output_hash_algorithm'
+        if ($sidecarHash -notmatch '^[A-Fa-f0-9]{64}$' -or $sidecarHashAlgorithm -ne 'SHA256') {
+            return New-PendingManifestTrustResult -Ok:$false -ReasonCode 'SIDECAR_HASH_INVALID' -Reason 'Every pending sidecar requires SHA-256 content proof.' -Status 'invalid_manifest' -ManifestPath $ManifestPath -LocalFile $localFile -ServerOut $serverOut -SourcePath $sourcePath
         }
     }
 
@@ -447,6 +460,11 @@ function Test-PendingSidecarTrustedForPublish {
     $sidecarServer = Get-PendingManifestText -Object $Sidecar -Name 'server_out'
     if ([string]::IsNullOrWhiteSpace($sidecarLocal) -or [string]::IsNullOrWhiteSpace($sidecarServer)) {
         return New-PendingManifestTrustResult -Ok:$false -ReasonCode 'SIDECAR_REQUIRED_FIELD_MISSING' -Reason 'pending sidecar manifest is missing local_file or server_out.' -Status 'invalid_manifest' -ManifestPath $ManifestPath -LocalFile $localFile -ServerOut $serverOut -SourcePath $sourcePath
+    }
+    $sidecarHash = Get-PendingManifestText -Object $Sidecar -Name 'output_sha256'
+    $sidecarHashAlgorithm = Get-PendingManifestText -Object $Sidecar -Name 'output_hash_algorithm'
+    if ($sidecarHash -notmatch '^[A-Fa-f0-9]{64}$' -or $sidecarHashAlgorithm -ne 'SHA256') {
+        return New-PendingManifestTrustResult -Ok:$false -ReasonCode 'SIDECAR_HASH_INVALID' -Reason 'pending sidecar manifest is missing valid SHA-256 content proof.' -Status 'invalid_manifest' -ManifestPath $ManifestPath -LocalFile $localFile -ServerOut $serverOut -SourcePath $sourcePath
     }
     $localBoundary = Test-PendingManifestPathBoundary -Path $sidecarLocal -Root $pendingRoot -AllowMissingLeaf:$AllowMissingLocal
     if (-not $localBoundary.Ok) {
@@ -578,7 +596,7 @@ function Test-PendingManifestTrustedForDrain {
     }
 
     $state = Get-PendingManifestText -Object $Manifest -Name 'manifest_state'
-    $drainableStates = @('parked', 'parked_recovered', 'missing_payload', 'retry_copy_failed', 'retry_reveal_failed', 'retry_sidecar_file_failed', 'retry_sidecar_backup_failed', 'retry_sidecar_failed')
+    $drainableStates = @('parked', 'parked_recovered', 'missing_payload', 'retry_destination_unavailable', 'retry_copy_failed', 'retry_reveal_failed', 'retry_sidecar_file_failed', 'retry_sidecar_backup_failed', 'retry_sidecar_failed')
     if ($state -notin $drainableStates) {
         return New-PendingManifestTrustResult -Ok:$false -ReasonCode 'DRAIN_STATE_UNSUPPORTED' -Reason "Manifest state '$state' is not drainable automatically." -Status 'invalid_manifest' -ManifestPath $manifestPath -LocalFile $localFile -ServerOut $serverOut -SourcePath $sourcePath
     }
@@ -703,6 +721,53 @@ function Update-PendingManifestDrainAttempt {
     return (Read-PendingManifestFile -Path $ManifestPath)
 }
 
+function Update-PendingManifestTransactionPhase {
+    param(
+        [Parameter(Mandatory)] [string] $ManifestPath,
+        [Parameter(Mandatory)] $Manifest,
+        [Parameter(Mandatory)] [string] $Phase,
+        [string] $AttemptId = ''
+    )
+
+    $currentManifest = $Manifest
+    if (Test-Path -LiteralPath $ManifestPath -PathType Leaf -ErrorAction SilentlyContinue) {
+        try { $currentManifest = Read-PendingManifestFile -Path $ManifestPath } catch {}
+    }
+    $map = ConvertTo-PendingManifestMap $currentManifest
+    $map['transaction_phase'] = [string]$Phase
+    $map['transaction_phase_at'] = (Get-Date -Format 'o')
+    if (-not [string]::IsNullOrWhiteSpace($AttemptId)) {
+        $map['drain_attempt_id'] = [string]$AttemptId
+    }
+    Write-PendingManifestFile -Path $ManifestPath -Manifest $map | Out-Null
+    return (Read-PendingManifestFile -Path $ManifestPath)
+}
+
+function Update-PendingManifestReviewState {
+    param(
+        [Parameter(Mandatory)] [string] $ManifestPath,
+        [Parameter(Mandatory)] $Manifest,
+        [Parameter(Mandatory)] [string] $State,
+        [Parameter(Mandatory)] [string] $Reason,
+        [string] $AttemptId = ''
+    )
+
+    $currentManifest = $Manifest
+    if (Test-Path -LiteralPath $ManifestPath -PathType Leaf -ErrorAction SilentlyContinue) {
+        try { $currentManifest = Read-PendingManifestFile -Path $ManifestPath } catch {}
+    }
+    $map = ConvertTo-PendingManifestMap $currentManifest
+    $map['manifest_state'] = [string]$State
+    $map['review_required'] = $true
+    $map['review_reason'] = [string]$Reason
+    $map['review_marked_at'] = (Get-Date -Format 'o')
+    if (-not [string]::IsNullOrWhiteSpace($AttemptId)) {
+        $map['drain_attempt_id'] = [string]$AttemptId
+    }
+    Write-PendingManifestFile -Path $ManifestPath -Manifest $map | Out-Null
+    return (Read-PendingManifestFile -Path $ManifestPath)
+}
+
 function Update-PendingManifestReplacementEvidence {
     param(
         [Parameter(Mandatory)] [string] $ManifestPath,
@@ -772,6 +837,11 @@ function Test-PendingManifestRoundTripValid {
     } catch {
         return [pscustomobject]@{ Ok = $false; Reason = 'output_size invalid' }
     }
+    $outputHash = [string](Get-PendingObjectProperty -Object $RoundTrip -Name 'output_sha256')
+    $outputHashAlgorithm = [string](Get-PendingObjectProperty -Object $RoundTrip -Name 'output_hash_algorithm')
+    if ($outputHash -notmatch '^[A-Fa-f0-9]{64}$' -or $outputHashAlgorithm -ne 'SHA256') {
+        return [pscustomobject]@{ Ok = $false; Reason = 'output_sha256 proof missing or invalid' }
+    }
 
     $requiredArrays = @(
         'sidecar_files',
@@ -786,6 +856,14 @@ function Test-PendingManifestRoundTripValid {
     foreach ($key in $requiredArrays) {
         if ($null -eq $RoundTrip.PSObject.Properties[$key]) {
             return [pscustomobject]@{ Ok = $false; Reason = "$key missing" }
+        }
+    }
+
+    foreach ($sidecar in @(Get-PendingSidecarEntries -Manifest $RoundTrip)) {
+        $sidecarHash = [string](Get-PendingObjectProperty -Object $sidecar -Name 'output_sha256')
+        $sidecarHashAlgorithm = [string](Get-PendingObjectProperty -Object $sidecar -Name 'output_hash_algorithm')
+        if ($sidecarHash -notmatch '^[A-Fa-f0-9]{64}$' -or $sidecarHashAlgorithm -ne 'SHA256') {
+            return [pscustomobject]@{ Ok = $false; Reason = 'sidecar SHA-256 proof missing or invalid' }
         }
     }
 

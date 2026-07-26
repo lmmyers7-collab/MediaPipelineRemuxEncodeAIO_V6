@@ -64,6 +64,63 @@ function New-NormalizedSubtitleConversionResults {
     return @($result)
 }
 
+function Set-MediaPipelinePublishMonitorStageOutcome {
+    param(
+        [Parameter(Mandatory)]
+        [ValidateSet('sidecar_writing','publish')]
+        [string] $StageId,
+        [Parameter(Mandatory)]
+        [ValidateSet('active','completed','skipped','not_applicable','unknown','blocked','review','failed')]
+        [string] $State,
+        [Parameter(Mandatory)] [string] $Detail,
+        [string] $ReasonCode = '',
+        [string] $EvidenceSource = 'publish_transaction'
+    )
+
+    if (Get-Command -Name Set-MediaPipelineCurrentRunMonitorStage -ErrorAction SilentlyContinue) {
+        Set-MediaPipelineCurrentRunMonitorStage `
+            -StageId $StageId `
+            -State $State `
+            -Detail $Detail `
+            -ReasonCode $ReasonCode `
+            -EvidenceSource $EvidenceSource `
+            -Indeterminate:($State -eq 'active') | Out-Null
+    }
+}
+
+function Set-MediaPipelinePendingParkMonitorStages {
+    param(
+        [Parameter(Mandatory)] $ParkResult,
+        [Parameter(Mandatory)]
+        [ValidateSet('completed','failed','blocked')]
+        [string] $PublishState,
+        [Parameter(Mandatory)] [string] $PublishDetail,
+        [string] $PublishReasonCode = ''
+    )
+
+    $sidecarEntries = @()
+    try { $sidecarEntries = @($ParkResult.SidecarEntries | Where-Object { $null -ne $_ }) } catch {}
+    if ($sidecarEntries.Count -gt 0) {
+        Set-MediaPipelinePublishMonitorStageOutcome `
+            -StageId sidecar_writing `
+            -State completed `
+            -Detail 'Subtitle sidecar payloads were staged with the correlated pending-publish manifest.' `
+            -EvidenceSource 'pending_publish_manifest'
+    } else {
+        Set-MediaPipelinePublishMonitorStageOutcome `
+            -StageId sidecar_writing `
+            -State not_applicable `
+            -Detail 'No sidecar payloads apply to this manifest-backed park; the pending-publish manifest remains separate evidence.' `
+            -EvidenceSource 'pending_publish_manifest'
+    }
+    Set-MediaPipelinePublishMonitorStageOutcome `
+        -StageId publish `
+        -State $PublishState `
+        -Detail $PublishDetail `
+        -ReasonCode $PublishReasonCode `
+        -EvidenceSource 'pending_publish_manifest'
+}
+
 function Complete-PipelineOutputPublish {
     param(
         [Parameter(Mandatory)] $SourceFile,
@@ -103,16 +160,21 @@ function Complete-PipelineOutputPublish {
         $parkArgs = New-PendingParkArguments -EvidenceContext $publishEvidence -SourceFile $SourceFile -Paths $Paths -Route $Route -PublishMode 'deferred'
         $parkResult = Invoke-ParkPendingPushWithTx3gSidecars -SourceFile $SourceFile -ScratchPath $ScratchPath -Tx3gTracks @($Tx3gTracks) -BdpgsTracks @($BdpgsTracks) -VobSubTracks @($VobSubTracks) -ConvertedSrtSidecarCandidates @($ConvertedSrtSidecarCandidates) -SubtitleOutputReduction @($SubtitleOutputReduction) -MediaOutputPath $Paths.ServerOut -ParkArgs $parkArgs -Context $Context
         if (-not $parkResult) {
+            Set-MediaPipelinePublishMonitorStageOutcome -StageId sidecar_writing -State unknown -Detail 'Pending-publish sidecar staging did not return correlated completion evidence.' -ReasonCode 'PENDING_PUBLISH_PARK_FAILED' -EvidenceSource 'pending_publish_transaction'
+            Set-MediaPipelinePublishMonitorStageOutcome -StageId publish -State failed -Detail 'Deferred publication could not create a manifest-backed park.' -ReasonCode 'PENDING_PUBLISH_PARK_FAILED' -EvidenceSource 'pending_publish_transaction'
             Add-RoundFailureRecord -SourcePath $SourceFile.FullName -Stage "$stageName-deferred-publish" -Reason 'Deferred publish is enabled but the completed local output and subtitle sidecars could not be parked' -Classification 'transient' -ArtifactPath $Paths.LocalOut -SuggestedAction 'Inspect scratch-disk write permissions or PendingServerPush availability.'
             return New-PipelinePublishResult -Ok:$false -DeleteLocalOutput:$false -KeepScratchInput:$false -PublishState 'failed' -PublishMode 'deferred' -OutputPath $Paths.LocalOut -Reason 'Deferred publish park failed'
         }
+        Set-MediaPipelinePendingParkMonitorStages -ParkResult $parkResult -PublishState completed -PublishDetail 'Verified output was parked with a correlated pending-publish manifest for later final placement.'
         Clear-SourceFailureState $SourceFile
         Write-Log "$logPrefix deferred publish: parked $(Split-Path $Paths.ServerOut -Leaf) in PendingServerPush for later upload"
-        return New-PipelinePublishResult -Ok:$true -DeleteLocalOutput:$false -KeepScratchInput:$false -PublishState 'pending_publish' -PublishMode 'deferred' -OutputPath $Paths.ServerOut -OutputSizeBytes (Get-PendingParkResultOutputSize -ParkResult $parkResult)
+        return New-PipelinePublishResult -Ok:$true -DeleteLocalOutput:$false -KeepScratchInput:$false -PublishState 'pending_publish' -PublishMode 'deferred' -OutputPath $Paths.ServerOut -OutputSizeBytes (Get-PendingParkResultOutputSize -ParkResult $parkResult) -ParkedPath ([string]$parkResult.LocalFile) -IntendedFinalPath ([string]$parkResult.ServerOut) -ManifestPath ([string]$parkResult.ManifestPath) -SidecarPaths @($parkResult.SidecarEntries | ForEach-Object { [string]$_.local_file }) -PublishTransactionId ([string]$parkResult.PublishTransactionId)
     }
 
     $tx3gPublishPlan = New-Tx3gSrtSidecarPublishPlan -Tx3gTracks @($Tx3gTracks) -MediaOutputPath $Paths.ServerOut -Context $Context
     if ($tx3gPublishPlan.Failures -and @($tx3gPublishPlan.Failures).Count -gt 0) {
+        Set-MediaPipelinePublishMonitorStageOutcome -StageId sidecar_writing -State failed -Detail 'TX3G sidecar publication preflight failed before final media placement.' -ReasonCode 'SUBTITLE_TX3G_SIDECAR_PREFLIGHT_FAILED' -EvidenceSource 'subtitle_sidecar_preflight'
+        Set-MediaPipelinePublishMonitorStageOutcome -StageId publish -State blocked -Detail 'Final publication is blocked because required subtitle sidecar preflight failed.' -ReasonCode 'SUBTITLE_TX3G_SIDECAR_PREFLIGHT_FAILED' -EvidenceSource 'subtitle_sidecar_preflight'
         Register-Tx3gSubtitleFailure -SourceFile $SourceFile -ScratchPath $ScratchPath -Failures @($tx3gPublishPlan.Failures) -Stage 'subtitle-tx3g-publish'
         Add-RoundFailureRecord -SourcePath $SourceFile.FullName -Stage "$stageName-tx3g-sidecar" -Reason 'TX3G SRT sidecar publish preflight failed before server media was copied' -Classification 'transient' -SuggestedAction 'Inspect generated TX3G SRT sidecars and retry; server media was not revealed.' | Out-Null
         $parkExtra = @{
@@ -165,6 +227,8 @@ function Complete-PipelineOutputPublish {
         $parkArgs = New-PendingParkArguments -EvidenceContext $publishEvidence -SourceFile $SourceFile -Paths $Paths -Route $Route -PublishMode $(if ($copyFailureIsOutputSpace) { 'output-space-deferred' } else { 'retry' })
         $parkResult = Invoke-ParkPendingPushWithTx3gSidecars -SourceFile $SourceFile -ScratchPath $ScratchPath -Tx3gTracks @($Tx3gTracks) -BdpgsTracks @($BdpgsTracks) -VobSubTracks @($VobSubTracks) -ConvertedSrtSidecarCandidates @($ConvertedSrtSidecarCandidates) -SubtitleOutputReduction @($SubtitleOutputReduction) -MediaOutputPath $Paths.ServerOut -ParkArgs $parkArgs -Context $Context
         if (-not $parkResult) {
+            Set-MediaPipelinePublishMonitorStageOutcome -StageId sidecar_writing -State unknown -Detail 'Pending-publish sidecar staging did not return correlated completion evidence.' -ReasonCode 'PENDING_PUBLISH_PARK_FAILED' -EvidenceSource 'pending_publish_transaction'
+            Set-MediaPipelinePublishMonitorStageOutcome -StageId publish -State failed -Detail 'Direct publication failed and the verified output could not be safely parked.' -ReasonCode 'PENDING_PUBLISH_PARK_FAILED' -EvidenceSource 'pending_publish_transaction'
             Write-Log "${logPrefix}: could not park the verified local output and tx3g sidecars after push failure; leaving output in place at $($Paths.LocalOut)" "ERROR"
             if ($copyFailureIsOutputSpace) {
                 $reason = if ([string]::IsNullOrWhiteSpace($copyFailureReason)) {
@@ -191,16 +255,20 @@ function Complete-PipelineOutputPublish {
             return New-PipelinePublishResult -Ok:$false -DeleteLocalOutput:$false -KeepScratchInput:$false -PublishState 'failed' -PublishMode $(if ($copyFailureIsOutputSpace) { 'output-space-deferred' } else { 'retry' }) -OutputPath $Paths.LocalOut -Reason 'Could not park output after publish copy failure'
         }
         if ($copyFailureIsOutputSpace) {
+            Set-MediaPipelinePendingParkMonitorStages -ParkResult $parkResult -PublishState completed -PublishDetail 'Destination space was unavailable; verified output was safely parked with a correlated pending-publish manifest.' -PublishReasonCode $(if ($copyFailureIsOutputSpaceUnknown) { 'OUTPUT_DESTINATION_SPACE_UNKNOWN' } else { 'OUTPUT_DESTINATION_LOW_SPACE' })
             Clear-SourceFailureState $SourceFile
             Write-Log "$logPrefix output-space deferred publish: parked $(Split-Path $Paths.ServerOut -Leaf) in PendingServerPush; not counted as a processing failure"
-            return New-PipelinePublishResult -Ok:$true -DeleteLocalOutput:$false -KeepScratchInput:$false -PublishState 'pending_publish' -PublishMode 'output-space-deferred' -OutputPath $Paths.ServerOut -OutputSizeBytes (Get-PendingParkResultOutputSize -ParkResult $parkResult) -ParkedForOutputSpace:$true
+            return New-PipelinePublishResult -Ok:$true -DeleteLocalOutput:$false -KeepScratchInput:$false -PublishState 'pending_publish' -PublishMode 'output-space-deferred' -OutputPath $Paths.ServerOut -OutputSizeBytes (Get-PendingParkResultOutputSize -ParkResult $parkResult) -ParkedForOutputSpace:$true -ParkedPath ([string]$parkResult.LocalFile) -IntendedFinalPath ([string]$parkResult.ServerOut) -ManifestPath ([string]$parkResult.ManifestPath) -SidecarPaths @($parkResult.SidecarEntries | ForEach-Object { [string]$_.local_file }) -PublishTransactionId ([string]$parkResult.PublishTransactionId)
         }
+        Set-MediaPipelinePendingParkMonitorStages -ParkResult $parkResult -PublishState failed -PublishDetail 'Direct publication failed; the verified output was manifest-backed parked for operator recovery.' -PublishReasonCode 'SERVER_PUSH_FAILED'
         return New-PipelinePublishResult -Ok:$false -DeleteLocalOutput:$false -KeepScratchInput:$false -PublishState 'failed' -PublishMode 'retry' -OutputPath $Paths.LocalOut -Reason 'Server push failed; output parked for retry'
     }
     Set-ProgressStage -Stage 'push' -Status $script:pipelineStatus -Route $ProgressRoute -PushState 'copied_pending_reveal' -Percent 95 -SaveNow
 
     $tx3gSidecars = Publish-Tx3gSrtSidecarsFromPlan -Plan $tx3gPublishPlan -Context $Context
     if ($tx3gSidecars.Failures -and @($tx3gSidecars.Failures).Count -gt 0) {
+        Set-MediaPipelinePublishMonitorStageOutcome -StageId sidecar_writing -State failed -Detail 'Required TX3G SRT sidecar publication failed before final media reveal.' -ReasonCode 'SUBTITLE_TX3G_SIDECAR_WRITE_FAILED' -EvidenceSource 'subtitle_sidecar_write'
+        Set-MediaPipelinePublishMonitorStageOutcome -StageId publish -State blocked -Detail 'Final publication is blocked because required subtitle sidecar publication failed.' -ReasonCode 'SUBTITLE_TX3G_SIDECAR_WRITE_FAILED' -EvidenceSource 'subtitle_sidecar_write'
         Undo-PublishedSidecarFiles -PublishedSidecars @($tx3gSidecars.Published) -Context $Context
         Register-Tx3gSubtitleFailure -SourceFile $SourceFile -ScratchPath $ScratchPath -Failures @($tx3gSidecars.Failures) -Stage 'subtitle-tx3g-publish'
         Add-RoundFailureRecord -SourcePath $SourceFile.FullName -Stage "$stageName-tx3g-sidecar" -Reason 'Server partial copy succeeded but tx3g SRT sidecar publish failed before final media reveal' -Classification 'transient' -SuggestedAction 'Inspect share permissions or antivirus locks on SRT sidecar writes; final server media was not revealed and the local output is being parked for retry.'
@@ -301,6 +369,7 @@ function Complete-PipelineOutputPublish {
     if (-not (Test-PublishSidecarBackupReadyForReveal -Backup $publishSidecarBackup)) {
         Write-Log "${logPrefix}: existing publish sidecar could not be backed up before final media reveal — removing server partial and parking local copy for retry" "ERROR"
         Set-ProgressStage -Stage 'sidecar' -Status $script:pipelineStatus -Route $ProgressRoute -SidecarState 'failed' -Percent $null -SaveNow
+        Set-MediaPipelinePublishMonitorStageOutcome -StageId publish -State blocked -Detail 'Final publication is blocked because existing pipeline-sidecar evidence could not be safely backed up.' -ReasonCode 'PIPELINE_SIDECAR_BACKUP_FAILED' -EvidenceSource 'sidecar_backup'
         Add-RoundFailureRecord -SourcePath $SourceFile.FullName -Stage "$stageName-sidecar-backup" -Reason 'Existing final sidecar could not be backed up before final media reveal' -Classification 'transient' -SuggestedAction 'Inspect share permissions or locks on the existing pipeline sidecar; final server media was not revealed and the local output is being parked for retry.'
         $parkArgs = New-PendingParkArguments -EvidenceContext $publishEvidence -SourceFile $SourceFile -Paths $Paths -Route $Route -PublishMode 'retry'
         if (-not (Invoke-ParkPendingPushWithTx3gSidecars -SourceFile $SourceFile -ScratchPath $ScratchPath -Tx3gTracks @($Tx3gTracks) -BdpgsTracks @($BdpgsTracks) -VobSubTracks @($VobSubTracks) -ConvertedSrtSidecarCandidates @($ConvertedSrtSidecarCandidates) -SubtitleOutputReduction @($SubtitleOutputReduction) -MediaOutputPath $Paths.ServerOut -ParkArgs $parkArgs -Context $Context)) {
@@ -317,6 +386,7 @@ function Complete-PipelineOutputPublish {
     if (-not (Write-Sidecar -OutputPath $Paths.ServerOut -Route $Route -Extra $sidecarExtra -SkipCompletedManifest)) {
         Write-Log "${logPrefix}: sidecar write failed before final media reveal — removing server partial and parking local copy for retry" "ERROR"
         Set-ProgressStage -Stage 'sidecar' -Status $script:pipelineStatus -Route $ProgressRoute -SidecarState 'failed' -Percent $null -SaveNow
+        Set-MediaPipelinePublishMonitorStageOutcome -StageId publish -State blocked -Detail 'Final publication is blocked because pipeline-sidecar evidence could not be written.' -ReasonCode 'PIPELINE_SIDECAR_WRITE_FAILED' -EvidenceSource 'sidecar_write'
         if (Get-Command -Name Write-SubtitleSidecarProgress -ErrorAction SilentlyContinue) {
             Write-SubtitleSidecarProgress -Status 'Pipeline sidecar subtitle evidence failed' -Detail 'Sidecar write failed before final media reveal' -Failed
         }
@@ -354,10 +424,12 @@ function Complete-PipelineOutputPublish {
         Add-CompletedJobsManifestEntryFromSidecar -OutputPath $Paths.ServerOut | Out-Null
     }
     Set-ProgressStage -Stage 'push' -Status $script:pipelineStatus -Route $ProgressRoute -PushState 'complete' -Percent 100 -SaveNow
+    Set-MediaPipelinePublishMonitorStageOutcome -StageId publish -State completed -Detail 'Verified output and pipeline sidecar were atomically revealed at the intended final destination.' -EvidenceSource 'publish_transaction'
     Write-OutputSummary -FilePath $Paths.ServerOut -Route $Route
     Clear-SourceFailureState $SourceFile
     Invalidate-ProcessedIndexCache
     Write-Log "$logPrefix complete: $(Split-Path $Paths.ServerOut -Leaf)"
     $serverSize = (Get-Item -LiteralPath $Paths.ServerOut -ErrorAction SilentlyContinue).Length
-    return New-PipelinePublishResult -Ok:$true -DeleteLocalOutput:$true -KeepScratchInput:$false -PublishState 'published' -PublishMode 'immediate' -OutputPath $Paths.ServerOut -OutputSizeBytes ([long]$serverSize)
+    $publishedSidecarPaths = @(@($tx3gSidecars.Published | ForEach-Object { [string]$_.path }) + @((Get-SidecarPath $Paths.ServerOut)))
+    return New-PipelinePublishResult -Ok:$true -DeleteLocalOutput:$true -KeepScratchInput:$false -PublishState 'published' -PublishMode 'immediate' -OutputPath $Paths.ServerOut -OutputSizeBytes ([long]$serverSize) -PublishedPath $Paths.ServerOut -IntendedFinalPath $Paths.ServerOut -SidecarPaths $publishedSidecarPaths -PublishTransactionId $publishTxn
 }

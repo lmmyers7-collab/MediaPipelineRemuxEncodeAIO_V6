@@ -6,12 +6,14 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from mediapipeline.tools.paths import find_repo_root
 
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.core.paths.layout import (
+    ensure_path_boundary_safe_for_mutation,
     first_existing,
     normalized_path_key,
     path_or_none,
@@ -98,6 +100,55 @@ class ServicePathLayoutTests(unittest.TestCase):
 
             self.assertEqual(result.reason_code, "REPARSE_POINT_COMPONENT")
             self.assertIn("link", result.reparse_path)
+
+    def test_path_boundary_fails_closed_when_reparse_inspection_errors(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "root"
+            intermediate = root / "intermediate"
+            leaf = intermediate / "file.txt"
+            intermediate.mkdir(parents=True)
+            leaf.write_text("fixture", encoding="utf-8")
+            original_lstat = os.lstat
+
+            for failing_component in (root, intermediate, leaf):
+                with self.subTest(component=failing_component.name):
+                    def selective_lstat(
+                        path: os.PathLike[str] | str,
+                        *args: object,
+                        failing_path: Path = failing_component,
+                        **kwargs: object,
+                    ) -> os.stat_result:
+                        if Path(path) == failing_path:
+                            raise OSError("injected inspection failure")
+                        return original_lstat(path, *args, **kwargs)
+
+                    with patch("mediapipeline.core.paths.layout.os.lstat", side_effect=selective_lstat):
+                        result = path_boundary_check(leaf, root)
+
+                    self.assertFalse(result.ok)
+                    self.assertEqual(result.reason_code, "REPARSE_INSPECTION_FAILED")
+                    self.assertEqual(result.reparse_path, str(failing_component))
+                    self.assertIn("retry", result.reason)
+                    self.assertIn("accessible", result.reason)
+
+    def test_mutation_wrapper_raises_when_reparse_inspection_errors(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "root"
+            leaf = root / "file.txt"
+            root.mkdir()
+            leaf.write_text("fixture", encoding="utf-8")
+            original_lstat = os.lstat
+
+            def selective_lstat(path: os.PathLike[str] | str, *args: object, **kwargs: object) -> os.stat_result:
+                if Path(path) == leaf:
+                    raise OSError("injected inspection failure")
+                return original_lstat(path, *args, **kwargs)
+
+            with (
+                patch("mediapipeline.core.paths.layout.os.lstat", side_effect=selective_lstat),
+                self.assertRaisesRegex(RuntimeError, r"REPARSE_INSPECTION_FAILED.*Component:.*file\.txt"),
+            ):
+                ensure_path_boundary_safe_for_mutation(leaf, root)
 
     @unittest.skipUnless(os.name == "nt", "junction checks are Windows-only")
     def test_path_boundary_rejects_junction_component_when_supported(self) -> None:

@@ -35,6 +35,10 @@ def build_pipeline_launch_plan(
     extra_args: str,
     extra_argv: list[str] | tuple[str, ...] | None = None,
     single_file: str | None = None,
+    priority_only: bool = False,
+    expected_queue_plan_fingerprint: str = "",
+    command_id: str = "",
+    run_id: str = "",
 ) -> ProcessLaunchPlan:
     if not resolved.powershell_host:
         raise RuntimeError("PowerShell host could not be resolved.")
@@ -63,6 +67,14 @@ def build_pipeline_launch_plan(
         args.append("-ShowConfig")
     if single_file:
         args.extend(["-SingleFile", single_file])
+    if priority_only:
+        args.append("-PriorityOnly")
+    if expected_queue_plan_fingerprint:
+        args.extend(["-ExpectedQueuePlanFingerprint", expected_queue_plan_fingerprint])
+    if command_id:
+        args.extend(["-CommandId", command_id])
+    if run_id:
+        args.extend(["-RunId", run_id])
     if extra_args.strip():
         try:
             parsed_extra_args = shlex.split(extra_args.strip(), posix=(os.name != "nt"))
@@ -77,11 +89,16 @@ def build_pipeline_launch_plan(
         job_kind="pipeline",
         mode=mode,
         metadata={
+            "mode": mode,
             "show_config": bool(show_config),
             "sleep_seconds": max(1, int(sleep_seconds)),
             "extra_args": extra_args.strip(),
             "extra_argv": [str(item) for item in (extra_argv or [])],
             "single_file": single_file or "",
+            "priority_only": bool(priority_only),
+            "expected_queue_plan_fingerprint": expected_queue_plan_fingerprint,
+            "command_id": command_id,
+            "run_id": run_id,
         },
     )
 
@@ -159,6 +176,11 @@ def build_rerun_csv_launch_plan(
     confirm_original_policy: bool = False,
     confirm_delete_original: bool = False,
     plan_only: bool = False,
+    command_id: str = "",
+    launch_id: str = "",
+    batch_id: str = "",
+    enrollment_path: Path | None = None,
+    manifest_path: Path | None = None,
 ) -> ProcessLaunchPlan:
     if not resolved.powershell_host:
         raise RuntimeError("PowerShell host could not be resolved.")
@@ -206,6 +228,16 @@ def build_rerun_csv_launch_plan(
         args.append("-ConfirmReplaceFinal")
     if confirm_source_overwrite:
         args.append("-ConfirmSourceOverwrite")
+    if command_id:
+        args.extend(["-CommandId", command_id])
+    if launch_id:
+        args.extend(["-LaunchId", launch_id])
+    if batch_id:
+        args.extend(["-BatchId", batch_id])
+    if enrollment_path is not None:
+        args.extend(["-EnrollmentPath", str(enrollment_path)])
+    if manifest_path is not None:
+        args.extend(["-ManifestPath", str(manifest_path)])
     mode = "plan_only" if plan_only else "dry_run" if dry_run else "run"
 
     return ProcessLaunchPlan(
@@ -228,5 +260,10 @@ def build_rerun_csv_launch_plan(
             "confirm_source_overwrite": bool(confirm_source_overwrite),
             "confirm_original_policy": bool(confirm_original_policy),
             "confirm_delete_original": bool(confirm_delete_original),
+            "command_id": command_id,
+            "launch_id": launch_id,
+            "batch_id": batch_id,
+            "enrollment_path": str(enrollment_path) if enrollment_path is not None else "",
+            "manifest_path": str(manifest_path) if manifest_path is not None else "",
         },
     )

@@ -15,6 +15,7 @@
       RERUN_NETWORK_PREVIEW_ROUTE,
       RERUN_NETWORK_START_DRY_RUN_ROUTE,
       RERUN_NETWORK_START_ROUTE,
+      RERUN_NETWORK_RETRY_ROUTE,
       RERUN_START_ROUTE,
       RERUN_RESULTS_ROUTE,
       RERUN_CONTROL_ROUTE,
@@ -33,6 +34,7 @@
       postRerunControlStopAfterCurrent,
       postRerunControlPause,
       postRerunContinue,
+      postBackendRerunAction,
       postRerunOpen,
       postDiagnosticsOpen,
       postRerunPromoteDryRun,
@@ -296,10 +298,44 @@
       cell.appendChild(strip);
     }
 
+    function currentRerunSummaries(payload = lastRerunResultsPayload) {
+      const queueState = payload?.queue_state && typeof payload.queue_state === "object" ? payload.queue_state : {};
+      return [queueState.current_local, queueState.current_network]
+        .filter((summary) => summary && typeof summary === "object" && summary.selection_reason !== "none");
+    }
+
+    function currentRerunActivityLabel(summary = {}) {
+      const activity = summary.runtime_activity && typeof summary.runtime_activity === "object"
+        ? summary.runtime_activity
+        : {};
+      if (summary.queue_source !== "network_csv_rerun") return summary.activity_state || "review";
+      if (activity.status === "active") return "active; fresh exact persisted worker claim";
+      if (activity.status === "stale") return "open; persisted worker claim is stale";
+      if (activity.status === "unverified" || summary.activity_state === "open_unverified") {
+        return "open; live worker unverified";
+      }
+      return summary.activity_state || "review";
+    }
+
+    function rerunHistoryWindowLines(payload = lastRerunResultsPayload) {
+      const windowState = payload?.history_window && typeof payload.history_window === "object"
+        ? payload.history_window
+        : {};
+      const lines = [];
+      [["Local", windowState.local], ["Network", windowState.network]].forEach(([label, state]) => {
+        if (!state || typeof state !== "object") return;
+        const loaded = Number(state.loaded_count || 0);
+        const discovered = Number(state.discovered_candidate_count || 0);
+        lines.push(`${label} recent history: loaded ${loaded} of ${discovered} discovered candidate(s)${state.truncated ? "; older records are outside this response window" : ""}.`);
+      });
+      const warningCount = Number(windowState.scan_warning_count || 0);
+      if (warningCount) lines.push(`History scan warnings: ${warningCount}; readable records remain visible.`);
+      return lines;
+    }
+
     function queueStateRows(payload = lastRerunResultsPayload) {
-      const stateRows = payload?.queue_state && Array.isArray(payload.queue_state.rows) ? payload.queue_state.rows : null;
-      if (stateRows) return stateRows;
-      return Array.isArray(payload?.rows) ? payload.rows : [];
+      return currentRerunSummaries(payload)
+        .flatMap((summary) => Array.isArray(summary.rows) ? summary.rows : []);
     }
 
     function queueStatusFilter() {
@@ -399,7 +435,14 @@
     }
 
     function latestManifestRowKey(payload = lastRerunResultsPayload) {
-      const manifests = Array.isArray(payload?.manifests) ? payload.manifests : [];
+      for (const summary of currentRerunSummaries(payload)) {
+        const rowKey = firstManifestRowKey(summary);
+        if (rowKey) return rowKey;
+      }
+      const manifests = [
+        ...(Array.isArray(payload?.manifests) ? payload.manifests : []),
+        ...(Array.isArray(payload?.network_manifests) ? payload.network_manifests : []),
+      ];
       for (const manifest of manifests) {
         const rowKey = firstManifestRowKey(manifest);
         if (rowKey) return rowKey;
@@ -411,16 +454,21 @@
       const container = nodeById("rerun-results-panel");
       if (!container) return;
       clearNode(container);
-      const manifests = Array.isArray(payload?.manifests) ? payload.manifests : [];
+      container.dataset.scope = "bounded-recent-history";
+      const manifests = [
+        ...(Array.isArray(payload?.manifests) ? payload.manifests : []),
+        ...(Array.isArray(payload?.network_manifests) ? payload.network_manifests : []),
+      ];
       if (!manifests.length) {
-        container.textContent = "No rerun manifests loaded.";
+        container.textContent = "No recent rerun manifests loaded.";
         return;
       }
       manifests.slice(0, 8).forEach((manifest) => {
         const item = document.createElement("div");
         item.className = "command-history-entry";
         const title = document.createElement("strong");
-        title.textContent = [manifest.batch_id || "rerun manifest", manifest.status || "unknown"].filter(Boolean).join(" | ");
+        const sourceLabel = manifest.queue_source === "network_csv_rerun" ? "Network CSV rerun" : "Local CSV rerun";
+        title.textContent = [sourceLabel, manifest.batch_id || "rerun manifest", manifest.status || "unknown"].filter(Boolean).join(" | ");
         item.appendChild(title);
         const counts = manifest.queue_status_counts && typeof manifest.queue_status_counts === "object"
           ? Object.keys(manifest.queue_status_counts).sort().map((key) => `${key} ${manifest.queue_status_counts[key]}`)
@@ -448,18 +496,6 @@
             openRerunRowTarget(rowKey, "manifest").catch((error) => {
               statusText("rerun-queue-detail", error instanceof Error ? error.message : String(error));
             });
-          });
-          actionRow.appendChild(button);
-        }
-        if (manifest.can_continue_pending) {
-          const button = document.createElement("button");
-          button.type = "button";
-          button.className = "secondary-button rerun-continue-pending-button";
-          button.dataset.manifestKey = manifest.manifest_key || "";
-          button.textContent = "Continue Pending Rows";
-          button.title = "Start a backend-owned CSV rerun scoped to pending rows only.";
-          button.addEventListener("click", () => {
-            requestRerunContinue(manifest.manifest_key || "").catch(() => {});
           });
           actionRow.appendChild(button);
         }
@@ -509,7 +545,26 @@
 
     function renderRerunRowActions(cell, row) {
       const rowKey = String(row?.row_key || "");
-      const actions = Array.isArray(row?.available_actions) ? row.available_actions : [];
+      const summary = currentRerunSummaries().find((item) => (
+        String(item?.manifest_key || "") === String(row?.manifest_key || "")
+        && firstManifestRowKey(item) === rowKey
+      ));
+      const summaryActions = (Array.isArray(summary?.available_actions) ? summary.available_actions : [])
+        .filter((action) => {
+          const actionRowKey = String(action?.request?.row_key || "").trim();
+          return !actionRowKey || actionRowKey === rowKey;
+        });
+      const actionCandidates = [
+        ...(Array.isArray(row?.available_actions) ? row.available_actions : []),
+        ...summaryActions,
+      ];
+      const seenActions = new Set();
+      const actions = actionCandidates.filter((action) => {
+        const key = JSON.stringify([action?.action || "", action?.route || "", action?.request || {}]);
+        if (seenActions.has(key)) return false;
+        seenActions.add(key);
+        return true;
+      });
       if (!rowKey || !actions.length) {
         cell.textContent = "No actions";
         return;
@@ -524,6 +579,12 @@
           const actionName = String(action?.action || "");
           if (actionName === "promote_to_pending_publish") {
             promoteRerunRowToPending(rowKey).catch((error) => {
+              statusText("rerun-queue-detail", error instanceof Error ? error.message : String(error));
+            });
+            return;
+          }
+          if (String(action?.route || "")) {
+            requestBackendRerunAction(action).catch((error) => {
               statusText("rerun-queue-detail", error instanceof Error ? error.message : String(error));
             });
             return;
@@ -572,11 +633,20 @@
       setQueueStatusFilterOptions(lastRerunResultsPayload);
       renderRerunManifestCards(lastRerunResultsPayload);
       renderRerunQueueStateRows(lastRerunResultsPayload);
+      const current = currentRerunSummaries(lastRerunResultsPayload);
+      statusText("rerun-queue-detail", current.length
+        ? [
+            "Current CSV rerun batch state:",
+            ...current.map((summary) => `${summary.queue_source}: ${summary.batch_id || "unknown"} | ${currentRerunActivityLabel(summary)} | ${summary.row_count || 0} row(s).`),
+          ].join("\n")
+        : "Current CSV rerun batch: none. Terminal runs remain available in recent bounded history.");
       const counts = lastRerunResultsPayload?.queue_state?.status_counts || {};
       const countText = Object.keys(counts).sort().map((key) => `${key} ${counts[key]}`).join("; ");
       statusText("rerun-history-summary", [
-        "CSV rerun queue-state is backend-owned and rendered from /api/rerun/results.",
+        "Recent bounded history is backend-owned and rendered from /api/rerun/results.",
+        `Current CSV rerun batch count: ${current.length}.`,
         "Local and Network CSV rerun rows shown here are not normal /api/pipeline/start queue rows.",
+        ...rerunHistoryWindowLines(lastRerunResultsPayload),
         countText ? `Status counts: ${countText}.` : "No CSV rerun rows loaded.",
         lastRerunResultsPayload?.queue_state?.contains_network_csv_rerun ? "Network CSV rerun reducer and destination-policy evidence is backend-authored." : "",
       ].join("\n"));
@@ -805,14 +875,62 @@
       return result;
     }
 
-    async function requestRerunContinue(manifestKey) {
+    async function requestRerunContinue(action) {
+      if (!action || typeof action !== "object" || !String(action.route || "").trim()) {
+        throw new Error("CSV rerun continuation requires a backend-authored available_actions entry.");
+      }
       setQueueRerunBusy(true);
       try {
-          return await callRerunWorkflowHelper("requestRerunContinue", RERUN_CONTINUE_ROUTE, [manifestKey]);
+          return await callRerunWorkflowHelper("requestRerunContinue", RERUN_CONTINUE_ROUTE, [action]);
       } finally {
         setQueueRerunBusy(false);
         refreshRerunResults({ quiet: true }).catch(() => {});
       }
+    }
+
+    function newRerunActionRequestId() {
+      if (typeof window.crypto?.randomUUID === "function") return window.crypto.randomUUID();
+      return `rerun-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+    }
+
+    function requireRerunActionBackendConfirmation(label, confirmationField, request) {
+      if (!confirmationField) return;
+      if (request[confirmationField] !== true) {
+        throw new Error(`${label} is missing strict backend confirmation ${confirmationField}=true.`);
+      }
+    }
+
+    async function requestBackendRerunAction(action = {}) {
+      const route = String(action?.route || "").trim();
+      const request = action?.request && typeof action.request === "object" ? { ...action.request } : {};
+      const confirmationField = String(action?.confirmation_field || "").trim();
+      const label = String(action?.label || action?.action || "CSV rerun action").trim();
+      if (!route) throw new Error(`${label} has no backend route.`);
+      requireRerunActionBackendConfirmation(label, confirmationField, request);
+      if (action?.requires_confirmation === true) {
+        const prompt = String(action?.confirmation_prompt || `Confirm ${label}?`).trim();
+        if (!window.confirm(prompt)) {
+          const canceled = { command: String(action?.action || "rerun.action"), ok: false, severity: "info", message: `${label} canceled.` };
+          statusText("rerun-queue-detail", canceled.message);
+          return canceled;
+        }
+      }
+      if (action?.reason_required === true) {
+        if (!String(request.reason || "").trim()) {
+          const reason = window.prompt(String(action?.reason_prompt || "Why is this retry safe now?").trim(), "");
+          if (reason === null || !String(reason).trim()) {
+            const canceled = { command: String(action?.action || "rerun.action"), ok: false, severity: "info", message: `${label} canceled: a reason is required.` };
+            statusText("rerun-queue-detail", canceled.message);
+            return canceled;
+          }
+          request.reason = String(reason).trim();
+        }
+      }
+      if (action?.request_id_required === true) request.request_id = newRerunActionRequestId();
+      const result = await postBackendRerunAction(route, request);
+      statusText("rerun-queue-detail", result?.message || `${label} request finished.`);
+      await refreshRerunResults({ quiet: true });
+      return result;
     }
 
     async function stopRerunAfterCurrent() {
@@ -938,6 +1056,7 @@
       RERUN_NETWORK_PREVIEW_ROUTE,
       RERUN_NETWORK_START_DRY_RUN_ROUTE,
       RERUN_NETWORK_START_ROUTE,
+      RERUN_NETWORK_RETRY_ROUTE,
       RERUN_START_ROUTE,
       RERUN_RESULTS_ROUTE,
       RERUN_CONTROL_ROUTE,
@@ -977,6 +1096,7 @@
       showRerunCommandHistory,
       promoteRerunRowToPending,
       requestRerunContinue,
+      requestBackendRerunAction,
       stopRerunAfterCurrent,
       checkNetworkRerunStartDryRun,
       startRerunFromForm,

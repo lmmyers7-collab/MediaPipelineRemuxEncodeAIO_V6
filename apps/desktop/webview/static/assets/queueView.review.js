@@ -14,6 +14,7 @@
     queueFilterFields,
     queueFormatCounts,
     queueHiddenSidecarLine,
+    queueBlockerEvidence,
     queueRowKey,
     queueSnapshotIsStale,
     queueWorkflowStatus,
@@ -36,6 +37,9 @@
     setText = typeof setText === "function" ? setText : function () {};
     updateTableStatusLegend = typeof updateTableStatusLegend === "function" ? updateTableStatusLegend : function () {};
     const QUEUE_FILTER_FIELDS = Array.isArray(queueFilterFields) ? queueFilterFields : [];
+    queueBlockerEvidence = typeof queueBlockerEvidence === "function"
+      ? queueBlockerEvidence
+      : function () { return { blocked: false, code: "", reason: "" }; };
 
     function queueRuntimeStoppedByRequest(row) {
       const runtimeStatus = String(row?.runtime_outcome_status || "").toLowerCase();
@@ -86,7 +90,7 @@
       const backendState = typeof backendRowStatusState === "function" ? backendRowStatusState(row) : "";
       if (severity && !["ok", "info", "normal", "ready"].includes(severity)) return false;
       if (["invalid", "blocked", "failed", "error"].some((value) => status.includes(value))) return false;
-      if (row.blocked_reason || row.blocked_reason_code || row.error) return false;
+      if (queueBlockerEvidence(row).blocked) return false;
       if (queueHasRuntimeOutcome(row)) return false;
       if (queueActionableReviewFlags(row).length) return false;
       if (trustState && !["ready", "launch-check-needed", "consistent-looking"].includes(trustState)) return false;
@@ -113,7 +117,8 @@
       if (severity === "error") reasons.push("backend error severity");
       if (severity === "warning") reasons.push("backend warning severity");
       if (status === "invalid") reasons.push("invalid queue row");
-      if (row?.blocked_reason || row?.blocked_reason_code) reasons.push(`blocked: ${row.blocked_reason_code || row.blocked_reason}`);
+      const blocker = queueBlockerEvidence(row);
+      if (blocker.blocked) reasons.push(`blocked: ${blocker.code || blocker.reason}`);
       if (row?.runtime_checks_deferred) reasons.push("runtime checks deferred");
       if (runtimeFreshness === "fresh" && queueRuntimeStoppedByRequest(row)) {
         reasons.push("stopped by operator request");
@@ -135,7 +140,7 @@
         .sort((a, b) => {
           const severityRank = (entry) => String(entry.row?.operator_severity || "").toLowerCase() === "error" ? 0
             : String(entry.row?.operator_severity || "").toLowerCase() === "warning" ? 1
-              : entry.row?.blocked_reason || entry.row?.blocked_reason_code ? 2
+              : queueBlockerEvidence(entry.row).blocked ? 2
                 : 3;
           return severityRank(a) - severityRank(b) || a.index - b.index;
         });
@@ -146,9 +151,13 @@
       const payload = queue || {};
       const rowList = Array.isArray(rows) ? rows : [];
       if (payload.error) return "Diagnostics first";
-      if (queueSnapshotIsStale(payload)) return "Refresh queue";
       const reviewRows = queueReviewRows(payload, rowList);
-      if (reviewRows.length) return `${reviewRows.length} row${reviewRows.length === 1 ? "" : "s"} need review`;
+      if (reviewRows.length) {
+        const visibleCount = Math.min(12, reviewRows.length);
+        return reviewRows.length > visibleCount
+          ? `showing ${visibleCount} of ${reviewRows.length} flagged`
+          : `${reviewRows.length} row${reviewRows.length === 1 ? "" : "s"} need review`;
+      }
       if (!rowList.length) return "No runnable rows";
       return "No flagged rows";
     }
@@ -171,8 +180,6 @@
       lines.push("");
       if (payload.error) {
         lines.push("First action: open Diagnostics > Queue Snapshot, Run Logs, and Last Stderr. Do not launch from an unavailable queue view.");
-      } else if (queueSnapshotIsStale(payload)) {
-        lines.push("First action: refresh Queue from Launch before acting; stale queue rows can hide completed outputs or half-copied sources.");
       } else if (reviewRows.length) {
         lines.push("First rows to inspect:");
         reviewRows.slice(0, 6).forEach(({ row, reasons }, index) => {
@@ -183,6 +190,8 @@
         if (reviewRows.length > 6) lines.push(`- ${reviewRows.length - 6} more flagged row(s) not shown.`);
       } else if (!rowList.length) {
         lines.push("First action: check Source settings, Completed exclusions, schedule state, and Run Logs before assuming files were missed.");
+      } else if (queueSnapshotIsStale(payload)) {
+        lines.push("Age advisory: Snapshot age is not a row blocker. Run Once rebuilds and fingerprint-verifies the queue before media dispatch. Refresh only to update the displayed preview.");
       } else {
         lines.push("First action: no rows are locally flagged. Select any high-priority row and verify route evidence before Launch.");
       }
@@ -194,7 +203,7 @@
     function queueReviewDigestStatus(entry) {
       const row = entry?.row || {};
       const severity = String(row.operator_severity || "").toLowerCase();
-      if (severity === "error" || row.blocked_reason || row.blocked_reason_code || row.error) return "blocked";
+      if (severity === "error" || queueBlockerEvidence(row).blocked) return "blocked";
       if (severity === "warning" || row.is_priority || entry?.reasons?.length) return "warning";
       return "ready";
     }
@@ -212,7 +221,7 @@
       const backendState = typeof backendRowStatusState === "function" ? backendRowStatusState(item) : "";
       if (backendState && backendState !== "warning") return backendState;
       const severity = String(item?.operator_severity || "").toLowerCase();
-      if (severity === "error" || item?.blocked_reason || item?.blocked_reason_code || item?.error) return "blocked";
+      if (severity === "error" || queueBlockerEvidence(item).blocked) return "blocked";
       if (severity === "warning" || item?.is_priority || queueReviewRowReasons(item).length) return "warning";
       return "ready";
     }
@@ -239,7 +248,8 @@
       const route = String(item?.route_name || item?.route || item?.route_label || "").toLowerCase();
       const runtime = String(item?.runtime_outcome_status || "").toLowerCase();
       const runtimeError = String(item?.runtime_outcome_error_code || item?.runtime_outcome_reason || "").toLowerCase();
-      const blocker = String(item?.blocked_reason_code || item?.blocked_reason || item?.error || "").toLowerCase();
+      const blockerEvidence = queueBlockerEvidence(item);
+      const blocker = String(blockerEvidence.code || blockerEvidence.reason || "").toLowerCase();
       const reviewFlags = Array.isArray(item?.review_flags) ? item.review_flags.join(" ").toLowerCase() : "";
       if (!normalized || normalized === "all") return true;
       if (normalized === "launch_blockers") return queueTableRowStatus(item) === "blocked";
@@ -303,7 +313,7 @@
       }
       const focusedViews = queueFocusedInvestigationLabels(item);
       const primaryConcern = item.primary_concern
-        || [item.blocked_reason_code, item.blocked_reason, item.error].filter(Boolean).join(" - ")
+        || queueBlockerEvidence(item).reason
         || item.operator_guidance
         || item.route_decision_summary
         || "no focused blocker reported";
@@ -332,7 +342,7 @@
       const runtimeStatus = String(item.runtime_outcome_status || "").toLowerCase();
       const runtimeFreshness = String(item.runtime_outcome_freshness_status || "").toLowerCase();
       const reviewFlags = queueActionableReviewFlags(item);
-      const blocked = Boolean(item.blocked_reason || item.blocked_reason_code || String(item.status || "").toLowerCase().includes("blocked") || item.error);
+      const blocked = queueBlockerEvidence(item).blocked;
       const recentRuntimeIssue = runtimeFreshness === "fresh" && ["failed", "error", "skipped"].some((value) => runtimeStatus.includes(value));
       if (blocked) return "blocked";
       if (recentRuntimeIssue || reviewFlags.length || String(item.operator_severity || "").toLowerCase() === "warning") return "warning";
@@ -378,7 +388,7 @@
           ];
       }
       const concern = item.primary_concern
-        || [item.blocked_reason_code, item.blocked_reason, item.error].filter(Boolean).join(" - ")
+        || queueBlockerEvidence(item).reason
         || item.operator_guidance
         || "no primary concern reported";
       const safeAction = item.safe_next_action
@@ -433,7 +443,8 @@
       const runtimeProof = [item.runtime_outcome_status, item.runtime_outcome_error_code, item.runtime_outcome_reason]
         .filter(Boolean)
         .join(" - ");
-      const blockerProof = [item.blocked_reason_code, item.blocked_reason, item.error].filter(Boolean).join(" - ");
+      const blockerEvidence = queueBlockerEvidence(item);
+      const blockerProof = [blockerEvidence.code, blockerEvidence.reason].filter(Boolean).join(" - ");
       const reviewFlags = Array.isArray(item.review_flags) ? item.review_flags.filter(Boolean) : [];
       const signals = [];
       if (queueMatchesInvestigationFilter(item, "launch_blockers")) {

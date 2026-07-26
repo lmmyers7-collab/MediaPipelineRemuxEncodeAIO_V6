@@ -30,6 +30,11 @@
       if (typeof window.appendCommandResult === "function") window.appendCommandResult(result);
     }
     async function refreshAllFn() {
+      const queueView = window.mediaPipelineQueueView || {};
+      if (typeof queueView.requestQueueScan === "function") {
+        await queueView.requestQueueScan();
+        return;
+      }
       if (typeof window.refreshAll === "function") await window.refreshAll();
     }
     function effectivePayloadHasFileOverride() {

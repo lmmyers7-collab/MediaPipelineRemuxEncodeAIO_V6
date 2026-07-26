@@ -65,6 +65,7 @@
   const diagnosticsMatrixConsole = diagnosticsMatrixConsoleModule.createDiagnosticsMatrixConsoleModule({
     appendCells, appendCommandResult, apiClient: window.mediaPipelineApi,
     byId, setDiagnosticsPanelStatus,
+    makeRowSelectable: typeof makeRowSelectable === "function" ? makeRowSelectable : window.makeRowSelectable,
     setInlineActionStatus: window.setInlineActionStatus, setText,
   });
   const {
@@ -870,13 +871,10 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
   window.diagnosticsRowLabel = diagnosticsRowLabel;
   window.diagnosticsOwnerDefaultAction = diagnosticsOwnerDefaultAction;
   window.diagnosticsOwnerRowSeverity = diagnosticsOwnerRowSeverity;
-  window.diagnosticsOwnerHandoffRowKey = diagnosticsOwnerHandoffRowKey;
   window.diagnosticsCompletedFinalTrustStepForRow = diagnosticsCompletedFinalTrustStepForRow;
   window.diagnosticsCompletedFinalTrustLines = diagnosticsCompletedFinalTrustLines;
   window.diagnosticsCompletedPolicyReconciliationLines = diagnosticsCompletedPolicyReconciliationLines;
   window.diagnosticsOwnerHandoffRows = diagnosticsOwnerHandoffRows;
-  window.diagnosticsOwnerHandoffStatus = diagnosticsOwnerHandoffStatus;
-  window.diagnosticsOwnerHandoffSummaryLines = diagnosticsOwnerHandoffSummaryLines;
   window.diagnosticsOwnerHandoffActions = diagnosticsOwnerHandoffActions;
   window.diagnosticsOwnerPageId = diagnosticsOwnerPageId;
   window.diagnosticsOwnerSelectFunction = diagnosticsOwnerSelectFunction;

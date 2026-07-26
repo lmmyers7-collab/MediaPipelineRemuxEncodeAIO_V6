@@ -96,6 +96,7 @@ class ServicePathResolutionRunnerTests(unittest.TestCase):
             self.assertEqual(resolved.local_base, local_base)
             self.assertEqual(resolved.state_root, local_base / "State")
             self.assertEqual(resolved.active_jobs_path, local_base / "State" / "ActiveJobs")
+            self.assertEqual(resolved.run_monitor_path, local_base / "State" / "RunMonitor")
             self.assertEqual(resolved.app_state_path, local_base / "State" / "App" / APP_STATE_NAME)
             self.assertEqual(service.migrated_app_state_paths, [resolved.app_state_path])
             self.assertEqual(resolved.source_movies, root / "Movies")
@@ -104,12 +105,30 @@ class ServicePathResolutionRunnerTests(unittest.TestCase):
             self.assertEqual(resolved.progress_file, state_progress_progress)
             self.assertEqual(resolved.event_file, local_base / "State" / "Progress" / "pipeline_events.jsonl")
             self.assertEqual(resolved.pause_flag, local_base / "State" / "Pipeline" / "pipeline_pause.flag")
+            self.assertEqual(
+                resolved.stop_after_current_flag,
+                local_base / "State" / "Pipeline" / "pipeline_stop_after_current.flag",
+            )
             self.assertEqual(resolved.failed_reports_path, local_base / "State" / "Failures" / "Reports")
             self.assertEqual(resolved.pending_push_path, local_base / "State" / "PendingServerPush")
             self.assertEqual(resolved.audit_reports_path, local_base / "AuditReports")
             self.assertEqual(resolved.queue_snapshot_path, local_base / "State" / "Progress" / "queue_snapshot.json")
             self.assertEqual(resolved.completed_manifest_path, local_base / "State" / "Completed" / "completed_jobs.jsonl")
             self.assertEqual(resolved.priority_markers, ["!", "[NOW]"])
+
+    def test_product_runtime_state_resolves_run_monitor_without_legacy_fallback(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            app_root = root / "DesktopApp"
+            app_root.mkdir()
+            runtime_state = root / "ProductState"
+            service = DummyPathResolutionService(app_root, {})
+            service.product_runtime_roots = {"state_root": runtime_state}
+
+            resolved = resolve_paths_for_service(service, str(root / "Pipeline.ps1"), str(root / "Config.psd1"))
+
+            self.assertEqual(resolved.state_root, runtime_state)
+            self.assertEqual(resolved.run_monitor_path, runtime_state / "RunMonitor")
 
     def test_resolve_paths_prefers_settings_authority_for_active_config(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

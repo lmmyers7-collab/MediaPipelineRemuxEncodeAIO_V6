@@ -1,0 +1,63 @@
+{
+  "id": "MP-CHANGE-2026-0723-019",
+  "title": "Serialize pending drain by destination",
+  "version_target": "2026.06.04.001",
+  "status": "in_progress",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": null,
+  "summary": "Serialize pending drain and stale-attempt recovery by canonical final destination and fail duplicate-target manifests into review.",
+  "reason": "Remediate P1 AUDIT-FIND-W04-005. Per-manifest locks do not protect the shared final media and sidecar destination when distinct manifests name the same server_out.",
+  "affected_areas": [
+    "pending-publish drain concurrency",
+    "pending stale-attempt recovery",
+    "final media and sidecar reveal rollback",
+    "manifest duplicate-destination review evidence"
+  ],
+  "behavior_before": "Different manifest files can pass destination checks concurrently and then reveal, verify, or roll back one shared final path under independent locks.",
+  "behavior_after": "A stable canonical destination lock serializes drain and recovery across processes, manifests are re-read under lock, and duplicate-target manifests fail closed into explicit review before final placement.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md.md",
+    "docs/generated/summaries/docs/inventories/STATE_FILE_SCHEMA_REFERENCE.md.md",
+    "docs/generated/summaries/ops/pipeline/engine/publish/pending_drain_transaction.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/publish/pending_repair.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/publish/pending_transactions.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-PendingPublishTransactionFaultInjectionChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-019.json.md",
+    "docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md",
+    "docs/inventories/STATE_FILE_SCHEMA_REFERENCE.md",
+    "ops/pipeline/engine/publish/pending_drain_transaction.ps1",
+    "ops/pipeline/engine/publish/pending_repair.ps1",
+    "ops/pipeline/engine/publish/pending_transactions.ps1",
+    "ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-PendingPublishTransactionFaultInjectionChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-019.json"
+  ],
+  "tests_added": [
+    "Two actual drain wrappers in separate PowerShell processes use different manifests and case/separator aliases for one final path; the second fails on the destination lock while exact payload and manifest hashes, sidecar absence, final absence, and zero completion rows remain unchanged.",
+    "Two readable manifests targeting one canonical destination both enter review_duplicate_destination without publishing or removing either payload/manifest.",
+    "Stale-attempt recovery fails busy without changing manifest, payload, partial, or final state while the destination is locked, then reconciles after release.",
+    "Static safety assertions enforce manifest-then-destination lock ordering across drain and recovery and require stable retained lock sentinels."
+  ],
+  "manual_validation": [
+    "PowerShell parser accepted pending_transactions.ps1, pending_drain_transaction.ps1, pending_repair.ps1, and both touched pending test scripts.",
+    "Invoke-PendingPublishTransactionFaultInjectionChecks.ps1 passed its complete park/drain fault campaign plus destination concurrency, duplicate-target review, and recovery-lock cases.",
+    "Invoke-PendingPublishSafetyChecks.ps1, Invoke-PendingPublishOwnershipChecks.ps1, and Invoke-PendingPublishBackpressureReadHealthChecks.ps1 passed.",
+    "Pending service/manifest/repair Python slices passed: 19 focused pending manifest/service tests and 40 pending/repair tests with 6 subtests.",
+    "Invoke-ToolIntegrationChecks.ps1 passed bundled FFmpeg/ffprobe/subtitle integration.",
+    "Invoke-AdversarialForceKillEncodeChecks.ps1 passed: killed encode was not accepted, source remained queued, and active diagnostics reconciled to interrupted.",
+    "Test-WebViewBrowserLargeTableSmoke.ps1 passed one browser test and posted no mutation routes.",
+    "Active reliability wrapper passed architecture, native cleanup, runtime-state hygiene, and sidecar safety, then stopped on the known unrelated static WebView assets assertion."
+  ],
+  "rollback_plan": "Revert the destination lock helpers, drain/recovery lock ordering, duplicate-target review guard, tests, generated context, and this packet together. Pending payloads and manifests remain the rollback authority; never delete or overwrite source media.",
+  "related_changes": [
+    "AUDIT-FIND-W04-005"
+  ],
+  "notes": "High-risk Pending Publish boundary reviewed in docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md. Static, disposable two-process, fault-injection, recovery, tool-integration, browser read-only, and adversarial force-kill gates pass. The packet remains in_progress because the boundary register and audit validation rung explicitly require a representative real-media deferred publish to drain pilot before release; no operator-approved representative sample or isolated real-media destination was supplied, and source mutation remains forbidden."
+}

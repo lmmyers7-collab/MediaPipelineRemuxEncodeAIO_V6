@@ -62,6 +62,9 @@ def _packet_paths() -> list[Path]:
     paths: list[Path] = []
     if UNRELEASED_DIR.exists():
         paths.extend(UNRELEASED_DIR.glob("*.json"))
+    archived = UNRELEASED_DIR.parent / "archived"
+    if archived.exists():
+        paths.extend(archived.glob("**/*.json"))
     if RELEASED_DIR.exists():
         paths.extend(RELEASED_DIR.glob("**/*.json"))
     return sorted(path for path in paths if path.is_file())
@@ -111,9 +114,14 @@ def _validate_date(label: str, field: str, value: Any) -> list[str]:
     return []
 
 
-def _validate_packet(path: Path, packet: dict[str, Any]) -> list[str]:
+def _validate_packet(
+    path: Path,
+    packet: dict[str, Any],
+    *,
+    repo_root: Path | None = None,
+) -> list[str]:
     errors: list[str] = []
-    label = _relative(path)
+    label = path.relative_to(repo_root or REPO_ROOT).as_posix()
 
     for field in REQUIRED_FIELDS:
         if field not in packet:
@@ -164,7 +172,7 @@ def _validate_packet(path: Path, packet: dict[str, Any]) -> list[str]:
                 f"{label}: manual_validation must be non-empty when complete"
             )
 
-    if risk in {"high", "critical"}:
+    if status in {"in_progress", "complete"} and risk in {"high", "critical"}:
         if not (
             _non_empty_string(packet.get("notes"))
             or _non_empty_string(packet.get("rollback_plan"))
@@ -174,6 +182,17 @@ def _validate_packet(path: Path, packet: dict[str, Any]) -> list[str]:
             )
 
     return errors
+
+
+def packet_validation_errors(
+    path: Path,
+    packet: dict[str, Any],
+    *,
+    repo_root: Path | None = None,
+) -> list[str]:
+    """Return schema/evidence errors without applying lifecycle-location rules."""
+
+    return _validate_packet(path, packet, repo_root=repo_root)
 
 
 def _released_version_for(path: Path) -> str | None:
@@ -211,6 +230,29 @@ def _validate_released_packet(path: Path, packet: dict[str, Any]) -> list[str]:
         errors.append(f"{label}: released complete packets require date_completed")
 
     return errors
+
+
+def _validate_archived_packet(path: Path, packet: dict[str, Any]) -> list[str]:
+    archived_dir = UNRELEASED_DIR.parent / "archived"
+    try:
+        relative = path.relative_to(archived_dir)
+    except ValueError:
+        return []
+
+    label = _relative(path)
+    if len(relative.parts) != 2:
+        return [f"{label}: archived packets must live under ops/release/changes/archived/YYYY-MM/"]
+    bucket = relative.parts[0]
+    if not re.fullmatch(r"\d{4}-\d{2}", bucket):
+        return [f"{label}: archived packet folder must use YYYY-MM"]
+    if packet.get("status") != "complete":
+        return [f"{label}: archived packets must have status complete"]
+    completed = packet.get("date_completed")
+    if not _non_empty_string(completed):
+        return [f"{label}: archived complete packets require date_completed"]
+    if str(completed)[:7] != bucket:
+        return [f"{label}: date_completed must match archive folder '{bucket}'"]
+    return []
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -271,13 +313,17 @@ def main(argv: list[str] | None = None) -> int:
         errors.append("ops/release/metadata/VERSION is missing")
 
     if not packet_paths:
-        errors.append("No change packets found under ops/release/changes/unreleased or ops/release/changes/released")
+        errors.append(
+            "No change packets found under ops/release/changes/unreleased, "
+            "ops/release/changes/archived, or ops/release/changes/released"
+        )
 
     for path in packet_paths:
         packet = _load_packet(path, errors)
         if packet is not None:
             errors.extend(_validate_packet(path, packet))
             errors.extend(_validate_released_packet(path, packet))
+            errors.extend(_validate_archived_packet(path, packet))
             change_id = packet.get("id")
             if isinstance(change_id, str):
                 if change_id in seen_ids:

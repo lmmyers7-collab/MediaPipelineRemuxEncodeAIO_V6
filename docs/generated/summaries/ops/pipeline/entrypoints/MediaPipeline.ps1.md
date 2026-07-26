@@ -1,16 +1,22 @@
 ---
 file: ops/pipeline/entrypoints/MediaPipeline.ps1
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: PowerShell
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-09
+last_modified: 2026-07-20
 last_reviewed: 2026-06-04
-sha256: e173989c0219c37cf42fe593b2c66d5248ed2497c2df33fcc1f62ada27f60f0c
+sha256: 913392d83385e9c1081ff4310ee546279d4df477f1bb15f891831944e6ec92ab
 ---
 # `ops/pipeline/entrypoints/MediaPipeline.ps1`
 
 **Purpose:** Entry script for the remux/encode/publish media pipeline.
 
-**Functions:** `Write-MediaPipelineEarlyWorkerChildFailureResult`
+**Public symbols:** `Write-MediaPipelineEarlyWorkerChildFailureResult`
+**State/config identifiers:** `MediaPipeline_config.psd1`, `MediaPipeline_config_chatgpt.psd1`
+**Invoked stages:** `blocked`, `failed`, `idle`, `retry_pending_push`, `shutdown`, `startup`, `subtitle-helper-selfcheck`, `write`
+**Invoked tools:** `ffmpeg`, `ffprobe`, `mkvextract`, `mkvmerge`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/pipeline/entrypoints/MediaPipeline.ps1`._

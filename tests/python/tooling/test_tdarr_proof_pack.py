@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import json
 import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -138,6 +139,7 @@ class TdarrProofPackTests(unittest.TestCase):
                 proof_root=proof_root,
                 source_manifest=source_manifest,
                 template_path=write_template(root),
+                allowed_test_parent=root,
             )
             verification = tdarr_proof_pack.verify_proof_pack(proof_root)
 
@@ -165,6 +167,7 @@ class TdarrProofPackTests(unittest.TestCase):
                 proof_root=proof_root,
                 source_manifest=source_manifest,
                 template_path=write_template(root),
+                allowed_test_parent=root,
             )
             targets = tdarr_legacy_cleanup_targets(root)
             matrix_root = targets["legacy_matrix_library"]
@@ -199,6 +202,164 @@ class TdarrProofPackTests(unittest.TestCase):
         self.assertFalse(matrix_root.exists())
         self.assertFalse(runs_root.exists())
         self.assertFalse(cache_root.exists())
+
+    def test_rebuild_rejects_untrusted_roots_and_sentinels(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source_manifest, _source_files = write_source_manifest(root)
+            template = write_template(root)
+            outside = root / "outside-cli-root"
+            keep = outside / "keep.txt"
+            keep.parent.mkdir(parents=True)
+            keep.write_text("preserve", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "canonical Tdarr Proof Pack root"):
+                tdarr_proof_pack.materialize_proof_pack(
+                    proof_root=outside,
+                    source_manifest=source_manifest,
+                    template_path=template,
+                    rebuild=True,
+                )
+            self.assertEqual(keep.read_text(encoding="utf-8"), "preserve")
+
+            schema_only = root / "schema-only"
+            schema_only.mkdir()
+            schema_keep = schema_only / "keep.txt"
+            schema_keep.write_text("preserve", encoding="utf-8")
+            (schema_only / TDARR_PROOF_PACK_SENTINEL).write_text(
+                json.dumps({"schema_version": tdarr_proof_pack.TDARR_PROOF_PACK_SCHEMA_VERSION}),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "has no root identity"):
+                tdarr_proof_pack.prepare_proof_root(
+                    schema_only,
+                    rebuild=True,
+                    allowed_test_parent=root,
+                )
+            self.assertEqual(schema_keep.read_text(encoding="utf-8"), "preserve")
+
+            malformed = root / "malformed-sentinel"
+            malformed.mkdir()
+            malformed_keep = malformed / "keep.txt"
+            malformed_keep.write_text("preserve", encoding="utf-8")
+            (malformed / TDARR_PROOF_PACK_SENTINEL).write_text("{not-json", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "unreadable or malformed"):
+                tdarr_proof_pack.prepare_proof_root(
+                    malformed,
+                    rebuild=True,
+                    allowed_test_parent=root,
+                )
+            self.assertEqual(malformed_keep.read_text(encoding="utf-8"), "preserve")
+
+            wrong_purpose = root / "wrong-purpose"
+            wrong_purpose.mkdir()
+            wrong_purpose_keep = wrong_purpose / "keep.txt"
+            wrong_purpose_keep.write_text("preserve", encoding="utf-8")
+            wrong_purpose_payload = {
+                "schema_version": tdarr_proof_pack.TDARR_PROOF_PACK_SCHEMA_VERSION,
+                "proof_root": str(wrong_purpose),
+                "root_identity": tdarr_proof_pack.proof_root_identity_payload(wrong_purpose),
+            }
+            wrong_purpose_payload["root_identity"]["purpose"] = "unrelated_directory"
+            (wrong_purpose / TDARR_PROOF_PACK_SENTINEL).write_text(
+                json.dumps(wrong_purpose_payload),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "purpose does not match"):
+                tdarr_proof_pack.prepare_proof_root(
+                    wrong_purpose,
+                    rebuild=True,
+                    allowed_test_parent=root,
+                )
+            self.assertEqual(wrong_purpose_keep.read_text(encoding="utf-8"), "preserve")
+
+            trusted = root / "trusted"
+            tdarr_proof_pack.materialize_proof_pack(
+                proof_root=trusted,
+                source_manifest=source_manifest,
+                template_path=template,
+                allowed_test_parent=root,
+            )
+            copied = root / "copied-sentinel"
+            copied.mkdir()
+            copied_keep = copied / "keep.txt"
+            copied_keep.write_text("preserve", encoding="utf-8")
+            (copied / TDARR_PROOF_PACK_SENTINEL).write_text(
+                (trusted / TDARR_PROOF_PACK_SENTINEL).read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "proof_root_sha256 does not match"):
+                tdarr_proof_pack.prepare_proof_root(
+                    copied,
+                    rebuild=True,
+                    allowed_test_parent=root,
+                )
+            self.assertEqual(copied_keep.read_text(encoding="utf-8"), "preserve")
+
+            allowed = root / "allowed"
+            allowed.mkdir()
+            link_target = root / "link-target"
+            link_target.mkdir()
+            link_keep = link_target / "keep.txt"
+            link_keep.write_text("preserve", encoding="utf-8")
+            link = allowed / "proof-link"
+            try:
+                link.symlink_to(link_target, target_is_directory=True)
+            except OSError as exc:
+                if os.name != "nt":
+                    self.skipTest(f"directory symlink creation unavailable: {exc}")
+                junction = subprocess.run(
+                    ["cmd.exe", "/d", "/c", "mklink", "/J", str(link), str(link_target)],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                if junction.returncode != 0:
+                    self.skipTest(f"directory junction creation unavailable: {junction.stderr.strip() or exc}")
+            with self.assertRaisesRegex(ValueError, "symlink or junction"):
+                tdarr_proof_pack.prepare_proof_root(
+                    link,
+                    rebuild=True,
+                    allowed_test_parent=allowed,
+                )
+            self.assertEqual(link_keep.read_text(encoding="utf-8"), "preserve")
+
+    def test_rebuild_quarantines_prior_root_and_rolls_back_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source_manifest, _source_files = write_source_manifest(root)
+            template = write_template(root)
+            proof_root = root / "proof-pack"
+            tdarr_proof_pack.materialize_proof_pack(
+                proof_root=proof_root,
+                source_manifest=source_manifest,
+                template_path=template,
+                allowed_test_parent=root,
+            )
+            (proof_root / "old-only.txt").write_text("recoverable", encoding="utf-8")
+
+            rebuilt = tdarr_proof_pack.materialize_proof_pack(
+                proof_root=proof_root,
+                source_manifest=source_manifest,
+                template_path=template,
+                rebuild=True,
+                allowed_test_parent=root,
+            )
+            quarantine = Path(rebuilt["quarantine_root"])
+            self.assertTrue(rebuilt["ok"])
+            self.assertTrue((quarantine / "old-only.txt").exists())
+            self.assertTrue(tdarr_proof_pack.verify_proof_pack(proof_root)["ok"])
+
+            (proof_root / "restore-me.txt").write_text("restore", encoding="utf-8")
+            with self.assertRaises(FileNotFoundError):
+                tdarr_proof_pack.materialize_proof_pack(
+                    proof_root=proof_root,
+                    source_manifest=source_manifest,
+                    template_path=root / "missing-template.psd1",
+                    rebuild=True,
+                    allowed_test_parent=root,
+                )
+            self.assertEqual((proof_root / "restore-me.txt").read_text(encoding="utf-8"), "restore")
+            self.assertEqual(len(list(root.glob("proof-pack.failed.*"))), 1)
 
 
 if __name__ == "__main__":

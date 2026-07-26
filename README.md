@@ -202,6 +202,13 @@ requested.
 .\ops\scripts\release\build.ps1 -Zip -Verify -IncludeTests
 ```
 
+`-Force` replaces only a directory whose partial or completed release marker is
+bound to that exact destination, source root, version, and source revision.
+Legacy, copied, mismatched, or reparse-point destinations fail closed; move
+them aside manually and build into a new directory. A valid replacement moves
+the prior output to a recoverable sibling quarantine and restores it if the new
+build fails. Inspect and remove successful-build quarantines manually.
+
 Preferred bundled runtime/tool locations include:
 
 - `apps\desktop\runtime\Python\python.exe`

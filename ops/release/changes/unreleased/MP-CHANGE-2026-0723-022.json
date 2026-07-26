@@ -1,0 +1,52 @@
+{
+  "id": "MP-CHANGE-2026-0723-022",
+  "title": "Bound Proof Pack rebuilds to trusted roots",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": "2026-07-23",
+  "summary": "Restrict Tdarr Proof Pack rebuilds to the canonical operator root or an internal disposable test parent, validate root-bound sentinel identity, and recover from failed rebuilds.",
+  "reason": "Remediate P1 AUDIT-FIND-W11-012. The public CLI accepts arbitrary proof roots and a same-named sentinel alone currently authorizes recursive deletion of the selected directory.",
+  "affected_areas": [
+    "developer tooling",
+    "diagnostics",
+    "filesystem safety",
+    "Tdarr Proof Pack",
+    "tests"
+  ],
+  "behavior_before": "--rebuild accepts any absolute or repository-relative proof root and calls shutil.rmtree when a child with the sentinel filename exists, without validating sentinel content, root identity, or path containment.",
+  "behavior_after": "Public materialization accepts only the canonical resolved Proof Pack root. Internal tests may inject a strict child of an explicit disposable parent. Symlink, junction, and reparse components are rejected. Rebuild requires a parsed sentinel with the expected schema, purpose, exact root path/hash, and nonzero build nonce; the old tree is renamed to a sibling quarantine and restored if population fails.",
+  "files_touched": [
+    "docs/change_control/CHANGE_INDEX.md",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-022.json.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/tdarr_proof_pack.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_tdarr_proof_pack.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-022.json",
+    "src/mediapipeline/tools/dev/tdarr_proof_pack.py",
+    "tests/python/tooling/test_tdarr_proof_pack.py"
+  ],
+  "tests_added": [
+    "Arbitrary public roots fail before mutation and preserve unrelated files.",
+    "Malformed, schema-only, wrong-purpose, and copied sentinels fail root-identity validation and preserve their directories.",
+    "A Windows directory junction escaping the disposable parent is rejected without touching its target.",
+    "A successful rebuild retains the prior proof tree in a sibling quarantine.",
+    "A post-quarantine population failure restores the prior root and preserves failed partial output."
+  ],
+  "manual_validation": [
+    "Focused Proof Pack tests passed: 5 tests, including the Windows junction fallback with no skips.",
+    "Adjacent Tdarr Proof Pack, matrix audit, and desktop service slice passed: 53 tests and 8 subtests.",
+    "Targeted Ruff validation passed for the changed Python implementation and tests.",
+    "Targeted summary freshness, project index/dependency graph, feature map, risky-file registry, git diff --check, and strict worktree coverage passed; strict coverage reported 1,164 valid packets."
+  ],
+  "rollback_plan": "Revert the proof-root boundary, sentinel identity, quarantine/rollback flow, disposable-root tests, generated summaries/maps, and this packet together. Preserve any reported quarantine or failed-partial directories for manual recovery.",
+  "related_changes": [
+    "AUDIT-FIND-W11-012"
+  ],
+  "notes": "High-risk disposable-filesystem validation only. No source media or operator proof library will be touched; representative real media is not required because the behavior is exercised with synthetic temporary proof fixtures."
+}

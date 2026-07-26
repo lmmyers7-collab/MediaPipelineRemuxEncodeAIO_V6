@@ -281,6 +281,11 @@ function New-RerunPendingPublishManifest {
     if ([string]::IsNullOrWhiteSpace($sourceIdentity)) {
         $sourceIdentity = 'rerun_csv:' + ([guid]::NewGuid().ToString('N'))
     }
+    $sourceContentSha256 = [string]$Plan.planned_source_content_sha256
+    if ([string]::IsNullOrWhiteSpace($sourceContentSha256)) {
+        $sourceContentSha256 = [string]$Plan.source_content_sha256
+    }
+    $sourceContentSha256 = $sourceContentSha256.Trim().ToLowerInvariant()
     $now = Get-Date -Format 'o'
     $transactionId = ('rerun-csv-{0}-{1}' -f $BatchId, [guid]::NewGuid().ToString('N'))
     $pipelineSidecar = Read-RerunPipelineSidecar -OutputPath $verified
@@ -315,6 +320,8 @@ function New-RerunPendingPublishManifest {
         source_identity = $sourceIdentity
         source_identity_v2 = $sourceIdentity
         source_identity_v2_algorithm = 'rerun_csv_v2'
+        source_content_sha256 = $sourceContentSha256
+        source_content_sha256_algorithm = 'sha256-full-file'
         confirm_source_overwrite = [bool]$Plan.source_overwrite_confirmed
         output_size = $verifiedOutputSize
         publish_mode = 'pending_publish'
@@ -440,26 +447,30 @@ function Publish-RerunReplaceFinal {
         [Parameter(Mandatory)] [string]$BatchId,
         [Parameter(Mandatory)] [string]$FinalHoldRoot,
         [Parameter(Mandatory)] [string]$OriginalHoldRoot,
-        [string]$Reason = 'verified output replaced backend-planned final output'
+        [string]$Reason = 'verified output replaced backend-planned final output',
+        $ExecutionManifest = $null,
+        [string]$ExecutionManifestPath = ''
     )
     if (-not $ConfirmReplaceFinal) { throw "$DestinationMode requires -ConfirmReplaceFinal." }
-    if (Test-Path -LiteralPath $Destination -PathType Leaf) {
-        $backupDir = Join-Path $FinalHoldRoot $BatchId
-        New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
-        $backup = Join-Path $backupDir (Split-Path -Leaf $Destination)
-        if (Test-Path -LiteralPath $backup) { $backup = Get-RerunNonOverlapPath -Path $backup -Suffix $BatchId }
-        Move-Item -LiteralPath $Destination -Destination $backup
-        $Plan.replaced_final_hold_path = $backup
-    }
-    Move-RerunVerifiedOutput -Source $VerifiedOutput -Destination $Destination | Out-Null
-    Publish-RerunPipelineSidecarToFinal -Plan $Plan -VerifiedOutput $VerifiedOutput -Destination $Destination -BatchId $BatchId -FinalHoldRoot $FinalHoldRoot
-    $Plan.status = 'published_replace_final'
-    $Plan.published_path = $Destination
+    $successReason = $Reason
     if ([bool]$Plan.source_overwrite_confirmed) {
-        $Plan.reason = "$Reason at confirmed source path"
+        $successReason = "$Reason at confirmed source path"
+    }
+    Invoke-RerunFinalPublicationTransaction `
+        -Plan $Plan `
+        -VerifiedOutput $VerifiedOutput `
+        -Destination $Destination `
+        -BatchId $BatchId `
+        -FinalHoldRoot $FinalHoldRoot `
+        -DestinationPolicy $DestinationMode `
+        -SuccessStatus 'published_replace_final' `
+        -SuccessReason $successReason `
+        -IsReplacement $true `
+        -ExecutionManifest $ExecutionManifest `
+        -ExecutionManifestPath $ExecutionManifestPath | Out-Null
+    if ([bool]$Plan.source_overwrite_confirmed) {
         $Plan.original_action = 'source_overwritten_by_confirmed_replace_final'
     } else {
-        $Plan.reason = $Reason
         Invoke-RerunOriginalPolicy -Plan $Plan -BatchId $BatchId -HoldRoot $OriginalHoldRoot
     }
 }
@@ -470,7 +481,9 @@ function Invoke-RerunDestinationPolicy {
         [string]$BatchId,
         [string]$PendingRoot,
         [string]$FinalHoldRoot,
-        [string]$OriginalHoldRoot
+        [string]$OriginalHoldRoot,
+        $ExecutionManifest = $null,
+        [string]$ExecutionManifestPath = ''
     )
     $reservedServerOutKeys = Get-RerunPendingServerDestinationSet -PendingRoot $PendingRoot
     foreach ($plan in @($Plans | Where-Object { $_.status -eq 'complete' })) {
@@ -521,7 +534,9 @@ function Invoke-RerunDestinationPolicy {
                     -BatchId $BatchId `
                     -FinalHoldRoot $FinalHoldRoot `
                     -OriginalHoldRoot $OriginalHoldRoot `
-                    -Reason 'auto policy clean output replaced backend-planned final output'
+                    -Reason 'auto policy clean output replaced backend-planned final output' `
+                    -ExecutionManifest $ExecutionManifest `
+                    -ExecutionManifestPath $ExecutionManifestPath
                 continue
             }
             $destination = [string]$plan.final_output_path
@@ -533,10 +548,18 @@ function Invoke-RerunDestinationPolicy {
                 if (Test-Path -LiteralPath $destination) {
                     $destination = Get-RerunNonOverlapPath -Path $destination -Suffix $BatchId
                 }
-                Move-RerunVerifiedOutput -Source $verified -Destination $destination | Out-Null
-                $plan.status = 'published_non_overlap'
-                $plan.published_path = $destination
-                $plan.reason = 'verified output published without overlapping existing final output'
+                Invoke-RerunFinalPublicationTransaction `
+                    -Plan $plan `
+                    -VerifiedOutput $verified `
+                    -Destination $destination `
+                    -BatchId $BatchId `
+                    -FinalHoldRoot $FinalHoldRoot `
+                    -DestinationPolicy $DestinationMode `
+                    -SuccessStatus 'published_non_overlap' `
+                    -SuccessReason 'verified output published without overlapping existing final output' `
+                    -IsReplacement $false `
+                    -ExecutionManifest $ExecutionManifest `
+                    -ExecutionManifestPath $ExecutionManifestPath | Out-Null
                 Invoke-RerunOriginalPolicy -Plan $plan -BatchId $BatchId -HoldRoot $OriginalHoldRoot
                 continue
             }
@@ -548,7 +571,9 @@ function Invoke-RerunDestinationPolicy {
                     -BatchId $BatchId `
                     -FinalHoldRoot $FinalHoldRoot `
                     -OriginalHoldRoot $OriginalHoldRoot `
-                    -Reason 'verified output replaced backend-planned final output'
+                    -Reason 'verified output replaced backend-planned final output' `
+                    -ExecutionManifest $ExecutionManifest `
+                    -ExecutionManifestPath $ExecutionManifestPath
                 continue
             }
         } catch {

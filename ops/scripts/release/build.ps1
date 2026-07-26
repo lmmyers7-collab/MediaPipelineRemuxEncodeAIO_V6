@@ -202,6 +202,88 @@ function ConvertTo-ReleaseCanonicalPath {
     return $trimmed
 }
 
+function Get-ReleasePathIdentity {
+    param([Parameter(Mandatory)][string]$Path)
+
+    $canonical = (ConvertTo-ReleaseCanonicalPath -Path $Path).ToLowerInvariant()
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes($canonical)
+        $hash = $sha256.ComputeHash($bytes)
+        return ([System.BitConverter]::ToString($hash)).Replace('-', '').ToLowerInvariant()
+    } finally {
+        $sha256.Dispose()
+    }
+}
+
+function New-ReleaseDestinationIdentity {
+    param(
+        [Parameter(Mandatory)][string]$DestinationPath,
+        [Parameter(Mandatory)][string]$SourceRoot,
+        [Parameter(Mandatory)][string]$NormalizedVersion,
+        [Parameter(Mandatory)][string]$SourceRevision
+    )
+
+    return [ordered]@{
+        schema_version = 'mediapipeline_release_destination_identity.v1'
+        destination_path_sha256 = Get-ReleasePathIdentity -Path $DestinationPath
+        source_root_sha256 = Get-ReleasePathIdentity -Path $SourceRoot
+        normalized_version = $NormalizedVersion
+        source_revision = $SourceRevision
+        build_nonce = [guid]::NewGuid().ToString('D')
+    }
+}
+
+function Test-ReleaseDestinationIdentity {
+    param(
+        [Parameter(Mandatory)]$Marker,
+        [Parameter(Mandatory)][string]$DestinationPath,
+        [Parameter(Mandatory)][string]$SourceRoot
+    )
+
+    $identityProperty = $Marker.PSObject.Properties['replacement_identity']
+    if (-not $identityProperty -or $null -eq $identityProperty.Value) { return $false }
+    $identity = $identityProperty.Value
+    foreach ($name in @('schema_version', 'destination_path_sha256', 'source_root_sha256', 'normalized_version', 'source_revision', 'build_nonce')) {
+        if (-not $identity.PSObject.Properties[$name]) { return $false }
+    }
+    if ([string]$identity.schema_version -ne 'mediapipeline_release_destination_identity.v1') { return $false }
+
+    $nonce = [guid]::Empty
+    if (-not [guid]::TryParse([string]$identity.build_nonce, [ref]$nonce)) { return $false }
+    if ([string]$identity.destination_path_sha256 -cne (Get-ReleasePathIdentity -Path $DestinationPath)) { return $false }
+    if ([string]$identity.source_root_sha256 -cne (Get-ReleasePathIdentity -Path $SourceRoot)) { return $false }
+    if ([string]$identity.normalized_version -cne (Get-NormalizedMediaPipelineReleaseVersion)) { return $false }
+    if ([string]$identity.source_revision -cne (Get-ReleaseSourceRevision)) { return $false }
+    return $true
+}
+
+function Assert-ReleaseReplacementPathHasNoReparsePoint {
+    param([Parameter(Mandatory)][string]$Path)
+
+    $current = Get-Item -LiteralPath $Path -Force
+    while ($null -ne $current) {
+        if (($current.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw "Release replacement refuses a destination with a reparse-point path component: $($current.FullName)"
+        }
+        $parentPath = Split-Path -Parent $current.FullName
+        if (-not $parentPath -or $parentPath.Equals($current.FullName, [System.StringComparison]::OrdinalIgnoreCase)) { break }
+        $current = Get-Item -LiteralPath $parentPath -Force
+    }
+}
+
+function Move-ReleaseDestinationToQuarantine {
+    param([Parameter(Mandatory)][string]$Path)
+
+    $canonical = ConvertTo-ReleaseCanonicalPath -Path $Path
+    $quarantine = '{0}.replaced.{1}.{2}' -f $canonical, (Get-Date -Format 'yyyyMMdd_HHmmss'), ([guid]::NewGuid().ToString('N'))
+    if (Test-Path -LiteralPath $quarantine) {
+        throw "Release replacement quarantine already exists: $quarantine"
+    }
+    Move-Item -LiteralPath $canonical -Destination $quarantine
+    return (ConvertTo-ReleaseCanonicalPath -Path $quarantine)
+}
+
 function Test-ReleasePathEqualOrChild {
     param(
         [Parameter(Mandatory)][string]$Path,
@@ -228,7 +310,10 @@ function Test-ReleaseDirectoryIsEmpty {
 }
 
 function Test-ReleaseDestinationHasMarker {
-    param([Parameter(Mandatory)][string]$Path)
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$SourceRoot
+    )
 
     $manifestPath = Join-Path $Path 'release_manifest.json'
     if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
@@ -239,11 +324,17 @@ function Test-ReleaseDestinationHasMarker {
     } catch {
         return $false
     }
-    return [string]$manifest.schema_version -eq 'mediapipeline_release_manifest.v1'
+    return (
+        [string]$manifest.schema_version -eq 'mediapipeline_release_manifest.v1' -and
+        (Test-ReleaseDestinationIdentity -Marker $manifest -DestinationPath $Path -SourceRoot $SourceRoot)
+    )
 }
 
 function Test-ReleaseDestinationHasInProgressMarker {
-    param([Parameter(Mandatory)][string]$Path)
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$SourceRoot
+    )
 
     $markerPath = Join-Path $Path '.release_in_progress.json'
     if (-not (Test-Path -LiteralPath $markerPath -PathType Leaf)) {
@@ -254,7 +345,10 @@ function Test-ReleaseDestinationHasInProgressMarker {
     } catch {
         return $false
     }
-    return [string]$marker.schema_version -eq 'mediapipeline_release_in_progress.v1'
+    return (
+        [string]$marker.schema_version -eq 'mediapipeline_release_in_progress.v1' -and
+        (Test-ReleaseDestinationIdentity -Marker $marker -DestinationPath $Path -SourceRoot $SourceRoot)
+    )
 }
 
 function Assert-ReleaseDestinationPathAllowed {
@@ -306,16 +400,17 @@ function Assert-ReleaseDestinationReplacementAllowed {
     if (-not (Test-Path -LiteralPath $destinationCanonical -PathType Container)) {
         throw "Destination exists but is not a directory: $destinationCanonical"
     }
+    Assert-ReleaseReplacementPathHasNoReparsePoint -Path $destinationCanonical
     if (Test-ReleaseDirectoryIsEmpty -Path $destinationCanonical) {
         return $destinationCanonical
     }
-    if (Test-ReleaseDestinationHasMarker -Path $destinationCanonical) {
+    if (Test-ReleaseDestinationHasMarker -Path $destinationCanonical -SourceRoot $SourceRoot) {
         return $destinationCanonical
     }
-    if (Test-ReleaseDestinationHasInProgressMarker -Path $destinationCanonical) {
+    if (Test-ReleaseDestinationHasInProgressMarker -Path $destinationCanonical -SourceRoot $SourceRoot) {
         return $destinationCanonical
     }
-    throw "Refusing to replace destination without a MediaPipeline release manifest marker: $destinationCanonical"
+    throw "Refusing to replace destination without a destination-bound MediaPipeline release identity: $destinationCanonical. Move legacy or mismatched output aside manually and build into a new directory."
 }
 
 function Get-MediaPipelineReleaseLabel {
@@ -362,6 +457,8 @@ if (-not $DestinationRoot) {
     $DestinationRoot = Join-Path (Split-Path -Parent $script:SourceRoot) ("MediaPipelineRemuxEncodeAIO_{0}_Portable_{1}" -f $releaseLabel, (Get-Date -Format 'yyyyMMdd_HHmmss'))
 }
 $destinationFull = Assert-ReleaseDestinationPathAllowed -DestinationPath $DestinationRoot -SourceRoot $script:SourceRoot
+$normalizedReleaseVersion = Get-NormalizedMediaPipelineReleaseVersion
+$releaseSourceRevision = Get-ReleaseSourceRevision
 
 $allFiles = @(Get-ReleaseSourceFileItems -Root $script:SourceRoot)
 $copyPlan = [System.Collections.Generic.List[object]]::new()
@@ -414,8 +511,8 @@ $summary = [ordered]@{
     tool_docs_included = [bool]$IncludeToolDocs
     tauri_preview_binary_included = [bool]$IncludeTauriPreviewBinary
     deployable = [bool]$Deployable
-    normalized_version = Get-NormalizedMediaPipelineReleaseVersion
-    source_revision = Get-ReleaseSourceRevision
+    normalized_version = $normalizedReleaseVersion
+    source_revision = $releaseSourceRevision
     zip_requested = [bool]$Zip
     verify_requested = [bool]$Verify
     testless_verify_allowed = [bool]$AllowTestlessVerify
@@ -452,36 +549,46 @@ if ($Deployable) {
     if ($LASTEXITCODE -ne 0) { throw "Deployable source validation failed with exit $LASTEXITCODE." }
 }
 
+$replacementQuarantine = $null
 if (Test-Path -LiteralPath $destinationFull) {
     if (-not $Force) {
         $resolvedDestination = (Resolve-Path -LiteralPath $destinationFull).Path
         throw "Destination already exists. Use -Force to replace it: $resolvedDestination"
     }
     $resolvedDestination = Assert-ReleaseDestinationReplacementAllowed -DestinationPath $destinationFull -SourceRoot $script:SourceRoot
-    Remove-Item -LiteralPath $resolvedDestination -Recurse -Force
+    $replacementQuarantine = Move-ReleaseDestinationToQuarantine -Path $resolvedDestination
+    Write-Warning "Prior release output moved to recoverable quarantine: $replacementQuarantine"
 }
 
-New-Item -ItemType Directory -Path $destinationFull -Force | Out-Null
-$inProgressMarkerPath = Join-Path $destinationFull '.release_in_progress.json'
-$inProgressMarker = [ordered]@{
-    schema_version = 'mediapipeline_release_in_progress.v1'
-    generated_at = (Get-Date).ToString('o')
-    source_root = '<repo-root>'
-    destination_root = '<release-root>'
-    recovery = 'If copying is interrupted before release_manifest.json is written, rerun build.ps1 with -Force to replace this partial release directory.'
-}
-$inProgressMarker | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $inProgressMarkerPath -Encoding UTF8
-foreach ($entry in $copyPlan) {
-    $parent = Split-Path -Parent $entry.destination
-    if ($parent -and -not (Test-Path -LiteralPath $parent)) {
-        New-Item -ItemType Directory -Path $parent -Force | Out-Null
+try {
+    $replacementIdentity = New-ReleaseDestinationIdentity `
+        -DestinationPath $destinationFull `
+        -SourceRoot $script:SourceRoot `
+        -NormalizedVersion $normalizedReleaseVersion `
+        -SourceRevision $releaseSourceRevision
+    New-Item -ItemType Directory -Path $destinationFull -Force | Out-Null
+    $inProgressMarkerPath = Join-Path $destinationFull '.release_in_progress.json'
+    $inProgressMarker = [ordered]@{
+        schema_version = 'mediapipeline_release_in_progress.v1'
+        generated_at = (Get-Date).ToString('o')
+        source_root = '<repo-root>'
+        destination_root = '<release-root>'
+        replacement_identity = $replacementIdentity
+        recovery = 'If copying is interrupted before release_manifest.json is written, rerun build.ps1 with -Force only at this exact destination and source revision.'
     }
-    Copy-Item -LiteralPath $entry.source -Destination $entry.destination -Force
-}
+    $inProgressMarker | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $inProgressMarkerPath -Encoding UTF8
+    foreach ($entry in $copyPlan) {
+        $parent = Split-Path -Parent $entry.destination
+        if ($parent -and -not (Test-Path -LiteralPath $parent)) {
+            New-Item -ItemType Directory -Path $parent -Force | Out-Null
+        }
+        Copy-Item -LiteralPath $entry.source -Destination $entry.destination -Force
+    }
 
-$manifest = [ordered]@{
-    schema_version = 'mediapipeline_release_manifest.v1'
-    summary = $summary
+    $manifest = [ordered]@{
+        schema_version = 'mediapipeline_release_manifest.v1'
+        replacement_identity = $replacementIdentity
+        summary = $summary
     config_policy = if ($KeepPersonalConfig) {
         'ops\pipeline\config\MediaPipeline_config.psd1 (and legacy ops\pipeline\config\MediaPipeline_config_chatgpt.psd1) were copied as-is.'
     } else {
@@ -522,14 +629,14 @@ $manifest = [ordered]@{
         files = @(Get-ReleaseFileHashEntries -CopyPlan @($copyPlan.ToArray()))
     }
     excluded_files = @($excludePlan | Sort-Object path)
-}
+    }
 
-$manifestPath = Join-Path $destinationFull 'release_manifest.json'
-$manifest | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $manifestPath -Encoding UTF8
-Remove-Item -LiteralPath $inProgressMarkerPath -Force -ErrorAction SilentlyContinue
-Write-Host "Manifest    : $manifestPath"
+    $manifestPath = Join-Path $destinationFull 'release_manifest.json'
+    $manifest | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $manifestPath -Encoding UTF8
+    Remove-Item -LiteralPath $inProgressMarkerPath -Force -ErrorAction SilentlyContinue
+    Write-Host "Manifest    : $manifestPath"
 
-if ($Verify) {
+    if ($Verify) {
     $releaseVerifier = Join-Path $destinationFull 'ops\scripts\release\test.ps1'
     if (-not (Test-Path -LiteralPath $releaseVerifier -PathType Leaf)) {
         throw "Release verifier was not copied into the package: $releaseVerifier"
@@ -560,9 +667,9 @@ if ($Verify) {
     if ($LASTEXITCODE -ne 0) {
         throw "Release verification failed with exit $LASTEXITCODE."
     }
-}
+    }
 
-if ($Zip) {
+    if ($Zip) {
     $zipPath = $destinationFull.TrimEnd('\') + '.zip'
     if (Test-Path -LiteralPath $zipPath) {
         if (-not $Force) { throw "Zip already exists. Use -Force to replace it: $zipPath" }
@@ -580,6 +687,27 @@ if ($Zip) {
             if (Test-Path -LiteralPath $extractRoot) { Remove-Item -LiteralPath $extractRoot -Recurse -Force }
         }
     }
+    }
+
+    if ($replacementQuarantine) {
+        Write-Host "Prior output: $replacementQuarantine (recoverable quarantine; inspect and remove manually when no longer needed)"
+    }
+} catch {
+    $buildFailure = $_
+    if ($replacementQuarantine -and (Test-Path -LiteralPath $replacementQuarantine -PathType Container)) {
+        $failedPartial = $null
+        if (Test-Path -LiteralPath $destinationFull) {
+            $failedPartial = '{0}.failed.{1}.{2}' -f $destinationFull, (Get-Date -Format 'yyyyMMdd_HHmmss'), ([guid]::NewGuid().ToString('N'))
+            Move-Item -LiteralPath $destinationFull -Destination $failedPartial
+        }
+        Move-Item -LiteralPath $replacementQuarantine -Destination $destinationFull
+        $recoveryMessage = "Release replacement failed; the prior destination was restored."
+        if ($failedPartial) {
+            $recoveryMessage += " Failed partial output was preserved at: $failedPartial"
+        }
+        Write-Warning $recoveryMessage
+    }
+    throw $buildFailure
 }
 
 Write-Host 'Release build complete.'

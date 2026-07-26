@@ -1,0 +1,52 @@
+{
+  "id": "MP-CHANGE-2026-0720-026",
+  "title": "Remove dead WebView compatibility aliases",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-07-20",
+  "date_completed": "2026-07-20",
+  "summary": "Remove a conservative tranche of 30 dead flat WebView compatibility aliases while preserving their existing namespace-first replacements and all active behavior.",
+  "reason": "The flat aliases duplicate established window.mediaPipelineCrossPageContextView and window.mediaPipelineDiagnosticsView members, have no active runtime, test, documentation, Tauri, release, or package consumers, and create false public ownership paths for maintainers and AI agents.",
+  "affected_areas": [
+    "docs",
+    "generated_context",
+    "webview"
+  ],
+  "behavior_before": "Thirty read-only Cross Page Context and Diagnostics presentation helpers are exported twice: once through their canonical mediaPipeline namespace and once through unreferenced flat window aliases.",
+  "behavior_after": "The same helpers remain available through their canonical mediaPipeline namespace members, while the 30 unreferenced flat aliases are absent and the authoritative public-export inventory records the reduced compatibility surface.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/crossPageContextView.js",
+    "apps/desktop/webview/static/assets/diagnosticsView.js",
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/crossPageContextView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/diagnosticsView.js.md",
+    "docs/generated/summaries/docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0720-026.json.md",
+    "docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0720-026.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Whole-repository Babel/caller scan for the 30 names: zero explicit window or bracket references, zero unresolved classic-global references, and zero active test, documentation, Tauri, release, package, or runtime consumers.",
+    "node --check apps/desktop/webview/static/assets/crossPageContextView.js and diagnosticsView.js: passed.",
+    "WebView inventory generator --check plus tests/webview/test_webview_inventory_docs.py and tests/python/desktop/test_legacy_removal_readiness.py: passed (17 tests, 90 subtests).",
+    "npm run webview:check, webview:map:check, webview:contract:check, webview:slices:check, webview:dom-gaps:check, webview:routes:check, webview:commands:check, webview:touchpoints:check, and webview:script-order:smoke: passed; script-order smoke loaded 287 scripts and verified required globals.",
+    "Focused Cross Page Context, Diagnostics, real-media presentation, navigation, and frontend mutation-boundary pytest selection: passed (58 tests, 1766 subtests).",
+    "Test-WebViewBrowserDiagnosticsHandoffSmoke.ps1: passed (2 tests); Test-WebViewBrowserSampleValidationSmoke.ps1: passed (1 test).",
+    "Seven non-browser WebView smokes covering command evidence, row detail, real-media evidence, schedule, rename readiness, Settings launch policy, and Settings live config: passed.",
+    "Invoke-ActiveDocsReferenceChecks.ps1: passed.",
+    "check_legacy_removal_readiness --json: passed; no legacy compatibility files reintroduced.",
+    "Authoritative inventory and public-contract regeneration: current count is 532 flat assignments across 235 files, down 30 from the 562-export live pre-removal baseline; all 30 same-name namespace members remain.",
+    "Exact MP-CHANGE-2026-0720-026 coverage_for_paths check with directory coverage disabled: 11 of 11 paths covered, zero uncovered, zero errors.",
+    "Independent pre-change safety review approved all 30 candidates; independent post-change review confirmed exact removals, replacements, caller evidence, generated arithmetic, and no functional finding.",
+    "Release package policy checks against an isolated HEAD-plus-this-packet projection: passed. The whole dirty worktree invocation remains blocked by a UNC path in concurrently changed docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.v1.json.",
+    "Known unrelated worktree exceptions: webview:lint:budget:check retains pre-existing complexity/no-unused-vars/baseline drift outside touched modules; Settings patch evidence smoke expects HTTP 200 for a denied save but current backend returns HTTP 400; repository-wide strict coverage reports 32 unrelated audit/inventory files."
+  ],
+  "rollback_plan": "Restore only the 30 removed flat window assignments, restore the prior 562-export count wording in the two current-status documents, and rerun the WebView public-contract, inventory, and targeted summary generators. Preserve the unrelated Run Monitor/settings generated-artifact hunks already present in shared files.",
+  "related_changes": [],
+  "notes": "Python production impact: none; this is WebView JavaScript and documentation metadata only. Real-media validation is not required because no media policy, filesystem mutation, queue launch, pending publish, settings persistence, rename, network lifecycle, command journal, or process lifecycle behavior changes. The ranked analysis found 115 high-confidence mapped aliases; this conservative tranche removes 30 and retains the other 85 for later incremental review. It also retains 206 mapped aliases with ambiguous references and 237 exports without a proven same-file namespace replacement. The exact Cross Page Context removals map window.<name> to window.mediaPipelineCrossPageContextView.<name>: crossPageConflictStatus, crossPageSampleStatus, sampleValidationAcceptanceGateDetailLines, sampleValidationAcceptanceGateStatus, sampleValidationAcceptanceGateSummaryLines, sampleValidationCategorySummaryDetailLines, sampleValidationCategorySummaryLines, sampleValidationCategorySummaryStatus, sampleValidationCompletedPacketDetailLines, sampleValidationCompletedPacketStatus, sampleValidationCompletedPacketSummaryLines, sampleValidationCutoverDetailLines, sampleValidationCutoverStatus, sampleValidationCutoverSummaryLines, sampleValidationExecutionStatus, sampleValidationGapDetailLines, sampleValidationGapRows, sampleValidationGapStatus, sampleValidationRecordReviewDetailLines, sampleValidationRecordReviewStatus, sampleValidationRecordReviewSummaryLines, sampleValidationRunbookDetailLines, sampleValidationRunbookRows, sampleValidationRunbookStatus, sampleValidationSampleSetDetailLines, sampleValidationSampleSetStatus, sampleValidationSampleSetSummaryLines. The exact Diagnostics removals map window.<name> to window.mediaPipelineDiagnosticsView.<name>: diagnosticsOwnerHandoffRowKey, diagnosticsOwnerHandoffStatus, diagnosticsOwnerHandoffSummaryLines. Independent AST and whole-repository review found zero explicit window/bracket, unresolved classic-global, test, active-doc, Tauri, release, package, or other runtime consumers. Shared generated/status files contained unrelated concurrent Run Monitor/settings/current-state changes before this packet; this packet claims only the alias-removal/count hunks described here."
+}

@@ -148,6 +148,78 @@ function Get-ConfigSeed {
     return $seed
 }
 
+function Get-SetupVideoProfiles {
+    $defaults = Get-MediaPipelineConfigDefaultValues
+    $videoPreset = [string]$defaults['VideoPreset']
+    if ($videoPreset -notin @(Get-MediaPipelineVideoPresetNames)) {
+        throw "Canonical VideoPreset default is not registered: '$videoPreset'."
+    }
+    $cpuPreset = [string](Get-MediaPipelineCpuEncodePresetDefault)
+    if ($cpuPreset -notin @(Get-MediaPipelineCpuEncodePresetNames)) {
+        throw "Canonical CpuEncodePreset default is not registered: '$cpuPreset'."
+    }
+
+    return @(
+        @{ Codec = 'hevc_nvenc'; VideoPreset = $videoPreset; Quality = 22; Label = 'NVIDIA / NVENC (recommended when available)' }
+        @{ Codec = 'hevc_amf';   VideoPreset = $videoPreset; Quality = 22; Label = 'AMD / AMF' }
+        @{ Codec = 'hevc_qsv';   VideoPreset = $videoPreset; Quality = 22; Label = 'Intel / QSV' }
+        @{ Codec = 'libx265';    VideoPreset = $videoPreset; CpuPreset = $cpuPreset; Quality = 20; Label = 'CPU / libx265' }
+    )
+}
+
+function Get-SetupVideoProfileDefaultIndex {
+    param(
+        [Parameter(Mandatory)] [System.Collections.IDictionary] $Existing,
+        [Parameter(Mandatory)] [System.Collections.IDictionary] $Gpu
+    )
+
+    $existingCodec = if ($Existing.Contains('VideoCodec')) { [string]$Existing['VideoCodec'] } else { '' }
+    switch -Regex ($existingCodec) {
+        '^hevc_nvenc$' { return 1 }
+        '^hevc_amf$'   { return 2 }
+        '^hevc_qsv$'   { return 3 }
+        '^libx265$'    { return 4 }
+    }
+    switch ([string]$Gpu['Vendor']) {
+        'NVIDIA' { return 1 }
+        'AMD'    { return 2 }
+        'Intel'  { return 3 }
+        default  { return 4 }
+    }
+}
+
+function Set-SetupVideoProfileConfig {
+    param(
+        [Parameter(Mandatory)] [System.Collections.IDictionary] $Config,
+        [Parameter(Mandatory)] [System.Collections.IDictionary] $Profile
+    )
+
+    $Config['VideoCodec'] = [string]$Profile['Codec']
+    $Config['VideoPreset'] = [string]$Profile['VideoPreset']
+    $Config['VideoQuality'] = [int]$Profile['Quality']
+    $Config['ExtraVideoFlags'] = Get-ExtraVideoFlagsForCodec ([string]$Profile['Codec'])
+    if ($Profile.Contains('CpuPreset')) {
+        $Config['CpuEncodePreset'] = [string]$Profile['CpuPreset']
+    }
+}
+
+function Get-SetupPresetSelection {
+    param([Parameter(Mandatory)] [System.Collections.IDictionary] $Config)
+
+    if ([string]$Config['VideoCodec'] -eq 'libx265') {
+        return @{
+            ConfigKey = 'CpuEncodePreset'
+            Label = 'CPU encode preset'
+            Options = @(Get-MediaPipelineCpuEncodePresetNames)
+        }
+    }
+    return @{
+        ConfigKey = 'VideoPreset'
+        Label = 'Video preset'
+        Options = @(Get-MediaPipelineVideoPresetNames)
+    }
+}
+
 function Invoke-ConfigWizard {
     param([hashtable]$Existing)
 
@@ -176,53 +248,30 @@ function Invoke-ConfigWizard {
         Write-Warn 'No supported GPU was detected. CPU defaults are safest.'
     }
 
-    $videoProfiles = @(
-        @{ Codec = 'hevc_nvenc'; Preset = 'p7';    Quality = 22; Label = 'NVIDIA / NVENC (recommended when available)' }
-        @{ Codec = 'hevc_amf';   Preset = 'p7';    Quality = 22; Label = 'AMD / AMF' }
-        @{ Codec = 'hevc_qsv';   Preset = 'p7';    Quality = 22; Label = 'Intel / QSV' }
-        @{ Codec = 'libx265';    Preset = 'medium'; Quality = 20; Label = 'CPU / libx265' }
-    )
-    $videoDefault = switch -Regex ($config['VideoCodec']) {
-        '^hevc_nvenc$' { 1; break }
-        '^hevc_amf$'   { 2; break }
-        '^hevc_qsv$'   { 3; break }
-        '^libx265$'    { 4; break }
-        default {
-            switch ($gpu.Vendor) {
-                'NVIDIA' { 1 }
-                'AMD'    { 2 }
-                'Intel'  { 3 }
-                default  { 4 }
-            }
-        }
-    }
+    $videoProfiles = @(Get-SetupVideoProfiles)
+    $videoDefault = Get-SetupVideoProfileDefaultIndex -Existing $Existing -Gpu $gpu
     for ($i = 0; $i -lt $videoProfiles.Count; $i++) {
         Write-Host ("  {0}. {1}" -f ($i + 1), $videoProfiles[$i].Label)
     }
     $videoPick = Read-Choice -Prompt 'Video profile' -Options ($videoProfiles | ForEach-Object { $_.Label }) -Default $videoDefault
     $video = $videoProfiles[$videoPick - 1]
 
-    $config['VideoCodec']      = $video.Codec
-    $config['VideoPreset']     = $video.Preset
-    $config['VideoQuality']    = $video.Quality
-    $config['ExtraVideoFlags'] = Get-ExtraVideoFlagsForCodec $video.Codec
+    Set-SetupVideoProfileConfig -Config $config -Profile $video
 
     if (Read-YesNo 'Tune the video quality or preset manually?' -DefaultYes $false) {
         $defaultQuality = [string]$config['VideoQuality']
-        $config['VideoQuality'] = [int](Read-PositiveNumber -Prompt 'Video quality (18-28 is the usual range)' -Default $defaultQuality)
+        $config['VideoQuality'] = Read-PositiveInteger -Prompt 'Video quality (18-28 is the usual range)' -Default $defaultQuality
 
-        $presetOptions = if ($config['VideoCodec'] -eq 'libx265') {
-            @('ultrafast','superfast','veryfast','faster','fast','medium','slow','slower','veryslow')
-        } else {
-            @('p1','p2','p3','p4','p5','p6','p7')
-        }
-        $presetDefault = [array]::IndexOf($presetOptions, [string]$config['VideoPreset']) + 1
+        $presetSelection = Get-SetupPresetSelection -Config $config
+        $presetOptions = @($presetSelection.Options)
+        $presetConfigKey = [string]$presetSelection.ConfigKey
+        $presetDefault = [array]::IndexOf($presetOptions, [string]$config[$presetConfigKey]) + 1
         if ($presetDefault -lt 1) { $presetDefault = $presetOptions.Count }
         for ($i = 0; $i -lt $presetOptions.Count; $i++) {
             Write-Host ("  {0}. {1}" -f ($i + 1), $presetOptions[$i])
         }
-        $presetPick = Read-Choice -Prompt 'Video preset' -Options $presetOptions -Default $presetDefault
-        $config['VideoPreset'] = $presetOptions[$presetPick - 1]
+        $presetPick = Read-Choice -Prompt ([string]$presetSelection.Label) -Options $presetOptions -Default $presetDefault
+        $config[$presetConfigKey] = $presetOptions[$presetPick - 1]
     }
 
     Write-Step 3 4 'Playback and subtitles'
@@ -313,13 +362,13 @@ function Invoke-ConfigWizard {
 
     Write-Step 4 4 'Routing and safety'
     Write-Header 'Step 4 of 4: Routing and safety'
-    $config['MovieRoute1080pTargetSizeGB'] = Read-PositiveNumber -Prompt 'Movie 1080p target output size in GB' -Default ([string]$config['MovieRoute1080pTargetSizeGB'])
-    $config['TVRoute1080pTargetSizeGB'] = Read-PositiveNumber -Prompt 'TV 1080p target output size in GB' -Default ([string]$config['TVRoute1080pTargetSizeGB'])
-    $config['MinFreeSpaceGB'] = Read-PositiveNumber -Prompt 'Minimum free space on the scratch disk in GB' -Default ([string]$config['MinFreeSpaceGB'])
+    $config['MovieRoute1080pTargetSizeGB'] = Read-PositiveInteger -Prompt 'Movie 1080p target output size in GB' -Default ([string]$config['MovieRoute1080pTargetSizeGB'])
+    $config['TVRoute1080pTargetSizeGB'] = Read-PositiveInteger -Prompt 'TV 1080p target output size in GB' -Default ([string]$config['TVRoute1080pTargetSizeGB'])
+    $config['MinFreeSpaceGB'] = Read-PositiveInteger -Prompt 'Minimum free space on the scratch disk in GB' -Default ([string]$config['MinFreeSpaceGB'])
     if (Read-YesNo 'Use the same minimum free-space reserve for the outsource path?' -DefaultYes $true) {
         $config['OutsourceMinFreeSpaceGB'] = $config['MinFreeSpaceGB']
     } else {
-        $config['OutsourceMinFreeSpaceGB'] = Read-PositiveNumber -Prompt 'Minimum free space on the outsource path in GB' -Default ([string]$config['OutsourceMinFreeSpaceGB'])
+        $config['OutsourceMinFreeSpaceGB'] = Read-PositiveInteger -Prompt 'Minimum free space on the outsource path in GB' -Default ([string]$config['OutsourceMinFreeSpaceGB'])
     }
     $config['DeferredPublish'] = Read-YesNo 'Defer publishing completed outputs to the share and park them locally?' -DefaultYes ([bool]$config['DeferredPublish'])
     $config['CreateTVSubfolder']  = Read-YesNo 'Store TV files under TV\<Show>\Season NN\' -DefaultYes ([bool]$config['CreateTVSubfolder'])

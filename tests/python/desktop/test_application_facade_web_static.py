@@ -102,6 +102,24 @@ def _read_network_asset_bundle(assets_root: Path) -> str:
 
 
 class ApplicationFacadeWebStaticTests(unittest.TestCase):
+    def test_launch_preflight_global_banner_is_absent_from_shipped_static_source(self) -> None:
+        desktop_root = find_repo_root(Path(__file__))
+        static_root = desktop_root / "apps" / "desktop" / "webview" / "static"
+        forbidden_tokens = (
+            ".launch-preflight-startup-alert",
+            "Pipeline launch blocked by backend preflight",
+            "renderLaunchBackendPreflightStartupAlert",
+        )
+        violations: list[str] = []
+        for path in static_root.rglob("*"):
+            if not path.is_file() or path.suffix.lower() not in {".css", ".html", ".js", ".mjs"}:
+                continue
+            source = path.read_text(encoding="utf-8")
+            for token in forbidden_tokens:
+                if token in source:
+                    violations.append(f"{path.relative_to(static_root)}: {token}")
+        self.assertEqual(violations, [])
+
     def test_sidebar_nav_order_and_output_publish_tab(self) -> None:
         desktop_root = find_repo_root(Path(__file__))
         static_root = desktop_root / "apps" / "desktop" / "webview" / "static"
@@ -205,6 +223,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             const activity = {
               textContent: "",
               title: "",
+              dataset: {},
               replaceChildren(...children) {
                 this.children = children;
                 this.textContent = children.map((child) => child.textContent || "").join(" ");
@@ -215,12 +234,22 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
               console,
               document: {
                 createElement() {
-                  return { className: "", textContent: "", title: "", dataset: {} };
+                  return {
+                    className: "",
+                    textContent: "",
+                    title: "",
+                    dataset: {},
+                    append(...children) {
+                      this.children = [...(this.children || []), ...children];
+                      this.textContent = this.children.map((child) => child.textContent || "").join(" ");
+                    },
+                  };
                 },
               },
               Date,
               setTimeout,
               clearTimeout,
+              addEventListener() {},
               lastSnapshot: { pipeline_state: "processing", recent_events: [] },
               byId(id) {
                 if (id === "topbar-event-ticker") return ticker;
@@ -239,7 +268,11 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             }
 
             lifecycle.renderTopbarEventTicker({ pipeline_state: "idle", recent_events: [] });
-            if (ticker.dataset.state !== "empty" || !ticker.textContent.includes("no backend pipeline events")) {
+            if (
+              ticker.dataset.state !== "empty"
+              || !ticker.textContent.includes("Supporting telemetry")
+              || !ticker.textContent.includes("no backend pipeline events")
+            ) {
               throw new Error(`Unexpected empty ticker: ${ticker.dataset.state} ${ticker.textContent}`);
             }
 
@@ -272,7 +305,11 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
               throw new Error("clearTopbarPendingLaunch export is missing");
             }
             lifecycle.clearTopbarPendingLaunch({ pipeline_state: "idle", recent_events: [] });
-            if (ticker.dataset.state !== "empty" || !ticker.textContent.includes("no backend pipeline events")) {
+            if (
+              ticker.dataset.state !== "empty"
+              || !ticker.textContent.includes("Supporting telemetry")
+              || !ticker.textContent.includes("no backend pipeline events")
+            ) {
               throw new Error(`Unexpected cleared ticker: ${ticker.dataset.state} ${ticker.textContent}`);
             }
 
@@ -291,6 +328,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             });
             if (
               ticker.dataset.state !== "event"
+              || !ticker.textContent.includes("Supporting telemetry")
               || !ticker.textContent.includes("job_started")
               || !ticker.textContent.includes("The Hobbit")
             ) {
@@ -301,7 +339,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
               event_type: "very_long_event_name_that_should_still_render",
               data: { source_path: `C:/Movies/${"A".repeat(180)}.mkv` },
             });
-            if (!formatted.includes("Latest event:") || formatted.length > 180) {
+            if (!formatted.includes("Supporting telemetry") || formatted.includes("Latest event:") || formatted.length > 180) {
               throw new Error(`Unexpected formatted ticker length/text: ${formatted.length} ${formatted}`);
             }
             """
@@ -1025,7 +1063,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
               },
             });
             const timelineLabels = csvTimeline.map((item) => item.label);
-            for (const label of ["CSV import", "Queue item", "Copy to scratch", "Route selected: encode", "Encode output", "Publish or park", "Run evidence"]) {
+            for (const label of ["CSV import", "Queue item", "Copy to scratch", "Route selected: encode", "Encode or remux", "Publish or park", "Run evidence"]) {
               if (!timelineLabels.includes(label)) {
                 throw new Error(`CSV timeline label missing ${label}: ${timelineLabels.join(" | ")}`);
               }
@@ -1214,6 +1252,26 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn('schema_version: "webview_startup_performance.v1"', app_js)
         self.assertNotIn('["contract", "/api/contract", false]', app_js)
 
+    def test_page_navigation_refresh_is_queued_and_metrics_unavailable_requires_a_request(self) -> None:
+        repo_root = find_repo_root(Path(__file__))
+        assets_root = repo_root / "apps" / "desktop" / "webview" / "static" / "assets"
+        coordinator_js = (assets_root / "app/refreshCoordinator.js").read_text(encoding="utf-8")
+        navigation_js = (assets_root / "app/lifecycle/navigation.js").read_text(encoding="utf-8")
+
+        self.assertIn(
+            'refreshAll({ automatic: true, queueRefresh: true, page: normalized })',
+            navigation_js,
+        )
+        self.assertIn(
+            "if (refreshOptions.automatic && !refreshOptions.queueRefresh) return;",
+            coordinator_js,
+        )
+        self.assertIn(
+            'const metricsRequested = requests.some(([name]) => name === "metrics");',
+            coordinator_js,
+        )
+        self.assertIn("} else if (metricsRequested) {", coordinator_js)
+
     def test_home_next_queue_shows_first_five_runnable_rows_only(self) -> None:
         node = shutil.which("node")
         if not node:
@@ -1360,15 +1418,15 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
               },
             });
             const activeRendered = list.children.map((item) => item.textContent);
-            if (list.children[0]?.dataset.current !== "true") {
-              throw new Error(`Current row was not marked in Next 5 Videos: ${JSON.stringify(list.children[0]?.dataset || {})}`);
+            if (list.children.some((item) => item.dataset.current === "true")) {
+              throw new Error(`Retired queue preview claimed a current row: ${activeRendered.join(" | ")}`);
             }
-            if (!activeRendered[0]?.includes("Paprika") || !activeRendered[0]?.includes("Current") || !activeRendered[0]?.includes("Subtitle OCR: VobSub stream 3, 752 cues")) {
-              throw new Error(`Current active-work row was not rendered first: ${activeRendered.join(" | ")}`);
+            if (activeRendered.some((line) => line.includes("Current") || line.includes("Subtitle OCR: VobSub stream 3, 752 cues"))) {
+              throw new Error(`Retired queue preview rendered current-work evidence: ${activeRendered.join(" | ")}`);
             }
             const activeDetail = elements["home-next-queue-detail"].textContent;
-            for (const expected of ["Current stage:", "Subtitle OCR: VobSub stream 3, 752 cues", "Evidence:", "Next:", "encode/remux output evidence"]) {
-              if (!activeDetail.includes(expected)) throw new Error(`Missing active row detail ${expected}: ${activeDetail}`);
+            for (const forbidden of ["Current stage:", "Subtitle OCR: VobSub stream 3, 752 cues", "Evidence:", "Next:", "encode/remux output evidence"]) {
+              if (activeDetail.includes(forbidden)) throw new Error(`Retired queue detail rendered current-work evidence ${forbidden}: ${activeDetail}`);
             }
             context.mediaPipelineProgressView = {
               csvRerunTailEvidence() {
@@ -1716,10 +1774,11 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         ]:
             self.assertNotIn(forbidden, home_html)
         home_actions = set(re.findall(r'data-control-action="([^"]+)"', home_html))
-        self.assertEqual(home_actions, set())
+        self.assertEqual(home_actions, {"stop"})
+        self.assertEqual(home_html.count('id="run-monitor-stop-after-current"'), 1)
+        self.assertEqual(home_html.count('data-control-action="stop"'), 1)
         self.assertNotIn('data-control-action="rescan"', home_html)
         self.assertNotIn("Pause / Resume", home_html)
-        self.assertNotIn("Stop After Current", home_html)
         self.assertNotIn("Force Stop", home_html)
         self.assertIn("Review readiness and choose a queue before anything runs. Originals stay unchanged.", home_html)
         self.assertIn('data-cross-page-target="completed" data-home-promotion-entry', home_html)
@@ -1771,8 +1830,9 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("launchBackendPreflightPayloadForTarget", launch_js)
         self.assertIn("launchStartDecisionGate", launch_js)
         self.assertIn("await launchView.refreshLaunchBackendPreflight();", app_js)
-        self.assertIn('document.querySelector(".launch-preflight-startup-alert")', app_js)
-        self.assertIn("!refreshOptions.automatic || launchVisible || launchAlertVisible", app_js)
+        self.assertNotIn('document.querySelector(".launch-preflight-startup-alert")', app_js)
+        self.assertIn("!refreshOptions.automatic || launchVisible", app_js)
+        self.assertNotIn("launchAlertVisible", app_js)
         self.assertIn("launchView.updateLaunchCommandButtonStates?.(", app_js)
         self.assertIn('return ["pipeline", "history"];', launch_js)
         self.assertIn('data-launch-tab="pipeline">Pipeline Processor</button>', html)
@@ -1867,7 +1927,8 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertNotIn("await refreshAll();", save_block)
         self.assertNotIn('setText("settings-patch-status", "Saved")', settings_js)
 
-        self.assertIn('if (result.ok) return result.severity === "warning" ? "Warning" : successLabel;', launch_js)
+        self.assertIn('if (result.severity === "warning") return "Warning";', launch_js)
+        self.assertIn('return launchCommandIsAcceptedRerun(result) ? "Accepted" : successLabel;', launch_js)
         self.assertIn('return result.severity || "Blocked";', launch_js)
         self.assertIn('`Result: ${payload.ok ? "ok" : "blocked"}', launch_js)
         self.assertIn('command: "pending_publish.drain"', launch_js)
@@ -1939,7 +2000,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("function csvRerunActivityEvidence", app_js)
         self.assertIn("function renderCsvRerunHomeSummary", app_js)
         self.assertIn("let lastQueue = null;", app_js)
-        self.assertIn("renderHomeNextQueue({ ...liveRunContext, queue: lastQueue || {} })", app_js)
+        self.assertNotIn("renderHomeNextQueue({ ...liveRunContext, queue: lastQueue || {} })", app_js)
         self.assertIn("lastQueue = values.queue;", app_js)
         self.assertIn("renderHomePipelineState(\"csv_rerun_active\")", app_js)
         home_js = "\n".join(
@@ -2080,7 +2141,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         static_root = desktop_root / "apps" / "desktop" / "webview" / "static"
         html = _render_static_index_html(static_root)
         expected = {
-            "home": "Home",
+            "home": "Current Work",
             "launch": "Launch",
             "live": "Telemetry",
             "metrics": "Metrics",
@@ -2661,7 +2722,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn('return Boolean(item.is_priority) && manifestLevel === "normal" ? "fs" : manifestLevel;', queue_table_js)
         self.assertIn('const labels = { high: "High", low: "Low", hold: "Hold", fs: "FS" };', queue_table_js)
         self.assertNotIn('Cleared priority manifest for ${items.length} row(s).', queue_view_js)
-        refresh_snippet = "if (result?.ok) await refreshAll();"
+        refresh_snippet = "if (result?.ok) await requestQueueScan();"
         send_block = queue_view_js[
             queue_view_js.index("async function sendPriority(") :
             queue_view_js.index("async function sendPriorityBulk(")
@@ -3426,11 +3487,21 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             app_root = Path(raw_root) / "apps" / "desktop"
             app_root.mkdir(parents=True)
             emitted_progress: list[dict[str, object]] = []
-            service, resolved, server = build_backend(
-                app_root=app_root,
-                token="headless-token",
-                startup_progress_callback=emitted_progress.append,
-            )
+            with patch(
+                "mediapipeline.desktop.local_api_main.reconcile_local_rerun_enrollments",
+                return_value={
+                    "checked_count": 0,
+                    "alive_count": 0,
+                    "terminalized_count": 0,
+                    "replayed_count": 0,
+                    "persisted": True,
+                },
+            ):
+                service, resolved, server = build_backend(
+                    app_root=app_root,
+                    token="headless-token",
+                    startup_progress_callback=emitted_progress.append,
+                )
             try:
                 server.start()
                 payload = bootstrap_payload(server, resolved, include_token=True)
@@ -3455,6 +3526,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("verify_ffmpeg", steps_by_id)
         self.assertIn("verify_ffprobe", steps_by_id)
         self.assertIn("verify_mkvmerge", steps_by_id)
+        self.assertIn("reconcile_local_reruns", steps_by_id)
         self.assertIn("create_local_api", steps_by_id)
         elapsed_values = [float(step["elapsed_ms"]) for step in payload["startup_progress"]["steps"]]
         self.assertEqual(elapsed_values, sorted(elapsed_values))
@@ -3463,6 +3535,32 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             detail = str(steps_by_id[step_id].get("detail") or "")
             self.assertIn("ops\\pipeline\\tools", detail)
             self.assertNotIn("entrypoints\\Tools", detail)
+
+    def test_headless_backend_reconciles_local_reruns_on_startup_and_explicit_reload(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            app_root = Path(raw_root) / "apps" / "desktop"
+            app_root.mkdir(parents=True)
+            with patch(
+                "mediapipeline.desktop.local_api_main.reconcile_local_rerun_enrollments",
+                return_value={
+                    "schema_version": "desktop_rerun_startup_reconciliation.v1",
+                    "checked_count": 0,
+                    "terminalized_count": 0,
+                    "replayed_count": 0,
+                    "items": [],
+                },
+            ) as reconcile:
+                service, _resolved_paths, server = build_backend(app_root=app_root, token="reload-token")
+                try:
+                    self.assertTrue(callable(server.resolved_reload))
+                    server.resolved_reload()
+                finally:
+                    service.stop_background_tasks()
+                    for handler in list(service.logger.handlers):
+                        service.logger.removeHandler(handler)
+                        handler.close()
+
+        self.assertEqual(reconcile.call_count, 2)
 
 
 if __name__ == "__main__":

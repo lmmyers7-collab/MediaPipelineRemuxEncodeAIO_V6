@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import csv
-from datetime import datetime
+from datetime import datetime, UTC
 import json
 import logging
 import re
 import sys
 import tempfile
 import unittest
+import uuid
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -26,6 +27,19 @@ from mediapipeline.core.processes.lifecycle import ProcessLifecycleServiceMixin
 from mediapipeline.core.queue.service import QueueServiceMixin
 from mediapipeline.core.rename.service import RenameServiceMixin
 from tests.css_import_resolver import resolve_css_imports
+
+
+def fresh_generated_at() -> str:
+    """Return a current UTC timestamp for freshness-sensitive facade fixtures."""
+    return datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def write_test_media_file(root: Path, name: str, *, suffix: str = ".mkv") -> Path:
+    """Create the minimal disposable media-shaped file used by facade tests."""
+    path = root / "Media" / f"{name}{suffix}"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"media")
+    return path
 
 
 def _render_static_index_html(static_root: Path) -> str:
@@ -475,12 +489,36 @@ def exercise_local_api_route_workflow() -> SimpleNamespace:
                 {"target": "run_logs"},
                 token="workflow-token",
             )
+            assert resolved.active_jobs_path is not None
+            resolved.active_jobs_path.mkdir(parents=True, exist_ok=True)
+            active_job_path = resolved.active_jobs_path / "workflow-run-once.json"
+            active_job_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "desktop_active_job.v1",
+                        "launch_id": "workflow-launch-1",
+                        "job_kind": "pipeline",
+                        "mode": "once",
+                        "status": "active",
+                        "pid": 24680,
+                        "metadata": {
+                            "run_id": "workflow-run-1",
+                            "mode": "once",
+                            "single_file": "",
+                            "expected_queue_plan_fingerprint": "workflow-accepted-plan-1",
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
             control_status, control_payload = client._post_json(
                 f"{server.url}/api/pipeline/control",
-                {"action": "stop"},
+                {"action": "stop", "expected_run_id": "workflow-run-1"},
                 token="workflow-token",
             )
-            stop_flag_exists = resolved.stop_flag.exists()
+            stop_after_current_flag_exists = resolved.stop_after_current_flag.exists()
+            legacy_stop_flag_exists = resolved.stop_flag.exists()
+            active_job_path.unlink()
             start_status, start_payload = client._post_json(
                 f"{server.url}/api/pipeline/start",
                 {"mode": "validate", "sleep_seconds": 3},
@@ -537,7 +575,11 @@ class LocalApiHttpTestMixin:
         from urllib.error import HTTPError
         from urllib.request import Request, urlopen
 
-        headers = {"Content-Type": "application/json", **dict(extra_headers or {})}
+        headers = {
+            "Content-Type": "application/json",
+            "X-MediaPipeline-Command-ID": uuid.uuid4().hex,
+            **dict(extra_headers or {}),
+        }
         if token:
             headers["Authorization"] = f"Bearer {token}"
         body = json.dumps(payload).encode("utf-8")
@@ -2016,6 +2058,9 @@ class DummyWorkflowFacadeService(DummyFacadeService, QueueServiceMixin, RenameSe
         show_console: bool,
         single_file: str | None = None,
         extra_argv: list[str] | tuple[str, ...] | None = None,
+        expected_queue_plan_fingerprint: str = "",
+        command_id: str = "",
+        run_id: str = "",
     ) -> DummyProc:
         self.started_pipeline = {
             "resolved": resolved,
@@ -2026,6 +2071,9 @@ class DummyWorkflowFacadeService(DummyFacadeService, QueueServiceMixin, RenameSe
             "extra_argv": [str(item) for item in (extra_argv or [])],
             "show_console": show_console,
             "single_file": single_file,
+            "expected_queue_plan_fingerprint": expected_queue_plan_fingerprint,
+            "command_id": command_id,
+            "run_id": run_id,
         }
         proc = DummyProc()
         self.started_pipeline_proc = proc
@@ -2072,6 +2120,11 @@ class DummyWorkflowFacadeService(DummyFacadeService, QueueServiceMixin, RenameSe
         confirm_source_overwrite: bool = False,
         confirm_original_policy: bool = False,
         confirm_delete_original: bool = False,
+        command_id: str = "",
+        launch_id: str = "",
+        batch_id: str = "",
+        enrollment_path: Path | None = None,
+        manifest_path: Path | None = None,
     ) -> DummyProc:
         self.started_rerun = {
             "resolved": resolved,
@@ -2091,6 +2144,11 @@ class DummyWorkflowFacadeService(DummyFacadeService, QueueServiceMixin, RenameSe
             "confirm_source_overwrite": confirm_source_overwrite,
             "confirm_original_policy": confirm_original_policy,
             "confirm_delete_original": confirm_delete_original,
+            "command_id": command_id,
+            "launch_id": launch_id,
+            "batch_id": batch_id,
+            "enrollment_path": enrollment_path,
+            "manifest_path": manifest_path,
         }
         proc = DummyProc(24682)
         self.started_rerun_proc = proc
@@ -2109,6 +2167,7 @@ def _resolved(root: Path) -> ResolvedPaths:
             active_jobs_path=root / "State" / "ActiveJobs",
             pause_flag=root / "State" / "Pipeline" / "pipeline_pause.flag",
             stop_flag=root / "State" / "Pipeline" / "pipeline_stop.flag",
+            stop_after_current_flag=root / "State" / "Pipeline" / "pipeline_stop_after_current.flag",
             rescan_flag=root / "State" / "Pipeline" / "pipeline_rescan.flag",
             config_data={"NetworkRole": "standalone"},
     )

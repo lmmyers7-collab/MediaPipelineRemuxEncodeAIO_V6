@@ -19,6 +19,7 @@ from mediapipeline.core.processes.control_runner import (
     read_control_flag_payload_for_service,
     toggle_pause_flag_for_service,
     write_flag_for_service,
+    write_stop_after_current_for_service,
 )
 from mediapipeline.core.processes.lifecycle import ProcessLifecycleServiceMixin
 
@@ -46,6 +47,7 @@ def _resolved(root: Path) -> ResolvedPaths:
         powershell_host=None,
         pause_flag=state / "pipeline_pause.flag",
         stop_flag=state / "pipeline_stop.flag",
+        stop_after_current_flag=state / "pipeline_stop_after_current.flag",
         rescan_flag=state / "pipeline_rescan.flag",
     )
 
@@ -72,6 +74,26 @@ class ProcessControlRunnerTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "Stop flag is unavailable"):
             write_flag_for_service(service, None, "Stop")
 
+    def test_write_stop_after_current_uses_dedicated_correlated_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            service = DummyControlRunnerService()
+            resolved = _resolved(Path(td))
+
+            message = write_stop_after_current_for_service(
+                service,
+                resolved.stop_after_current_flag,
+                run_id="run-1",
+                target_pid=24680,
+                target_launch_id="launch-1",
+            )
+            payload = json.loads(resolved.stop_after_current_flag.read_text(encoding="utf-8"))
+
+        self.assertEqual(message, "Stop After Current requested.")
+        self.assertEqual(payload["action"], "stop_after_current")
+        self.assertEqual(payload["run_id"], "run-1")
+        self.assertEqual(payload["target_pid"], 24680)
+        self.assertEqual(payload["target_launch_id"], "launch-1")
+
     def test_prepare_pipeline_control_flags_removes_stale_pause_and_stop(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             service = DummyControlRunnerService()
@@ -80,6 +102,7 @@ class ProcessControlRunnerTests(unittest.TestCase):
             for path, action, label in (
                 (resolved.pause_flag, "pause", "Pause"),
                 (resolved.stop_flag, "stop", "Stop"),
+                (resolved.stop_after_current_flag, "stop_after_current", "Stop After Current"),
             ):
                 path.write_text(
                     json.dumps(
@@ -89,6 +112,7 @@ class ProcessControlRunnerTests(unittest.TestCase):
                             "label": label,
                             "request_id": f"{action}-old",
                             "created_at": "2000-01-01T00:00:00-04:00",
+                            "target_pid": 24680 if action == "stop_after_current" else None,
                         }
                     ),
                     encoding="utf-8",
@@ -98,8 +122,10 @@ class ProcessControlRunnerTests(unittest.TestCase):
 
         self.assertFalse(resolved.pause_flag.exists())
         self.assertFalse(resolved.stop_flag.exists())
+        self.assertFalse(resolved.stop_after_current_flag.exists())
         self.assertTrue(any("stale pause" in message for message in messages))
         self.assertTrue(any("pre-existing stop" in message for message in messages))
+        self.assertTrue(any("pre-existing stop after current" in message for message in messages))
 
     def test_read_and_age_wrappers_use_service_logger_and_datetime_parser(self) -> None:
         with tempfile.TemporaryDirectory() as td:

@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import json
 import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -78,6 +79,20 @@ def write_inventory(path: Path, samples: list[tdarr_matrix.TdarrSample]) -> None
         writer.writeheader()
         for item in samples:
             writer.writerow({field: getattr(item, field) for field in fieldnames})
+
+
+def write_materialize_fixture(root: Path) -> tuple[Path, Path]:
+    inventory_root = root / "LocalBase" / "TestFixtures" / "TdarrSamples"
+    files_root = inventory_root / "files"
+    files_root.mkdir(parents=True)
+    source = files_root / "sample__1080__h264__aac__30s__video.mkv"
+    source.write_bytes(b"fixture")
+    inventory_path = inventory_root / "inventory.csv"
+    write_inventory(inventory_path, [sample()])
+    template_path = root / "ops" / "pipeline" / "config" / "MediaPipeline_config_template.psd1"
+    template_path.parent.mkdir(parents=True)
+    template_path.write_text(TEMPLATE_TEXT, encoding="utf-8")
+    return inventory_path, template_path
 
 
 class TdarrMatrixMaterializerTests(unittest.TestCase):
@@ -325,11 +340,130 @@ class TdarrMatrixMaterializerTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 tdarr_matrix.prepare_library_root(unsafe, repo_root=root, rebuild=False)
 
+            shared_parent = root / "LocalBase" / "Scratch" / "TestLibraries"
+            unrelated = shared_parent / "UnrelatedSuite"
+            unrelated.mkdir(parents=True)
+            unrelated_file = unrelated / "manual-proof.txt"
+            unrelated_file.write_text("preserve", encoding="utf-8")
+            (shared_parent / tdarr_matrix.SENTINEL_NAME).write_text("{}", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "not the shared parent"):
+                tdarr_matrix.prepare_library_root(shared_parent, repo_root=root, rebuild=True)
+            self.assertEqual(unrelated_file.read_text(encoding="utf-8"), "preserve")
+
+            with self.assertRaisesRegex(ValueError, "direct TdarrMatrix"):
+                tdarr_matrix.prepare_library_root(unrelated, repo_root=root, rebuild=True)
+            self.assertEqual(unrelated_file.read_text(encoding="utf-8"), "preserve")
+
             library_root = root / "LocalBase" / "Scratch" / "TestLibraries" / "TdarrMatrix"
             library_root.mkdir(parents=True)
             (library_root / "manual.txt").write_text("not generated", encoding="utf-8")
             with self.assertRaises(FileExistsError):
                 tdarr_matrix.prepare_library_root(library_root, repo_root=root, rebuild=True)
+
+            forged = shared_parent / "TdarrMatrix-forged"
+            forged.mkdir()
+            forged_keep = forged / "keep.txt"
+            forged_keep.write_text("preserve", encoding="utf-8")
+            (forged / tdarr_matrix.SENTINEL_NAME).write_text(
+                json.dumps({"schema_version": tdarr_matrix.MANIFEST_SCHEMA}),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "has no root identity"):
+                tdarr_matrix.prepare_library_root(forged, repo_root=root, rebuild=True)
+            self.assertEqual(forged_keep.read_text(encoding="utf-8"), "preserve")
+
+            malformed = shared_parent / "TdarrMatrix-malformed"
+            malformed.mkdir()
+            malformed_keep = malformed / "keep.txt"
+            malformed_keep.write_text("preserve", encoding="utf-8")
+            (malformed / tdarr_matrix.SENTINEL_NAME).write_text("{not-json", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "unreadable or malformed"):
+                tdarr_matrix.prepare_library_root(malformed, repo_root=root, rebuild=True)
+            self.assertEqual(malformed_keep.read_text(encoding="utf-8"), "preserve")
+
+            copied = shared_parent / "TdarrMatrix-copied"
+            copied.mkdir()
+            copied_keep = copied / "keep.txt"
+            copied_keep.write_text("preserve", encoding="utf-8")
+            copied_payload = {
+                "schema_version": tdarr_matrix.MANIFEST_SCHEMA,
+                "library_root": str(forged),
+                "root_identity": tdarr_matrix.library_root_identity_payload(forged),
+            }
+            (copied / tdarr_matrix.SENTINEL_NAME).write_text(json.dumps(copied_payload), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "library_root_sha256 does not match"):
+                tdarr_matrix.prepare_library_root(copied, repo_root=root, rebuild=True)
+            self.assertEqual(copied_keep.read_text(encoding="utf-8"), "preserve")
+
+            link_target = root / "junction-target"
+            link_target.mkdir()
+            link_keep = link_target / "keep.txt"
+            link_keep.write_text("preserve", encoding="utf-8")
+            link = shared_parent / "TdarrMatrix-link"
+            try:
+                link.symlink_to(link_target, target_is_directory=True)
+            except OSError as exc:
+                if os.name != "nt":
+                    self.skipTest(f"directory symlink creation unavailable: {exc}")
+                junction = subprocess.run(
+                    ["cmd.exe", "/d", "/c", "mklink", "/J", str(link), str(link_target)],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                if junction.returncode != 0:
+                    self.skipTest(f"directory junction creation unavailable: {junction.stderr.strip() or exc}")
+            with self.assertRaisesRegex(ValueError, "symlink or junction"):
+                tdarr_matrix.prepare_library_root(link, repo_root=root, rebuild=True)
+            self.assertEqual(link_keep.read_text(encoding="utf-8"), "preserve")
+
+    def test_rebuild_quarantines_owned_leaf_preserves_siblings_and_rolls_back(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            inventory_path, template_path = write_materialize_fixture(root)
+            shared_parent = root / "LocalBase" / "Scratch" / "TestLibraries"
+            library_root = shared_parent / "TdarrMatrix"
+            sibling = shared_parent / "UnrelatedSuite" / "keep.txt"
+            sibling.parent.mkdir(parents=True)
+            sibling.write_text("preserve sibling", encoding="utf-8")
+            tdarr_matrix.materialize(
+                inventory_path=inventory_path,
+                library_root=library_root,
+                repo_root=root,
+                mode="copy",
+                views=("movies",),
+                template_path=template_path,
+            )
+            (library_root / "old-only.txt").write_text("recoverable", encoding="utf-8")
+
+            rebuilt = tdarr_matrix.materialize(
+                inventory_path=inventory_path,
+                library_root=library_root,
+                repo_root=root,
+                mode="copy",
+                views=("movies",),
+                rebuild=True,
+                template_path=template_path,
+            )
+            quarantine = Path(str(rebuilt["quarantine_root"]))
+            self.assertTrue((quarantine / "old-only.txt").exists())
+            self.assertEqual(sibling.read_text(encoding="utf-8"), "preserve sibling")
+
+            (library_root / "restore-me.txt").write_text("restore", encoding="utf-8")
+            with self.assertRaises(FileNotFoundError):
+                tdarr_matrix.materialize(
+                    inventory_path=inventory_path,
+                    library_root=library_root,
+                    repo_root=root,
+                    mode="copy",
+                    views=("movies",),
+                    rebuild=True,
+                    write_config_file=True,
+                    template_path=root / "missing-template.psd1",
+                )
+            self.assertEqual((library_root / "restore-me.txt").read_text(encoding="utf-8"), "restore")
+            self.assertEqual(sibling.read_text(encoding="utf-8"), "preserve sibling")
+            self.assertEqual(len(list(shared_parent.glob("TdarrMatrix.failed.*"))), 1)
 
 
 if __name__ == "__main__":

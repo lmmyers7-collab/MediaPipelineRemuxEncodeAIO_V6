@@ -56,6 +56,9 @@
   }
 
   function pipelineProgressIsStale(snapshot = state.lastLaunchCommandState.snapshot) {
+    const pipelineState = String(snapshot?.pipeline_state || "").toLowerCase().trim();
+    if (["idle", "stale", "completed", "failed", "stopped"].includes(pipelineState)) return false;
+    if (snapshot?.progress_health?.stale_evidence !== true) return false;
     const progress = snapshot?.progress && typeof snapshot.progress === "object" ? snapshot.progress : {};
     const stage = String(progress.CurrentStage || progress.current_stage || "").toLowerCase().trim();
     if (!stage || stage === "idle" || stage === "startup") return false;
@@ -100,7 +103,7 @@
     if (pipelineProgressIsStale(snapshot)) return "stale";
     const state = String(snapshot?.pipeline_state || closeReadiness?.state || "idle").trim().toLowerCase();
     if (["failed", "blocked", "error"].includes(state)) return "blocked";
-    if (["completed", "idle", ""].includes(state)) return "idle";
+    if (["completed", "idle", "stale", ""].includes(state)) return "idle";
     return "review";
   }
 

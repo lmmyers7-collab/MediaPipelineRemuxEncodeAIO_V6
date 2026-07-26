@@ -2,11 +2,16 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import json
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 
+from mediapipeline.tools.dev.context_extractors import (
+    REQUIRED_GENERATED_ARTIFACT_ROOTS,
+    generated_artifact_role,
+)
 from mediapipeline.tools.paths import find_repo_root
 
 
@@ -46,6 +51,9 @@ def _summary_text(file_path: str, sha256: str = "0" * 64) -> str:
         [
             "---",
             f"file: {file_path}",
+            f"summary_schema: {refresh_summaries.SUMMARY_SCHEMA_VERSION}",
+            f"generator_fingerprint: {refresh_summaries.SUMMARY_GENERATOR_FINGERPRINT}",
+            "file_type: Python",
             "pipeline_stage: scripts",
             "token_priority: medium",
             "owner_domain: scripts",
@@ -174,6 +182,37 @@ class SummaryIntegrityTests(unittest.TestCase):
             )
         )
 
+    def test_every_required_generated_artifact_has_a_retrieval_role(self) -> None:
+        generated_root = REPO_ROOT / "docs" / "generated"
+        actual_roots = {
+            path.name + ("/" if path.is_dir() else "")
+            for path in generated_root.iterdir()
+        }
+
+        self.assertEqual(actual_roots, set(REQUIRED_GENERATED_ARTIFACT_ROOTS))
+        for root_name in sorted(actual_roots):
+            representative = (
+                f"docs/generated/{root_name}representative"
+                if root_name.endswith("/")
+                else f"docs/generated/{root_name}"
+            )
+            with self.subTest(path=representative):
+                self.assertIsNotNone(generated_artifact_role(representative))
+
+    def test_ide_search_defaults_exclude_opt_in_evidence(self) -> None:
+        settings = json.loads((REPO_ROOT / ".vscode" / "settings.json").read_text(encoding="utf-8"))
+        excluded = settings["search.exclude"]
+
+        for path in (
+            "docs/archive/**",
+            "docs/generated/**",
+            "docs/reviews/**",
+            "ops/release/changes/archived/**",
+            "tests/fixtures/**",
+        ):
+            with self.subTest(path=path):
+                self.assertIs(excluded.get(path), True)
+
     def test_docs_path_casing_is_canonicalized_for_summaries(self) -> None:
         self.assertEqual(
             refresh_summaries.canonical_repo_relative_posix("Docs/ARCHIVED_MD_INDEX.md"),
@@ -205,6 +244,51 @@ class SummaryIntegrityTests(unittest.TestCase):
                 refresh_summaries.sha256_of(lf_source),
                 refresh_summaries.sha256_of(crlf_source),
             )
+
+    def test_refresh_check_invalidates_unchanged_source_when_parser_fingerprint_changes(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            source = root / "source.py"
+            summary = root / "source.py.md"
+            source.write_text("def current():\n    return True\n", encoding="utf-8")
+            summary.write_text(_summary_text("source.py", _sha(source)), encoding="utf-8")
+            text = summary.read_text(encoding="utf-8").replace(
+                refresh_summaries.SUMMARY_GENERATOR_FINGERPRINT,
+                "f" * 64,
+            )
+            summary.write_text(text, encoding="utf-8")
+
+            self.assertFalse(refresh_summaries.summary_metadata_is_current(summary, source))
+
+    def test_refresh_check_still_detects_stale_opt_in_history_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            source = root / "docs" / "archive" / "historical.md"
+            summary = (
+                root
+                / "docs"
+                / "generated"
+                / "summaries"
+                / "docs"
+                / "archive"
+                / "historical.md.md"
+            )
+            source.parent.mkdir(parents=True)
+            source.write_text("current historical evidence\n", encoding="utf-8")
+            summary.parent.mkdir(parents=True)
+            summary.write_text(
+                _summary_text("docs/archive/historical.md", "0" * 64),
+                encoding="utf-8",
+            )
+            old_root = refresh_summaries.REPO_ROOT
+            old_summary = refresh_summaries.SUMMARY_ROOT
+            try:
+                refresh_summaries.REPO_ROOT = root
+                refresh_summaries.SUMMARY_ROOT = root / "docs" / "generated" / "summaries"
+                self.assertEqual(refresh_summaries.cmd_check([source]), 1)
+            finally:
+                refresh_summaries.REPO_ROOT = old_root
+                refresh_summaries.SUMMARY_ROOT = old_summary
 
     def test_generated_context_writers_force_lf_output(self) -> None:
         repo_root = Path(__file__).resolve().parents[3]
@@ -305,13 +389,31 @@ class SummaryIntegrityTests(unittest.TestCase):
         self.assertIn("ops/pipeline/entrypoints/Audit-MediaLibrary.ps1", refresh_summaries.ROOT_SOURCE_FILES)
         self.assertIn("ops/pipeline/config", refresh_summaries.SOURCE_ROOTS)
         self.assertIn("ops/pipeline/config/MediaPipeline_config_template.psd1", refresh_summaries.ROOT_SOURCE_FILES)
-        change_packet_path = Path("ops/release/changes/unreleased/MP-CHANGE-2026-0604-040.json")
+        change_packet = next(
+            iter(sorted((REPO_ROOT / "ops" / "release" / "changes" / "unreleased").glob("*.json")))
+        )
+        change_packet_path = change_packet.relative_to(REPO_ROOT)
         self.assertTrue(refresh_summaries.is_source_file(REPO_ROOT / change_packet_path))
         self.assertFalse(refresh_summaries.in_scope_roots(change_packet_path))
         args = type("Args", (), {"paths": [change_packet_path.as_posix()], "changed": False, "staged": False})()
         self.assertEqual(refresh_summaries.collect_sources(args), [REPO_ROOT / change_packet_path])
+        archived_packet_path = Path(
+            "ops/release/changes/archived/2026-06/MP-CHANGE-2026-0604-040.json"
+        )
+        self.assertTrue(refresh_summaries.is_excluded_source_path(archived_packet_path))
+        self.assertFalse(refresh_summaries.is_source_file(REPO_ROOT / archived_packet_path))
         self.assertTrue(
             refresh_summaries.is_source_file(REPO_ROOT / "src" / "mediapipeline" / "contracts" / "schemas" / "stages.v1.schema.json")
+        )
+        self.assertTrue(
+            refresh_summaries.is_source_file(
+                REPO_ROOT / "src" / "mediapipeline" / "contracts" / "schemas" / "run_monitor.v1.schema.json"
+            )
+        )
+        self.assertTrue(
+            refresh_summaries.is_source_file(
+                REPO_ROOT / "ops" / "pipeline" / "config" / "schemas" / "media_pipeline_run_monitor.schema.json"
+            )
         )
         self.assertTrue(
             refresh_summaries.is_source_file(
@@ -337,6 +439,18 @@ class SummaryIntegrityTests(unittest.TestCase):
         self.assertFalse(refresh_summaries.in_scope_roots(backup_path))
         self.assertFalse(refresh_summaries.is_source_file(REPO_ROOT / backup_path))
         self.assertEqual(refresh_summaries.owner_domain_for("src/mediapipeline/contracts/schemas/config.v1.schema.json"), "config")
+        self.assertEqual(
+            refresh_summaries.owner_domain_for("ops/pipeline/config/schemas/media_pipeline_config.schema.json"),
+            "config",
+        )
+        self.assertEqual(
+            refresh_summaries.owner_domain_for("src/mediapipeline/contracts/schemas/run_monitor.v1.schema.json"),
+            "contracts",
+        )
+        self.assertEqual(
+            refresh_summaries.owner_domain_for("ops/pipeline/config/schemas/media_pipeline_run_monitor.schema.json"),
+            "contracts",
+        )
         self.assertEqual(refresh_summaries.owner_domain_for("src/mediapipeline/contracts/schemas/stages.v1.schema.json"), "contracts")
         self.assertEqual(
             refresh_summaries.owner_domain_for("src/mediapipeline/contracts/schemas/risky_file_registry.v1.schema.json"),

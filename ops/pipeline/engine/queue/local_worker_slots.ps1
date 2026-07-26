@@ -31,6 +31,28 @@ function Resolve-MediaPipelineLocalWorkerSlotCompletion {
         $resultStatus = [string]$Result.Status
     }
 
+    if ($Result) {
+        $expectedJobId = if ($Claim.PSObject.Properties['run_monitor_job_id']) { [string]$Claim.run_monitor_job_id } else { '' }
+        $identityFailure = if (-not $Result.PSObject.Properties['SchemaVersion'] -or [string]$Result.SchemaVersion -ne 'local_worker_result.v1') {
+            'worker_result.json schema is not local_worker_result.v1'
+        } elseif (-not $Result.PSObject.Properties['WorkerClaimId'] -or [string]$Result.WorkerClaimId -ne [string]$Claim.claim_id) {
+            'worker_result.json claim id does not match the active claim'
+        } elseif (-not $Result.PSObject.Properties['WorkerRunId'] -or [string]$Result.WorkerRunId -ne [string]$OwnerRunId) {
+            'worker_result.json run id does not match the controller run'
+        } elseif (-not [string]::IsNullOrWhiteSpace($expectedJobId) -and
+            (-not $Result.PSObject.Properties['WorkerJobId'] -or [string]$Result.WorkerJobId -ne $expectedJobId)) {
+            'worker_result.json monitor job id does not match the accepted claim'
+        } else { '' }
+        if (-not [string]::IsNullOrWhiteSpace($identityFailure)) {
+            return [pscustomobject]@{
+                Status                = 'failed_result_invalid'
+                Reason                = $identityFailure
+                ApplyCounters         = $false
+                CountSyntheticFailure = $true
+            }
+        }
+    }
+
     if ($ExitCode -ne 0) {
         return [pscustomobject]@{
             Status                = 'failed'
@@ -90,6 +112,17 @@ function Resolve-MediaPipelineLocalWorkerSlotCompletion {
         }
     }
 
+    $expectedJobId = if ($Claim.PSObject.Properties['run_monitor_job_id']) { [string]$Claim.run_monitor_job_id } else { '' }
+    if (-not [string]::IsNullOrWhiteSpace($expectedJobId) -and
+        (-not $Result.PSObject.Properties['WorkerJobId'] -or [string]$Result.WorkerJobId -ne $expectedJobId)) {
+        return [pscustomobject]@{
+            Status                = 'failed_result_invalid'
+            Reason                = 'worker exited 0 but worker_result.json monitor job id does not match the accepted claim'
+            ApplyCounters         = $false
+            CountSyntheticFailure = $true
+        }
+    }
+
     if (-not $Result.PSObject.Properties['Success'] -or $Result.Success -isnot [bool]) {
         return [pscustomobject]@{
             Status                = 'failed_result_invalid'
@@ -135,6 +168,36 @@ function Get-MediaPipelineLocalWorkerHardTimeoutSeconds {
     return [int]($largest + 1800)
 }
 
+function Complete-MediaPipelineLocalWorkerMonitorEntry {
+    param(
+        [Parameter(Mandatory)] $Entry,
+        $Result = $null,
+        [string] $Status = 'failed',
+        [string] $Reason = 'Local worker execution failed.',
+        [string] $ErrorCode = 'LOCAL_WORKER_FAILED',
+        [bool] $Retryable = $true
+    )
+
+    if (-not (Get-Command -Name Complete-MediaPipelineRunMonitorQueueEntry -ErrorAction SilentlyContinue)) { return }
+    $effectiveResult = if ($Result) { $Result } else {
+        [pscustomobject]@{
+            Status = $Status
+            Success = $false
+            QueueTerminal = $false
+            Retryable = $Retryable
+            ErrorCode = $ErrorCode
+            Reason = $Reason
+            Route = ''
+            RouteReason = ''
+            RouteReasonCode = ''
+            PublishState = ''
+            OutputPath = ''
+            OutputSizeBytes = 0
+        }
+    }
+    Complete-MediaPipelineRunMonitorQueueEntry -Entry $Entry -Result $effectiveResult
+}
+
 function Get-MediaPipelineLocalWorkerHeartbeatAgeSeconds {
     param([string] $HeartbeatPath = '')
 
@@ -176,12 +239,18 @@ function Invoke-MediaQueuePhasePlanLocalWorkerSlots {
     $slotIds = @(1..$MaxParallelEncodes)
     $childHardTimeoutSeconds = Get-MediaPipelineLocalWorkerHardTimeoutSeconds
     $heartbeatGraceSeconds = Get-MediaPipelineLocalWorkerHeartbeatGraceSeconds
+    $stoppedAfterCurrent = $false
 
     while (($queue.Count -gt 0 -or $active.Count -gt 0) -and -not $script:StopRequested) {
         Check-ControlFlags
         if ($script:StopRequested) { break }
+        if (-not $stoppedAfterCurrent -and (Test-MediaPipelineStopAfterCurrentBoundary)) {
+            $stoppedAfterCurrent = $true
+            Write-Log "Local worker slots: Stop After Current acknowledged; no new workers will be dispatched and $($active.Count) active worker(s) may finish." 'WARN'
+        }
+        if ($stoppedAfterCurrent -and $active.Count -eq 0) { break }
 
-        foreach ($slotId in $slotIds) {
+        if (-not $stoppedAfterCurrent) { foreach ($slotId in $slotIds) {
             if ($active.ContainsKey([string]$slotId)) { continue }
             if ($queue.Count -le 0) { break }
             $entry = $queue.Dequeue()
@@ -189,10 +258,14 @@ function Invoke-MediaQueuePhasePlanLocalWorkerSlots {
             $claim = Invoke-MediaPipelineLocalWorkerClaim -ClaimStorePath $claimStorePath -Entry $entry -SlotId $slotId -OwnerRunId $script:PipelineRunId -ResultPath $slotLayout.ResultFile
             if (-not $claim) {
                 Write-Log "Local worker slots: skipped duplicate active claim for $($entry.File.FullName)" 'WARN'
+                Complete-MediaPipelineLocalWorkerMonitorEntry -Entry $entry -Status 'blocked' -Reason 'An existing local-worker claim already owns this exact source.' -ErrorCode 'LOCAL_WORKER_DUPLICATE_CLAIM'
                 continue
             }
             $proc = $null
             try {
+                if (Get-Command -Name Start-MediaPipelineRunMonitorQueueEntry -ErrorAction SilentlyContinue) {
+                    Start-MediaPipelineRunMonitorQueueEntry -Entry $entry
+                }
                 $proc = Start-MediaPipelineLocalWorkerChild -Entry $entry -Claim $claim -SlotLayout $slotLayout -ScriptPath $ScriptPath -ConfigPath $ConfigPath -PowerShellPath $PowerShellPath -OwnerRunId $script:PipelineRunId
                 $workerStartTime = Get-MediaPipelineProcessStartTimeUtcText -ProcessId $proc.Id
                 if (Test-Path -LiteralPath $slotLayout.MetadataFile -PathType Leaf) {
@@ -241,8 +314,9 @@ function Invoke-MediaQueuePhasePlanLocalWorkerSlots {
                     $releaseReason = "spawned child stopped after claim update failure: $_"
                 }
                 Release-MediaPipelineLocalWorkerClaim -ClaimStorePath $claimStorePath -ClaimId ([string]$claim.claim_id) -Status $releaseStatus -Reason $releaseReason | Out-Null
+                Complete-MediaPipelineLocalWorkerMonitorEntry -Entry $entry -Status 'failed' -Reason $releaseReason -ErrorCode 'LOCAL_WORKER_START_FAILED'
             }
-        }
+        } }
 
         Write-MediaPipelineLocalWorkerActiveJobs -ActiveJobsPath $activeJobsPath -CompatibilityProgressPath $ProgressFile -ActiveJobs @($active.Values) -WriteCompatibilityProgress | Out-Null
 
@@ -269,6 +343,7 @@ function Invoke-MediaQueuePhasePlanLocalWorkerSlots {
                     Stop-MediaPipelineLocalWorkerProcess -Job $job
                     $script:totalFailed = [int]$script:totalFailed + 1
                     Release-MediaPipelineLocalWorkerClaim -ClaimStorePath $claimStorePath -ClaimId ([string]$job.Claim.claim_id) -Status 'failed_child_timeout' -Reason $reason | Out-Null
+                    Complete-MediaPipelineLocalWorkerMonitorEntry -Entry $job.Entry -Status 'failed' -Reason $reason -ErrorCode 'LOCAL_WORKER_CHILD_TIMEOUT'
                     $active.Remove($slotKey)
                     Invalidate-ProcessedIndexCache
                     continue
@@ -297,6 +372,7 @@ function Invoke-MediaQueuePhasePlanLocalWorkerSlots {
                     Stop-MediaPipelineLocalWorkerProcess -Job $job
                     $script:totalFailed = [int]$script:totalFailed + 1
                     Release-MediaPipelineLocalWorkerClaim -ClaimStorePath $claimStorePath -ClaimId ([string]$job.Claim.claim_id) -Status 'failed_child_stale_heartbeat' -Reason $reason | Out-Null
+                    Complete-MediaPipelineLocalWorkerMonitorEntry -Entry $job.Entry -Status 'failed' -Reason $reason -ErrorCode 'LOCAL_WORKER_CHILD_STALE_HEARTBEAT'
                     $active.Remove($slotKey)
                     Invalidate-ProcessedIndexCache
                 }
@@ -330,6 +406,11 @@ function Invoke-MediaQueuePhasePlanLocalWorkerSlots {
                 $script:totalFailed = [int]$script:totalFailed + 1
             }
             Release-MediaPipelineLocalWorkerClaim -ClaimStorePath $claimStorePath -ClaimId ([string]$job.Claim.claim_id) -Status $status -Reason $reason | Out-Null
+            if ($status -eq 'completed') {
+                Complete-MediaPipelineLocalWorkerMonitorEntry -Entry $job.Entry -Result $result
+            } else {
+                Complete-MediaPipelineLocalWorkerMonitorEntry -Entry $job.Entry -Status 'failed' -Reason $reason -ErrorCode 'LOCAL_WORKER_RESULT_INVALID'
+            }
             Write-Log "Local worker slot $($job.SlotLayout.SlotId) finished exit=$exitCode status=$status source=$($job.Claim.source_path)"
             $active.Remove($slotKey)
             Invalidate-ProcessedIndexCache
@@ -346,6 +427,7 @@ function Invoke-MediaQueuePhasePlanLocalWorkerSlots {
         foreach ($job in @($active.Values)) {
             Stop-MediaPipelineLocalWorkerProcess -Job $job
             Release-MediaPipelineLocalWorkerClaim -ClaimStorePath $claimStorePath -ClaimId ([string]$job.Claim.claim_id) -Status 'stopped' -Reason 'operator stop requested' | Out-Null
+            Complete-MediaPipelineLocalWorkerMonitorEntry -Entry $job.Entry -Status 'stopped' -Reason 'Operator interruption stopped the local worker.' -ErrorCode 'LOCAL_WORKER_STOPPED'
         }
         $active.Clear()
         Write-MediaPipelineLocalWorkerActiveJobs -ActiveJobsPath $activeJobsPath -CompatibilityProgressPath $ProgressFile -ActiveJobs @() -WriteCompatibilityProgress | Out-Null
@@ -358,6 +440,7 @@ function Invoke-MediaQueuePhasePlanLocalWorkerSlots {
 
     return [pscustomobject]@{
         Stopped       = [bool]$script:StopRequested
+        StoppedAfterCurrent = [bool]$stoppedAfterCurrent
         PriorityCount = [int]($QueuePlan.MoviePriorityCount + $QueuePlan.TVPriorityCount)
         MovieCount    = [int]$QueuePlan.MovieCount
         TVCount       = [int]$QueuePlan.TVCount

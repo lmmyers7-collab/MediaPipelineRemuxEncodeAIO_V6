@@ -1,0 +1,52 @@
+{
+  "id": "MP-CHANGE-2026-0722-008",
+  "title": "Enforce the complete strict browser CI matrix",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-07-22",
+  "date_completed": "2026-07-22",
+  "summary": "Generate both hosted browser matrices from the authoritative inventory and reject skipped tests through the strict smoke wrapper.",
+  "reason": "Remediate P1 AUDIT-FIND-W10-003. Both hosted workflows hard-code only 23 of the 34 browser-smoke modules and invoke raw unittest, which treats skipped browser tests as success.",
+  "affected_areas": [
+    "CI",
+    "GitHub workflows",
+    "browser smoke inventory",
+    "release confidence",
+    "validation"
+  ],
+  "behavior_before": "The phase and deep-audit browser jobs execute a stale literal selector subset and accept unittest skips as passing job evidence.",
+  "behavior_after": "Each workflow obtains all selectors from browser_smoke_inventory and executes each selector through Invoke-WebViewBrowserSmokeUnittest without allowing skips.",
+  "files_touched": [
+    ".github/workflows/deep-audit.yml",
+    ".github/workflows/phase1-drift.yml",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/.github/workflows/phase1-drift.yml.md",
+    "docs/generated/summaries/tests/python/tooling/test_browser_smoke_inventory.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0722-008.json",
+    "tests/python/tooling/test_browser_smoke_inventory.py"
+  ],
+  "tests_added": [
+    "tests/python/tooling/test_browser_smoke_inventory.py: complete selector resolution and strict dynamic workflow matrix contract."
+  ],
+  "manual_validation": [
+    "Pre-fix reproduction - inventory reports 34 modules and 42 selectors, while the focused regression fails because both workflows bypass it and two required-selector assertions use stale method names.",
+    "Focused browser inventory/workflow regression - passed: 5 tests and both workflow subtests; all 42 selectors resolve through unittest.",
+    "Strict browser wrapper behavior - passed: 18 tests including fail-on-skip, prerequisite failure, timeout, and no-mutation finalizer cases.",
+    "CI provisioning and native failure propagation regressions - passed: 9 tests.",
+    "Workflow YAML parsing, focused ruff, py_compile, and git diff --check - passed.",
+    "Project index and feature map generator check modes, architecture guardrails, naming lint, and GitHub audit spine config - passed.",
+    "Focused audit/browser/CI policy set - passed: 23 tests.",
+    "Generated-context guardrail set - passed: 33 tests.",
+    "ai_guardrail postflight - batch-local checks passed; only separate finding-backed AUDIT-FIND-COV-001, AUDIT-FIND-DEP-001, and AUDIT-FIND-W12-ACTIVE-001 remain, with 0 god-file errors.",
+    "validate_changes --require-worktree-coverage - passed before completion: 1123 packets valid."
+  ],
+  "rollback_plan": "Restore the literal workflow matrices and raw unittest invocations, restore the prior regression expectations, and retain this packet as incomplete evidence if rollback occurs.",
+  "related_changes": [
+    "AUDIT-FIND-W10-003",
+    "MP-CHANGE-2026-0722-007"
+  ],
+  "notes": "Finding disposition before remediation: confirmed against current workflow bytes and the immutable audit evidence. Invariant: all authoritative browser smokes must run in hosted CI, and missing browser prerequisites or unittest skips are not passing evidence. Required validation: inventory completeness and unittest resolution, workflow contract regression, strict-wrapper behavior, YAML parsing, relevant generated/architecture checks, and strict packet worktree coverage. Representative real-media validation is not required because this batch changes CI orchestration and tooling tests only. Independent validation used the separate browser-wrapper harness suite to prove strict skip, missing-prerequisite, timeout, and no-test outcomes independently of the workflow string contract. A hosted GitHub workflow dispatch was not run because it would mutate external CI state; local evidence proves discovery of 34 modules/42 selectors and exact strict-wrapper consumption."
+}

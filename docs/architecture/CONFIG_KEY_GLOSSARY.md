@@ -1,6 +1,6 @@
 # Config Key Glossary
 
-Last updated: 2026-06-11
+Last updated: 2026-07-15
 
 Operator-friendly glossary for major settings and config keys. Intended for operators who want to understand what a key does before editing it, and for documentation authors writing about config behavior.
 
@@ -178,6 +178,7 @@ Bitrate route decisions use bitrate estimated from `file_size_bytes` and `durati
 |---|---|---|---|
 | `DebugMode` | Enable verbose debug logging | Produces large log files; not for production use | Builder |
 | `LogRetentionDays` | How many days of run logs to retain before cleanup | Low values may delete logs before a failure is investigated | Builder |
+| `InterruptedToolLogRetentionDays` | How many days to retain stopped or force-terminated native-tool diagnostics (default `3`, range `1`–`365`) | Low values shorten post-stop evidence; these logs remain separate from failure artifacts | Builder |
 | `PipelineDebugLogMaxBytes` | Size cap for live `pipeline_debug.log` rotation | Too low rotates evidence too often; too high delays recovery from runaway debug logging | Builder |
 | `FailureArtifactWarningThresholdGB` | Home/Reports warning threshold for captured failure artifact storage | Set to `0` only to disable the toast; the read-only summary remains visible | Builder |
 | `FailureArtifactRetentionDays` | Reports cleanup age threshold for captured failure artifacts | Set to `0` to disable age-based artifact cleanup; policy cleanup can use the current backend plan with confirmation | Builder |
@@ -195,6 +196,7 @@ Bitrate route decisions use bitrate estimated from `file_size_bytes` and `durati
 | `PauseFlagBlockSeconds` | Pause-flag age for blocked autonomy health | Does not auto-clear pause; high values delay unattended blocked-health visibility | Raw/Advanced |
 | `LocalWorkerHeartbeatGraceSeconds` | Grace window for stale local worker child heartbeat evidence | Too low can reclaim slow-but-live workers; too high delays stale slot recovery | Raw/Advanced |
 | `QueueExecutionMaxRunnablePerRound` | Maximum runnable queue items processed in one engine round | Too high increases per-round memory/work; too low increases round churn | Raw/Advanced |
+| `QueueLaunchSnapshotFreshnessSeconds` | Age threshold for labeling queue-snapshot generation and file timestamps as older-than-preferred preview evidence (default `60`, range `15`–`3600`); age never blocks Run Once because runtime rebuilds and fingerprint-verifies the plan | Too low creates advisory refresh churn; it does not change launch authority | Builder/Advanced |
 | `StateDbMaintenanceIntervalSeconds` | Best-effort SQLite mirror maintenance interval | JSON remains authoritative; low values add maintenance overhead | Raw/Advanced |
 | `StateDbWalReviewBytes` | SQLite mirror WAL review/maintenance threshold | JSON remains authoritative; high values allow larger WAL growth before review | Raw/Advanced |
 | `StateDbCompletedJobsMaxRows` | Maximum completed-job rows retained in the SQLite mirror | JSONL completed manifests remain authoritative; too low reduces mirror history, too high increases SQLite growth | Raw/Advanced |
@@ -246,8 +248,8 @@ Bitrate route decisions use bitrate estimated from `file_size_bytes` and `durati
 | `WorkerName` | Identifier for this worker in coordinator logs | Useful for multi-worker environments | Builder |
 | `WorkerSourcePathMap` | JSON map of coordinator source paths to local worker equivalents | Network builder JSON text field; backend Preview/Save validates the config shape | Builder |
 | `WorkerConfigOverrides` | Compatibility-only legacy per-worker override JSON; backend network workers no longer apply it at claim time | Network builder labels this backend-disabled compatibility surface; use current worker policy keys for supported execution behavior | Compatibility (backend-disabled) |
-| `CoordinatorAuthToken` | **Raw/Advanced** — coordinator auth secret | Must not appear in WebView builder; edit only via raw JSON or config file directly | Raw (intentionally hidden from WebView) |
-| `WorkerAuthToken` | **Raw/Advanced** — worker auth secret | Same as CoordinatorAuthToken | Raw (intentionally hidden from WebView) |
+| `CoordinatorAuthToken` | **Backend-only secret** — coordinator auth credential | Ordinary Settings Preview/Save rejects this key; use the backend coordinator join/rotation workflow | Hidden from WebView settings mutation |
+| `WorkerAuthToken` | **Backend-only secret** — worker auth credential | Ordinary Settings Preview/Save rejects this key; use the backend worker join/import workflow | Hidden from WebView settings mutation |
 
 ---
 

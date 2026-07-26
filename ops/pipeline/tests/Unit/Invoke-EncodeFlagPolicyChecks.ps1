@@ -849,7 +849,7 @@ foreach ($case in $retryCases) {
 
 $encodeEntryText = ($encodeImplementationPaths | ForEach-Object { Get-Content -LiteralPath $_ -Raw }) -join "`n"
 Assert-True ($encodeEntryText -match '\$cpuMutexWaitSeconds\s*=\s*\[int\]\$script:CpuEncodeMutexWaitSeconds') 'CPU fallback must use the bounded CpuEncodeMutexWaitSeconds setting for mutex waits.'
-Assert-True ($encodeEntryText -match 'Acquire-CpuEncodeMutex -TimeoutSeconds \$cpuMutexWaitSeconds') 'CPU fallback must wait for the CPU mutex with the bounded mutex wait after zero-time acquisition fails.'
+Assert-True ($encodeEntryText -match 'Acquire-CpuEncodeMutex(?:\s*`\s*)?\s+-TimeoutSeconds \$cpuMutexWaitSeconds') 'CPU fallback must wait for the CPU mutex with the bounded mutex wait after zero-time acquisition fails.'
 Assert-True ($encodeEntryText -match 'if \(-not \$cpuMutexLock\.Acquired\)') 'CPU fallback must re-check mutex acquisition after the timed wait.'
 Assert-True ($encodeEntryText -match 'ENCODE_CPU_MUTEX_UNAVAILABLE') 'CPU fallback mutex timeout must register a distinct failure code.'
 Assert-True ($encodeEntryText -match 'refusing to start overlapping CPU fallback') 'CPU fallback mutex timeout should log a fail-closed operator reason.'

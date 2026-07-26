@@ -188,6 +188,103 @@ class ApplicationFacadeCoreContractTests(unittest.TestCase):
         self.assertEqual(reloaded["entries"], payload["entries"])
         self.assertEqual(leftovers, [])
 
+    def test_command_journal_load_failures_preserve_authority_and_block_strict_records(self) -> None:
+        invalid_documents = {
+            "truncated": '{"schema_version":"desktop_command_history.v1","entries":[',
+            "root_list": "[]",
+            "wrong_schema": '{"schema_version":"desktop_command_history.v0","entries":[]}',
+            "entries_not_list": '{"schema_version":"desktop_command_history.v1","entries":{}}',
+            "invalid_entry": '{"schema_version":"desktop_command_history.v1","entries":["lost"]}',
+        }
+        command_result = {
+            "schema_version": "desktop_command_result.v1",
+            "command": "pipeline.start",
+            "ok": True,
+            "severity": "info",
+            "message": "must not replace unresolved history",
+        }
+
+        for label, original_text in invalid_documents.items():
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as raw_root:
+                root = Path(raw_root)
+                path = root / "RunLogs" / "local_api_command_history.json"
+                path.parent.mkdir(parents=True)
+                path.write_text(original_text, encoding="utf-8")
+                journal = CommandJournal(path=path, state_db_root=root / "State")
+
+                with patch.object(journal, "_mirror_sqlite_locked") as mirror:
+                    journal.record(command_result)
+                    with self.assertRaisesRegex(RuntimeError, "authoritative history could not be loaded"):
+                        journal.record(command_result, strict=True)
+
+                mapping = journal.to_mapping()
+                persistence = mapping["journal_persistence"]
+                self.assertEqual(path.read_text(encoding="utf-8"), original_text)
+                self.assertEqual(mapping["entries"], [])
+                self.assertTrue(persistence["degraded"])
+                self.assertEqual(persistence["json"]["status"], "failed")
+                self.assertTrue(persistence["json"]["last_error"])
+                mirror.assert_not_called()
+
+    def test_command_journal_read_error_is_degraded_until_valid_explicit_restart_recovery(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            path = root / "RunLogs" / "local_api_command_history.json"
+            path.parent.mkdir(parents=True)
+            original_text = '{"schema_version":"desktop_command_history.v1","entries":[]}'
+            path.write_text(original_text, encoding="utf-8")
+
+            with patch("pathlib.Path.exists", side_effect=PermissionError("inspect denied")):
+                inspect_unavailable = CommandJournal(path=path)
+            inspect_persistence = inspect_unavailable.to_mapping()["journal_persistence"]
+            self.assertEqual(inspect_persistence["json"]["status"], "failed")
+            self.assertIn("inspect denied", inspect_persistence["json"]["last_error"])
+
+            with patch("pathlib.Path.read_text", side_effect=PermissionError("read denied")):
+                unavailable = CommandJournal(path=path)
+
+            unavailable_persistence = unavailable.to_mapping()["journal_persistence"]
+            with self.assertRaisesRegex(RuntimeError, "authoritative history could not be loaded"):
+                unavailable.record(
+                    {
+                        "schema_version": "desktop_command_result.v1",
+                        "command": "pipeline.start",
+                        "ok": True,
+                        "severity": "info",
+                        "message": "blocked",
+                    },
+                    strict=True,
+                )
+            self.assertEqual(path.read_text(encoding="utf-8"), original_text)
+            self.assertEqual(unavailable_persistence["json"]["status"], "failed")
+            self.assertIn("read denied", unavailable_persistence["json"]["last_error"])
+
+            restored_entry = {
+                "at": "2026-07-22T12:00:00+00:00",
+                "command": "pipeline.start",
+                "ok": False,
+                "severity": "error",
+                "message": "restored evidence",
+                "job_id": "",
+                "refresh_hint": "",
+                "warnings": [],
+                "errors": [],
+                "log_paths": {},
+            }
+            path.write_text(
+                json.dumps(
+                    {"schema_version": "desktop_command_history.v1", "entries": [restored_entry]},
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            restarted = CommandJournal(path=path)
+            recovered = restarted.to_mapping()
+
+        self.assertFalse(recovered["journal_persistence"]["degraded"])
+        self.assertEqual(recovered["entries"][0]["message"], "restored evidence")
+
     def test_command_journal_logs_temp_cleanup_failure_after_save_failure(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             path = Path(raw_root) / "RunLogs" / "local_api_command_history.json"

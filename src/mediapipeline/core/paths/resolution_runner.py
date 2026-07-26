@@ -89,6 +89,7 @@ def resolve_paths_for_service(service: PathResolutionServiceProtocol, pipeline_p
         )
         resolved.pause_flag = pipeline_state / "pipeline_pause.flag"
         resolved.stop_flag = pipeline_state / "pipeline_stop.flag"
+        resolved.stop_after_current_flag = pipeline_state / "pipeline_stop_after_current.flag"
         resolved.rescan_flag = pipeline_state / "pipeline_rescan.flag"
         resolved.failed_reports_path = service._first_existing(
             failures_state / "Reports",
@@ -140,6 +141,9 @@ def resolve_paths_for_service(service: PathResolutionServiceProtocol, pipeline_p
 
     if not resolved.audit_reports_path:
         resolved.audit_reports_path = (resolved.runtime_state_root or service.app_root) / "AuditReports"
+
+    if resolved.state_root is not None:
+        resolved.run_monitor_path = resolved.state_root / "RunMonitor"
 
     markers = config_data.get(KEY_PRIORITY_MARKERS)
     if isinstance(markers, list) and markers:

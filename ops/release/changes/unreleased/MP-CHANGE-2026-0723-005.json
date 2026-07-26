@@ -1,0 +1,72 @@
+{
+  "id": "MP-CHANGE-2026-0723-005",
+  "title": "Harden Tauri Python runtime provenance",
+  "version_target": "2026.06.04.001",
+  "status": "in_progress",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": null,
+  "summary": "Bind productized Tauri backend startup to the bundled, release-manifest-verified Python runtime and an isolated release-owned import path.",
+  "reason": "Partially remediate P1 AUDIT-FIND-W09-003. Release startup currently accepts ambient python.exe and inherited PYTHONPATH/PYTHONHOME state, allowing non-release code to execute before backend contract validation.",
+  "affected_areas": [
+    "Python import provenance",
+    "Tauri backend runtime resolution",
+    "backend startup environment",
+    "release manifest integrity evidence"
+  ],
+  "behavior_before": "All build profiles try bundled candidates and then unconditionally accept the literal python command. Backend launch prepends release src to inherited PYTHONPATH and does not isolate user-site or Python-home state.",
+  "behavior_after": "Release builds require apps/desktop/runtime/Python/python.exe and exactly matching path, byte-count, and SHA-256 evidence in the bounded root mediapipeline_release_manifest.v1. Debug builds alone retain explicit ambient fallback. Backend launch uses Python -I with a JSON-encoded release src bootstrap, removes inherited PYTHONPATH/PYTHONHOME/PYTHONUSERBASE/PYTHONSTARTUP, and disables user-site/safe-path fallbacks.",
+  "files_touched": [
+    "apps/desktop/tauri/src-tauri/Cargo.lock",
+    "apps/desktop/tauri/src-tauri/Cargo.toml",
+    "apps/desktop/tauri/src-tauri/src/backend_process.rs",
+    "apps/desktop/tauri/src-tauri/src/dialogs.rs",
+    "apps/desktop/tauri/src-tauri/src/lib.rs",
+    "apps/desktop/tauri/src-tauri/src/lib_tests/mod.rs",
+    "apps/desktop/tauri/src-tauri/src/lib_tests/python_runtime.rs",
+    "docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/backend_process.rs.md",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/dialogs.rs.md",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/lib.rs.md",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/lib_tests/mod.rs.md",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/lib_tests/python_runtime.rs.md",
+    "docs/generated/summaries/docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-005.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_tauri_shell_scaffold.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-005.json",
+    "tests/python/desktop/test_tauri_shell_scaffold.py"
+  ],
+  "tests_added": [
+    "A Rust integration test runs the real bundled Python with -I and the release-src-only bootstrap, proving local_api_main imports successfully without PYTHONPATH.",
+    "Rust fixtures prove a valid release-manifest path/size/hash resolves the exact bundled interpreter and debug mode alone retains ambient fallback.",
+    "Rust fixtures prove release mode rejects missing bundled Python, missing manifest evidence, and a SHA-256 mismatch without falling back to PATH.",
+    "The Python Tauri scaffold asserts the isolated-launch environment, manifest schema/path contract, debug-only mode switch, and direct SHA-256 dependency."
+  ],
+  "manual_validation": [
+    "Change-control, risky registry, summary integrity, and feature-card tooling - passed: 56 tests and 74 subtests",
+    "Extracted runtime provenance fixtures: cargo test --locked python_runtime and release check passed",
+    "Focused Tauri shell scaffold runtime/dependency tests - passed: 2 tests.",
+    "Global summary freshness reports only the same six pre-existing stale files outside this packet; all packet summaries are current",
+    "God-file guard - 0 errors and baseline 51 repository warnings after extracting the focused test module",
+    "Project index/dependency graph and feature file map --check - passed",
+    "Risky-file registry and architecture guardrails - passed",
+    "Summary integrity and feature context cards - passed: 23 tests and 70 subtests",
+    "Tauri production surface audit - passed",
+    "Tauri shell scaffold excluding known W09-013 route baseline - 95 passed, 1 deselected",
+    "cargo check --release --locked - passed",
+    "cargo fmt -- --check and cargo check --locked - passed.",
+    "cargo test --locked --lib - passed: 63 tests.",
+    "cargo test --locked python_ -- --nocapture - passed: 6 focused tests.",
+    "npm run check - passed"
+  ],
+  "rollback_plan": "Revert the Tauri runtime resolver, isolated Python bootstrap, sha2 dependency/lock entry, Rust/static tests, lifecycle documentation, and generated context together. Do not restore ambient release fallback independently.",
+  "related_changes": [
+    "AUDIT-FIND-W09-003"
+  ],
+  "notes": "No media policy, source media, queue, publish, settings, or active-work termination behavior changes. No real-media validation is required. The packet remains in_progress because the audit finding requires clean-machine installed-package open/close and runtime-hash proof; W09-001 currently blocks creation of an installer containing the backend application tree. Local implementation and hostile provenance fixtures are green, but installed acceptance has not been claimed.\nHostile PYTHONPATH/PYTHONHOME/PYTHONUSERBASE and working-directory shadow fixture was ignored by the real bundled isolated interpreter import test.\nMoved the cohesive runtime-provenance suite out of lib_tests/mod.rs in response to the god-file growth warning; no behavior changed."
+}

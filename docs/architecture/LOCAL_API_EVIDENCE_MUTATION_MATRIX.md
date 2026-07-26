@@ -2,7 +2,40 @@
 
 Companion to `docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`. This document separates every route into its mutation class, states whether the frontend can own the behavior, and notes the key restriction on each command route.
 
-Total routes: 168 (54 read, 114 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
+Total routes: 174 (56 read, 118 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
+
+---
+
+## Strict Command Delivery Protocol
+
+Routes in `STRICT_DURABLE_COMMAND_ROUTES` require the caller-stable
+`X-MediaPipeline-Command-ID` header after authentication and payload validation.
+The backend hashes the canonical route plus validated JSON payload and atomically
+reserves that identity in the authoritative JSON command journal before dispatch.
+A matching active reservation returns `command_in_progress`; a matching durable
+terminal record replays its stored response without dispatch; reuse for another
+route or payload returns `command_id_payload_conflict`. Missing, invalid,
+conflicting, corrupt-journal, or unresolved identities fail before mutation.
+
+The backend-served bootstrap publishes the exact strict-route set as
+`durableCommandRoutes`. The shared WebView API client generates one secure ID per
+new intent, shares it across equivalent simultaneous delivery, releases it after
+a definitive terminal response or rejection, and retains it after transport
+loss, timeout, invalid JSON, `COMMAND_OUTCOME_UNKNOWN`,
+`command_outcome_indeterminate`, `command_evidence_unresolved`, or
+`command_in_progress`. An ambiguous outcome
+must be reconciled or retried with that same ID; the UI must not submit a new
+command blindly. Journal identity retention is bounded by the configured command
+history count and has no wall-clock expiry.
+
+Dispatch exceptions stay inside this state machine. `OperatorRouteError` is the
+only handler exception that explicitly proves mutation did not begin, so it is
+stored as a replayable `failed` terminal. Every other dispatch exception is
+stored as replayable `indeterminate` evidence with no claim that mutation was or
+was not performed. If terminal journaling fails, the accepted reservation remains
+the durable duplicate block and the response separately states whether a
+verified lifecycle fallback marker was persisted; marker absence is reported as
+`command_evidence_unresolved`, never as durable indeterminate success.
 
 ---
 
@@ -17,6 +50,7 @@ All GET routes are read-only. None touch media, launch pipeline work, write conf
 | `GET /api/health` | `read` | No | Public startup probe before the token is passed to WebView |
 | `GET /api/contract` | `read` | No | Self-describing route contract; Tauri validates before opening WebView |
 | `GET /api/snapshot` | `read` | No | Backend assembles pipeline, audit, process state, and read-only long-run reliability counters |
+| `GET /api/run-monitor` | `read` | No | Reads one backend-correlated Run Once accepted-workload projection by exact optional `run_id`; freshness policy suppresses stale, unavailable, future-dated, or contradictory active claims, and the route never reconstructs current work from legacy progress |
 | `GET /api/telemetry` | `read` | No | CPU/RAM/GPU sample cached by backend |
 | `GET /api/diagnostics` | `read` | No | Recent backend events, errors, launch-log summary, and backend-owned autonomy health evidence |
 | `GET /api/diagnostics/tail` | `read` | No | `target` must be allowlisted; `max_bytes` is capped at 256 KB; no arbitrary path accepted |
@@ -34,7 +68,8 @@ All GET routes are read-only. None touch media, launch pipeline work, write conf
 
 | Route | Class | Frontend can own? | Key restriction |
 |---|---|---|---|
-| `GET /api/queue` | `read` | No | Latest backend queue snapshot plus queue-scan status and source-inventory evidence; no dry run spawned |
+| `GET /api/queue` | `read` | No | Latest backend queue snapshot plus provenance, input-consistency, plan-fingerprint, fallback, pending-publish, queue-scan, and source-inventory evidence; no dry run spawned |
+| `GET /api/queue/priority-export` | `read` | No | Latest backend-owned export readiness, count, ID, and fingerprints; accepted membership is redacted |
 | `GET /api/queue/priority` | `read` | No | Reads backend-owned priority manifest; no queue/media mutation |
 | `GET /api/queue/strategy` | `read` | No | Reads backend-owned strategy state and valid strategy names |
 | `GET /api/queue/file-overrides` | `read` | No | Reads override manifest or one source-root-contained override entry |
@@ -50,7 +85,7 @@ All GET routes are read-only. None touch media, launch pipeline work, write conf
 | `GET /api/audit-results` | `read` | No | Audit CSV preview; no rerun CSV written |
 | `GET /api/audit-controls` | `read` | No | Reads audit score policy and audit-only ignore state; no save/export/media mutation |
 | `GET /api/audit-sources` | `read` | No | Reads backend-owned Audit source registry and scan status only; no scan, save, launch, or media mutation |
-| `GET /api/rerun/results` | `read` | No | Reads completed/current CSV rerun manifests, row status counts, stop evidence, continuation eligibility, review outputs, and import/scoped CSV candidates; no media mutation |
+| `GET /api/rerun/results` | `read` | No | Reads bounded recent rerun manifests with scan-window metadata, direct current local process evidence, fresh exact persisted Network claim evidence, recovery actions, review outputs, and import/scoped CSV candidates; no media mutation |
 | `GET /api/rename/cleaning-filters` | `read` | No | Reads backend-owned movie and TV cleaning filter catalogs only |
 | `GET /api/rename/movie-cleaning-filters` | `read` | No | Reads backend-owned movie filename cleaning filter catalog only |
 | `GET /api/rename/clean-filename-preview` | `read` | No | Read-only clean-filename preview plus optional workbench comparison/suggestions; marks suggestions as already covered or stage-recommended and writes nothing |
@@ -91,7 +126,7 @@ Runs backend-owned source inventory and queue-plan dry-run behavior. It writes s
 
 | Route | Mutation class | Frontend cannot own? | Key restriction |
 |---|---|---|---|
-| `POST /api/queue/scan` | `process-dry-run` | Frontend cannot enumerate launchable queue rows or run queue policy independently | `mode`: `inventory_then_curate`, `inventory_only`, or `curate_only`; `scope`: `all`; duplicate requests observe the active backend scan |
+| `POST /api/queue/scan` | `process-dry-run` | Frontend cannot enumerate launchable queue rows or run queue policy independently | `mode`: `inventory_then_curate`, `inventory_only`, or `curate_only`; `scope`: `all`; duplicate requests observe the active backend scan; full curation uses `-EmitQueuePlan`, validates stable inputs, atomically publishes evidence, and never dispatches media |
 
 ### metrics-state-write / metrics-backfill-state-write (Metrics state only)
 
@@ -108,6 +143,7 @@ Writes backend-owned queue state manifests. These routes never rename, move, del
 
 | Route | Mutation class | Frontend cannot own? | Key restriction |
 |---|---|---|---|
+| `POST /api/queue/priority-export` | `queue-state-write` | Frontend cannot select or persist launch membership | Strict empty payload; backend runs `PriorityOnly` planning and stores only runnable effective-High accepted rows plus fingerprints; never launches or accepts browser rows |
 | `POST /api/queue/priority` | `queue-state-write` | Frontend cannot write priority manifests directly | `path`/`items` must be absolute source-root-contained paths; `level` is limited to `high`, `normal`, `low`, or `hold`; `clear_all` clears priority manifest state only |
 | `POST /api/queue/strategy` | `queue-state-write` | Frontend cannot write queue strategy state directly | `strategy` must be one of the backend-declared valid strategy names |
 | `POST /api/queue/file-overrides` | `queue-state-write` | Frontend cannot write per-file media-policy override manifests directly | `path` must be source-root-contained unless `clear_all` is requested; writes non-destructive audio/subtitle/routing/video override metadata only |
@@ -258,7 +294,7 @@ Writes backend-owned control state or control flag files. The running pipeline o
 |---|---|---|---|
 | `POST /api/final-library-promotion/pause` | `control-state-write` | Frontend cannot edit promotion state directly | `run_id` only; pauses an active backend-owned promotion run |
 | `POST /api/final-library-promotion/resume` | `control-state-write` | Frontend cannot edit promotion state directly | `run_id` only; resumes a paused backend-owned promotion run |
-| `POST /api/pipeline/control` | `control-flag-write` | Frontend cannot write flag files or kill processes directly | `action`: `pause`, `stop`, `rescan`, or `kill`; backend owns flag writes and emergency cleanup |
+| `POST /api/pipeline/control` | `control-flag-write` | Frontend cannot select a process, write flag files, or kill processes directly | `action`: `pause`, `stop`, `rescan`, or `kill`; standard Backend Queue Run Once stop carries `expected_run_id`, which the backend rechecks against exact active launch scope/run/PID/launch identity under lock before writing; backend owns emergency cleanup |
 | `POST /api/audit/stop` | `process-control` | Frontend cannot kill audit processes or edit progress directly | Requires `confirm_stop: true`; backend stops audit process trees only and writes terminal stopped audit progress |
 | `POST /api/rerun/control` | `process-control` | Frontend cannot kill rerun work or edit manifests directly | Requires `confirm_stop: true`; backend writes only the rerun stop-after-current marker and PowerShell owns manifest updates after the current row/window completes |
 
@@ -288,12 +324,12 @@ Writes and atomically reloads the live config PSD1 through backend-owned setting
 
 | Route | Mutation class | Frontend cannot own? | Key restriction |
 |---|---|---|---|
-| `POST /api/settings/save-patch` | `config-write` | Frontend cannot write PSD1 directly | Matching backend preview `review_confirmation` plus `confirm_save` required; backend validates, backs up, writes, and reloads |
+| `POST /api/settings/save-patch` | `config-write` | Frontend cannot write PSD1 directly or submit network authentication tokens | Matching backend preview `review_confirmation` plus `confirm_save` required; backend rejects coordinator/worker token keys, validates, backs up, writes, and reloads |
 | `POST /api/settings/import-psd1-preview` | `none` | Frontend cannot parse or import PSD1 directly | Backend builds a read-only PSD1 import preview; no config write |
 | `POST /api/settings/import-psd1` | `config-write` | Frontend cannot import PSD1 settings directly | `confirm_import` required; backend validates, backs up, imports, and reloads settings |
 | `POST /api/settings/preset-library/apply` | `config-write` | Frontend cannot convert or save PresetV2 policy directly | `confirm_apply` required; backend converts PresetV2 to a legacy settings patch and saves through the existing settings policy for future launches |
 | `POST /api/settings/wizard/save` | `config-write` | Frontend cannot write PSD1 directly | `confirm_save` required; backend uses normal settings save path |
-| `POST /api/network/worker/join-cluster` | `config-write` | Frontend cannot import worker URL/token/path-map directly | `confirm_import` required; backend decodes the secret-safe join blob, saves worker settings through the normal settings path, then runs read-only test-connection |
+| `POST /api/network/worker/join-cluster` | `config-write` | Frontend cannot import worker URL/token/path-map directly | `confirm_import` required; backend decodes the secret-safe join blob, uses its non-route internal credential capability to save worker settings, then runs read-only test-connection |
 
 ### secret-transfer (high risk, setup only)
 
@@ -301,7 +337,7 @@ Returns a secret-bearing setup blob without journaling the secret. It must not s
 
 | Route | Mutation class | Frontend cannot own? | Key restriction |
 |---|---|---|---|
-| `POST /api/network/coordinator/join-blob` | `secret-transfer` | Frontend cannot mint or log worker auth secrets directly | Requires `confirm_create`; token rotation additionally requires `confirm_rotate`; response rendering must stay token/blob safe |
+| `POST /api/network/coordinator/join-blob` | `secret-transfer` | Frontend cannot mint or log worker auth secrets directly | Requires `confirm_create`; token rotation additionally requires `confirm_rotate`; backend validates the complete exact-token blob before config/app-state/runtime mutation, persistence precedes live-token replacement, and response rendering must stay token/blob safe |
 
 ### filesystem-mutation (high risk)
 
@@ -327,6 +363,15 @@ Runs backend maintenance tooling. Dry runs write no ops/release/metadata/backfil
 | `POST /api/maintenance/archive-state-journals` | `runtime-evidence-archive` | Frontend cannot archive state journals directly | `confirm_archive` required; archives backend state-journal evidence only and does not mutate media, queue, settings, manifests, or pending publish state |
 | `POST /api/maintenance/release-build` | `deployment-write` | Frontend cannot create release packages directly | `confirm_create` required; backend checks active work, owns destination replacement, manifest creation, and optional zip creation |
 
+### lifecycle-evidence-reconciliation (high risk)
+
+Reconciles only a provably terminal failed backend lifecycle chain. The frontend cannot select evidence paths, PIDs, lease IDs, command IDs, or record IDs; the backend derives and correlates every artifact from the configured State root.
+
+| Route | Mutation class | Frontend cannot own? | Key restriction |
+|---|---|---|---|
+| `POST /api/backend/lifecycle/reconcile-dry-run` | `none` | Frontend cannot classify lifecycle evidence or PID liveness directly | Accepts only an optional reason; validates the correlated failed-recovery chain, proves recorded PIDs are dead, and previews the exact archive transaction without writing evidence or touching media files |
+| `POST /api/backend/lifecycle/reconcile` | `lifecycle-evidence-reconciliation` | Frontend cannot archive or clear lifecycle evidence directly | Requires literal `confirm_apply: true` and the current `dry_run_fingerprint`; uses a guarded archive transaction plus strict durable command evidence and never touches media files |
+
 ### backend-lifecycle (critical)
 
 Initiates guarded backend lifecycle operations. Network lifecycle routes are provider-guarded and confirmation-gated; they must not fall through to normal Launch, queue scanning, claim release, or media processing.
@@ -351,7 +396,7 @@ Spawns backend processes. The backend owns launch locks, command journal entries
 
 | Route | Mutation class | Frontend cannot own? | Key restriction |
 |---|---|---|---|
-| `POST /api/pipeline/start` | `process-launch` | Frontend cannot exec processes or bypass launch guards | `mode`: `once`, `continuous`, `validate`, or `drain_pending_pushes`; backend owns launch lock and process args |
+| `POST /api/pipeline/start` | `process-launch` | Frontend cannot exec processes or bypass launch guards | `mode`: `once`, `continuous`, `validate`, or `drain_pending_pushes`; blank `once` requires current backend dry-run provenance and plan evidence, repeats validation inside the durable lease, and dispatches no media unless active discovery matches the accepted plan fingerprint |
 | `POST /api/audit/start` | `process-launch` | Frontend cannot exec audit scripts directly | Backend owns audit script invocation |
 | `POST /api/rerun/start` | `process-launch` | Frontend cannot exec rerun scripts directly | Backend-owned CSV rerun default: `destination_mode=auto_replace_clean_else_pending_review`, `collision_policy=replace_final`, source originals kept; strict `confirm_replace_final=true` is still required before live replacement-capable starts |
 | `POST /api/rerun/continue` | `process-launch` | Frontend cannot materialize retry CSVs or exec rerun scripts directly | Requires `confirm_continue: true`; backend accepts stopped-after-current manifests only, writes a pending-only scoped CSV, and launches through CSV rerun locks |
@@ -361,6 +406,7 @@ Spawns backend processes. The backend owns launch locks, command journal entries
 | Route | Class | Frontend can own? | Key restriction |
 |---|---|---|---|
 | `POST /api/rerun/network/start` | `network-state-write` | Frontend cannot create Network CSV rerun batch state or worker claims | Requires matching backend dry-run fingerprint and strict `confirm_start`; writes coordinator-owned batch state and command evidence only, without directly launching workers or touching media |
+| `POST /api/rerun/network/retry` | `network-state-write` | Frontend cannot reopen Network CSV rerun rows or infer safe retry eligibility | Requires exact row identity, idempotent request evidence, nonblank reason, and strict `confirm_retry`; backend permits only source-access `retry_exhausted` rows after fresh source verification and rejects active claims or any existing/ambiguous output evidence |
 
 ---
 

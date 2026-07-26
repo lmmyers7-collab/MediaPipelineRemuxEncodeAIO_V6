@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
+import multiprocessing
 import sys
 import tempfile
 import unittest
@@ -18,8 +19,31 @@ from mediapipeline.core.network.join import decode_network_join_blob, encode_net
 from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.desktop.application.facade import MediaPipelineApplicationFacade
 from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.desktop.network.coordinator import CoordinatorDispatcher
 from mediapipeline.desktop.network.path_map import apply_source_path_map, parse_source_path_map
 from tests.python.desktop.application_facade_test_support import DummyFacadeService
+
+
+def _rotate_coordinator_token_process(root_text: str, token: str, result_queue) -> None:
+    root = Path(root_text)
+    service = DummyFacadeService(root)
+    service.app_state_path = root / "desktop_app_state.json"
+    dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+    dispatcher._auth_token = "existing-token-0123456789"
+    dispatcher._app = SimpleNamespace(service=service)
+    dispatcher._safe_log_cluster_event = lambda *_args, **_kwargs: None  # type: ignore[method-assign]
+    CoordinatorDispatcher.update_auth_token(dispatcher, token)
+    result_queue.put(dispatcher._auth_token)
+
+
+def _reload_coordinator_token_process(root_text: str, result_queue) -> None:
+    root = Path(root_text)
+    service = DummyFacadeService(root)
+    service.app_state_path = root / "desktop_app_state.json"
+    dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+    dispatcher._config = lambda: {}  # type: ignore[method-assign]
+    dispatcher._app = SimpleNamespace(service=service)
+    result_queue.put(CoordinatorDispatcher._load_or_generate_token(dispatcher))
 
 
 def _resolved(root: Path, config: dict[str, object]) -> ResolvedPaths:
@@ -87,6 +111,199 @@ def _get_json(url: str, token: str) -> tuple[int, dict]:
 
 
 class NetworkJoinTests(unittest.TestCase):
+    def test_rotated_token_survives_distinct_process_restart(self) -> None:
+        context = multiprocessing.get_context("spawn")
+        token = "restart-token-" + ("a" * 48)
+        with tempfile.TemporaryDirectory() as raw_root:
+            result_queue = context.Queue()
+            rotating_process = None
+            restarted_process = None
+            try:
+                rotating_process = context.Process(
+                    target=_rotate_coordinator_token_process,
+                    args=(raw_root, token, result_queue),
+                )
+                rotating_process.start()
+                rotating_process.join(timeout=20)
+                self.assertEqual(rotating_process.exitcode, 0)
+                self.assertEqual(result_queue.get(timeout=5), token)
+
+                restarted_process = context.Process(
+                    target=_reload_coordinator_token_process,
+                    args=(raw_root, result_queue),
+                )
+                restarted_process.start()
+                restarted_process.join(timeout=20)
+                self.assertEqual(restarted_process.exitcode, 0)
+                self.assertEqual(result_queue.get(timeout=5), token)
+            finally:
+                for process in (rotating_process, restarted_process):
+                    if process is not None and process.is_alive():
+                        process.terminate()
+                        process.join(timeout=5)
+                result_queue.close()
+                result_queue.join_thread()
+
+            saved_state = json.loads((Path(raw_root) / "desktop_app_state.json").read_text(encoding="utf-8"))
+            self.assertEqual(saved_state["coordinator_auth_token"], token)
+
+    def test_near_limit_exact_token_failure_leaves_every_authority_unchanged(self) -> None:
+        class Dispatcher:
+            def __init__(self) -> None:
+                self.token = "existing-token-0123456789"
+                self.updates: list[str] = []
+
+            def get_auth_token(self) -> str:
+                return self.token
+
+            def update_auth_token(self, value: str) -> None:
+                self.updates.append(value)
+                self.token = value
+
+        exact_token = "e" * 64
+        _placeholder_blob, placeholder_payload = encode_network_join_blob(
+            coordinator_url="http://coordinator.test:7830",
+            token="preflight-token-0123456789",
+            libraries=[],
+            created_at_utc="2026-07-23T00:00:00Z",
+        )
+        placeholder_bytes = len(
+            json.dumps(
+                placeholder_payload,
+                ensure_ascii=False,
+                separators=(",", ":"),
+                sort_keys=True,
+            ).encode("utf-8")
+        )
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            existing_token = "existing-token-0123456789"
+            resolved = _resolved(root, {"NetworkRole": "coordinator", "CoordinatorAuthToken": existing_token})
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+            dispatcher = Dispatcher()
+            saved_tokens: list[str] = []
+
+            def save_patch(_resolved_paths, request):
+                saved_tokens.append(request["changes"]["CoordinatorAuthToken"])
+                return SimpleNamespace(ok=True, errors=[], message="saved")
+
+            with patch.object(facade, "_network_dispatcher_for_role", return_value=dispatcher), patch.object(
+                facade, "_save_settings_patch_with_network_credentials", side_effect=save_patch
+            ), patch("mediapipeline.core.network.facade.generate_token", return_value=exact_token), patch.object(
+                join_helpers, "NETWORK_JOIN_BLOB_MAX_DECODED_BYTES", placeholder_bytes
+            ):
+                result = facade.request_network_coordinator_join_blob(
+                    resolved,
+                    {
+                        "confirm_create": True,
+                        "coordinator_url": "http://coordinator.test:7830",
+                        "rotate_token": True,
+                        "confirm_rotate": True,
+                    },
+                ).to_mapping()
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(saved_tokens, [])
+        self.assertEqual(dispatcher.updates, [])
+        self.assertEqual(dispatcher.token, existing_token)
+        self.assertEqual(service.load_app_state().get("coordinator_auth_token"), None)
+        self.assertNotIn(exact_token, json.dumps(result, sort_keys=True))
+
+    def test_exact_join_blob_is_encoded_once_before_rotation_commit(self) -> None:
+        class Dispatcher:
+            def get_auth_token(self) -> str:
+                return "existing-token-0123456789"
+
+            def update_auth_token(self, value: str) -> None:
+                events.append(("runtime", value))
+
+        exact_token = "f" * 64
+        events: list[tuple[str, str]] = []
+        real_encode = encode_network_join_blob
+
+        def encode_once(**kwargs):
+            events.append(("encode", str(kwargs["token"])))
+            return real_encode(**kwargs)
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            resolved = _resolved(
+                root,
+                {"NetworkRole": "coordinator", "CoordinatorAuthToken": "existing-token-0123456789"},
+            )
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+
+            def save_patch(_resolved_paths, request):
+                events.append(("config", request["changes"]["CoordinatorAuthToken"]))
+                return SimpleNamespace(ok=True, errors=[], message="saved")
+
+            with patch.object(facade, "_network_dispatcher_for_role", return_value=Dispatcher()), patch.object(
+                facade, "_save_settings_patch_with_network_credentials", side_effect=save_patch
+            ), patch("mediapipeline.core.network.facade.generate_token", return_value=exact_token), patch(
+                "mediapipeline.core.network.facade.encode_network_join_blob", side_effect=encode_once
+            ):
+                result = facade.request_network_coordinator_join_blob(
+                    resolved,
+                    {
+                        "confirm_create": True,
+                        "coordinator_url": "http://coordinator.test:7830",
+                        "rotate_token": True,
+                        "confirm_rotate": True,
+                    },
+                ).to_mapping()
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(events, [("encode", exact_token), ("config", exact_token), ("runtime", exact_token)])
+        self.assertNotIn(exact_token, json.dumps(result, sort_keys=True))
+
+    def test_running_coordinator_rotation_commits_one_token_to_all_authorities(self) -> None:
+        exact_token = "c" * 64
+        existing_token = "existing-token-0123456789"
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            service.app_state_path = root / "desktop_app_state.json"
+            resolved = _resolved(root, {"NetworkRole": "coordinator", "CoordinatorAuthToken": existing_token})
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+            dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+            dispatcher._auth_token = existing_token
+            dispatcher._app = SimpleNamespace(service=service)
+            dispatcher._safe_log_cluster_event = lambda *_args, **_kwargs: None  # type: ignore[method-assign]
+            saved_config_tokens: list[str] = []
+
+            def save_patch(_resolved_paths, request):
+                saved_config_tokens.append(request["changes"]["CoordinatorAuthToken"])
+                return SimpleNamespace(ok=True, errors=[], message="saved")
+
+            with patch.object(facade, "_network_dispatcher_for_role", return_value=dispatcher), patch.object(
+                facade, "_save_settings_patch_with_network_credentials", side_effect=save_patch
+            ), patch("mediapipeline.core.network.facade.generate_token", return_value=exact_token):
+                result = facade.request_network_coordinator_join_blob(
+                    resolved,
+                    {
+                        "confirm_create": True,
+                        "coordinator_url": "http://coordinator.test:7830",
+                        "rotate_token": True,
+                        "confirm_rotate": True,
+                    },
+                ).to_mapping()
+
+            decoded = decode_network_join_blob(result["data"]["join_blob"])
+            app_state_token = service.load_app_state().get("coordinator_auth_token")
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(saved_config_tokens, [exact_token])
+        self.assertEqual(dispatcher._auth_token, exact_token)
+        self.assertEqual(app_state_token, exact_token)
+        self.assertEqual(decoded["token"], exact_token)
+        self.assertTrue(result["data"]["writes_config"])
+        self.assertTrue(result["data"]["writes_app_state"])
+        self.assertTrue(result["data"]["running_coordinator_updated"])
+        self.assertNotIn(exact_token, json.dumps(result, sort_keys=True))
+
     def test_invalid_join_blob_input_is_rejected_before_token_rotation(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -135,7 +352,7 @@ class NetworkJoinTests(unittest.TestCase):
                 return SimpleNamespace(ok=True, errors=[], message="saved")
 
             with patch.object(facade, "_network_dispatcher_for_role", return_value=dispatcher), patch.object(
-                facade, "save_settings_patch", side_effect=save_patch
+                facade, "_save_settings_patch_with_network_credentials", side_effect=save_patch
             ):
                 result = facade.request_network_coordinator_join_blob(
                     resolved,
@@ -150,6 +367,96 @@ class NetworkJoinTests(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertEqual(saved_tokens[-1], "existing-token-0123456789")
         self.assertEqual(dispatcher.updates[-1], "existing-token-0123456789")
+
+    def test_running_rotation_persistence_failure_rolls_back_config_and_keeps_runtime(self) -> None:
+        exact_token = "d" * 64
+        existing_token = "existing-token-0123456789"
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            resolved = _resolved(root, {"NetworkRole": "coordinator", "CoordinatorAuthToken": existing_token})
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+            dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+            dispatcher._auth_token = existing_token
+            dispatcher._app = SimpleNamespace(
+                service=SimpleNamespace(
+                    save_app_state=lambda _data: (_ for _ in ()).throw(RuntimeError("disk read-only"))
+                )
+            )
+            dispatcher._safe_log_cluster_event = lambda *_args, **_kwargs: None  # type: ignore[method-assign]
+            saved_config_tokens: list[str] = []
+
+            def save_patch(_resolved_paths, request):
+                saved_config_tokens.append(request["changes"]["CoordinatorAuthToken"])
+                return SimpleNamespace(ok=True, errors=[], message="saved")
+
+            with patch.object(facade, "_network_dispatcher_for_role", return_value=dispatcher), patch.object(
+                facade, "_save_settings_patch_with_network_credentials", side_effect=save_patch
+            ), patch("mediapipeline.core.network.facade.generate_token", return_value=exact_token):
+                result = facade.request_network_coordinator_join_blob(
+                    resolved,
+                    {
+                        "confirm_create": True,
+                        "coordinator_url": "http://coordinator.test:7830",
+                        "rotate_token": True,
+                        "confirm_rotate": True,
+                    },
+                ).to_mapping()
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(saved_config_tokens, [exact_token, existing_token])
+        self.assertEqual(dispatcher._auth_token, existing_token)
+        self.assertEqual(result["data"]["join_blob"], "")
+        self.assertNotIn(exact_token, json.dumps(result, sort_keys=True))
+
+    def test_local_api_settings_patch_rejects_network_credentials_without_leaking_values(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            resolved = _resolved(
+                root,
+                {
+                    "NetworkRole": "standalone",
+                    "CoordinatorAuthToken": "existing-coordinator-secret",
+                    "WorkerAuthToken": "existing-worker-secret",
+                },
+            )
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+            server = LocalApiServer(
+                facade,
+                token="test-token",
+                resolved_provider=lambda: resolved,
+            )
+            try:
+                server.start()
+                preview_secret = "submitted-coordinator-secret"
+                save_secret = "submitted-worker-secret"
+                preview_status, preview_result = _post_json(
+                    f"{server.url}/api/settings/preview-patch",
+                    {"changes": {"CoordinatorAuthToken": preview_secret}},
+                    "test-token",
+                )
+                save_status, save_result = _post_json(
+                    f"{server.url}/api/settings/save-patch",
+                    {"changes": {"WorkerAuthToken": save_secret}, "confirm_save": True},
+                    "test-token",
+                )
+            finally:
+                server.stop()
+
+        self.assertEqual(preview_status, 200)
+        self.assertEqual(save_status, 200)
+        self.assertFalse(preview_result["ok"])
+        self.assertFalse(save_result["ok"])
+        self.assertIn("cannot be changed through Settings Patch", "\n".join(preview_result["errors"]))
+        self.assertIn("cannot be changed through Settings Patch", "\n".join(save_result["errors"]))
+        serialized_results = json.dumps([preview_result, save_result], sort_keys=True)
+        self.assertNotIn(preview_secret, serialized_results)
+        self.assertNotIn(save_secret, serialized_results)
+        self.assertNotIn("existing-coordinator-secret", serialized_results)
+        self.assertNotIn("existing-worker-secret", serialized_results)
+        self.assertEqual(service.saved_config_calls, [])
+
     def test_decode_join_blob_rejects_malformed_schema_and_short_token_without_leaking_secret(self) -> None:
         with self.assertRaisesRegex(ValueError, "base64url encoded JSON object"):
             decode_network_join_blob("not a blob!!!")

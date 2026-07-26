@@ -178,7 +178,25 @@ class ScheduleStopWatcherManager:
                     )
                     return
             if _now_for_deadline(deadline) >= deadline:
-                writer = getattr(service, "write_flag", None)
+                target_launch_id = str(getattr(proc, "_mediapipeline_launch_id", "") or "").strip()
+                if not target_launch_id:
+                    self._set_state(
+                        ScheduleStopWatcherState(
+                            status="error",
+                            pid=pid,
+                            deadline=deadline.isoformat(),
+                            stop_requested=False,
+                            generation=generation,
+                            message=(
+                                "Backend schedule-stop watcher could not request Stop After Current because "
+                                "the active process has no exact launch identity."
+                            ),
+                            error="active pipeline launch_id unavailable",
+                        ),
+                        generation=generation,
+                    )
+                    return
+                writer = getattr(service, "write_stop_after_current_flag", None)
                 if not callable(writer):
                     self._set_state(
                         ScheduleStopWatcherState(
@@ -187,14 +205,24 @@ class ScheduleStopWatcherManager:
                             deadline=deadline.isoformat(),
                             stop_requested=False,
                             generation=generation,
-                            message="Backend schedule-stop watcher could not request Stop because write_flag is unavailable.",
-                            error="write_flag unavailable",
+                            message=(
+                                "Backend schedule-stop watcher could not request Stop After Current because "
+                                "write_stop_after_current_flag is unavailable."
+                            ),
+                            error="write_stop_after_current_flag unavailable",
                         ),
                         generation=generation,
                     )
                     return
                 try:
-                    message = str(writer(resolved.stop_flag, "Stop"))
+                    message = str(
+                        writer(
+                            resolved.stop_after_current_flag,
+                            run_id="",
+                            target_pid=pid,
+                            target_launch_id=target_launch_id,
+                        )
+                    )
                 except Exception as exc:
                     self._set_state(
                         ScheduleStopWatcherState(
@@ -203,7 +231,7 @@ class ScheduleStopWatcherManager:
                             deadline=deadline.isoformat(),
                             stop_requested=False,
                             generation=generation,
-                            message=f"Backend schedule-stop watcher failed to request Stop for PID {pid}.",
+                            message=f"Backend schedule-stop watcher failed to request Stop After Current for PID {pid}.",
                             error=str(exc),
                         ),
                         generation=generation,
@@ -216,7 +244,7 @@ class ScheduleStopWatcherManager:
                         deadline=deadline.isoformat(),
                         stop_requested=True,
                         generation=generation,
-                        message=f"Schedule window ended. Stop requested for PID {pid}: {message}",
+                        message=f"Schedule window ended. Stop After Current requested for PID {pid}: {message}",
                     ),
                     generation=generation,
                 )

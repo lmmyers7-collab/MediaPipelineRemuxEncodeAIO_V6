@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
 import sys
@@ -15,9 +16,24 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 PROJECT_ROOT = find_repo_root(Path(__file__))
 WEBVIEW_ROOT = PROJECT_ROOT / "apps" / "desktop" / "webview" / "static"
 ASSETS_ROOT = WEBVIEW_ROOT / "assets"
+TAURI_ROOT = PROJECT_ROOT / "apps" / "desktop" / "tauri" / "src-tauri"
 
 
 class WebViewPipelineLogWindowStaticTests(unittest.TestCase):
+    def test_remote_tauri_webview_has_explicit_pipeline_log_command_permission(self) -> None:
+        build_script = (TAURI_ROOT / "build.rs").read_text(encoding="utf-8")
+        capability = json.loads(
+            (TAURI_ROOT / "capabilities" / "default.json").read_text(encoding="utf-8")
+        )
+
+        self.assertIn("AppManifest::new().commands", build_script)
+        self.assertIn('"open_pipeline_log_window"', build_script)
+        self.assertIn("allow-open-pipeline-log-window", capability["permissions"])
+        self.assertEqual(
+            capability["remote"]["urls"],
+            ["http://127.0.0.1:*", "http://localhost:*"],
+        )
+
     def test_main_shell_exposes_pipeline_log_window_entry_points(self) -> None:
         index = (WEBVIEW_ROOT / "index.html").read_text(encoding="utf-8")
         shell = (WEBVIEW_ROOT / "partials" / "app-shell-start.html").read_text(encoding="utf-8")
@@ -123,10 +139,97 @@ class WebViewPipelineLogWindowStaticTests(unittest.TestCase):
         self.assertIn('data-diag-tab="logs"', bridge)
         self.assertIn("diagnostics-pipeline-log-status", bridge)
         self.assertIn("window.mediaPipelinePipelineLogWindowBridge", bridge)
-        self.assertNotIn("window.__TAURI__", bridge)
-        self.assertNotIn("open_pipeline_log_window", bridge)
-        self.assertNotIn("invoke", bridge)
+        self.assertIn("window.__TAURI__", bridge)
+        self.assertIn('await invoke("open_pipeline_log_window")', bridge)
+        self.assertIn("function openNativeLogWindow", bridge)
         self.assertNotIn("apiPost", bridge)
+
+    def test_launch_pipeline_log_bridge_prefers_native_tauri_window_and_keeps_browser_fallback(self) -> None:
+        node = shutil.which("node")
+        if not node:
+            raise unittest.SkipTest("Node.js is required for the Pipeline Log bridge smoke.")
+        script = textwrap.dedent(
+            r"""
+            const fs = require("fs");
+            const vm = require("vm");
+            const source = fs.readFileSync(
+              "apps/desktop/webview/static/assets/pipelineLogWindowBridge.js",
+              "utf8"
+            );
+
+            function makeContext(withTauri) {
+              const status = { textContent: "", dataset: {} };
+              let browserOpenCount = 0;
+              const invoked = [];
+              const context = {
+                console,
+                document: {
+                  getElementById(id) {
+                    return id === "pipeline-launch-status" ? status : null;
+                  },
+                  querySelector() { return null; },
+                },
+                window: {
+                  open() {
+                    browserOpenCount += 1;
+                    return { focus() {} };
+                  },
+                },
+              };
+              if (withTauri) {
+                context.window.__TAURI__ = {
+                  core: {
+                    async invoke(command) { invoked.push(command); },
+                  },
+                };
+              }
+              context.window.window = context.window;
+              vm.createContext(context);
+              vm.runInContext(source, context, { filename: "pipelineLogWindowBridge.js" });
+              return {
+                bridge: context.window.mediaPipelinePipelineLogWindowBridge,
+                invoked,
+                status,
+                browserOpenCount: () => browserOpenCount,
+              };
+            }
+
+            (async () => {
+              const nativeContext = makeContext(true);
+              const nativeResult = await nativeContext.bridge.openPipelineLogWindow(null);
+              if (JSON.stringify(nativeContext.invoked) !== JSON.stringify(["open_pipeline_log_window"])) {
+                throw new Error("native command was not invoked exactly once");
+              }
+              if (!nativeResult.opened || !nativeResult.native || nativeResult.fallback) {
+                throw new Error("native result did not report the native window");
+              }
+              if (nativeContext.browserOpenCount() !== 0) {
+                throw new Error("browser popup opened despite an available Tauri bridge");
+              }
+
+              const browserContext = makeContext(false);
+              const browserResult = await browserContext.bridge.openPipelineLogWindow(null);
+              if (!browserResult.opened || browserResult.native || browserResult.fallback) {
+                throw new Error("browser fallback did not report an opened window");
+              }
+              if (browserContext.browserOpenCount() !== 1) {
+                throw new Error("browser fallback did not open exactly once");
+              }
+            })().catch((error) => {
+              console.error(error);
+              process.exit(1);
+            });
+            """
+        )
+        result = subprocess.run(
+            [node, "-e", script],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
 
     def test_pipeline_log_window_refreshes_diagnostics_read_only(self) -> None:
         script = (ASSETS_ROOT / "pipelineLogWindow.js").read_text(encoding="utf-8")

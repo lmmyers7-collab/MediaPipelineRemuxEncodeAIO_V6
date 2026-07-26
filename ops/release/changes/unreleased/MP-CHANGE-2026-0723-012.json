@@ -1,0 +1,68 @@
+{
+  "id": "MP-CHANGE-2026-0723-012",
+  "title": "Confine Tauri bearer initialization to backend origin",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": "2026-07-23",
+  "summary": "Deny cross-origin WebView navigation and guard token initialization by exact backend origin and top-frame context for both native windows.",
+  "reason": "Remediate P2 AUDIT-FIND-W09-006. Tauri initialization scripts run on later navigations and Windows subframes, so unconditional token assignment could expose the bearer credential outside the validated backend document.",
+  "affected_areas": [
+    "Tauri main WebView navigation",
+    "Pipeline Log WebView navigation",
+    "backend bearer-token bootstrap",
+    "native launch/close validation"
+  ],
+  "behavior_before": "Both windows attached a token-bearing initialization script for their full WebView lifetime without on_navigation or a window.location origin check.",
+  "behavior_after": "Both windows deny navigation outside the exact normalized backend origin, and initialization returns before assigning or retaining the token global unless it is executing in the top frame at that exact origin.",
+  "files_touched": [
+    "apps/desktop/tauri/Test-TauriShell-Launch.ps1",
+    "apps/desktop/tauri/src-tauri/src/debug_webview.rs",
+    "apps/desktop/tauri/src-tauri/src/lib.rs",
+    "apps/desktop/tauri/src-tauri/src/lib_tests/mod.rs",
+    "apps/desktop/tauri/src-tauri/src/webview_origin.rs",
+    "docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/apps/desktop/tauri/Test-TauriShell-Launch.ps1.md",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/debug_webview.rs.md",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/lib.rs.md",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/lib_tests/mod.rs.md",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/webview_origin.rs.md",
+    "docs/generated/summaries/docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-012.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_tauri_shell_scaffold.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-012.json",
+    "tests/python/desktop/test_tauri_shell_scaffold.py"
+  ],
+  "tests_added": [
+    "Exact-origin Rust tests cover localhost, IPv4, IPv6, sibling ports, foreign hosts, schemes, and credentials.",
+    "Initialization-script tests require top-frame and exact-origin checks before the token global assignment and cleanup on denial.",
+    "A debug-only native probe attempts denied navigation in both the main and Pipeline Log windows and records content-free denial evidence under the system temp root."
+  ],
+  "manual_validation": [
+    "AUDIT-FIND-W09-006 reproduced from current bytes: both Tauri windows previously installed the bearer initialization script without an exact-origin navigation guard or top-frame/origin gate before assignment.",
+    "cargo test webview_origin --manifest-path apps/desktop/tauri/src-tauri/Cargo.toml --locked - passed (2 exact-origin tests).",
+    "cargo test tauri_bootstrap_initialization_script --manifest-path apps/desktop/tauri/src-tauri/Cargo.toml --locked - passed (2 initialization-confinement tests).",
+    "apps/desktop/tauri/Test-TauriShell-Launch.ps1 -Dev -OriginConfinementProbe - passed: both main and Pipeline Log windows denied http://127.0.0.1:9 navigation, emitted content-free JSONL evidence, and closed both shell and backend processes.",
+    "cargo test --manifest-path apps/desktop/tauri/src-tauri/Cargo.toml --locked - passed (68 tests).",
+    "cargo fmt --all --manifest-path apps/desktop/tauri/src-tauri/Cargo.toml --check and cargo check --release --locked - passed.",
+    "Bundled pytest tests/python/desktop/test_tauri_shell_scaffold.py - passed (97 tests); Tauri production-surface validation passed.",
+    "cargo build --release --locked - passed. Direct target/release launch failed closed as expected because that standalone binary lacked the required root release_manifest.json; it was not treated as packaged evidence.",
+    "Canonical portable package build passed (17,889 files copied, 10,895 excluded), and manifest-backed packaged-mode open/close passed with shell PID 54608 and backend PID 40784.",
+    "Targeted summary refresh wrote 8 summaries; project index, dependency graph, and feature map regenerated from 2,495 records; generated-map checks passed.",
+    "Tooling validation passed (30 tests / 70 subtests); architecture guardrails passed (88 candidates); risky-file registry passed; god-file guard remained at the accepted baseline of 0 errors / 51 warnings.",
+    "Summary freshness retained only five unrelated pre-existing stale summaries; active-document validation retained only unrelated DOC005 in the frozen audit baseline; the pre-existing package dependency cycle remains unrelated.",
+    "validate_changes --require-worktree-coverage - passed (1,154 packets valid); git diff --check - passed with line-ending warnings only.",
+    "Recursive cleanup of C:\\Users\\lmmye\\AppData\\Local\\Temp\\mediapipeline-w09-006-3e82994f74544f75a6894a62942b532b was blocked by host policy after verifying the target was under the temp root and contained the package manifest; the validation package remains for manual cleanup."
+  ],
+  "rollback_plan": "Revert the origin helper, both builder guards, initialization guard, debug-only probe, tests, lifecycle documentation, generated artifacts, and this packet together. Do not restore lifetime-wide unconditional secret assignment.",
+  "related_changes": [
+    "AUDIT-FIND-W09-006"
+  ],
+  "notes": "This batch changes shell/WebView secret confinement only. It does not call media routes or mutate media, so representative real-media validation is not required."
+}

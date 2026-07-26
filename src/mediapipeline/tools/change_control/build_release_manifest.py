@@ -72,7 +72,9 @@ def _complete_unreleased_packets(
     include_dev_placeholders: bool = False,
 ) -> list[dict[str, Any]]:
     packets: list[dict[str, Any]] = []
-    for path in _packet_paths(UNRELEASED_DIR, "*.json"):
+    paths = _packet_paths(UNRELEASED_DIR, "*.json")
+    paths.extend(_packet_paths(UNRELEASED_DIR.parent / "archived", "**/*.json"))
+    for path in sorted(paths):
         packet = _load_packet(path)
         if packet.get("status") != "complete":
             continue

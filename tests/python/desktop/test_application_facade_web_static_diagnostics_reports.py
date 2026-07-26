@@ -233,6 +233,8 @@ OPERATIONS_DOM_ASSERTIONS: tuple[AssertionRow, ...] = (('in', 'html', '/assets/n
  ('in', 'html', 'maintenance-dry-run-confidence'),
  ('in', 'html', 'release-dry-run-button'),
  ('in', 'html', 'release-build-button'),
+ ('in', 'html', 'id="release-dry-run-tests" type="checkbox" checked'),
+ ('not_in', 'html', 'id="release-dry-run-tauri-binary" type="checkbox" checked'),
  ('in', 'html', 'Preview Deployment'),
  ('in', 'html', 'Zip package'),
  ('in', 'html', 'Verify package'),

@@ -54,10 +54,24 @@ class FacadeUtilityMixin:
         progress = snapshot.progress or {}
         audit_progress = snapshot.audit_progress or {}
         activity = str(snapshot.current_activity or "").strip().casefold()
+        audit_status = str(audit_progress.get("status") or audit_progress.get("Status") or "").strip().casefold()
+        audit_last_update = str(audit_progress.get("last_update") or "").strip()
+        audit_is_current = (
+            bool(audit_status)
+            and audit_status not in {"complete", "completed", "failed", "idle", "stopped"}
+            and (not audit_last_update or not is_audit_progress_stale(audit_progress))
+        )
+        if audit_is_current and "stale progress" in activity:
+            return "audit"
         if "stale progress" in activity:
             return "stale"
         status = str(progress.get("Status") or "").strip().casefold()
         stage = str(progress.get("CurrentStage") or "").strip().casefold()
+        if audit_is_current and (
+            stage in {"", "completed", "stopped", *_IDLE_PROGRESS_STAGES}
+            or status in {"", *_COMPLETED_PROGRESS_STATUSES, *_FAILED_PROGRESS_STATUSES}
+        ):
+            return "audit"
         if stage in _IDLE_PROGRESS_STAGES:
             if status in _COMPLETED_PROGRESS_STATUSES:
                 return "completed"
@@ -78,10 +92,7 @@ class FacadeUtilityMixin:
             if status in _FAILED_PROGRESS_STATUSES:
                 return "failed"
             return status.replace(" ", "_")
-        audit_status = str(audit_progress.get("status") or audit_progress.get("Status") or "").strip().casefold()
-        if audit_status and audit_status not in {"complete", "completed", "failed", "idle", "stopped"}:
-            if is_audit_progress_stale(audit_progress):
-                return "idle"
+        if audit_is_current:
             return "audit"
         return "idle"
 

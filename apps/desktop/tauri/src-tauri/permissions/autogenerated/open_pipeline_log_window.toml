@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-open-pipeline-log-window"
+description = "Enables the open_pipeline_log_window command without any pre-configured scope."
+commands.allow = ["open_pipeline_log_window"]
+
+[[permission]]
+identifier = "deny-open-pipeline-log-window"
+description = "Denies the open_pipeline_log_window command without any pre-configured scope."
+commands.deny = ["open_pipeline_log_window"]

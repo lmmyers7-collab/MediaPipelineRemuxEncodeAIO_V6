@@ -146,13 +146,12 @@
       const payload = queue || {};
       const rowList = Array.isArray(rows) ? rows : [];
       if (payload.error) return "Unavailable";
-      if (queueSnapshotIsStale(payload)) return "Refresh first";
       if (Number(payload.invalid_row_count || 0) > 0 || Number(payload.blocked_row_count || 0) > 0) return "Review rows";
       if (payload.runtime_outcome_warning) return "History warning";
-      if (Number((payload.runtime_outcome_freshness_counts || {}).stale || 0) > 0) return "Stale history";
+      if (Number((payload.runtime_outcome_freshness_counts || {}).stale || 0) > 0) return "Trustworthy - history advisory";
       if (!rowList.length && Number(payload.excluded_row_count || 0) > 0) return "Filtered";
       if (!rowList.length) return "Empty";
-      return "Trustworthy";
+      return queueSnapshotIsStale(payload) ? "Trustworthy - age advisory" : "Trustworthy";
     }
 
     function queueValidationChecklistLines(queue, rows) {
@@ -172,7 +171,7 @@
       const runtimeErrors = payload.runtime_outcome_error_code_counts || {};
       const lines = [
         "Real-media validation checklist:",
-        `Queue snapshot fresh enough: ${staleSnapshot ? "no - refresh before launch" : "yes"}`,
+        `Queue snapshot age: ${staleSnapshot ? "older than preview preference (advisory)" : "within preview preference"}`,
         `Runnable rows visible: ${rowList.length}`,
         queueHiddenSidecarLine(payload),
         `Excluded source rows: ${payload.excluded_row_count || 0}${payload.excluded_rows_truncated ? " (truncated)" : ""}`,
@@ -186,10 +185,10 @@
         `Warnings: ${warnings.length}`,
       ];
       lines.push("");
-      if (staleSnapshot) {
-        lines.push("Operator action: refresh queue preview before launch. Stale snapshots are common after files move, complete, or are still being copied.");
-      } else if (Number(payload.invalid_row_count || 0) > 0 || Number(payload.blocked_row_count || 0) > 0) {
+      if (Number(payload.invalid_row_count || 0) > 0 || Number(payload.blocked_row_count || 0) > 0) {
         lines.push("Operator action: filter for blocked/invalid rows, select them, and inspect route evidence before launching a broad batch.");
+      } else if (staleSnapshot) {
+        lines.push("Age advisory: Run Once rebuilds and fingerprint-verifies the queue before media dispatch. Refresh only to update the displayed preview.");
       } else if (!rowList.length && Number(payload.excluded_row_count || 0) > 0) {
         lines.push("Operator action: inspect Excluded Source Rows. Empty queue with exclusions usually means completed history, failure markers, or processed-state filtering is active.");
       } else if (payload.runtime_outcome_warning || Number(runtimeFreshness.stale || 0) > 0) {

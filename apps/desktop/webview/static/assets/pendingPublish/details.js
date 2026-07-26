@@ -532,6 +532,10 @@ function pendingRowTrustSummaryLines(item) {
   }
 
 function renderPendingDetail(item) {
+    window.mediaPipelineAppRowOpenActions?.setBackendRowOpenActionAvailability?.(
+      "pending",
+      item?.available_open_targets
+    );
     renderPendingSelectedAtAGlance(item || null);
     if (!item) {
       setText("pending-detail", pendingRowReviewChecklistLines(null).join("\n"));

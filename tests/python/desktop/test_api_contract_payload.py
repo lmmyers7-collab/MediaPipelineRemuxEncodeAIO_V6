@@ -21,6 +21,7 @@ from mediapipeline.desktop.api.contract_payload import (
     local_api_contract_payload,
 )
 from mediapipeline.desktop.api.contract import LOCAL_API_ROUTE_CONTRACT
+from mediapipeline.desktop.api.contract_read import LOCAL_API_READ_ROUTE_CONTRACT as DESKTOP_LOCAL_API_READ_ROUTE_CONTRACT
 from mediapipeline.desktop.api.routes_read import GET_ROUTE_HANDLERS
 
 
@@ -106,6 +107,22 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         self.assertEqual(refresh["effect"], "diagnostics-artifact-write")
         self.assertEqual(refresh["request_keys"], [])
         self.assertIn("does not launch", refresh["purpose"].casefold())
+
+    def test_run_monitor_contract_declares_backend_correlated_read_projection(self) -> None:
+        routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
+        route = routes["/api/run-monitor"]
+        desktop_routes = {route["path"]: route for route in DESKTOP_LOCAL_API_READ_ROUTE_CONTRACT}
+
+        self.assertIn("/api/run-monitor", GET_ROUTE_HANDLERS)
+        self.assertTrue(GET_ROUTE_HANDLERS["/api/run-monitor"].needs_query)
+        self.assertEqual(route["method"], "GET")
+        self.assertTrue(route["auth_required"])
+        self.assertEqual(route["effect"], "none")
+        self.assertEqual(route["query_keys"], ["run_id"])
+        self.assertEqual(route["response_schema"], "desktop_run_monitor.v1")
+        self.assertIn("backend-correlated", route["purpose"].casefold())
+        self.assertIn("accepted-workload", route["purpose"].casefold())
+        self.assertEqual(desktop_routes["/api/run-monitor"], route)
 
     def test_completed_contract_advertises_query_fields(self) -> None:
         routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
@@ -657,6 +674,10 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         self.assertEqual(routes["/api/rerun/control"]["effect"], "process-control")
         self.assertEqual(routes["/api/rerun/control"]["requires_strict_boolean"], ["confirm_stop", "confirm_pause"])
         self.assertEqual(routes["/api/rerun/continue"]["effect"], "process-launch")
+        self.assertEqual(
+            routes["/api/rerun/continue"]["request_keys"],
+            ["manifest_key", "request_id", "confirm_continue"],
+        )
         self.assertEqual(routes["/api/rerun/continue"]["requires_strict_boolean"], ["confirm_continue"])
         self.assertEqual(routes["/api/rerun/promote-dry-run"]["effect"], "read-only-preview")
         self.assertEqual(routes["/api/rerun/promote"]["effect"], "pending-manifest-write")
@@ -689,13 +710,22 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         self.assertEqual(network_start["effect_flags"]["writes_queue"], False)
         self.assertEqual(network_start["effect_flags"]["launches_work"], False)
         self.assertIn("claim-disabled", network_start["purpose"])
+        network_retry = routes["/api/rerun/network/retry"]
+        self.assertEqual(network_retry["effect"], "network-state-write")
+        self.assertEqual(
+            network_retry["request_keys"],
+            ["batch_id", "row_key", "request_id", "reason", "confirm_retry"],
+        )
+        self.assertEqual(network_retry["requires_strict_boolean"], ["confirm_retry"])
+        self.assertTrue(network_retry["journaled"])
+        self.assertTrue(network_retry["duplicate_guarded"])
         self.assertEqual(
             [
                 path
                 for path in sorted(routes)
                 if path.startswith("/api/rerun/network") or path.startswith("/api/network/rerun")
             ],
-            ["/api/rerun/network-preview", "/api/rerun/network/start", "/api/rerun/network/start-dry-run"],
+            ["/api/rerun/network-preview", "/api/rerun/network/retry", "/api/rerun/network/start", "/api/rerun/network/start-dry-run"],
         )
 
     def test_effectful_post_routes_return_command_results_for_operator_history(self) -> None:
@@ -796,6 +826,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
             "failure-evidence-archive",
             "failure-marker-write",
             "failure-resolution-journal-write",
+            "lifecycle-evidence-reconciliation",
             "metrics-backfill-state-write",
             "metrics-state-write",
             "network-state-write",

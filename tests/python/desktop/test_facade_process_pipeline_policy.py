@@ -61,6 +61,8 @@ class PipelineLaunchPolicyTests(unittest.TestCase):
             pid=24680,
             launch_prep_messages=["runtime ready"],
             launch_logs="stdout: run.stdout.log",
+            run_id="run-123",
+            accepted_queue_fingerprint="fingerprint-123",
         )
 
         self.assertEqual(pipeline_start_success_message("validate", 24680), "Started pipeline (validate) via PID 24680.")
@@ -70,6 +72,21 @@ class PipelineLaunchPolicyTests(unittest.TestCase):
         self.assertEqual(payload["pid"], 24680)
         self.assertEqual(payload["launch_prep"], ["runtime ready"])
         self.assertEqual(payload["logs"], "stdout: run.stdout.log")
+        self.assertEqual(payload["run_id"], "run-123")
+        self.assertEqual(payload["accepted_queue_fingerprint"], "fingerprint-123")
+        self.assertEqual(
+            payload["run_monitor"],
+            {
+                "schema_version": "desktop_run_monitor_launch.v1",
+                "run_id": "run-123",
+                "route": "/api/run-monitor",
+                "acceptance_state": "backend_accepted",
+                "expected_queue": {
+                    "schema_version": "queue_plan_fingerprint.v1",
+                    "fingerprint": "fingerprint-123",
+                },
+            },
+        )
 
     def test_command_result_helpers_preserve_pipeline_start_contract(self) -> None:
         unsupported = pipeline_start_unsupported_mode_result()

@@ -1,14 +1,22 @@
 ---
 file: apps/desktop/webview/static/assets/completed/openActions.js
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: JavaScript
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-03
+last_modified: 2026-07-15
 last_reviewed: 2026-06-04
-sha256: 94306dcf96033d60fe339a6f676c6da6c7a04fcc43d2a925d9fd0f636b1462cb
+sha256: 0bbe1e833ee64826145abdab87d9611445d3d0b294751e3238012e6821f1d27d
 ---
 # `apps/desktop/webview/static/assets/completed/openActions.js`
 
-**Purpose:** (unparsed)
+**Purpose:** JavaScript implementation for open actions; exposes completedOpenHistoryLine, completedSelectedOpenTargetLines, createCompletedOpenActionsModule.
+
+**Public symbols:** `completedOpenHistoryLine`, `completedSelectedOpenTargetLines`, `createCompletedOpenActionsModule`, `isCompletedOpenCommand`, `noop`, `normalizeDeps`, `rejectCompletedOpenWhileBusy`, `renderCompletedOpenHistory`, `requestCompletedOpen`, `setCompletedOpenBusy`
+**In-repo imports:** `window.__completedViewOpenActionsModule`, `window.mediaPipelineAppRowOpenActions`
+**HTTP routes:** `/api/completed/open`
+**DOM selectors:** `[data-open-completed]`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/completed/openActions.js`._

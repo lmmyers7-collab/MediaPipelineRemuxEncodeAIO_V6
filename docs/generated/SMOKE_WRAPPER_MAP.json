@@ -1,24 +1,807 @@
 {
+  "browser_suite": {
+    "browser_module_count": 34,
+    "browser_modules": [
+      {
+        "coverage_kind": "wrapper_backed",
+        "path": "tests/webview/test_webview_browser_completed_pending_proof_smoke.py",
+        "python_module": "tests.webview.test_webview_browser_completed_pending_proof_smoke",
+        "wrappers": [
+          "Test-WebViewBrowserCompletedPendingProofSmoke.ps1"
+        ]
+      },
+      {
+        "coverage_kind": "wrapper_backed",
+        "path": "tests/webview/test_webview_browser_diagnostics_handoff_smoke.py",
+        "python_module": "tests.webview.test_webview_browser_diagnostics_handoff_smoke",
+        "wrappers": [
+          "Test-WebViewBrowserDiagnosticsHandoffSmoke.ps1"
+        ]
+      },
+      {
+        "coverage_kind": "direct_only",
+        "path": "tests/webview/test_webview_browser_evidence_control_census.py",
+        "python_module": "tests.webview.test_webview_browser_evidence_control_census",
+        "wrappers": []
+      },
+      {
+        "coverage_kind": "wrapper_backed",
+        "path": "tests/webview/test_webview_browser_high_risk_smoke.py",
+        "python_module": "tests.webview.test_webview_browser_high_risk_smoke",
+        "wrappers": [
+          "Test-WebViewBrowserHighRiskSmoke.ps1"
+        ]
+      },
+      {
+        "coverage_kind": "wrapper_backed",
+        "path": "tests/webview/test_webview_browser_home_live_state_smoke.py",
+        "python_module": "tests.webview.test_webview_browser_home_live_state_smoke",
+        "wrappers": [
+          "Test-WebViewBrowserHomeLiveStateSmoke.ps1"
+        ]
+      },
+      {
+        "coverage_kind": "wrapper_backed",
+        "path": "tests/webview/test_webview_browser_large_table_smoke.py",
+        "python_module": "tests.webview.test_webview_browser_large_table_smoke",
+        "wrappers": [
+          "Test-WebViewBrowserLargeTableSmoke.ps1"
+        ]
+      },
+      {
+        "coverage_kind": "wrapper_backed",
+        "path": "tests/webview/test_webview_browser_launch_queue_readiness_smoke.py",
+        "python_module": "tests.webview.test_webview_browser_launch_queue_readiness_smoke",
+        "wrappers": [
+          "Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1"
+        ]
+      },
+      {
+        "coverage_kind": "wrapper_backed",
+        "path": "tests/webview/test_webview_browser_layout_manager_smoke.py",
+        "python_module": "tests.webview.test_webview_browser_layout_manager_smoke",
+        "wrappers": [
+          "Test-WebViewBrowserLayoutManagerSmoke.ps1"
+        ]
+      },
+      {
+        "coverage_kind": "wrapper_backed",
+        "path": "tests/webview/test_webview_browser_library_profiles_save_smoke.py",
+        "python_module": "tests.webview.test_webview_browser_library_profiles_save_smoke",
+        "wrappers": [
+          "Test-WebViewBrowserLibraryProfilesSaveSmoke.ps1"
+        ]
+      },
+      {
+        "coverage_kind": "wrapper_backed",
+        "path": "tests/webview/test_webview_browser_lifecycle_reconciliation_smoke.py",
+        "python_module": "tests.webview.test_webview_browser_lifecycle_reconciliation_smoke",
+        "wrappers": [
+          "Test-WebViewBrowserLifecycleReconciliationSmoke.ps1"
+        ]
+      },
+      {
+        "coverage_kind": "wrapper_backed",
+        "path": "tests/webview/test_webview_browser_lifecycle_smoke.py",
+        "python_module": "tests.webview.test_webview_browser_lifecycle_smoke",
+        "wrappers": [
+          "Test-WebViewBrowserLifecycleSmoke.ps1"
+        ]
+      },
+      {
+        "coverage_kind": "wrapper_backed",
+        "path": "tests/webview/test_webview_browser_maintenance_change_ledger_smoke.py",
+        "python_module": "tests.webview.test_webview_browser_maintenance_change_ledger_smoke",
+        "wrappers": [
+          "Test-WebViewBrowserMaintenanceChangeLedgerSmoke.ps1"
+        ]
+      },
+      {
+        "coverage_kind": "wrapper_backed",
+        "path": "tests/webview/test_webview_browser_maintenance_reports_smoke.py",
+        "python_module": "tests.webview.test_webview_browser_maintenance_reports_smoke",
+        "wrappers": [
+          "Test-WebViewBrowserMaintenanceReportsSmoke.ps1"
+        ]
+      },
+      {
+        "coverage_kind": "direct_only",
+        "path": "tests/webview/test_webview_browser_metrics_degraded_state_smoke.py",
+        "python_module": "tests.webview.test_webview_browser_metrics_degraded_state_smoke",
+        "wrappers": []
+      },
+      {
+        "coverage_kind": "wrapper_backed",
+        "path": "tests/webview/test_webview_browser_network_smoke.py",
+        "python_module": "tests.webview.test_webview_browser_network_smoke",
+        "wrappers": [
+          "Test-WebViewBrowserNetworkSmoke.ps1"
+        ]
+      },
+      {
+        "coverage_kind": "wrapper_backed",
+        "path": "tests/webview/test_webview_browser_pending_drain_guard_smoke.py",
+        "python_module": "tests.webview.test_webview_browser_pending_drain_guard_smoke",
+        "wrappers": [
+          "Test-WebViewBrowserPendingDrainGuardSmoke.ps1"
+        ]
+      },
+      {
+        "coverage_kind": "direct_only",
+        "path": "tests/webview/test_webview_browser_pipeline_log_window_control_census.py",
+        "python_module": "tests.webview.test_webview_browser_pipeline_log_window_control_census",
+        "wrappers": []
+      },
+      {
+        "coverage_kind": "wrapper_backed",
+        "path": "tests/webview/test_webview_browser_prose_box_audit.py",
+        "python_module": "tests.webview.test_webview_browser_prose_box_audit",
+        "wrappers": [
+          "Test-WebViewBrowserProseBoxAudit.ps1"
+        ]
+      },
+      {
+        "coverage_kind": "wrapper_backed",
+        "path": "tests/webview/test_webview_browser_queue_file_overrides_smoke.py",
+        "python_module": "tests.webview.test_webview_browser_queue_file_overrides_smoke",
+        "wrappers": [
+          "Test-WebViewBrowserQueueFileOverridesSmoke.ps1"
+        ]
+      },
+      {
+        "coverage_kind": "wrapper_backed",
+        "path": "tests/webview/test_webview_browser_queue_launch_completed_smoke.py",
+        "python_module": "tests.webview.test_webview_browser_queue_launch_completed_smoke",
+        "wrappers": [
+          "Test-WebViewBrowserQueueLaunchCompletedSmoke.ps1"
+        ]
+      },
+      {
+        "coverage_kind": "wrapper_backed",
+        "path": "tests/webview/test_webview_browser_rename_smoke.py",
+        "python_module": "tests.webview.test_webview_browser_rename_smoke",
+        "wrappers": [
+          "Test-WebViewBrowserRenameSmoke.ps1"
+        ]
+      },
+      {
+        "coverage_kind": "direct_only",
+        "path": "tests/webview/test_webview_browser_root_control_census.py",
+        "python_module": "tests.webview.test_webview_browser_root_control_census",
+        "wrappers": []
+      },
+      {
+        "coverage_kind": "direct_only",
+        "path": "tests/webview/test_webview_browser_run_monitor_smoke.py",
+        "python_module": "tests.webview.test_webview_browser_run_monitor_smoke",
+        "wrappers": []
+      },
+      {
+        "coverage_kind": "wrapper_backed",
+        "path": "tests/webview/test_webview_browser_safe_operator_commands_smoke.py",
+        "python_module": "tests.webview.test_webview_browser_safe_operator_commands_smoke",
+        "wrappers": [
+          "Test-WebViewBrowserSafeOperatorCommandsSmoke.ps1"
+        ]
+      },
+      {
+        "coverage_kind": "wrapper_backed",
+        "path": "tests/webview/test_webview_browser_sample_validation_smoke.py",
+        "python_module": "tests.webview.test_webview_browser_sample_validation_smoke",
+        "wrappers": [
+          "Test-WebViewBrowserSampleValidationSmoke.ps1"
+        ]
+      },
+      {
+        "coverage_kind": "wrapper_backed",
+        "path": "tests/webview/test_webview_browser_schedule_smoke.py",
+        "python_module": "tests.webview.test_webview_browser_schedule_smoke",
+        "wrappers": [
+          "Test-WebViewBrowserScheduleSmoke.ps1"
+        ]
+      },
+      {
+        "coverage_kind": "direct_only",
+        "path": "tests/webview/test_webview_browser_settings_builder_flush_smoke.py",
+        "python_module": "tests.webview.test_webview_browser_settings_builder_flush_smoke",
+        "wrappers": []
+      },
+      {
+        "coverage_kind": "direct_only",
+        "path": "tests/webview/test_webview_browser_settings_control_census_smoke.py",
+        "python_module": "tests.webview.test_webview_browser_settings_control_census_smoke",
+        "wrappers": []
+      },
+      {
+        "coverage_kind": "wrapper_backed",
+        "path": "tests/webview/test_webview_browser_settings_field_matrix_smoke.py",
+        "python_module": "tests.webview.test_webview_browser_settings_field_matrix_smoke",
+        "wrappers": [
+          "Test-WebViewBrowserSettingsFieldMatrixSmoke.ps1"
+        ]
+      },
+      {
+        "coverage_kind": "direct_only",
+        "path": "tests/webview/test_webview_browser_settings_generated_control_census.py",
+        "python_module": "tests.webview.test_webview_browser_settings_generated_control_census",
+        "wrappers": []
+      },
+      {
+        "coverage_kind": "wrapper_backed",
+        "path": "tests/webview/test_webview_browser_settings_launch_smoke.py",
+        "python_module": "tests.webview.test_webview_browser_settings_launch_smoke",
+        "wrappers": [
+          "Test-WebViewBrowserSettingsLaunchSmoke.ps1"
+        ]
+      },
+      {
+        "coverage_kind": "direct_only",
+        "path": "tests/webview/test_webview_browser_shell_launch_queue_rename_control_census.py",
+        "python_module": "tests.webview.test_webview_browser_shell_launch_queue_rename_control_census",
+        "wrappers": []
+      },
+      {
+        "coverage_kind": "wrapper_backed",
+        "path": "tests/webview/test_webview_browser_telemetry_smoke.py",
+        "python_module": "tests.webview.test_webview_browser_telemetry_smoke",
+        "wrappers": [
+          "Test-WebViewBrowserTelemetrySmoke.ps1"
+        ]
+      },
+      {
+        "coverage_kind": "wrapper_backed",
+        "path": "tests/webview/test_webview_browser_visual_clutter_screenshots.py",
+        "python_module": "tests.webview.test_webview_browser_visual_clutter_screenshots",
+        "wrappers": [
+          "Test-WebViewBrowserVisualClutterScreenshots.ps1"
+        ]
+      }
+    ],
+    "browser_wrapper_count": 25,
+    "browser_wrappers": [
+      "Test-WebViewBrowserCompletedPendingProofSmoke.ps1",
+      "Test-WebViewBrowserDiagnosticsHandoffSmoke.ps1",
+      "Test-WebViewBrowserHighRiskSmoke.ps1",
+      "Test-WebViewBrowserHomeLiveStateSmoke.ps1",
+      "Test-WebViewBrowserLargeTableSmoke.ps1",
+      "Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1",
+      "Test-WebViewBrowserLayoutManagerSmoke.ps1",
+      "Test-WebViewBrowserLibraryProfilesSaveSmoke.ps1",
+      "Test-WebViewBrowserLifecycleReconciliationSmoke.ps1",
+      "Test-WebViewBrowserLifecycleSmoke.ps1",
+      "Test-WebViewBrowserMaintenanceChangeLedgerSmoke.ps1",
+      "Test-WebViewBrowserMaintenanceReportsSmoke.ps1",
+      "Test-WebViewBrowserNetworkSmoke.ps1",
+      "Test-WebViewBrowserPendingDrainGuardSmoke.ps1",
+      "Test-WebViewBrowserProseBoxAudit.ps1",
+      "Test-WebViewBrowserQueueFileOverridesSmoke.ps1",
+      "Test-WebViewBrowserQueueLaunchCompletedSmoke.ps1",
+      "Test-WebViewBrowserRenameSmoke.ps1",
+      "Test-WebViewBrowserSafeOperatorCommandsSmoke.ps1",
+      "Test-WebViewBrowserSampleValidationSmoke.ps1",
+      "Test-WebViewBrowserScheduleSmoke.ps1",
+      "Test-WebViewBrowserSettingsFieldMatrixSmoke.ps1",
+      "Test-WebViewBrowserSettingsLaunchSmoke.ps1",
+      "Test-WebViewBrowserTelemetrySmoke.ps1",
+      "Test-WebViewBrowserVisualClutterScreenshots.ps1"
+    ],
+    "catalog_heading_count": 25,
+    "catalog_unique_heading_count": 25,
+    "catalog_wrapper_headings": [
+      "Test-WebViewBrowserHighRiskSmoke.ps1",
+      "Test-WebViewBrowserScheduleSmoke.ps1",
+      "Test-WebViewBrowserLifecycleSmoke.ps1",
+      "Test-WebViewBrowserLifecycleReconciliationSmoke.ps1",
+      "Test-WebViewBrowserDiagnosticsHandoffSmoke.ps1",
+      "Test-WebViewBrowserPendingDrainGuardSmoke.ps1",
+      "Test-WebViewBrowserQueueFileOverridesSmoke.ps1",
+      "Test-WebViewBrowserCompletedPendingProofSmoke.ps1",
+      "Test-WebViewBrowserLargeTableSmoke.ps1",
+      "Test-WebViewBrowserMaintenanceReportsSmoke.ps1",
+      "Test-WebViewBrowserMaintenanceChangeLedgerSmoke.ps1",
+      "Test-WebViewBrowserSampleValidationSmoke.ps1",
+      "Test-WebViewBrowserHomeLiveStateSmoke.ps1",
+      "Test-WebViewBrowserSafeOperatorCommandsSmoke.ps1",
+      "Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1",
+      "Test-WebViewBrowserQueueLaunchCompletedSmoke.ps1",
+      "Test-WebViewBrowserLayoutManagerSmoke.ps1",
+      "Test-WebViewBrowserProseBoxAudit.ps1",
+      "Test-WebViewBrowserVisualClutterScreenshots.ps1",
+      "Test-WebViewBrowserRenameSmoke.ps1",
+      "Test-WebViewBrowserNetworkSmoke.ps1",
+      "Test-WebViewBrowserTelemetrySmoke.ps1",
+      "Test-WebViewBrowserSettingsLaunchSmoke.ps1",
+      "Test-WebViewBrowserSettingsFieldMatrixSmoke.ps1",
+      "Test-WebViewBrowserLibraryProfilesSaveSmoke.ps1"
+    ],
+    "direct_only_module_count": 9,
+    "direct_only_modules": [
+      "tests.webview.test_webview_browser_evidence_control_census",
+      "tests.webview.test_webview_browser_metrics_degraded_state_smoke",
+      "tests.webview.test_webview_browser_pipeline_log_window_control_census",
+      "tests.webview.test_webview_browser_root_control_census",
+      "tests.webview.test_webview_browser_run_monitor_smoke",
+      "tests.webview.test_webview_browser_settings_builder_flush_smoke",
+      "tests.webview.test_webview_browser_settings_control_census_smoke",
+      "tests.webview.test_webview_browser_settings_generated_control_census",
+      "tests.webview.test_webview_browser_shell_launch_queue_rename_control_census"
+    ],
+    "reported_counts": [
+      {
+        "disk_count": 25,
+        "kind": "browser_wrapper_count",
+        "line": 427,
+        "matched_text": "25 canonical browser wrappers",
+        "matches_disk": true,
+        "path": "docs/inventories/API_ROUTE_INVENTORY.md",
+        "reported_count": 25
+      },
+      {
+        "disk_count": 25,
+        "kind": "browser_wrapper_count",
+        "line": 164,
+        "matched_text": "25 canonical browser wrappers",
+        "matches_disk": true,
+        "path": "docs/inventories/PACKAGING_DEPENDENCY_INVENTORY.md",
+        "reported_count": 25
+      },
+      {
+        "disk_count": 34,
+        "kind": "browser_module_count",
+        "line": 164,
+        "matched_text": "34 browser-backed Python modules",
+        "matches_disk": true,
+        "path": "docs/inventories/PACKAGING_DEPENDENCY_INVENTORY.md",
+        "reported_count": 34
+      },
+      {
+        "disk_count": 25,
+        "kind": "browser_wrapper_count",
+        "line": 168,
+        "matched_text": "25 canonical browser wrappers",
+        "matches_disk": true,
+        "path": "docs/inventories/PACKAGING_DEPENDENCY_INVENTORY.md",
+        "reported_count": 25
+      },
+      {
+        "disk_count": 37,
+        "kind": "canonical_wrapper_count",
+        "line": 13,
+        "matched_text": "37 canonical wrappers",
+        "matches_disk": true,
+        "path": "docs/inventories/ROOT_SCRIPT_INVENTORY.md",
+        "reported_count": 37
+      },
+      {
+        "disk_count": 37,
+        "kind": "canonical_wrapper_count",
+        "line": 11,
+        "matched_text": "37 canonical wrappers",
+        "matches_disk": true,
+        "path": "docs/inventories/SMOKE_TEST_INVENTORY.md",
+        "reported_count": 37
+      },
+      {
+        "disk_count": 4,
+        "kind": "local_api_wrapper_count",
+        "line": 11,
+        "matched_text": "4 Local API contract wrappers",
+        "matches_disk": true,
+        "path": "docs/inventories/SMOKE_TEST_INVENTORY.md",
+        "reported_count": 4
+      },
+      {
+        "disk_count": 8,
+        "kind": "webview_non_browser_wrapper_count",
+        "line": 11,
+        "matched_text": "8 browser-free WebView wrappers",
+        "matches_disk": true,
+        "path": "docs/inventories/SMOKE_TEST_INVENTORY.md",
+        "reported_count": 8
+      },
+      {
+        "disk_count": 25,
+        "kind": "browser_wrapper_count",
+        "line": 11,
+        "matched_text": "25 browser-backed wrappers",
+        "matches_disk": true,
+        "path": "docs/inventories/SMOKE_TEST_INVENTORY.md",
+        "reported_count": 25
+      },
+      {
+        "disk_count": 34,
+        "kind": "browser_module_count",
+        "line": 11,
+        "matched_text": "34 Python modules",
+        "matches_disk": true,
+        "path": "docs/inventories/SMOKE_TEST_INVENTORY.md",
+        "reported_count": 34
+      },
+      {
+        "disk_count": 34,
+        "kind": "browser_module_count",
+        "line": 821,
+        "matched_text": "34 browser Python modules",
+        "matches_disk": true,
+        "path": "docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md",
+        "reported_count": 34
+      },
+      {
+        "disk_count": 25,
+        "kind": "browser_wrapper_count",
+        "line": 821,
+        "matched_text": "25 canonical browser\nwrappers",
+        "matches_disk": true,
+        "path": "docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md",
+        "reported_count": 25
+      },
+      {
+        "disk_count": 9,
+        "kind": "browser_direct_only_module_count",
+        "line": 822,
+        "matched_text": "9 direct-only browser Python modules",
+        "matches_disk": true,
+        "path": "docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md",
+        "reported_count": 9
+      },
+      {
+        "disk_count": 25,
+        "kind": "browser_wrapper_count",
+        "line": 35,
+        "matched_text": "25 canonical browser wrappers",
+        "matches_disk": true,
+        "path": "docs/operator/OPERATOR_GLOSSARY.md",
+        "reported_count": 25
+      },
+      {
+        "disk_count": 34,
+        "kind": "browser_module_count",
+        "line": 35,
+        "matched_text": "34 browser Python modules",
+        "matches_disk": true,
+        "path": "docs/operator/OPERATOR_GLOSSARY.md",
+        "reported_count": 34
+      },
+      {
+        "disk_count": 25,
+        "kind": "browser_wrapper_backed_module_count",
+        "line": 35,
+        "matched_text": "25 wrapper-backed browser Python modules",
+        "matches_disk": true,
+        "path": "docs/operator/OPERATOR_GLOSSARY.md",
+        "reported_count": 25
+      },
+      {
+        "disk_count": 9,
+        "kind": "browser_direct_only_module_count",
+        "line": 35,
+        "matched_text": "9 direct-only browser Python modules",
+        "matches_disk": true,
+        "path": "docs/operator/OPERATOR_GLOSSARY.md",
+        "reported_count": 9
+      },
+      {
+        "disk_count": 25,
+        "kind": "browser_wrapper_count",
+        "line": 86,
+        "matched_text": "25 canonical browser wrappers",
+        "matches_disk": true,
+        "path": "docs/testing/BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md",
+        "reported_count": 25
+      },
+      {
+        "disk_count": 34,
+        "kind": "browser_module_count",
+        "line": 86,
+        "matched_text": "34 browser Python modules",
+        "matches_disk": true,
+        "path": "docs/testing/BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md",
+        "reported_count": 34
+      },
+      {
+        "disk_count": 25,
+        "kind": "browser_wrapper_count",
+        "line": 88,
+        "matched_text": "25 canonical browser wrappers",
+        "matches_disk": true,
+        "path": "docs/testing/BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md",
+        "reported_count": 25
+      },
+      {
+        "disk_count": 25,
+        "kind": "browser_wrapper_backed_module_count",
+        "line": 88,
+        "matched_text": "25 wrapper-backed browser Python modules",
+        "matches_disk": true,
+        "path": "docs/testing/BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md",
+        "reported_count": 25
+      },
+      {
+        "disk_count": 9,
+        "kind": "browser_direct_only_module_count",
+        "line": 88,
+        "matched_text": "9 direct-only browser Python modules",
+        "matches_disk": true,
+        "path": "docs/testing/BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md",
+        "reported_count": 9
+      },
+      {
+        "disk_count": 34,
+        "kind": "browser_module_count",
+        "line": 88,
+        "matched_text": "34 browser Python modules",
+        "matches_disk": true,
+        "path": "docs/testing/BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md",
+        "reported_count": 34
+      },
+      {
+        "disk_count": 25,
+        "kind": "browser_wrapper_count",
+        "line": 351,
+        "matched_text": "25 canonical browser wrappers",
+        "matches_disk": true,
+        "path": "docs/testing/BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md",
+        "reported_count": 25
+      },
+      {
+        "disk_count": 34,
+        "kind": "browser_module_count",
+        "line": 351,
+        "matched_text": "34 browser Python modules",
+        "matches_disk": true,
+        "path": "docs/testing/BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md",
+        "reported_count": 34
+      },
+      {
+        "disk_count": 25,
+        "kind": "browser_wrapper_count",
+        "line": 429,
+        "matched_text": "25 canonical browser wrappers",
+        "matches_disk": true,
+        "path": "docs/testing/BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md",
+        "reported_count": 25
+      },
+      {
+        "disk_count": 34,
+        "kind": "browser_module_count",
+        "line": 429,
+        "matched_text": "34 browser Python modules",
+        "matches_disk": true,
+        "path": "docs/testing/BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md",
+        "reported_count": 34
+      },
+      {
+        "disk_count": 25,
+        "kind": "browser_wrapper_count",
+        "line": 55,
+        "matched_text": "25 browser wrappers",
+        "matches_disk": true,
+        "path": "docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md",
+        "reported_count": 25
+      },
+      {
+        "disk_count": 34,
+        "kind": "browser_module_count",
+        "line": 88,
+        "matched_text": "34 browser Python modules",
+        "matches_disk": true,
+        "path": "docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md",
+        "reported_count": 34
+      },
+      {
+        "disk_count": 25,
+        "kind": "browser_wrapper_backed_module_count",
+        "line": 88,
+        "matched_text": "25 wrapper-backed browser Python modules",
+        "matches_disk": true,
+        "path": "docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md",
+        "reported_count": 25
+      },
+      {
+        "disk_count": 9,
+        "kind": "browser_direct_only_module_count",
+        "line": 88,
+        "matched_text": "9 direct-only browser Python modules",
+        "matches_disk": true,
+        "path": "docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md",
+        "reported_count": 9
+      },
+      {
+        "disk_count": 25,
+        "kind": "browser_wrapper_count",
+        "line": 248,
+        "matched_text": "25 canonical browser wrappers",
+        "matches_disk": true,
+        "path": "docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md",
+        "reported_count": 25
+      },
+      {
+        "disk_count": 34,
+        "kind": "browser_module_count",
+        "line": 248,
+        "matched_text": "34 browser Python modules",
+        "matches_disk": true,
+        "path": "docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md",
+        "reported_count": 34
+      },
+      {
+        "disk_count": 25,
+        "kind": "browser_wrapper_backed_module_count",
+        "line": 248,
+        "matched_text": "25 wrapper-backed browser Python modules",
+        "matches_disk": true,
+        "path": "docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md",
+        "reported_count": 25
+      },
+      {
+        "disk_count": 9,
+        "kind": "browser_direct_only_module_count",
+        "line": 248,
+        "matched_text": "9 direct-only browser Python modules",
+        "matches_disk": true,
+        "path": "docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md",
+        "reported_count": 9
+      },
+      {
+        "disk_count": 25,
+        "kind": "browser_wrapper_count",
+        "line": 454,
+        "matched_text": "25 canonical browser wrappers",
+        "matches_disk": true,
+        "path": "docs/testing/TEST_COVERAGE_MATRIX.md",
+        "reported_count": 25
+      },
+      {
+        "disk_count": 25,
+        "kind": "browser_wrapper_count",
+        "line": 61,
+        "matched_text": "25 canonical browser wrappers",
+        "matches_disk": true,
+        "path": "docs/testing/VALIDATION_LADDER_RUNBOOK.md",
+        "reported_count": 25
+      },
+      {
+        "disk_count": 34,
+        "kind": "browser_module_count",
+        "line": 61,
+        "matched_text": "34 browser Python modules",
+        "matches_disk": true,
+        "path": "docs/testing/VALIDATION_LADDER_RUNBOOK.md",
+        "reported_count": 34
+      },
+      {
+        "disk_count": 9,
+        "kind": "browser_direct_only_module_count",
+        "line": 92,
+        "matched_text": "9 direct-only browser Python modules",
+        "matches_disk": true,
+        "path": "docs/testing/VALIDATION_LADDER_RUNBOOK.md",
+        "reported_count": 9
+      },
+      {
+        "disk_count": 34,
+        "kind": "browser_module_count",
+        "line": 92,
+        "matched_text": "34 browser Python modules",
+        "matches_disk": true,
+        "path": "docs/testing/VALIDATION_LADDER_RUNBOOK.md",
+        "reported_count": 34
+      },
+      {
+        "disk_count": 25,
+        "kind": "browser_wrapper_count",
+        "line": 422,
+        "matched_text": "25 canonical browser wrappers",
+        "matches_disk": true,
+        "path": "docs/testing/VALIDATION_LADDER_RUNBOOK.md",
+        "reported_count": 25
+      },
+      {
+        "disk_count": 34,
+        "kind": "browser_module_count",
+        "line": 423,
+        "matched_text": "34 browser Python modules",
+        "matches_disk": true,
+        "path": "docs/testing/VALIDATION_LADDER_RUNBOOK.md",
+        "reported_count": 34
+      },
+      {
+        "disk_count": 25,
+        "kind": "browser_wrapper_count",
+        "line": 117,
+        "matched_text": "25 canonical browser wrappers",
+        "matches_disk": true,
+        "path": "docs/testing/WEBVIEW_SMOKE_RESULT_TEMPLATE.md",
+        "reported_count": 25
+      },
+      {
+        "disk_count": 34,
+        "kind": "browser_module_count",
+        "line": 117,
+        "matched_text": "34 browser Python modules",
+        "matches_disk": true,
+        "path": "docs/testing/WEBVIEW_SMOKE_RESULT_TEMPLATE.md",
+        "reported_count": 34
+      },
+      {
+        "disk_count": 9,
+        "kind": "browser_direct_only_module_count",
+        "line": 119,
+        "matched_text": "9 direct-only browser Python modules",
+        "matches_disk": true,
+        "path": "docs/testing/WEBVIEW_SMOKE_RESULT_TEMPLATE.md",
+        "reported_count": 9
+      }
+    ],
+    "wrapper_backed_module_count": 25,
+    "wrapper_backed_modules": [
+      "tests.webview.test_webview_browser_completed_pending_proof_smoke",
+      "tests.webview.test_webview_browser_diagnostics_handoff_smoke",
+      "tests.webview.test_webview_browser_high_risk_smoke",
+      "tests.webview.test_webview_browser_home_live_state_smoke",
+      "tests.webview.test_webview_browser_large_table_smoke",
+      "tests.webview.test_webview_browser_launch_queue_readiness_smoke",
+      "tests.webview.test_webview_browser_layout_manager_smoke",
+      "tests.webview.test_webview_browser_library_profiles_save_smoke",
+      "tests.webview.test_webview_browser_lifecycle_reconciliation_smoke",
+      "tests.webview.test_webview_browser_lifecycle_smoke",
+      "tests.webview.test_webview_browser_maintenance_change_ledger_smoke",
+      "tests.webview.test_webview_browser_maintenance_reports_smoke",
+      "tests.webview.test_webview_browser_network_smoke",
+      "tests.webview.test_webview_browser_pending_drain_guard_smoke",
+      "tests.webview.test_webview_browser_prose_box_audit",
+      "tests.webview.test_webview_browser_queue_file_overrides_smoke",
+      "tests.webview.test_webview_browser_queue_launch_completed_smoke",
+      "tests.webview.test_webview_browser_rename_smoke",
+      "tests.webview.test_webview_browser_safe_operator_commands_smoke",
+      "tests.webview.test_webview_browser_sample_validation_smoke",
+      "tests.webview.test_webview_browser_schedule_smoke",
+      "tests.webview.test_webview_browser_settings_field_matrix_smoke",
+      "tests.webview.test_webview_browser_settings_launch_smoke",
+      "tests.webview.test_webview_browser_telemetry_smoke",
+      "tests.webview.test_webview_browser_visual_clutter_screenshots"
+    ]
+  },
   "drift_findings": [],
   "generated_by": "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_smoke_wrapper_map",
-  "schema_version": 1,
+  "schema_version": 2,
   "source_paths": {
     "release_script": "ops/scripts/release/test.ps1",
+    "reported_count_documents": [
+      "docs/inventories/API_ROUTE_INVENTORY.md",
+      "docs/inventories/PACKAGING_DEPENDENCY_INVENTORY.md",
+      "docs/inventories/ROOT_SCRIPT_INVENTORY.md",
+      "docs/inventories/SMOKE_TEST_INVENTORY.md",
+      "docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md",
+      "docs/operator/OPERATOR_GLOSSARY.md",
+      "docs/testing/BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md",
+      "docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md",
+      "docs/testing/TEST_COVERAGE_MATRIX.md",
+      "docs/testing/VALIDATION_LADDER_RUNBOOK.md",
+      "docs/testing/WEBVIEW_SMOKE_RESULT_TEMPLATE.md",
+      "docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md"
+    ],
     "smoke_inventory": "docs/inventories/SMOKE_TEST_INVENTORY.md",
     "smoke_root": "ops/scripts/smoke",
     "webview_catalog": "docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md"
   },
   "summary": {
+    "browser_catalog_heading_count": 25,
+    "browser_direct_only_module_count": 9,
+    "browser_module_count": 34,
+    "browser_wrapper_backed_module_count": 25,
+    "browser_wrapper_count": 25,
     "drift_finding_count": 0,
     "proof_tiers": {
-      "browser_smoke": 21,
+      "browser_smoke": 25,
       "local_api_contract_smoke": 4,
       "webview_non_browser_smoke": 8
     },
     "shared_support_files": [
+      "ops/scripts/smoke/tauri_harness_process_ownership.ps1",
       "ops/scripts/smoke/webview_browser_smoke_common.ps1"
     ],
-    "wrapper_count": 33
+    "wrapper_count": 37
   },
   "wrappers": [
     {
@@ -34,6 +817,7 @@
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": null,
         "webview_catalog_required": false
       },
       "invocation_kind": "unittest",
@@ -64,6 +848,7 @@
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": null,
         "webview_catalog_required": false
       },
       "invocation_kind": "unittest",
@@ -92,6 +877,7 @@
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": null,
         "webview_catalog_required": false
       },
       "invocation_kind": "pytest",
@@ -125,6 +911,7 @@
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": null,
         "webview_catalog_required": false
       },
       "invocation_kind": "unittest",
@@ -157,6 +944,7 @@
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": true,
         "webview_catalog_required": true
       },
       "invocation_kind": "unittest",
@@ -190,6 +978,7 @@
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": true,
         "webview_catalog_required": true
       },
       "invocation_kind": "unittest",
@@ -219,6 +1008,7 @@
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": true,
         "webview_catalog_required": true
       },
       "invocation_kind": "unittest",
@@ -249,6 +1039,7 @@
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": true,
         "webview_catalog_required": true
       },
       "invocation_kind": "unittest",
@@ -279,6 +1070,7 @@
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": true,
         "webview_catalog_required": true
       },
       "invocation_kind": "unittest",
@@ -314,6 +1106,7 @@
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": true,
         "webview_catalog_required": true
       },
       "invocation_kind": "unittest",
@@ -345,6 +1138,7 @@
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": true,
         "webview_catalog_required": true
       },
       "invocation_kind": "unittest",
@@ -370,6 +1164,7 @@
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": true,
         "webview_catalog_required": true
       },
       "invocation_kind": "unittest",
@@ -389,6 +1184,36 @@
     {
       "allows_skipped_tests": true,
       "boundary_lines": [
+        "Boundary: creates lifecycle evidence only under a temporary state root by using production lease and recovery APIs.",
+        "Boundary: proves a real live helper PID blocks preview without journaling, then terminates and waits for that helper before recovery.",
+        "Boundary: proves stale fingerprints are rejected, exact evidence is applied once, archived journal evidence survives reload, and close-readiness becomes safe.",
+        "Boundary: does not process media, start FFmpeg, use network workers, publish, rename, save settings, mutate queue state, or change source/output/scratch media.",
+        "Boundary: fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit."
+      ],
+      "browser_backed": true,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewBrowserLifecycleReconciliationSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewBrowserLifecycleReconciliationSmoke.ps1",
+      "proof_tier": "browser_smoke",
+      "python_module": "tests.webview.test_webview_browser_lifecycle_reconciliation_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_browser_lifecycle_reconciliation_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_browser_lifecycle_reconciliation_smoke"
+      ],
+      "uses_shared_browser_support": true
+    },
+    {
+      "allows_skipped_tests": true,
+      "boundary_lines": [
         "Boundary: starts temporary local API instances against generated temporary state.",
         "Boundary: launches installed Chrome/Edge headless and drives real backend-served WebView Diagnostics backend lifecycle controls.",
         "Boundary: validates close-readiness blocked shutdown rejection while the continuous schedule-stop watcher is armed.",
@@ -401,6 +1226,7 @@
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": true,
         "webview_catalog_required": true
       },
       "invocation_kind": "unittest",
@@ -431,6 +1257,7 @@
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": true,
         "webview_catalog_required": true
       },
       "invocation_kind": "unittest",
@@ -461,6 +1288,7 @@
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": true,
         "webview_catalog_required": true
       },
       "invocation_kind": "unittest",
@@ -492,6 +1320,7 @@
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": true,
         "webview_catalog_required": true
       },
       "invocation_kind": "unittest",
@@ -523,6 +1352,7 @@
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": true,
         "webview_catalog_required": true
       },
       "invocation_kind": "unittest",
@@ -554,6 +1384,7 @@
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": true,
         "webview_catalog_required": true
       },
       "invocation_kind": "unittest",
@@ -584,6 +1415,7 @@
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": true,
         "webview_catalog_required": true
       },
       "invocation_kind": "unittest",
@@ -603,6 +1435,39 @@
     {
       "allows_skipped_tests": true,
       "boundary_lines": [
+        "Boundary: starts a temporary Local API and real backend-served WebView against two accepted Backend Queue rows, one blocked row, and one excluded temporary source row.",
+        "Boundary: verifies Queue loaded but idle before Start, with uncapped accepted-run membership and no active Run Monitor claims.",
+        "Boundary: submits mode=once with Backend Queue scope and a blank Single File; the production duplicate-command and lifecycle guards reject a second start.",
+        "Boundary: exposes correlated durable Run Monitor states through the real GET /api/run-monitor route, including all workers, terminal handoff, review, run completion, and reload persistence.",
+        "Boundary: a synchronized test-only runner writes only temporary Queue, progress, Run Monitor, Completed Manifest, failure, fake output, and sidecar evidence after duplicate rejection is durably journaled.",
+        "Boundary: does not launch FFmpeg, PowerShell pipeline children, media tools, network workers, Pending Publish work, or any source mutation.",
+        "Boundary: verifies accepted fingerprint/identity, route authority labels, focus/keyboard retention, non-color cues, live announcements, visible terminal deep links, fresh idle, safe close readiness, and unchanged source hashes.",
+        "Boundary: fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit."
+      ],
+      "browser_backed": true,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewBrowserQueueLaunchCompletedSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewBrowserQueueLaunchCompletedSmoke.ps1",
+      "proof_tier": "browser_smoke",
+      "python_module": "tests.webview.test_webview_browser_queue_launch_completed_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_browser_queue_launch_completed_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_browser_queue_launch_completed_smoke"
+      ],
+      "uses_shared_browser_support": true
+    },
+    {
+      "allows_skipped_tests": true,
+      "boundary_lines": [
         "Boundary: starts a temporary local API against generated temporary state.",
         "Boundary: launches installed Chrome/Edge headless and drives real backend-served WebView Rename controls.",
         "Boundary: clicks actual Rename preview rows and Check Applicable Rows, then verifies Apply Readiness, Pipeline Handoff, and duplicate-target blocking.",
@@ -615,6 +1480,7 @@
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": true,
         "webview_catalog_required": true
       },
       "invocation_kind": "unittest",
@@ -634,6 +1500,37 @@
     {
       "allows_skipped_tests": true,
       "boundary_lines": [
+        "Boundary: starts a temporary local API against generated temporary media and state fixtures.",
+        "Boundary: redirects app data, runtime state, command journal, Metrics state, support exports, deployment destination, and dependency-atlas paths beneath disposable roots.",
+        "Boundary: drives real backend-served Home, Metrics, and Maintenance controls in installed Chrome/Edge headless.",
+        "Boundary: appends one evidence-only sample record, mutates only temporary Metrics registry/cache state, creates one redacted temporary support export, and uses fixture release/atlas services.",
+        "Boundary: verifies source/output media hashes remain unchanged and never starts pipeline, audit, rerun, pending-drain, publish, rename, repair, or network lifecycle work.",
+        "Boundary: fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit."
+      ],
+      "browser_backed": true,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewBrowserSafeOperatorCommandsSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewBrowserSafeOperatorCommandsSmoke.ps1",
+      "proof_tier": "browser_smoke",
+      "python_module": "tests.webview.test_webview_browser_safe_operator_commands_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_browser_safe_operator_commands_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_browser_safe_operator_commands_smoke"
+      ],
+      "uses_shared_browser_support": true
+    },
+    {
+      "allows_skipped_tests": true,
+      "boundary_lines": [
         "Boundary: starts a temporary local API against generated temporary state.",
         "Boundary: launches installed Chrome/Edge headless and drives real backend-served WebView Home Sample Validation controls.",
         "Boundary: verifies real-media pilot-plan rendering and sample-validation preview result rendering.",
@@ -645,6 +1542,7 @@
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": true,
         "webview_catalog_required": true
       },
       "invocation_kind": "unittest",
@@ -674,6 +1572,7 @@
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": true,
         "webview_catalog_required": true
       },
       "invocation_kind": "unittest",
@@ -693,6 +1592,36 @@
     {
       "allows_skipped_tests": true,
       "boundary_lines": [
+        "Boundary: starts a temporary local API, config, browser profile, and media sentinels.",
+        "Boundary: derives every field from backend field_definitions and the WebView metadata groups; no duplicate field list is maintained.",
+        "Boundary: covers all ten Settings panes, builder stage/reset behavior, library override semantics, and one confirmed temp-only save/reload.",
+        "Boundary: does not open native path dialogs, launch media tools, process media, use network workers, or mutate production settings/state.",
+        "Boundary: fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit."
+      ],
+      "browser_backed": true,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewBrowserSettingsFieldMatrixSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewBrowserSettingsFieldMatrixSmoke.ps1",
+      "proof_tier": "browser_smoke",
+      "python_module": "tests.webview.test_webview_browser_settings_field_matrix_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_browser_settings_field_matrix_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_browser_settings_field_matrix_smoke"
+      ],
+      "uses_shared_browser_support": true
+    },
+    {
+      "allows_skipped_tests": true,
+      "boundary_lines": [
         "Boundary: starts a temporary local API against generated temporary state.",
         "Boundary: launches installed Chrome/Edge headless and drives real backend-served WebView Settings and Launch controls.",
         "Boundary: validates unsaved Settings changes handoff, Settings-to-Launch intent status, and backend Save result visibility.",
@@ -706,6 +1635,7 @@
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": true,
         "webview_catalog_required": true
       },
       "invocation_kind": "unittest",
@@ -736,6 +1666,7 @@
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": true,
         "webview_catalog_required": true
       },
       "invocation_kind": "unittest",
@@ -767,6 +1698,7 @@
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": true,
         "webview_catalog_required": true
       },
       "invocation_kind": "unittest",
@@ -784,16 +1716,18 @@
       "uses_shared_browser_support": true
     },
     {
-      "allows_skipped_tests": false,
+      "allows_skipped_tests": true,
       "boundary_lines": [
         "Boundary: starts a temporary local API against generated temporary state.",
         "Boundary: evaluates backend-served WebView JavaScript with mocked DOM state and fixture command history.",
-        "Boundary: does not process media, launch pipeline commands, publish, rename, save settings, mutate queue state, or modify source/output/scratch media."
+        "Boundary: does not process media, launch pipeline commands, publish, rename, save settings, mutate queue state, or modify source/output/scratch media.",
+        "Boundary: fails when Node.js is missing or tests skip unless -AllowSkippedTests is explicit."
       ],
       "browser_backed": false,
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": null,
         "webview_catalog_required": true
       },
       "invocation_kind": "unittest",
@@ -808,7 +1742,7 @@
       "test_selectors": [
         "tests.webview.test_webview_command_evidence_smoke"
       ],
-      "uses_shared_browser_support": false
+      "uses_shared_browser_support": true
     },
     {
       "allows_skipped_tests": false,
@@ -820,6 +1754,7 @@
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": null,
         "webview_catalog_required": true
       },
       "invocation_kind": "unittest",
@@ -837,18 +1772,20 @@
       "uses_shared_browser_support": false
     },
     {
-      "allows_skipped_tests": false,
+      "allows_skipped_tests": true,
       "boundary_lines": [
         "Boundary: evaluates WebView Rename assets in Node with mocked DOM state.",
         "Boundary: verifies Apply Readiness and Pipeline Handoff for a ready single-row scope and a blocked duplicate-target scope.",
         "Boundary: verifies large-preview render cap text without calling rename.apply.",
         "Boundary: verifies duplicate-target blocking does not call rename.apply.",
-        "Boundary: does not process media, launch pipeline commands, publish, rename files, save settings, mutate queue state, or touch source/output/scratch media."
+        "Boundary: does not process media, launch pipeline commands, publish, rename files, save settings, mutate queue state, or touch source/output/scratch media.",
+        "Boundary: fails when Node.js is missing or tests skip unless -AllowSkippedTests is explicit."
       ],
       "browser_backed": false,
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": null,
         "webview_catalog_required": true
       },
       "invocation_kind": "unittest",
@@ -863,20 +1800,22 @@
       "test_selectors": [
         "tests.webview.test_webview_rename_readiness_smoke"
       ],
-      "uses_shared_browser_support": false
+      "uses_shared_browser_support": true
     },
     {
-      "allows_skipped_tests": false,
+      "allows_skipped_tests": true,
       "boundary_lines": [
         "Boundary: starts a temporary local API against generated temporary state.",
         "Boundary: evaluates backend-served WebView JavaScript with mocked DOM selected-row state.",
         "Boundary: validates Queue, Completed, and Pending Publish row details plus diagnostics handoff text.",
-        "Boundary: does not process media, launch pipeline commands, publish, rename, save settings, mutate queue state, or modify source/output/scratch media."
+        "Boundary: does not process media, launch pipeline commands, publish, rename, save settings, mutate queue state, or modify source/output/scratch media.",
+        "Boundary: fails when Node.js is missing or tests skip unless -AllowSkippedTests is explicit."
       ],
       "browser_backed": false,
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": null,
         "webview_catalog_required": true
       },
       "invocation_kind": "unittest",
@@ -891,19 +1830,21 @@
       "test_selectors": [
         "tests.webview.test_webview_row_detail_smoke"
       ],
-      "uses_shared_browser_support": false
+      "uses_shared_browser_support": true
     },
     {
-      "allows_skipped_tests": false,
+      "allows_skipped_tests": true,
       "boundary_lines": [
         "Boundary: evaluates WebView Schedule assets in Node with mocked DOM state.",
         "Boundary: verifies Schedule Coverage Review, selected day detail, table status legend, Schedule Editor preview/save routing, and app-state-write result copy.",
-        "Boundary: does not start pipeline commands, override schedule gates, mutate queue state, touch media files, or write app state from frontend code."
+        "Boundary: does not start pipeline commands, override schedule gates, mutate queue state, touch media files, or write app state from frontend code.",
+        "Boundary: fails when Node.js is missing or tests skip unless -AllowSkippedTests is explicit."
       ],
       "browser_backed": false,
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": null,
         "webview_catalog_required": true
       },
       "invocation_kind": "unittest",
@@ -918,7 +1859,7 @@
       "test_selectors": [
         "tests.webview.test_webview_schedule_smoke"
       ],
-      "uses_shared_browser_support": false
+      "uses_shared_browser_support": true
     },
     {
       "allows_skipped_tests": false,
@@ -931,6 +1872,7 @@
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": null,
         "webview_catalog_required": true
       },
       "invocation_kind": "python_module",
@@ -958,6 +1900,7 @@
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": null,
         "webview_catalog_required": true
       },
       "invocation_kind": "unittest",
@@ -985,6 +1928,7 @@
       "docs": {
         "listed_in_smoke_inventory": true,
         "listed_in_webview_catalog": true,
+        "listed_in_webview_catalog_heading": null,
         "webview_catalog_required": true
       },
       "invocation_kind": "python_module",

@@ -23,6 +23,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.core.api.commands_process import LocalApiProcessCommandPayloadMixin
+from mediapipeline.core.api.commands_settings import LocalApiSettingsCommandPayloadMixin
 from mediapipeline.desktop.api.handler import build_local_api_handler_class
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
 from mediapipeline.desktop.local_api_main import BOOTSTRAP_SCHEMA_VERSION, bootstrap_payload, build_backend, main as local_api_main
@@ -41,6 +42,51 @@ from tests.python.desktop.application_facade_test_support import (
 
 
 class LocalApiSettingsTests(LocalApiHttpTestMixin, unittest.TestCase):
+    def test_idempotent_settings_save_does_not_reload_or_claim_a_write(self) -> None:
+        reload_calls = 0
+
+        class Result:
+            def to_mapping(self) -> dict[str, object]:
+                return {
+                    "schema_version": "desktop_command_result.v1",
+                    "command": "settings.save_patch",
+                    "ok": True,
+                    "warnings": [],
+                    "data": {
+                        "writes_config": False,
+                        "idempotent_replay": True,
+                        "save_verification": {},
+                    },
+                }
+
+        class Facade:
+            def save_settings_patch(self, resolved: object, request: dict[str, object]) -> Result:
+                _ = resolved, request
+                return Result()
+
+        class Harness(LocalApiSettingsCommandPayloadMixin):
+            def __init__(self) -> None:
+                self.facade = Facade()
+                self.logger = logging.getLogger("test.local_api.settings_idempotent")
+                self.resolved_reload = self._reload
+
+            def _resolved(self) -> object:
+                return object()
+
+            def _reload(self) -> object:
+                nonlocal reload_calls
+                reload_calls += 1
+                return object()
+
+        payload = Harness()._settings_save_patch_payload({"confirm_save": True})
+
+        self.assertTrue(payload["ok"])
+        self.assertFalse(payload["data"]["writes_config"])
+        self.assertFalse(payload["data"]["reloaded"])
+        self.assertEqual(reload_calls, 0)
+        self.assertIn("no settings artifact was written", payload["data"]["save_verification"]["verification_reason"])
+        self.assertEqual(payload["warnings"], [])
+
     def test_local_api_settings_reload_failure_is_logged(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

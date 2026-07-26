@@ -117,6 +117,207 @@ function New-MediaPipelineProcessPreflightDecision {
     })
 }
 
+function Test-MediaPipelineAcceptedDestinationNamePreflight {
+    param(
+        [Parameter(Mandatory)] $File,
+        [bool] $IsTV = $false,
+        $TvInfo = $null,
+        [string] $MediaType = '',
+        [string] $RunId = '',
+        [string] $JobId = ''
+    )
+
+    $effectiveRunId = ([string]$RunId).Trim()
+    $effectiveJobId = ([string]$JobId).Trim()
+    if ([string]::IsNullOrWhiteSpace($effectiveRunId)) {
+        try { $effectiveRunId = ([string]$script:PipelineRunId).Trim() } catch {}
+    }
+    if ([string]::IsNullOrWhiteSpace($effectiveJobId)) {
+        try { $effectiveJobId = ([string]$script:CurrentRunMonitorJobId).Trim() } catch {}
+    }
+
+    if ([string]::IsNullOrWhiteSpace($effectiveRunId) -or [string]::IsNullOrWhiteSpace($effectiveJobId)) {
+        $check = New-MediaPipelinePreflightCheckResult -Name 'accepted_destination_name' -State 'not_applicable' -Data @{
+            run_id = $effectiveRunId
+            job_id = $effectiveJobId
+            reason = 'No exact Run Monitor run/job correlation is present.'
+        }
+        return New-MediaPipelineProcessPreflightDecision -Checks @($check)
+    }
+
+    $reader = Get-Command -Name Get-MediaPipelineRunMonitorAcceptedNamingEvidence -ErrorAction SilentlyContinue
+    $evidence = $null
+    if ($reader) {
+        try {
+            $evidence = Get-MediaPipelineRunMonitorAcceptedNamingEvidence `
+                -RunId $effectiveRunId `
+                -JobId $effectiveJobId `
+                -SourcePath ([string]$File.FullName)
+        } catch {
+            $evidence = [pscustomobject]@{
+                Applies              = $true
+                Verified             = $false
+                LegacyCompatible     = $false
+                RunId                = $effectiveRunId
+                JobId                = $effectiveJobId
+                SourcePath           = [string]$File.FullName
+                ExpectedDisplayName  = ''
+                QueuePlanFingerprint = ''
+                Reason               = "Accepted destination-name evidence reader failed: $($_.Exception.Message)"
+                ErrorCode            = 'DESTINATION_NAMING_EVIDENCE_MISSING'
+            }
+        }
+    } else {
+        $evidence = [pscustomobject]@{
+            Applies              = $true
+            Verified             = $false
+            LegacyCompatible     = $false
+            RunId                = $effectiveRunId
+            JobId                = $effectiveJobId
+            SourcePath           = [string]$File.FullName
+            ExpectedDisplayName  = ''
+            QueuePlanFingerprint = ''
+            Reason               = 'Accepted destination-name evidence reader is unavailable for a correlated job.'
+            ErrorCode            = 'DESTINATION_NAMING_EVIDENCE_MISSING'
+        }
+    }
+
+    if (-not [bool]$evidence.Applies) {
+        $check = New-MediaPipelinePreflightCheckResult -Name 'accepted_destination_name' -State 'legacy_compatible' -Data @{
+            run_id = $effectiveRunId
+            job_id = $effectiveJobId
+            reason = [string]$evidence.Reason
+        }
+        return New-MediaPipelineProcessPreflightDecision -Checks @($check)
+    }
+
+    if (-not [bool]$evidence.Verified) {
+        $detail = ([string]$evidence.Reason).Trim()
+        if ([string]::IsNullOrWhiteSpace($detail)) { $detail = 'Verified accepted production naming evidence is unavailable.' }
+        $reason = "DESTINATION_NAMING_EVIDENCE_MISSING: $detail Refresh Queue and start a new run."
+        $check = New-MediaPipelinePreflightCheckResult `
+            -Name 'accepted_destination_name' `
+            -State 'evidence_missing' `
+            -Terminal:$true `
+            -Reason $reason `
+            -ErrorCode 'DESTINATION_NAMING_EVIDENCE_MISSING' `
+            -Data @{
+                run_id = $effectiveRunId
+                job_id = $effectiveJobId
+                source_path = [string]$File.FullName
+                queue_plan_fingerprint = [string]$evidence.QueuePlanFingerprint
+            }
+        return New-MediaPipelineProcessPreflightDecision `
+            -Terminal:$true `
+            -Status 'skipped' `
+            -Success:$false `
+            -QueueTerminal:$true `
+            -Retryable:$false `
+            -Reason $reason `
+            -ErrorCode 'DESTINATION_NAMING_EVIDENCE_MISSING' `
+            -EventStage 'destination_naming' `
+            -MediaType $MediaType `
+            -Checks @($check) `
+            -Effects @(
+                (New-MediaPipelinePreflightEffect -Kind 'log' -Message "BLOCKED (accepted destination-name evidence missing): $($File.Name) - $detail" -Level 'ERROR')
+            )
+    }
+
+    $outputPaths = $null
+    try {
+        $safeName = Get-SafeLocalName $File.Name
+        $outputPaths = Get-OutputPaths $File $IsTV $TvInfo $safeName
+    } catch {
+        $detail = "Execution destination planning failed before media work: $($_.Exception.Message)"
+        $reason = "DESTINATION_NAMING_EVIDENCE_MISSING: $detail Refresh Queue and start a new run."
+        $check = New-MediaPipelinePreflightCheckResult `
+            -Name 'accepted_destination_name' `
+            -State 'evidence_missing' `
+            -Terminal:$true `
+            -Reason $reason `
+            -ErrorCode 'DESTINATION_NAMING_EVIDENCE_MISSING' `
+            -Data @{
+                run_id = $effectiveRunId
+                job_id = $effectiveJobId
+                accepted_display_name = [string]$evidence.ExpectedDisplayName
+                queue_plan_fingerprint = [string]$evidence.QueuePlanFingerprint
+            }
+        return New-MediaPipelineProcessPreflightDecision `
+            -Terminal:$true `
+            -Status 'skipped' `
+            -Success:$false `
+            -QueueTerminal:$true `
+            -Retryable:$false `
+            -Reason $reason `
+            -ErrorCode 'DESTINATION_NAMING_EVIDENCE_MISSING' `
+            -EventStage 'destination_naming' `
+            -MediaType $MediaType `
+            -Checks @($check) `
+            -Effects @(
+                (New-MediaPipelinePreflightEffect -Kind 'log' -Message "BLOCKED (execution destination unavailable): $($File.Name) - $detail" -Level 'ERROR')
+            )
+    }
+
+    $expectedName = [string]$evidence.ExpectedDisplayName
+    $plannedName = ''
+    $serverOut = ''
+    try { $plannedName = [string]$outputPaths.PlexPlan.FileName } catch {}
+    try { $serverOut = [string]$outputPaths.ServerOut } catch {}
+    $serverLeaf = if ([string]::IsNullOrWhiteSpace($serverOut)) { '' } else { try { Split-Path -Leaf $serverOut } catch { '' } }
+    $planIsComplete = (
+        -not [string]::IsNullOrWhiteSpace($plannedName) -and
+        -not [string]::IsNullOrWhiteSpace($serverLeaf)
+    )
+    $nameMatches = $planIsComplete -and [string]::Equals($expectedName, $plannedName, [System.StringComparison]::Ordinal)
+    $pathLeafMatches = $planIsComplete -and [string]::Equals($plannedName, $serverLeaf, [System.StringComparison]::Ordinal)
+
+    if (-not $nameMatches -or -not $pathLeafMatches) {
+        $reason = "DESTINATION_NAMING_PLAN_MISMATCH: accepted filename '$expectedName' does not match execution filename '$plannedName' (output leaf '$serverLeaf'). Refresh Queue and start a new run."
+        $check = New-MediaPipelinePreflightCheckResult `
+            -Name 'accepted_destination_name' `
+            -State 'mismatch' `
+            -Terminal:$true `
+            -Reason $reason `
+            -ErrorCode 'DESTINATION_NAMING_PLAN_MISMATCH' `
+            -Data @{
+                run_id = $effectiveRunId
+                job_id = $effectiveJobId
+                source_path = [string]$File.FullName
+                accepted_display_name = $expectedName
+                execution_display_name = $plannedName
+                execution_output_leaf = $serverLeaf
+                execution_output_path = $serverOut
+                queue_plan_fingerprint = [string]$evidence.QueuePlanFingerprint
+            }
+        return New-MediaPipelineProcessPreflightDecision `
+            -Terminal:$true `
+            -Status 'skipped' `
+            -Success:$false `
+            -QueueTerminal:$true `
+            -Retryable:$false `
+            -Reason $reason `
+            -ErrorCode 'DESTINATION_NAMING_PLAN_MISMATCH' `
+            -EventStage 'destination_naming' `
+            -MediaType $MediaType `
+            -Checks @($check) `
+            -Effects @(
+                (New-MediaPipelinePreflightEffect -Kind 'log' -Message "BLOCKED (accepted destination name drifted): $($File.Name) - expected '$expectedName', execution '$plannedName'" -Level 'ERROR')
+            ) `
+            -OutputPaths $outputPaths
+    }
+
+    $check = New-MediaPipelinePreflightCheckResult -Name 'accepted_destination_name' -State 'matched' -Data @{
+        run_id = $effectiveRunId
+        job_id = $effectiveJobId
+        source_path = [string]$File.FullName
+        accepted_display_name = $expectedName
+        execution_display_name = $plannedName
+        execution_output_path = $serverOut
+        queue_plan_fingerprint = [string]$evidence.QueuePlanFingerprint
+    }
+    return New-MediaPipelineProcessPreflightDecision -Checks @($check) -OutputPaths $outputPaths
+}
+
 function Test-MediaPipelineExtensionPreflight {
     param(
         [Parameter(Mandatory)] $File,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from pathlib import Path
+from collections.abc import Mapping
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 from mediapipeline.core.files.constants import MEDIA_FILE_SUFFIXES, VLC_LONG_PATH_THRESHOLD
@@ -13,7 +14,43 @@ from mediapipeline.core.rename.plan_policy import (
 )
 from mediapipeline.core.rename.contracts import RenamePlannerServiceProtocol
 from mediapipeline.core.rename.input_classification import classify_rename_input_paths
-from mediapipeline.core.rename.tv import build_manual_tv_hierarchy_destination
+from mediapipeline.core.rename.tv import (
+    build_manual_tv_hierarchy_destination,
+    parse_formatted_tv_identity,
+    tv_identity_key,
+)
+from mediapipeline.core.rename.cleaning_policy import normalize_rename_cleaning_policy
+
+
+_WINDOWS_INVALID_FILENAME_CHARACTERS = frozenset('<>:"/\\|?*')
+
+
+def _validated_authoritative_preview_leaf(value: object, source: Path) -> str:
+    preview_leaf = str(value or "")
+    if not preview_leaf or preview_leaf != preview_leaf.strip():
+        raise ValueError("Authoritative pipeline naming preview must be a non-empty filename leaf.")
+    if (
+        preview_leaf in {".", ".."}
+        or PurePosixPath(preview_leaf).name != preview_leaf
+        or PureWindowsPath(preview_leaf).name != preview_leaf
+        or any(
+            character in _WINDOWS_INVALID_FILENAME_CHARACTERS or ord(character) < 32
+            for character in preview_leaf
+        )
+        or preview_leaf.endswith((" ", "."))
+    ):
+        raise ValueError("Authoritative pipeline naming preview must be a valid filename leaf, not a path.")
+
+    preview_suffix = PureWindowsPath(preview_leaf).suffix.casefold()
+    if preview_suffix not in MEDIA_FILE_SUFFIXES:
+        raise ValueError("Authoritative pipeline naming preview must end with a configured media suffix.")
+    source_suffix = source.suffix.casefold()
+    if preview_suffix != source_suffix:
+        raise ValueError(
+            "Authoritative pipeline naming preview media suffix "
+            f"{preview_suffix} does not match source suffix {source_suffix}."
+        )
+    return preview_leaf
 
 
 def plan_rename_paths_for_service(
@@ -38,6 +75,7 @@ def plan_rename_paths_for_service(
     powershell_host: str | None = None,
     use_pipeline_naming_preview: bool = True,
     template_preset: str = "",
+    cleaning_policy: Mapping[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
     classified_inputs = classify_rename_input_paths(paths)
     paths = classified_inputs.media_paths
@@ -48,6 +86,17 @@ def plan_rename_paths_for_service(
         raise ValueError("Rename mode must be tv or movie.")
     active_template = normalize_rename_template_preset(template_preset, media_mode)
     include_tv_episode_title = rename_template_includes_tv_episode_title(active_template)
+    effective_cleaning_policy = normalize_rename_cleaning_policy(
+        cleaning_policy
+        or {
+            "movie_filter_options": movie_filter_options,
+            "movie_filter_terms": movie_filter_terms,
+            "remove_terms": remove_terms if media_mode == "movie" else None,
+            "tv_filter_options": tv_filter_options,
+            "tv_filter_terms": tv_filter_terms,
+            "tv_remove_terms": remove_terms if media_mode == "tv" else None,
+        }
+    )
 
     season_number = 0
     start_episode = 0
@@ -81,18 +130,18 @@ def plan_rename_paths_for_service(
         media_mode == "movie"
         and use_pipeline_naming_preview
         and not manual_movie_template
-        and service._movie_filter_options_are_default(movie_filter_options)
-        and not movie_filter_terms
     ):
         movie_preview_map, movie_preview_warning = service._load_pipeline_movie_name_previews(
             [Path(path) for path in paths],
             powershell_host=powershell_host,
+            cleaning_policy=effective_cleaning_policy,
         )
     manual_tv_template = bool(str(show_name or "").strip())
     if media_mode == "tv" and use_pipeline_naming_preview and not manual_tv_template:
         tv_preview_map, tv_preview_warning = service._load_pipeline_tv_name_previews(
             [Path(path) for path in paths],
             powershell_host=powershell_host,
+            cleaning_policy=effective_cleaning_policy,
         )
 
     for offset, raw_path in enumerate(paths):
@@ -107,6 +156,8 @@ def plan_rename_paths_for_service(
         preview_source = ""
         target_name = ""
         hierarchy_destination: dict[str, Any] | None = None
+        tv_identity: dict[str, Any] | None = None
+        destination_identity_key = ""
         destination = source
         mutation_root = source.parent
         matches_target = False
@@ -117,7 +168,7 @@ def plan_rename_paths_for_service(
                 if pipeline_guess:
                     preview_source = "pipeline_tv_preview"
                     confidence_reasons.append("Backend pipeline naming preview returned a TV filename.")
-                    pipeline_guess = service.normalize_plex_filename_component(Path(pipeline_guess).stem, remove_terms) + source.suffix.lower()
+                    pipeline_guess = _validated_authoritative_preview_leaf(pipeline_guess, source)
                     pipeline_guess = service._apply_tv_episode_title_template(
                         pipeline_guess,
                         include_episode_title=include_tv_episode_title,
@@ -153,8 +204,7 @@ def plan_rename_paths_for_service(
                 if pipeline_guess:
                     preview_source = "pipeline_movie_preview"
                     confidence_reasons.append("Backend pipeline naming preview returned a movie filename.")
-                    cleaned_preview = service._clean_pipeline_movie_name(Path(pipeline_guess).name, remove_terms, movie_filter_options, movie_filter_terms)
-                    pipeline_guess = f"{cleaned_preview}{source.suffix.lower()}" if cleaned_preview else service.normalize_plex_filename_component(Path(pipeline_guess).stem, remove_terms) + source.suffix.lower()
+                    pipeline_guess = _validated_authoritative_preview_leaf(pipeline_guess, source)
                 else:
                     preview_source = "manual_movie_template" if manual_movie_template else "movie_scrub_heuristic"
                     confidence_reasons.append(
@@ -193,6 +243,10 @@ def plan_rename_paths_for_service(
                 confidence_reasons.append("TV hierarchy aligns the show folder, season folder, and episode filename.")
             else:
                 destination = source.with_name(target_name)
+            if media_mode == "tv" and target_name:
+                tv_identity = parse_formatted_tv_identity(target_name)
+                if tv_identity is not None:
+                    destination_identity_key = tv_identity_key(tv_identity)
         except Exception as exc:
             preview_source = preview_source or "error"
             errors.append(str(exc))
@@ -277,6 +331,10 @@ def plan_rename_paths_for_service(
             "rename_sidecars": rename_sidecars,
             "force_pipeline_name": row_force_pipeline_name,
             "template_preset": active_template,
+            "rename_cleaning_policy_fingerprint": effective_cleaning_policy["policy_fingerprint"],
+            "tv_identity": tv_identity,
+            "parsed_identity": tv_identity,
+            "destination_identity_key": destination_identity_key,
         }
         planned.append(row)
         if target_name:
@@ -294,4 +352,32 @@ def plan_rename_paths_for_service(
             reasons = row.setdefault("confidence_reasons", [])
             if "Blocked rows cannot be applied until errors are fixed." not in reasons:
                 reasons.append("Blocked rows cannot be applied until errors are fixed.")
+    if media_mode == "tv":
+        identified = [row for row in planned if isinstance(row.get("tv_identity"), dict)]
+        for index, left in enumerate(identified):
+            left_identity = left["tv_identity"]
+            left_show = str(left_identity.get("show") or "").casefold()
+            left_season = int(left_identity.get("season") or 0)
+            left_start = int(left_identity.get("episode_start") or 0)
+            left_end = int(left_identity.get("episode_end") or left_start)
+            for right in identified[index + 1 :]:
+                right_identity = right["tv_identity"]
+                if str(right_identity.get("show") or "").casefold() != left_show:
+                    continue
+                if int(right_identity.get("season") or 0) != left_season:
+                    continue
+                right_start = int(right_identity.get("episode_start") or 0)
+                right_end = int(right_identity.get("episode_end") or right_start)
+                if left_start > right_end or right_start > left_end:
+                    continue
+                for row in (left, right):
+                    errors = row.setdefault("errors", [])
+                    if "overlapping TV episode interval" not in errors:
+                        errors.append("overlapping TV episode interval")
+                    row["status"] = "blocked"
+                    row["change_kind"] = "blocked"
+                    row["confidence"] = "blocked"
+                    reasons = row.setdefault("confidence_reasons", [])
+                    if "Blocked rows cannot be applied until errors are fixed." not in reasons:
+                        reasons.append("Blocked rows cannot be applied until errors are fixed.")
     return planned

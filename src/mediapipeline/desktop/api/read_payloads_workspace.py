@@ -7,7 +7,7 @@ from mediapipeline.core.maintenance.change_ledger import (
 )
 from mediapipeline.core.rename.policy import rename_cleaning_policy_from_resolved, rename_request_with_cleaning_policy
 
-from .http_helpers import query_json_object, query_value
+from .http_helpers import query_bool, query_json_object, query_value
 from .read_payloads_policy import read_unavailable_payload
 
 
@@ -69,26 +69,18 @@ class LocalApiWorkspaceReadPayloadMixin:
         return self.facade.get_settings_wizard_defaults(resolved)
 
     def _rename_clean_filename_preview_payload(self, query: dict[str, list[str]]) -> dict[str, Any]:
+        resolved = self._resolved()
         staged_policy = any(
             key in query
             for key in (
                 "remove_terms_text",
                 "movie_filter_options",
                 "movie_filter_terms",
-            "tv_remove_terms_text",
-            "tv_filter_options",
-            "tv_filter_terms",
-            "template_preset",
-            "expected_name",
-            "expected_show",
-            "expected_season",
-            "expected_episode",
-            "expected_episode_title",
-            "expected_movie_title",
-            "expected_year",
-            "include_case_analysis",
+                "tv_remove_terms_text",
+                "tv_filter_options",
+                "tv_filter_terms",
+            )
         )
-    )
         request = {
             "filename": query_value(query, "filename", ""),
             "mode": query_value(query, "mode", "movie"),
@@ -112,14 +104,29 @@ class LocalApiWorkspaceReadPayloadMixin:
         if staged_policy:
             request["_rename_movie_filter_policy_source"] = "staged"
         else:
-            resolved = self._resolved()
             request = rename_request_with_cleaning_policy(
                 request,
                 rename_cleaning_policy_from_resolved(resolved),
                 source="saved",
                 strip_existing=True,
             )
-        return self.facade.get_rename_clean_filename_preview(request)
+        production_required = query_bool(query, "include_case_analysis") or any(
+            key in query
+            for key in (
+                "expected_name",
+                "expected_show",
+                "expected_season",
+                "expected_episode",
+                "expected_episode_title",
+                "expected_movie_title",
+                "expected_year",
+            )
+        )
+        return self.facade.get_rename_clean_filename_preview(
+            request,
+            powershell_host=str(getattr(resolved, "powershell_host", "") or "") or None,
+            require_production=production_required,
+        )
 
     def _rename_cleaning_filter_catalog_payload(self) -> dict[str, Any]:
         resolved = self._resolved()

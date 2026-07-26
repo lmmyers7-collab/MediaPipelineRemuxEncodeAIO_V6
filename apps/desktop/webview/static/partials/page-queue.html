@@ -349,8 +349,9 @@
             <button type="button" class="secondary-button" id="queue-priority-promote-movies-btn" title="Promote all loaded Movie rows to High, regardless of display filters or render cap">⬆ All Loaded Movies</button>
             <button type="button" class="secondary-button" id="queue-priority-promote-tv-btn" title="Promote all loaded TV rows to High, regardless of display filters or render cap">⬆ All Loaded TV</button>
             <button type="button" class="secondary-button" id="queue-priority-clear-all-btn" title="Reset all manifest entries to Normal (clear entire manifest)">✕ Clear All</button>
+            <button type="button" class="primary-button" id="queue-priority-export-btn" title="Create a backend-owned Run Once export containing only runnable effective-High queue items">Prepare Priority Run</button>
           </div>
-          <p id="queue-priority-status" class="note">Selected-row priority actions apply only to checked rows. All Loaded Movies and All Loaded TV apply to loaded queue rows regardless of display filters or render cap. They do not define Launch scope. Hold writes a backend queue-state override only; it does not delete or rename files.</p>
+          <p id="queue-priority-status" class="note">Selected-row priority actions apply only to checked rows. All Loaded Movies and All Loaded TV apply to loaded queue rows regardless of display filters or render cap. They do not define Launch scope. Prepare Priority Run asks the backend to export all runnable effective-High items; it never launches processing and does not use visible or selected browser rows.</p>
           <!-- End S60 Priority toolbar -->
           <!-- S70 Queue ordering strategy selector -->
           <div class="table-toolbar queue-strategy-toolbar">
@@ -399,8 +400,8 @@
                   <th scope="col">State</th>
                   <th scope="col">Title</th>
                   <th scope="col">Kind</th>
-                  <th scope="col">Route</th>
-                  <th scope="col">Evidence</th>
+                  <th scope="col">Planned route</th>
+                  <th scope="col">Planned reason</th>
                   <th scope="col">Priority</th>
                   <th scope="col">Override</th>
                   <th scope="col" class="settings-col">File overrides</th>

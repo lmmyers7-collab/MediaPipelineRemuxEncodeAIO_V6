@@ -175,9 +175,8 @@ class FiredRegistry:
             self._entries.clear()
             return
         for key, timestamp in list(self._entries.items()):
-            if now - timestamp <= self.ttl_seconds:
-                break
-            del self._entries[key]
+            if now - timestamp > self.ttl_seconds:
+                del self._entries[key]
 
     def has_fired(self, path: str, stat: FileStat, now: float | None = None) -> bool:
         timestamp = self._clock() if now is None else float(now)

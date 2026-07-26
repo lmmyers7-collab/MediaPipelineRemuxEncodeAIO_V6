@@ -1,0 +1,58 @@
+{
+  "id": "MP-CHANGE-2026-0720-017",
+  "title": "Split launch preflight tests by feature",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "test",
+  "risk_level": "low",
+  "date_started": "2026-07-20",
+  "date_completed": "2026-07-20",
+  "summary": "Split 16 read-only launch-preflight tests into a feature-scoped module, extract narrow shared facade fixtures, and refresh test inventory plus generated feature navigation without changing production behavior.",
+  "reason": "The 4,534-physical-line process-launch test module mixed launch execution, Network lifecycle, rerun recovery, and read-only preflight policy. Moving one behavior-owned tranche makes focused selection and code-context retrieval more obvious while preserving discovery and assertions.",
+  "affected_areas": [
+    "documentation",
+    "generated_docs",
+    "tests"
+  ],
+  "behavior_before": "Launch-preflight coverage was embedded in test_application_facade_process_launch.py, which contained 81 tests and 4,534 physical lines (4,165 by the existing Measure-Object baseline). The committed duplicate report was already stale at 3,531 definitions; the initial live-worktree generator baseline was 3,690 definitions and 9 duplicate bare names.",
+  "behavior_after": "The 16 unchanged launch-preflight test names live in test_application_facade_launch_preflight.py (992 physical / 929 measured lines). The original 81-test name set remains identical across the split cluster, and assertion AST fingerprints for all 16 moved tests are unchanged. Concurrent non-overlapping Network extractions further reduced the live process-launch file and are not attributed to this packet.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/DUPLICATE_TEST_NAMES.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/FILE_SUMMARIES.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/feature-cards/desktop-application.md",
+    "docs/generated/feature-cards/queue-launch.md",
+    "docs/generated/summaries/docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md.md",
+    "docs/generated/summaries/docs/testing/TEST_COVERAGE_MATRIX.md.md",
+    "docs/generated/summaries/tests/python/desktop/application_facade_test_support.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_launch_preflight.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_process_launch.py.md",
+    "docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md",
+    "docs/testing/TEST_COVERAGE_MATRIX.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0720-017.json",
+    "tests/python/desktop/application_facade_test_support.py",
+    "tests/python/desktop/test_application_facade_launch_preflight.py",
+    "tests/python/desktop/test_application_facade_process_launch.py"
+  ],
+  "tests_added": [
+    "No net-new tests: 16 existing launch-preflight tests moved without renaming to tests/python/desktop/test_application_facade_launch_preflight.py."
+  ],
+  "manual_validation": [
+    "Pre-change: bundled Python unittest ran 81 tests in test_application_facade_process_launch and passed.",
+    "Post-change: bundled Python unittest ran 16 focused preflight tests and passed.",
+    "Post-change: bundled Python unittest ran all 81 tests across process launch, preflight, Network lifecycle, and Network rerun launch and passed.",
+    "AST comparison confirmed the original and current 81-test name sets are identical and all 16 moved assertion fingerprints match.",
+    "Ruff passed for the shared support, residual process-launch, and new preflight modules.",
+    "Generated duplicate-name report is current at 3,735 Python test definitions and 9 duplicate bare names; the moved tranche added no duplicate.",
+    "Generated project index/dependency graph and feature map checks passed; queue-launch and desktop-application feature cards select the new module.",
+    "Feature-context, active-doc, summary-integrity, god-file guard, and WebView inventory tests passed.",
+    "Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1 ran 2 tests with no skips and passed its read-only/no-POST boundary.",
+    "Change packet schema validation passed for 1,109 packets. Strict whole-worktree coverage remained red only for 74 unrelated concurrent files; none of this packet's touched files were listed as uncovered."
+  ],
+  "rollback_plan": "Move the 16 methods back into ApplicationFacadeProcessLaunchTests, restore the two tiny fixture builders locally, remove the focused preflight module, then regenerate summaries, project/feature navigation, inventories, and the duplicate-name report.",
+  "related_changes": [],
+  "notes": "Extract narrowly named reusable timestamp and disposable media-file fixtures.\nRemove the launch-preflight behavior group while preserving the remaining launch tests.\nAdd the focused 16-test launch-preflight module with a narrow shared facade builder.\nRecord the oversized-test audit, migration seams, focused selectors, and updated facade inventory.\nMap Queue and Launch preflight evidence to the new focused test module.\nRegenerate the duplicate-name report against the live worktree before and after movement.\nRegenerate the source index so the new preflight module is discoverable.\nRegenerate the machine-readable source index.\nRegenerate test dependency navigation after fixture extraction.\nRegenerate feature navigation after adding the preflight selector.\nRefresh the generated summary catalog.\nExpose the preflight module in desktop-application feature navigation.\nExpose the preflight module in Queue/Launch feature-to-test navigation.\nRefresh shared facade test-support summary.\nRefresh residual process-launch test summary.\nGenerate the focused launch-preflight test summary.\nRefresh test inventory summary.\nRefresh feature-to-test mapping summary.\nConcurrent non-overlapping worktree edits also extracted 18 Network lifecycle/rerun tests and changed repository-wide generated counts; this packet does not claim those source modules or their implementation."
+}

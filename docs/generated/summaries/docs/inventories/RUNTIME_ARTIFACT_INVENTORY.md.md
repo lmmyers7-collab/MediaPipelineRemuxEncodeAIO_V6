@@ -1,14 +1,20 @@
 ---
 file: docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Markdown
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-11
+last_modified: 2026-07-23
 last_reviewed: 2026-06-02
-sha256: d6b69c299315992acf7b2e94b18adf287662a54c4d626de997c11f3414088575
+sha256: 17a6d4067bd4eb8e99423d2dcdaf7f4a80d60253ba30963c60b98cf420c757f8
 ---
 # `docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md`
 
-**Purpose:** (unparsed)
+**Purpose:** Markdown implementation for runtime artifact inventory.
+
+**HTTP routes:** `/api/audit/start`, `/api/backend/lifecycle/reconcile`, `/api/commands`, `/api/diagnostics/encoder-capabilities/refresh`, `/api/diagnostics/open`, `/api/failures/archive-evidence`, `/api/failures/artifacts`, `/api/failures/artifacts/cleanup`, `/api/failures/clear`, `/api/launch/preflight`, `/api/pipeline/control`, `/api/pipeline/start`, `/api/queue/priority-export`, `/api/queue/scan`, `/api/rerun/continue`, `/api/rerun/control`, `/api/rerun/preview`, `/api/rerun/start`, `/api/run-monitor`, `/api/sample-validation/append`, `/api/schedule`, `/api/settings/save-patch`, `/api/settings/workspace`, `/api/ui-preferences`
+**State/config identifiers:** `.config.psd1`, `.manifest.json`, `LifecycleReconciliationPending.json`, `MediaPipeline_config_chatgpt.psd1`, `mediapipeline_state.sqlite3`, `MediaPipelineRemuxEncodeAIO_DesktopApp.state.json`, `pending_drain_summary.json`, `queue_snapshot.json`, `reconciliation-manifest.json`, `state_db_maintenance.json`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md`._

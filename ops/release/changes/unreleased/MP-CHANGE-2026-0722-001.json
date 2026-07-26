@@ -1,0 +1,61 @@
+{
+  "id": "MP-CHANGE-2026-0722-001",
+  "title": "Protect ASS conversion source paths from overwrite",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-22",
+  "date_completed": "2026-07-22",
+  "summary": "Prevent the ASS-to-SRT helper from overwriting its source, summary path, or an existing destination by default.",
+  "reason": "Remediate P1 AUDIT-FIND-W05-001. Current bundled-runtime reproduction proved that the helper's unconditional atomic replace can replace source bytes when an input path is reused as output.",
+  "affected_areas": [
+    "generated-context",
+    "pipeline helper",
+    "source immutability",
+    "source-safety",
+    "subtitles",
+    "validation"
+  ],
+  "behavior_before": "ASS-to-SRT CLI paths were not checked for canonical aliasing, and atomic writes unconditionally replaced any existing target, including the input media path.",
+  "behavior_after": "The CLI rejects canonical aliases among input, SRT output, and summary JSON before extraction; it also rejects existing destinations and atomically publishes new output/summary files without replacement, including race-time collisions.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/feature-cards/queue-launch.md",
+    "docs/generated/feature-cards/webview.md",
+    "docs/generated/summaries/src/mediapipeline/pipeline/ass_to_srt_cli.py.md",
+    "docs/generated/summaries/tests/python/core/subtitles/test_ass_to_srt_helpers.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0722-001.json",
+    "src/mediapipeline/pipeline/ass_to_srt_cli.py",
+    "tests/python/core/subtitles/test_ass_to_srt_helpers.py"
+  ],
+  "tests_added": [
+    "tests/python/core/subtitles/test_ass_to_srt_helpers.py: source/output alias, summary aliases, existing destination, hard-link alias, Windows case variant, symlink capability case, and atomic no-clobber coverage."
+  ],
+  "manual_validation": [
+    "Bundled Python disposable pre-fix reproduction - passed (source_replaced=True, defect confirmed)",
+    "Bundled-Python disposable reproduction before remediation: source_replaced=True.",
+    "Independent black-box CLI subprocess alias probe - passed: exit 2, alias rejected before ffmpeg, source SHA-256 unchanged",
+    "Invoke-SubtitleBuilderDecisionChecks.ps1 - passed",
+    "Invoke-SubtitleLongWorkHeartbeatChecks.ps1 - passed",
+    "ai_guardrail postflight - finding-backed failure only: AUDIT-FIND-COV-001 stale unrelated summaries; AUDIT-FIND-DEP-001 package cycle; AUDIT-FIND-W12-ACTIVE-001 doc reference. Batch-local architecture, naming, lifecycle, config/schema, risky-file registry, and generated indexes passed.",
+    "generate_feature_file_map --check - passed",
+    "generate_lifecycle_map --check - passed",
+    "generate_project_index --check - passed",
+    "pytest risky-file/lifecycle-map/AI-guardrail/summary-integrity set - passed: 33 tests, 57 subtests",
+    "python -m py_compile src/mediapipeline/pipeline/ass_to_srt_cli.py - passed",
+    "python -m pytest tests/python/core/subtitles -q - passed: 22 passed, 1 skipped (symlink creation unavailable)",
+    "python -m pytest tests/python/core/subtitles/test_ass_to_srt_helpers.py -q (red selection) - expected failure: 5 failed, 1 skipped before fix",
+    "python -m ruff check changed Python files - passed",
+    "refresh_summaries --changed - passed: 2 summaries written",
+    "validate_changes --require-worktree-coverage - passed: 1116 packets valid before completion"
+  ],
+  "rollback_plan": "Revert the ASS helper and focused regression-test changes, refresh its generated summary, and retain this packet as incomplete evidence if rollback occurs.",
+  "related_changes": [
+    "AUDIT-FIND-W05-001"
+  ],
+  "notes": "Finding disposition before remediation: confirmed. Linked audit errors were reviewed and are retained immutable historical evidence. Invariant: source inputs must never be overwritten. Required validation: bundled-Python path/CLI tests, ASS helper suite, subtitle conversion checks, summary refresh, and strict packet coverage. Representative real media is not required by the finding; only disposable fixtures are authorized for this batch. The related P3 AUDIT-FIND-W05-009 is a separate scratch-stage race and is not included. Python impact: yes; one existing Python CLI helper will gain validation and no-clobber commit behavior.\nAUDIT-FIND-W05-001 red state: five safety cases failed before implementation; symlink case skipped because Windows symlink creation was unavailable. Hard-link and Windows case-variant alias coverage executed.\nRepository-required project-index and feature-map regeneration updated six derived artifacts. The deterministic rebuild also incorporated pre-existing clean-HEAD catalog drift (including MP-CHANGE-2026-0720-031 and previously unindexed queue/WebView tests); no product behavior in those domains changed.\nP1 independent validation used a separate black-box child-process probe because no subagent was requested. Security/path review confirmed no overwrite option, no source mutation, no protected-boundary relaxation, and fail-closed collision behavior."
+}

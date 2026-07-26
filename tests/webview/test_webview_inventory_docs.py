@@ -1,24 +1,19 @@
 from __future__ import annotations
 
 import re
-import sys
 import unittest
 from pathlib import Path
 
+from mediapipeline.tools.dev import generate_webview_inventory_docs
 from mediapipeline.tools.paths import find_repo_root
 
-sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
-
-from mediapipeline.desktop.api.static_files import render_index
 
 REPO_ROOT = find_repo_root(Path(__file__))
 WEBVIEW_ROOT = REPO_ROOT / "apps" / "desktop" / "webview" / "static"
-INDEX_HTML = WEBVIEW_ROOT / "index.html"
 ASSETS_ROOT = WEBVIEW_ROOT / "assets"
 DOM_INVENTORY = REPO_ROOT / "docs" / "inventories" / "WEBVIEW_DOM_ID_INVENTORY.md"
 GLOBAL_EXPORT_INVENTORY = REPO_ROOT / "docs" / "inventories" / "WEBVIEW_GLOBAL_EXPORT_INVENTORY.md"
 
-WINDOW_ASSIGNMENT_RE = re.compile(r"\bwindow\.([A-Za-z_$][\w$]*)\s*=(?!=)")
 NAMESPACE_OBJECT_RE = re.compile(
     r"(?P<doc>/\*\*.*?\*/)\s*window\.(?P<name>mediaPipeline[A-Za-z_$][\w$]*)\s*=\s*\{",
     flags=re.DOTALL,
@@ -32,153 +27,155 @@ def _extract_block(text: str, begin: str, end: str) -> str:
     return text[start:stop]
 
 
-def _manifest_lines(text: str, begin: str, end: str) -> list[str]:
-    block = _extract_block(text, begin, end)
-    return [
-        line.strip()
-        for line in block.splitlines()
-        if line.strip() and not line.strip().startswith("```")
-    ]
+def _lines(block: str) -> list[str]:
+    return [line.strip() for line in block.splitlines() if line.strip()]
 
 
-def _dom_ids_from_html() -> list[str]:
-    response = render_index(
-        WEBVIEW_ROOT,
-        {"token": "inventory-test-token", "appVersion": "v5-test", "shellSurface": "webview"},
+def _generated_dom_manifest(text: str) -> dict[str, dict[str, object]]:
+    block = _extract_block(
+        text,
+        "<!-- BEGIN GENERATED DOM ID MANIFEST -->",
+        "<!-- END GENERATED DOM ID MANIFEST -->",
     )
-    if response.status != 200:
-        raise AssertionError(f"index render failed with status {response.status}: {response.body!r}")
-    text = response.body.decode("utf-8")
-    return [match.group(2) for match in re.finditer(r"\bid=(['\"])(.*?)\1", text)]
-
-
-def _window_exports_by_file() -> dict[str, dict[str, list[str]]]:
-    exports: dict[str, dict[str, list[str]]] = {}
-    for script in sorted(ASSETS_ROOT.glob("*.js")):
-        names = WINDOW_ASSIGNMENT_RE.findall(script.read_text(encoding="utf-8"))
-        exports[script.name] = {
-            "namespace": [name for name in names if name.startswith("mediaPipeline")],
-            "flat": [name for name in names if not name.startswith("mediaPipeline")],
+    manifest: dict[str, dict[str, object]] = {}
+    section_re = re.compile(
+        r"^### `(?P<surface>[^`]+)`\n\n"
+        r"Source: `(?P<source>[^`]+)`\n\n"
+        r"Count: (?P<count>\d+)\n\n"
+        r"```text\n(?P<ids>.*?)```",
+        flags=re.MULTILINE | re.DOTALL,
+    )
+    for match in section_re.finditer(block):
+        ids = _lines(match.group("ids"))
+        if int(match.group("count")) != len(ids):
+            raise AssertionError(f"{match.group('surface')} manifest count does not match its ID block")
+        manifest[match.group("surface")] = {
+            "source": match.group("source"),
+            "ids": ids,
         }
-    return exports
+    return manifest
 
 
-def _namespace_object_docs_by_file() -> dict[str, dict[str, str]]:
-    docs: dict[str, dict[str, str]] = {}
-    for script in sorted(ASSETS_ROOT.glob("*.js")):
-        text = script.read_text(encoding="utf-8")
-        docs[script.name] = {
-            match.group("name"): match.group("doc")
-            for match in NAMESPACE_OBJECT_RE.finditer(text)
-        }
-    return docs
-
-
-def _module_table_flat_counts(text: str) -> dict[str, int]:
-    table = _extract_block(text, "## Module Inventory", "---\n\n## Backend-Injected Globals")
-    counts: dict[str, int] = {}
-    for line in table.splitlines():
-        if not line.startswith("| `"):
-            continue
-        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-        if len(cells) < 4 or not cells[0].endswith(".js`"):
-            continue
-        counts[cells[0].strip("`")] = int(cells[2])
-    return counts
-
-
-def _generated_export_manifest(text: str) -> dict[str, dict[str, list[str]]]:
+def _generated_export_manifest(text: str) -> dict[str, dict[str, object]]:
     block = _extract_block(
         text,
         "<!-- BEGIN GENERATED WEBVIEW GLOBAL EXPORT MANIFEST -->",
         "<!-- END GENERATED WEBVIEW GLOBAL EXPORT MANIFEST -->",
     )
-    manifest: dict[str, dict[str, list[str]]] = {}
+    manifest: dict[str, dict[str, object]] = {}
     section_re = re.compile(
-        r"^### (?P<file>[^\n]+)\n\n"
-        r"Namespace objects: (?P<namespace>[^\n]*)\n\n"
-        r"Flat exports \((?P<count>\d+)\):\n"
+        r"^### `(?P<file>[^`]+)`\n\n"
+        r"Surfaces: (?P<surfaces>[^\n]+)\n\n"
+        r"Namespace assignments \((?P<namespace_count>\d+)\):\n"
+        r"```text\n(?P<namespace>.*?)```\n\n"
+        r"Flat exports \((?P<flat_count>\d+)\):\n"
         r"```text\n(?P<flat>.*?)```",
         flags=re.MULTILINE | re.DOTALL,
     )
     for match in section_re.finditer(block):
-        namespace_text = match.group("namespace").strip()
-        flat_exports = [
-            line.strip()
-            for line in match.group("flat").splitlines()
-            if line.strip()
-        ]
-        manifest[match.group("file").strip()] = {
-            "namespace": [] if namespace_text == "none" else [item.strip() for item in namespace_text.split(",")],
-            "flat": flat_exports,
+        namespace = _lines(match.group("namespace"))
+        flat = _lines(match.group("flat"))
+        if int(match.group("namespace_count")) != len(namespace):
+            raise AssertionError(f"{match.group('file')} namespace count does not match its block")
+        if int(match.group("flat_count")) != len(flat):
+            raise AssertionError(f"{match.group('file')} flat count does not match its block")
+        manifest[match.group("file")] = {
+            "surfaces": re.findall(r"`([^`]+)`", match.group("surfaces")),
+            "namespace": namespace,
+            "flat": flat,
         }
-        assert int(match.group("count")) == len(flat_exports)
     return manifest
 
 
 class WebViewInventoryDocsTests(unittest.TestCase):
-    def test_dom_inventory_manifest_matches_index_html(self) -> None:
-        ids = _dom_ids_from_html()
-        unique_ids = sorted(set(ids))
-        doc = DOM_INVENTORY.read_text(encoding="utf-8")
-        header_count = int(re.search(r"Total unique element IDs:\s*(\d+)", doc).group(1))
-        manifest_count = int(re.search(r"Machine-Generated Full DOM ID Manifest.*?\nCount:\s*(\d+)", doc, flags=re.DOTALL).group(1))
-        manifest_ids = _manifest_lines(
-            doc,
-            "<!-- BEGIN GENERATED DOM ID MANIFEST -->",
-            "<!-- END GENERATED DOM ID MANIFEST -->",
+    def test_generated_inventory_documents_are_current(self) -> None:
+        self.assertEqual(
+            DOM_INVENTORY.read_text(encoding="utf-8"),
+            generate_webview_inventory_docs.render_dom_inventory(REPO_ROOT),
+        )
+        self.assertEqual(
+            GLOBAL_EXPORT_INVENTORY.read_text(encoding="utf-8"),
+            generate_webview_inventory_docs.render_global_export_inventory(REPO_ROOT),
         )
 
-        self.assertEqual(len(ids), len(unique_ids), "index.html must not contain duplicate DOM IDs")
-        self.assertEqual(header_count, len(unique_ids))
-        self.assertEqual(manifest_count, len(unique_ids))
-        self.assertEqual(manifest_ids, unique_ids)
-
-    def test_global_export_inventory_summary_and_table_match_assets(self) -> None:
-        exports = _window_exports_by_file()
-        doc = GLOBAL_EXPORT_INVENTORY.read_text(encoding="utf-8")
-        table_counts = _module_table_flat_counts(doc)
-        expected_counts = {file_name: len(values["flat"]) for file_name, values in exports.items()}
-        namespace_files = sum(1 for values in exports.values() if values["namespace"])
-        flat_files = sum(1 for values in exports.values() if values["flat"])
-        flat_total = sum(expected_counts.values())
-
-        self.assertEqual(table_counts, expected_counts)
-        self.assertIn(f"**{len(exports)} JS files** total in `assets/`", doc)
-        self.assertIn(f"**{namespace_files} files** export a primary namespace object", doc)
-        self.assertIn(f"**{flat_files} files** also export flat functions directly onto `window`", doc)
-        self.assertIn(f"**Flat export total:** {flat_total}", doc)
-
-    def test_generated_global_export_manifest_matches_assets(self) -> None:
-        exports = _window_exports_by_file()
-        doc = GLOBAL_EXPORT_INVENTORY.read_text(encoding="utf-8")
-        manifest = _generated_export_manifest(doc)
+    def test_dom_inventory_represents_every_main_and_auxiliary_surface(self) -> None:
+        surfaces = generate_webview_inventory_docs.discover_frontend_surfaces(REPO_ROOT)
+        manifest = _generated_dom_manifest(DOM_INVENTORY.read_text(encoding="utf-8"))
         expected = {
-            file_name: {
-                "namespace": values["namespace"],
-                "flat": values["flat"],
-            }
-            for file_name, values in exports.items()
+            surface.key: {"source": surface.source_path, "ids": sorted(surface.ids)}
+            for surface in surfaces
         }
 
         self.assertEqual(manifest, expected)
-        self.assertNotIn("Latest addendum:", doc)
-        self.assertIn("Historical dated reviews below are retained for audit context", doc)
+        self.assertEqual(surfaces[0].key, "main")
+        self.assertTrue(any(surface.render_mode == "standalone auxiliary document" for surface in surfaces))
+        for surface in surfaces:
+            with self.subTest(surface=surface.key):
+                self.assertEqual(
+                    len(surface.ids),
+                    len(set(surface.ids)),
+                    f"{surface.key} must not contain duplicate DOM IDs",
+                )
 
-    def test_webview_namespace_object_exports_have_boundary_jsdoc(self) -> None:
-        documented = _namespace_object_docs_by_file()
+    def test_dom_summary_count_drift_is_rewritten_by_generator(self) -> None:
+        current = DOM_INVENTORY.read_text(encoding="utf-8")
+        stale = re.sub(
+            r"Total document-scoped element IDs: \*\*\d+\*\*",
+            "Total document-scoped element IDs: **0**",
+            current,
+            count=1,
+        )
+        self.assertNotEqual(stale, current)
+        self.assertEqual(generate_webview_inventory_docs.render_dom_inventory(REPO_ROOT, stale), current)
+
+    def test_recursive_global_export_manifest_matches_every_reachable_script(self) -> None:
+        surfaces = generate_webview_inventory_docs.discover_frontend_surfaces(REPO_ROOT)
+        exports = generate_webview_inventory_docs.collect_script_exports(surfaces, REPO_ROOT)
+        manifest = _generated_export_manifest(GLOBAL_EXPORT_INVENTORY.read_text(encoding="utf-8"))
+        expected = {
+            entry.path: {
+                "surfaces": list(entry.surfaces),
+                "namespace": list(entry.namespace),
+                "flat": list(entry.flat),
+            }
+            for entry in exports
+        }
+
+        self.assertEqual(manifest, expected)
+        self.assertEqual(
+            set(manifest),
+            {path.relative_to(ASSETS_ROOT).as_posix() for path in ASSETS_ROOT.rglob("*.js")},
+        )
+        self.assertTrue(any("/" in path for path in manifest), "nested asset scripts must be explicit")
+        self.assertTrue(all(values["surfaces"] for values in manifest.values()))
+
+    def test_global_export_summary_count_drift_is_rewritten_by_generator(self) -> None:
+        current = GLOBAL_EXPORT_INVENTORY.read_text(encoding="utf-8")
+        stale = re.sub(r"\*\*\d+ reachable JS files\*\*", "**0 reachable JS files**", current, count=1)
+        self.assertNotEqual(stale, current)
+        self.assertEqual(generate_webview_inventory_docs.render_global_export_inventory(REPO_ROOT, stale), current)
+
+    def test_root_webview_namespace_object_exports_have_boundary_jsdoc(self) -> None:
         for script in sorted(ASSETS_ROOT.glob("*.js")):
             text = script.read_text(encoding="utf-8")
             namespace_assignments = NAMESPACE_OBJECT_ASSIGNMENT_RE.findall(text)
+            documented = {
+                match.group("name"): match.group("doc")
+                for match in NAMESPACE_OBJECT_RE.finditer(text)
+            }
             with self.subTest(script=script.name):
                 self.assertEqual(
-                    sorted(documented.get(script.name, {})),
+                    sorted(documented),
                     sorted(namespace_assignments),
-                    f"{script.name} has undocumented mediaPipeline namespace object exports",
+                    f"{script.name} has undocumented root namespace object exports",
                 )
-                for name, doc in documented.get(script.name, {}).items():
+                for name, doc in documented.items():
                     self.assertIn("Public namespace", doc, f"{script.name} {name} missing public namespace wording")
-                    self.assertIn("flat window.* exports", doc, f"{script.name} {name} missing compatibility-export boundary")
+                    self.assertIn(
+                        "flat window.* exports",
+                        doc,
+                        f"{script.name} {name} missing compatibility-export boundary",
+                    )
 
     def test_queue_scan_helpers_are_namespace_only(self) -> None:
         source = (ASSETS_ROOT / "queueView.js").read_text(encoding="utf-8")

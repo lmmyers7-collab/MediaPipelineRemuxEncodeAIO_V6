@@ -50,6 +50,10 @@ from mediapipeline.core.processes.rerun_state_correlation import (
     build_rerun_state_correlation,
     rerun_state_path_key,
 )
+from mediapipeline.core.processes.source_probe import (
+    run_source_probe,
+    source_content_hash_timeout_seconds,
+)
 
 
 RERUN_CSV_PREVIEW_SCHEMA_VERSION = "desktop_rerun_csv_preview.v1"
@@ -171,6 +175,85 @@ def _network_destination_policy(row: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _network_source_content_hash(row: Mapping[str, Any], *, required: bool) -> dict[str, Any]:
+    source_path = _clean_text(row.get("source_path"))
+    planned_digest = _clean_text(row.get("source_content_sha256")).casefold()
+    planned_algorithm = _clean_text(row.get("source_content_sha256_algorithm")).casefold()
+    planned_digest_valid = (
+        len(planned_digest) == 64
+        and all(character in "0123456789abcdef" for character in planned_digest)
+        and planned_algorithm == "sha256-full-file"
+    )
+    if not required:
+        return {
+            "status": "not_required",
+            "ready": False,
+            "source_content_sha256": "",
+            "algorithm": "sha256-full-file",
+            "error": "",
+        }
+    if not source_path:
+        return {
+            "status": "unavailable",
+            "ready": False,
+            "source_content_sha256": "",
+            "algorithm": "sha256-full-file",
+            "error": "source path is missing",
+        }
+    try:
+        size_bytes = max(0, int(row.get("source_size") or 0))
+    except (TypeError, ValueError):
+        size_bytes = 0
+    try:
+        result = run_source_probe(
+            "sha256",
+            Path(source_path),
+            timeout_seconds=source_content_hash_timeout_seconds(size_bytes),
+        )
+        digest = _clean_text(result.get("digest"))
+        if not digest:
+            raise OSError("full source hash probe returned no digest")
+    except (FileNotFoundError, PermissionError, TimeoutError, OSError) as exc:
+        if planned_digest_valid:
+            return {
+                "status": "planned_baseline_unverified",
+                "ready": True,
+                "source_content_sha256": planned_digest,
+                "algorithm": "sha256-full-file",
+                "degraded": True,
+                "provenance": "planned_existing_baseline",
+                "probe_failure_reason": str(exc),
+                "error": str(exc),
+            }
+        return {
+            "status": "unavailable",
+            "ready": False,
+            "source_content_sha256": "",
+            "algorithm": "sha256-full-file",
+            "error": str(exc),
+        }
+    if planned_digest_valid and planned_digest != digest.casefold():
+        return {
+            "status": "mismatch",
+            "ready": False,
+            "source_content_sha256": planned_digest,
+            "observed_source_content_sha256": digest.casefold(),
+            "algorithm": "sha256-full-file",
+            "provenance": "planned_existing_baseline",
+            "error": "current source content does not match the planned full SHA-256 baseline",
+        }
+    return {
+        "status": "verified_existing" if planned_digest_valid else "captured",
+        "ready": True,
+        "source_content_sha256": digest,
+        "algorithm": "sha256-full-file",
+        "provenance": (
+            "planned_existing_baseline" if planned_digest_valid else "network_preview_capture"
+        ),
+        "error": "",
+    }
+
+
 def _network_preview_row(
     csv_path: str,
     resolved: ResolvedPaths,
@@ -197,11 +280,14 @@ def _network_preview_row(
     if source_mapping.get("ready") is not True:
         claim_blockers.append("source_mapping_not_ready")
     claimable = local_status in {"ready", "warning"} and not skipped and source_mapping.get("ready") is True
+    source_content_hash = _network_source_content_hash(row, required=claimable)
     start_blockers = list(claim_blockers)
     if output_handoff.get("ready") is not True:
         start_blockers.extend(str(item) for item in output_handoff.get("blockers") or [])
         if not output_handoff.get("blockers"):
             start_blockers.append("output_handoff_not_ready")
+    if claimable and source_content_hash.get("ready") is not True:
+        start_blockers.append("source_content_sha256_unavailable")
     return {
         "schema_version": RERUN_NETWORK_CSV_PREVIEW_ROW_SCHEMA_VERSION,
         "row_key": row_key,
@@ -211,7 +297,11 @@ def _network_preview_row(
         "in_scope": in_scope,
         "local_preview_status": local_status,
         "claimable": claimable,
-        "start_ready": claimable and output_handoff.get("ready") is True,
+        "start_ready": (
+            claimable
+            and output_handoff.get("ready") is True
+            and source_content_hash.get("ready") is True
+        ),
         "blocked": blocked,
         "skipped": skipped,
         "duplicate": duplicate_source or duplicate_planned,
@@ -240,6 +330,9 @@ def _network_preview_row(
         "source_mtime_utc": _clean_text(row.get("source_mtime_utc")),
         "source_identity_v2": _clean_text(row.get("source_identity_v2")),
         "source_identity_v2_algorithm": _clean_text(row.get("source_identity_v2_algorithm")),
+        "source_content_sha256": _clean_text(source_content_hash.get("source_content_sha256")),
+        "source_content_sha256_algorithm": _clean_text(source_content_hash.get("algorithm")),
+        "source_content_hash_evidence": source_content_hash,
         "media_kind": _clean_text(row.get("media_kind")),
         "audit_issue_codes": _clean_text(row.get("audit_issue_codes")),
         "final_output_path": _clean_text(row.get("final_output_path")),
@@ -280,6 +373,17 @@ def rerun_network_csv_preview_payload(
         if (row.get("destination_policy") or {}).get("status") in {"review", "blocked"}
     )
     output_handoff_ready_rows = sum(1 for row in rows if (row.get("output_handoff") or {}).get("ready") is True)
+    source_content_sha256_ready_rows = sum(
+        1
+        for row in rows
+        if (row.get("source_content_hash_evidence") or {}).get("ready") is True
+    )
+    source_content_sha256_unavailable_rows = sum(
+        1
+        for row in rows
+        if row.get("claimable") is True
+        and (row.get("source_content_hash_evidence") or {}).get("ready") is not True
+    )
     status = "blocked" if local_preview.get("status") == "blocked" else "ready" if start_ready_rows else "review"
     warnings = [str(item) for item in local_preview.get("warnings") or []]
     if claimable_rows and output_handoff_ready_rows < claimable_rows:
@@ -292,7 +396,13 @@ def rerun_network_csv_preview_payload(
     if claimable_rows <= 0:
         start_blockers.append("network_preview_has_no_claimable_rows")
     if start_ready_rows < claimable_rows:
-        start_blockers.append("network_rerun_handoff_not_ready")
+        if output_handoff_ready_rows < claimable_rows:
+            start_blockers.append("network_rerun_handoff_not_ready")
+        if source_content_sha256_unavailable_rows:
+            start_blockers.append("source_content_sha256_unavailable")
+            warnings.append(
+                "Network CSV rerun start is review-only because a full planned source hash could not be captured."
+            )
     return {
         "ok": bool(local_preview.get("ok")) and claimable_rows > 0,
         "command": RERUN_NETWORK_PREVIEW_COMMAND,
@@ -321,6 +431,8 @@ def rerun_network_csv_preview_payload(
             "source_mapping_path_map_required_rows": source_mapping_path_map_required_rows,
             "output_handoff_ready_rows": output_handoff_ready_rows,
             "destination_policy_risk_rows": destination_policy_risk_rows,
+            "source_content_sha256_ready_rows": source_content_sha256_ready_rows,
+            "source_content_sha256_unavailable_rows": source_content_sha256_unavailable_rows,
         },
         "rows": rows,
         "output_handoff": handoff_root,

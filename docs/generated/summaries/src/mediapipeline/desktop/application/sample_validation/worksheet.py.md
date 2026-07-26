@@ -1,5 +1,8 @@
 ---
 file: src/mediapipeline/desktop/application/sample_validation/worksheet.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: sample_validation
@@ -9,7 +12,7 @@ sha256: b5f4c3fdd5c9ad5fd721e6e3c3f64ed2da351736be6584b8c12392e0789bd1fe
 ---
 # `src/mediapipeline/desktop/application/sample_validation/worksheet.py`
 
-**Purpose:** (no module docstring)
+**Purpose:** Python implementation for worksheet.
 
 **In-repo imports:** `mediapipeline.core.sample_validation.worksheet`
 

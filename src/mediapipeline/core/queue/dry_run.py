@@ -16,9 +16,10 @@ def build_queue_dry_run_command(
     *,
     temp_snapshot_path: Path,
     powershell_host: str | None = None,
+    priority_only: bool = False,
 ) -> list[str]:
     pwsh = powershell_host or resolved.powershell_host or "pwsh"
-    return [
+    command = [
         pwsh,
         "-NoProfile",
         "-NonInteractive",
@@ -30,6 +31,9 @@ def build_queue_dry_run_command(
         "-ConfigPath",
         str(resolved.config_path),
     ]
+    if priority_only:
+        command.append("-PriorityOnly")
+    return command
 
 
 def queue_snapshot_file_is_fresh(

@@ -54,18 +54,45 @@ def _browser_large_table_runner_source() -> str:
           (async () => {
             const posts = [];
             const priorityPosts = [];
+            const scanPosts = [];
+            const strategyGets = [];
+            const strategyPosts = [];
+            let savedQueueStrategy = "Standard";
+            let rejectNextStrategy = false;
             const priorityConfirmMessages = [];
             const priorityConfirmResponses = [];
             window.confirm = (message) => {
               priorityConfirmMessages.push(String(message || ""));
               return priorityConfirmResponses.length ? priorityConfirmResponses.shift() : true;
             };
+            const originalApiGet = window.mediaPipelineApi.apiGet;
+            window.mediaPipelineApi.apiGet = async (path, options) => {
+              const route = String(path || "");
+              if (route === "/api/queue/strategy") {
+                strategyGets.push(route);
+                return { strategy: savedQueueStrategy, source: "state_file" };
+              }
+              return originalApiGet(path, options);
+            };
             window.mediaPipelineApi.apiPost = async (path, body) => {
               const route = String(path || "");
               posts.push(route);
+              if (route === "/api/queue/strategy") {
+                strategyPosts.push({ url: route, body: body || {} });
+                if (rejectNextStrategy) {
+                  rejectNextStrategy = false;
+                  return { command: "queue.strategy", ok: false, message: "mocked strategy rejection" };
+                }
+                savedQueueStrategy = String(body?.strategy || "Standard");
+                return { command: "queue.strategy", ok: true, data: { strategy: savedQueueStrategy } };
+              }
               if (route === "/api/queue/priority") {
                 priorityPosts.push({ url: route, body: body || {} });
                 return { command: "queue.priority", ok: true, data: { count: (body?.items || []).length } };
+              }
+              if (route === "/api/queue/scan") {
+                scanPosts.push({ url: route, body: body || {} });
+                return { command: "queue.scan", ok: true, message: "mocked Queue preview accepted" };
               }
               return { ok: false, message: "large-table smoke blocks mutation posts", request: body || {} };
             };
@@ -77,6 +104,19 @@ def _browser_large_table_runner_source() -> str:
               node.value = value;
               node.dispatchEvent(new Event("input", { bubbles: true }));
               node.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+            async function waitFor(condition, label, timeoutMs = 3000) {
+              const deadline = Date.now() + timeoutMs;
+              let lastError = null;
+              while (Date.now() < deadline) {
+                try {
+                  if (condition()) return;
+                } catch (error) {
+                  lastError = error;
+                }
+                await new Promise((resolve) => setTimeout(resolve, 25));
+              }
+              throw new Error("timed out waiting for " + label + (lastError ? ": " + lastError.message : ""));
             }
             function pressShortcut(key) {
               const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
@@ -124,6 +164,20 @@ def _browser_large_table_runner_source() -> str:
             function requireRenderedRows(selector, expected) {
               const count = document.querySelectorAll(selector).length;
               if (count !== expected) throw new Error(selector + " expected " + expected + " rendered rows, got " + count);
+            }
+            function requireQueueRovingTabStops(expectedRowKey) {
+              const rows = Array.from(document.querySelectorAll('#queue-rows tr[data-selectable-row="true"]'));
+              const rowStops = rows.filter((row) => row.tabIndex === 0);
+              const actions = Array.from(document.querySelectorAll('#queue-rows [data-queue-row-action="file-overrides"]'));
+              const actionStops = actions.filter((action) => action.tabIndex === 0);
+              if (rowStops.length !== 1) throw new Error("Queue must expose one roving row Tab stop, got " + rowStops.length);
+              if (actionStops.length !== 1) throw new Error("Queue must expose one selected-row File overrides Tab stop, got " + actionStops.length);
+              if (actions.some((action) => action !== actionStops[0] && action.tabIndex !== -1)) {
+                throw new Error("A non-selected Queue row action remained in the Tab order.");
+              }
+              if (expectedRowKey && (rowStops[0].dataset.rowKey !== expectedRowKey || actionStops[0].closest("tr")?.dataset.rowKey !== expectedRowKey)) {
+                throw new Error("Queue roving row/action Tab stops did not follow selected row " + expectedRowKey);
+              }
             }
             function enhancedTableState(tbodyId) {
               const tbody = byId(tbodyId);
@@ -247,7 +301,9 @@ def _browser_large_table_runner_source() -> str:
             // This smoke owns synthetic table payloads. Disable page-navigation
             // refreshes before any shortcut can start a competing Local API read.
             const originalRefreshAll = window.refreshAll;
-            window.refreshAll = async () => {};
+            window.refreshAll = async (options = {}) => {
+              if (options?.queueRefresh) window.renderQueue(queuePayload);
+            };
 
             const queueRows = Array.from({ length: 260 }, (_value, index) => {
               const label = "Large Queue " + pad(index);
@@ -354,6 +410,7 @@ def _browser_large_table_runner_source() -> str:
               throw new Error("Excluded source cell did not use path-cell styling");
             }
             requireRenderedRows("#queue-rows tr[data-row-key]", 250);
+            requireQueueRovingTabStops("queue-large-001");
             requireText("queue-table-page-status", ["Rows 1-250 of 260", "Page 1 of 2", "Display paging does not change backend Launch scope"]);
             if (!byId("queue-page-prev-btn").disabled) throw new Error("previous queue page button should start disabled");
             if (byId("queue-page-next-btn").disabled) throw new Error("next queue page button should be enabled for 260 filtered rows");
@@ -370,6 +427,40 @@ def _browser_large_table_runner_source() -> str:
             requireText("queue-status", ["250 shown / 260 filtered / 260 rows"]);
             requireText("queue-table-page-status", ["Rows 1-250 of 260", "Page 1 of 2"]);
             requireRenderedRows("#queue-rows tr[data-row-key]", 250);
+            window.__mediaPipelineBrowserSmokeMaskGlobal("updateQueueManualOrderControls");
+            const supportedStrategies = ["Standard", "FreshestFirst", "ShowComplete", "RoundRobin", "DeadlineAware", "SmallFirst", "LargeFirst", "ManualOrder"];
+            const strategyGetStart = strategyGets.length;
+            for (const strategy of supportedStrategies) {
+              const expectedPosts = strategyPosts.length + 1;
+              setValue("queue-strategy-select", strategy);
+              click("#queue-strategy-apply-btn", "apply queue strategy " + strategy);
+              await waitFor(() => strategyPosts.length === expectedPosts, "queue strategy POST for " + strategy);
+              await new Promise((resolve) => setTimeout(resolve, 0));
+              requireText("queue-strategy-status", ["Active strategy: " + strategy + " (saved)."]);
+              if (byId("queue-strategy-select").value !== strategy) {
+                throw new Error("queue strategy selector did not retain backend-confirmed " + strategy);
+              }
+              const submitted = strategyPosts[strategyPosts.length - 1];
+              if (submitted.url !== "/api/queue/strategy" || submitted.body?.strategy !== strategy) {
+                throw new Error("queue strategy POST mismatch: " + JSON.stringify(submitted));
+              }
+            }
+            if (strategyPosts.length !== supportedStrategies.length) {
+              throw new Error("queue strategy Apply should POST exactly once per supported strategy: " + JSON.stringify(strategyPosts));
+            }
+            if ((strategyGets.length - strategyGetStart) < supportedStrategies.length) {
+              throw new Error("queue strategy Apply did not reload every backend-confirmed strategy: " + JSON.stringify(strategyGets));
+            }
+            rejectNextStrategy = true;
+            const failedStrategyPostCount = strategyPosts.length + 1;
+            setValue("queue-strategy-select", "Standard");
+            click("#queue-strategy-apply-btn", "apply rejected queue strategy");
+            await waitFor(() => strategyPosts.length === failedStrategyPostCount, "rejected queue strategy POST");
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            requireText("queue-strategy-status", ["Error: mocked strategy rejection", 'Selector reset to active strategy "ManualOrder".']);
+            if (byId("queue-strategy-select").value !== "ManualOrder") {
+              throw new Error("rejected queue strategy did not reset to backend-confirmed ManualOrder");
+            }
             setValue("queue-strategy-select", "ManualOrder");
             clickRowContaining("#queue-rows tr[data-row-key]", "Large Queue 001");
             const manualPostStart = priorityPosts.length;
@@ -419,6 +510,7 @@ def _browser_large_table_runner_source() -> str:
             window.renderQueue(queuePayload);
             await requireTableScrollPreservedOnRender("[data-page-panel=\\"queue\\"] .queue-table-wrap", "queue table", () => window.renderQueue(queuePayload));
             requireQueueScrollPreservedOnSelection("Large Queue 240");
+            requireQueueRovingTabStops("queue-large-240");
             requireText("queue-detail", ["Queue selected-row detail:", "Large Queue 240", "Mutation guardrail"]);
             setValue("queue-filter", "Large Queue 001");
             window.mediaPipelineQueueView.renderQueueRows();
@@ -881,6 +973,9 @@ def _browser_large_table_runner_source() -> str:
               pendingStatus: text("pending-status"),
               posts,
               priorityPosts,
+              scanPosts,
+              strategyGets,
+              strategyPosts,
               priorityConfirmMessages,
             };
           })()
@@ -1023,8 +1118,16 @@ class WebViewBrowserLargeTableSmoke(unittest.TestCase):
         self.assertEqual(browser_result["completedStatus"], "1 missing from expected destination / 250 shown / 259 filtered / 259 rows")
         self.assertEqual(browser_result["pendingStatus"], "250 shown / 260 filtered / 260 rows")
         command_posts = [path for path in browser_result["posts"] if path != "/api/ui-preferences"]
-        self.assertEqual(command_posts, ["/api/queue/priority", "/api/queue/priority", "/api/queue/priority", "/api/queue/priority"])
+        self.assertEqual(command_posts.count("/api/queue/strategy"), 9)
+        self.assertEqual(command_posts.count("/api/queue/priority"), 4)
+        self.assertEqual(command_posts.count("/api/queue/scan"), 12)
+        self.assertEqual(len(command_posts), 25)
+        self.assertEqual(
+            [entry["body"]["strategy"] for entry in browser_result["strategyPosts"]],
+            ["Standard", "FreshestFirst", "ShowComplete", "RoundRobin", "DeadlineAware", "SmallFirst", "LargeFirst", "ManualOrder", "Standard"],
+        )
         self.assertEqual(len(browser_result["priorityPosts"]), 4)
+        self.assertEqual(len(browser_result["scanPosts"]), 12)
         self.assertEqual(len(browser_result["priorityPosts"][0]["body"]["items"]), 260)
         self.assertEqual(len(browser_result["priorityPosts"][1]["body"]["items"]), 87)
         self.assertEqual(len(browser_result["priorityPosts"][2]["body"]["items"]), 87)

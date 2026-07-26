@@ -142,7 +142,7 @@
       });
     }
 
-    async function requestPipelineControl(action) {
+    async function requestPipelineControl(action, sourceButton = null) {
       const normalized = String(action || "").trim().toLowerCase();
       if (rejectControlCommandWhileBusy(normalized || "unknown")) return;
       if (!normalized) {
@@ -151,6 +151,21 @@
           ok: false,
           severity: "error",
           message: "No pipeline control action was selected.",
+        };
+        appendCommandResult(result);
+        setPipelineControlMessage(result.message);
+        return;
+      }
+      const monitorOwnedStop = normalized === "stop" && sourceButton?.dataset?.controlOwner === "run-monitor";
+      const expectedRunId = monitorOwnedStop
+        ? String(window.mediaPipelineRunMonitor?.getPayload?.()?.run?.run_id || "").trim()
+        : "";
+      if (monitorOwnedStop && !expectedRunId) {
+        const result = {
+          command: "pipeline.control.stop",
+          ok: false,
+          severity: "error",
+          message: "Current Work has no exact backend run identity. Refresh Current Work before requesting Stop After Current.",
         };
         appendCommandResult(result);
         setPipelineControlMessage(result.message);
@@ -188,6 +203,7 @@
           : await apiPost("/api/pipeline/control", {
             action: normalized,
             ...(normalized === "kill" ? { confirm_force_stop: true } : {}),
+            ...(monitorOwnedStop ? { expected_run_id: expectedRunId } : {}),
           });
         appendCommandResult(result);
         setPipelineControlMessage(result.message || "Control request sent.");
@@ -283,7 +299,7 @@
     }
 
     function pipelineStartConfirmMessage(request, label) {
-      const scope = request?.single_file ? "Single File" : "Queue";
+      const scope = request?.single_file ? "Single File" : request?.queue_scope === "priority_export" ? "Priority Export" : "Queue";
       const parts = [
         `Submitting ${label} for ${scope}. Backend will re-check queue, settings, schedule, and locks before starting.`,
       ];
@@ -301,7 +317,10 @@
       if (!target) return;
       const queueRows = typeof window.getLastQueueRows === "function" ? window.getLastQueueRows() : [];
       const queueCount = Array.isArray(queueRows) ? queueRows.length : 0;
-      const scope = request?.single_file
+      const priorityExportCount = Number(byId("pipeline-priority-export-id")?.dataset?.exportCount || 0);
+      const scope = request?.queue_scope === "priority_export"
+        ? `${priorityExportCount} backend-exported priority item${priorityExportCount === 1 ? "" : "s"}`
+        : request?.single_file
         ? "one selected file"
         : queueCount
           ? `${queueCount} loaded backend queue item${queueCount === 1 ? "" : "s"}`
@@ -340,6 +359,12 @@
           const pidMatch = String(result.message || "").match(/\bPID\s*(\d+)\b/i);
           const pid = pidMatch ? pidMatch[1] : "";
           window.setTopbarPendingLaunch?.({ pid });
+          const standardBackendQueueRun = String(request.mode || "").toLowerCase() === "once" && !String(request.single_file || "").trim();
+          if (standardBackendQueueRun) {
+            window.mediaPipelineRunMonitor?.acceptLaunchResult?.(result, { navigate: true });
+          } else {
+            window.mediaPipelineRunMonitor?.clearBackendQueueContext?.();
+          }
           setStartupBanner(pid
             ? `Pipeline starting — PID ${pid}. Waiting for first status update…`
             : "Pipeline starting. Waiting for first status update…"
@@ -421,6 +446,7 @@
         };
         appendCommandResult(drainResult);
         renderLaunchCommandResult("pending-drain-status", "pending-drain-detail", drainResult, request);
+        if (result.ok) window.mediaPipelineRunMonitor?.clearBackendQueueContext?.();
         if ((result.refresh_hint || "") === "snapshot") {
           await refreshAll();
         }

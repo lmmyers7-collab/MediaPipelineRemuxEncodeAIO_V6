@@ -82,7 +82,7 @@
     }
 
     function rerunSummaryLines(payload) {
-      if (!payload || typeof payload !== "object") return ["No CSV rerun preview loaded."];
+      if (!payload || typeof payload !== "object") return ["No new CSV selected."];
       const counts = rerunPreviewCounts(payload);
       const scope = rerunPreviewScope(payload);
       const lines = [
@@ -152,7 +152,7 @@
 
     function rerunReviewNextAction(payload = state.lastRerunPreviewPayload) {
       const request = collectRerunStartRequest({ dry_run: false, plan_only: false });
-      if (!String(request.csv_path || "").trim()) return "Enter or browse to a CSV path, then Inspect CSV.";
+      if (!String(request.csv_path || "").trim()) return "Select a new CSV, then Inspect CSV.";
       if (!payload) return "Inspect CSV submits a read-only backend preview. Open actions require a backend-known recent CSV.";
       if (state.lastRerunCommandResult?.ok) return "Refresh State to review backend queue-state and command evidence.";
       const reason = rerunPreviewBlockedReason(request);
@@ -170,8 +170,8 @@
       const csvPath = String(payload?.csv_path || request.csv_path || "").trim();
       const phase = rerunCurrentPhase(payload);
       header.dataset.phase = phase.toLowerCase().replace(/\s+/g, "-");
-      setText("rerun-review-status", payload ? `${payload.status || "preview"}${payload.message ? ` - ${payload.message}` : ""}` : "No CSV preview loaded");
-      setText("rerun-review-csv", `CSV: ${csvPath || "not selected"}`);
+      setText("rerun-review-status", payload ? `${payload.status || "preview"}${payload.message ? ` - ${payload.message}` : ""}` : "No new CSV selected");
+      setText("rerun-review-csv", `CSV: ${csvPath || "No new CSV selected"}`);
       setRerunReviewCount("total", rerunCount(counts.total_rows), "neutral");
       setRerunReviewCount("scoped", rerunCount(counts.effective_scoped_rows), "neutral");
       setRerunReviewCount("blocked", rerunCount(counts.blocked_rows) || rerunCount(counts.blocked_scoped_rows), "blocked");

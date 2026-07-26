@@ -20,9 +20,9 @@ Node 18 or later is recommended. Earlier versions may lack `WebSocket` in global
 
 The browser smokes use the Chrome DevTools Protocol (CDP) via headless Chrome or Edge. They do not use Playwright, Puppeteer, or any browser automation framework that requires a separate install or `npm install`.
 
-Required: an installed Google Chrome or Microsoft Edge. The smoke finds it by checking common install paths on Windows. If neither is found, the test raises `unittest.SkipTest` and exits with code 0 (skip, not failure).
+Required: an installed Google Chrome or Microsoft Edge. Direct Python modules raise `unittest.SkipTest` when neither is found. Canonical PowerShell wrappers fail prerequisite skips by default; pass `-AllowSkippedTests` only for an explicitly non-gating environmental run.
 
-The Python smoke modules share `tests\python\desktop\webview_browser_smoke_support.py` for browser discovery, free-port allocation, bounded stdout/stderr failure output, timeout reporting, JSON result parsing, subprocess-result assertions, and the generated Node/CDP runner prelude. If a browser runner fails, the assertion should include the runner return code plus bounded stdout/stderr before the Python traceback. The shared Node/CDP prelude launches Chrome/Edge with browser stdout/stderr ignored instead of undrained pipes, and uses a bounded browser termination helper so a pre-exited browser cannot hang the smoke runner. On Windows, the shared runner retries exactly once when the Node/CDP runner exits with the known no-output native crash return code `3221226505` / `-1073740791` or a no-output CDP WebSocket open transient (`[object ErrorEvent]` / `CDP websocket error while opening`). Actionable failures with meaningful stdout/stderr are not retried.
+The Python smoke modules share `tests\webview\webview_browser_smoke_support.py` for browser discovery, free-port allocation, bounded stdout/stderr failure output, timeout reporting, JSON result parsing, subprocess-result assertions, and the generated Node/CDP runner prelude. If a browser runner fails, the assertion should include the runner return code plus bounded stdout/stderr before the Python traceback. The shared Node/CDP prelude launches Chrome/Edge with browser stdout/stderr ignored instead of undrained pipes, and uses a bounded browser termination helper so a pre-exited browser cannot hang the smoke runner. On Windows, the shared runner retries exactly once when the Node/CDP runner exits with the known no-output native crash return code `3221226505` / `-1073740791` or a no-output CDP WebSocket open transient (`[object ErrorEvent]` / `CDP websocket error while opening`). Actionable failures with meaningful stdout/stderr are not retried.
 
 To check whether the smoke will find a browser:
 
@@ -50,69 +50,85 @@ The `ops/scripts/smoke/` wrapper scripts resolve this automatically.
 
 ## Running Browser Smokes
 
-### Via Root Wrappers (recommended)
+### Via canonical wrappers (recommended)
 
-From the repo root:
+The repository has 25 browser wrappers. Run from the repository root; a green result means prerequisites were present and browser assertions executed. Disk-derived wrapper/module totals and the nine direct-only modules are recorded in `docs/generated/SMOKE_WRAPPER_MAP.json`.
 
 ```powershell
-.\ops/scripts/smoke\Test-WebViewBrowserHighRiskSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserScheduleSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserLifecycleSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserDiagnosticsHandoffSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserPendingDrainGuardSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserCompletedPendingProofSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserLargeTableSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserMaintenanceReportsSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserMaintenanceChangeLedgerSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserSampleValidationSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserHomeLiveStateSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserLayoutManagerSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserRenameSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserNetworkSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserTelemetrySmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserLibraryProfilesSaveSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserSettingsLaunchSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserCompletedPendingProofSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserDiagnosticsHandoffSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserHighRiskSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserHomeLiveStateSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserLargeTableSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserLayoutManagerSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserLibraryProfilesSaveSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserLifecycleReconciliationSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserLifecycleSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserMaintenanceChangeLedgerSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserMaintenanceReportsSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserNetworkSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserPendingDrainGuardSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserProseBoxAudit.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserQueueFileOverridesSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserQueueLaunchCompletedSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserRenameSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserSampleValidationSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserScheduleSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserSettingsFieldMatrixSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserSettingsLaunchSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserTelemetrySmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserVisualClutterScreenshots.ps1
 ```
 
-Each wrapper resolves Python, sets `PYTHONDONTWRITEBYTECODE=1`, prints boundary text, and exits nonzero if the test fails.
+To collect an explicitly non-gating prerequisite skip, append `-AllowSkippedTests` to a wrapper. Never count that skip as a pass.
 
 ### Via `python -m unittest` directly
 
-From the repo root with the bundled Python:
+Direct modules may report `SkipTest`; they do not apply the wrapper's default skip-failure policy. The suite has 34 browser Python modules: 25 wrapper-backed browser Python modules and 9 direct-only browser Python modules enumerated by `docs/generated/SMOKE_WRAPPER_MAP.json`.
 
 ```powershell
 $python = "apps\desktop\runtime\Python\python.exe"
-& $python -m unittest tests.webview.test_webview_browser_high_risk_smoke -q
-& $python -m unittest tests.webview.test_webview_browser_schedule_smoke -q
-& $python -m unittest tests.webview.test_webview_browser_lifecycle_smoke -q
-& $python -m unittest tests.webview.test_webview_browser_diagnostics_handoff_smoke -q
-& $python -m unittest tests.webview.test_webview_browser_pending_drain_guard_smoke -q
 & $python -m unittest tests.webview.test_webview_browser_completed_pending_proof_smoke -q
-& $python -m unittest tests.webview.test_webview_browser_large_table_smoke -q
-& $python -m unittest tests.webview.test_webview_browser_maintenance_reports_smoke -q
-& $python -m unittest tests.webview.test_webview_browser_maintenance_change_ledger_smoke -q
-& $python -m unittest tests.webview.test_webview_browser_sample_validation_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_diagnostics_handoff_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_high_risk_smoke -q
 & $python -m unittest tests.webview.test_webview_browser_home_live_state_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_large_table_smoke -q
 & $python -m unittest tests.webview.test_webview_browser_launch_queue_readiness_smoke -q
-& $python -m unittest tests.webview.test_webview_browser_rename_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_layout_manager_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_library_profiles_save_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_lifecycle_reconciliation_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_lifecycle_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_maintenance_change_ledger_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_maintenance_reports_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_metrics_degraded_state_smoke -q
 & $python -m unittest tests.webview.test_webview_browser_network_smoke -q
-& $python -m unittest tests.webview.test_webview_browser_telemetry_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_pending_drain_guard_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_prose_box_audit -q
+& $python -m unittest tests.webview.test_webview_browser_queue_file_overrides_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_queue_launch_completed_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_rename_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_sample_validation_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_schedule_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_settings_builder_flush_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_settings_field_matrix_smoke -q
 & $python -m unittest tests.webview.test_webview_browser_settings_launch_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_telemetry_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_visual_clutter_screenshots -q
 ```
 
-### Running all smokes via discovery
+### Running all browser modules via discovery
 
 ```powershell
 $python = "apps\desktop\runtime\Python\python.exe"
-& $python -m unittest discover -s tests\python\desktop -p "test_webview_browser_*.py" -q
+& $python -m unittest discover -s tests\webview -p "test_webview_browser*.py" -q
 ```
 
 ### Running an individual test case
 
 ```powershell
 $python = "apps\desktop\runtime\Python\python.exe"
-& $python -m unittest tests.webview.test_webview_browser_rename_smoke.WebViewBrowserRenameops/scripts/smoke.test_real_browser_renders_rename_readiness_and_blocks_duplicate_apply -q
+& $python -m unittest tests.webview.test_webview_browser_rename_smoke.WebViewBrowserRenameSmoke.test_real_browser_renders_rename_readiness_and_blocks_duplicate_apply -q
 ```
 
 ---
@@ -139,6 +155,12 @@ $python = "apps\desktop\runtime\Python\python.exe"
 | `Test-WebViewBrowserTelemetrySmoke.ps1` | `test_webview_browser_telemetry_smoke` | Idle NVENC at `0%`, synthesized GPU detail rows, and CPU/RAM-only fallback wording under real browser rendering |
 | `Test-WebViewBrowserLibraryProfilesSaveSmoke.ps1` | `test_webview_browser_library_profiles_save_smoke` | LibraryProfiles add/save flow in a real browser; verifies read-only profile identity display, backend preview before confirmation, save-patch `review_confirmation`, reload digest verification, and temp-fixture media non-mutation |
 | `Test-WebViewBrowserSettingsLaunchSmoke.ps1` | `test_webview_browser_settings_launch_smoke` | Staged settings patch handoff, Launch Active Media Policy Boundary for saved-vs-staged subtitle/audio/pending-publish policy, Settings-to-Launch intent including Queue display-scope evidence, backend Preview/Save result detail, backend Preview Patch evidence, cancelled Save Patch visibility; asserts cancellation does not append command history and `settings.save_patch` is NOT called |
+| `Test-WebViewBrowserLifecycleReconciliationSmoke.ps1` | `test_webview_browser_lifecycle_reconciliation_smoke` | Lifecycle reconciliation preview/apply confirmation, stale-state archive evidence, and recovery rendering wholly inside generated temporary state |
+| `Test-WebViewBrowserQueueFileOverridesSmoke.ps1` | `test_webview_browser_queue_file_overrides_smoke` | Queue File Settings controls, dirty-state discard, clear payloads, series preview, and intercepted mutation requests with no persistence |
+| `Test-WebViewBrowserQueueLaunchCompletedSmoke.ps1` | `test_webview_browser_queue_launch_completed_smoke` | Standard `mode=once` Backend Queue journey from Queue-loaded backend-confirmed idle, with blank Single File, uncapped accepted run/fingerprint correlation, real Run Monitor transitions, two workers, terminal handoff/review/completion, focus/keyboard/live-region assertions, exact Completed artifact-row focus, fresh idle, and reload persistence inside a disposable root |
+| `Test-WebViewBrowserSettingsFieldMatrixSmoke.ps1` | `test_webview_browser_settings_field_matrix_smoke` | Every structured field type, inherited Library Profile reset semantics, strict save confirmation, temporary config reload, and command journal |
+| `Test-WebViewBrowserProseBoxAudit.ps1` | `test_webview_browser_prose_box_audit` | Page/subtab screenshot manifest and visible prose/status/diagnostic box audit against temporary fixtures |
+| `Test-WebViewBrowserVisualClutterScreenshots.ps1` | `test_webview_browser_visual_clutter_screenshots` | Desktop/mobile screenshot manifest, overflow checks, and visible clutter audit against temporary fixtures |
 
 ---
 
@@ -150,7 +172,7 @@ Node.js is not on PATH or not found. Install Node 18+ and ensure `node` is acces
 
 ### `SkipTest: Chrome or Edge is required`
 
-No Chrome or Edge binary was found at the expected install paths. Install either browser, or if on CI, install a headless Chrome package.
+No Chrome or Edge binary was found at the expected install paths. Install either browser. A direct module may skip, but the canonical wrapper fails this prerequisite by default; `-AllowSkippedTests` is an explicit non-gating exception.
 
 ### `AssertionError: ...` during the CDP runner
 
@@ -197,17 +219,17 @@ This is critical for daily-driver trust decisions.
 Browser smokes prove that the WebView JavaScript renders expected UI state and responds correctly to user interactions under real browser rendering. They do not prove:
 
 - **FFmpeg behavior**: no real media is processed. Route decisions, encoder choices, subtitle conversion, and audio routing are not exercised.
-- **Remux/encode correctness**: the pipeline is never launched during a browser smoke.
+- **Remux/encode correctness**: no browser smoke runs real FFmpeg/remux/encode work. Queue→Launch→Completed uses only a synthetic backend workflow inside a disposable root.
 - **Subtitle OCR or SRT conversion**: no OCR, no PGS/TX3G/ASS processing.
 - **Audio passthrough or transcode**: no audio policy is exercised against real streams.
 - **Source file stability or output path availability**: no filesystem probes against real media paths.
 - **Pending publish drain behavior**: no files are moved, published, or drained.
 - **Backend process shutdown under real work**: lifecycle smoke uses fixture state and a test callback; it does not close a real running encode or prove crash recovery.
-- **Settings persistence**: `settings.save_patch` is explicitly verified as NOT called in the settings/launch smoke, including after a cancelled Save Patch confirmation. No config file is modified.
+- **Live/operator Settings persistence**: Settings/Launch verifies cancellation without saving; Settings field-matrix and Library Profiles save write and reload only generated temporary config.
 - **Rename filesystem mutations**: `rename.apply` is verified as NOT called in the rename smokes. No files are renamed.
 - **Network lifecycle control**: coordinator/worker start-stop remains outside the WebView until backend-owned lifecycle routes are deliberately promoted. The Network browser smoke renders persisted worker state only.
 - **Live telemetry collection**: telemetry smoke uses fixture payloads; it does not sample the local GPU or prove NVENC load under a real encode.
-- **Completed manifest correctness**: fixture data is used; no real encode output is written.
+- **Real-media Completed manifest correctness**: fixture data is used. Queue→Launch→Completed writes a generated temporary manifest and sidecar, but no real encode output is produced.
 
 For real-media validation, follow the real-media pilot checklist in `docs/sample-validation/REAL_MEDIA_PILOT_CHECKLIST.md` against a small known batch.
 
@@ -215,6 +237,12 @@ For real-media validation, follow the real-media pilot checklist in `docs/sample
 
 ## CI / Automated Use Notes
 
-- Browser smokes skip cleanly when Chrome/Edge is absent (exit 0). This is intentional — they are environment-dependent and should not block CI pipelines that run on headless agents without a browser install.
+- Direct modules may report a prerequisite skip. Canonical wrappers fail prerequisite skips by default so required browser evidence cannot go green without assertions; use `-AllowSkippedTests` only for a documented non-gating CI lane.
 - Non-browser smokes (`Test-WebViewCommandEvidenceSmoke.ps1`, `Test-WebViewRowDetailSmoke.ps1`, `Test-WebViewRenameReadinessSmoke.ps1`, `Test-WebViewSettingsLaunchPolicySmoke.ps1`) require only Python and Node and are suitable for lightweight automated checks.
-- The release self-test layout gate (`ops\scripts\release\test.ps1`) checks that all wrapper files exist. It does not run the smokes automatically.
+- The generated smoke-wrapper map and release gate check wrapper/catalog/release-list drift. Consult `docs/generated/SMOKE_WRAPPER_MAP.json` for the current release selection instead of assuming every wrapper runs in every gate.
+
+---
+
+## Current Inventory Review — 2026-07-13
+
+Confirmed 25 canonical browser wrappers and 34 browser Python modules: 25 wrapper-backed browser Python modules and 9 direct-only browser Python modules. Discovery is rooted at `tests\webview`; the individual Rename selector above matches the current class and method. All browser scenarios must use generated disposable roots and the exact temporary mutation boundary documented in `BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md`.

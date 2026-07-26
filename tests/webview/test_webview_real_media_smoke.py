@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 import subprocess
@@ -178,12 +179,17 @@ def _write_fixture_state(root: Path) -> tuple[object, Path, Path]:
             "source_size": source.stat().st_size,
             "source_mtime_utc": "2026-05-13T22:00:00Z",
             "output_size": pending_payload.stat().st_size,
+            "output_sha256": hashlib.sha256(pending_payload.read_bytes()).hexdigest(),
+            "output_hash_algorithm": "SHA256",
             "sidecar_files": [
                 {
                     "kind": "tx3g_srt",
                     "local_file": str(pending_sidecar),
                     "parked_file": str(pending_sidecar),
                     "server_out": str(output_sidecar),
+                    "output_size": pending_sidecar.stat().st_size,
+                    "output_sha256": hashlib.sha256(pending_sidecar.read_bytes()).hexdigest(),
+                    "output_hash_algorithm": "SHA256",
                     "preserve_existing": False,
                 }
             ],

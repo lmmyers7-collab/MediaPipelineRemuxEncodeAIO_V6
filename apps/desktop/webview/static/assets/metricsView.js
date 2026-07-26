@@ -310,6 +310,7 @@
       const action = document.createElement("button");
       action.type = "button";
       action.className = "secondary-button";
+      action.dataset.metricsAttentionTarget = targetTab;
       action.textContent = `View ${targetTab === "overview" ? "details" : `${targetTab} details`}`;
       action.addEventListener("click", () => {
         activateMetricsTab(targetTab);

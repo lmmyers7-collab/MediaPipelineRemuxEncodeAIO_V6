@@ -1,0 +1,365 @@
+        <!-- TAB: DIMENSIONS -->
+        <div class="settings-tab-pane" data-settings-tab="media-output">
+        <section class="panel" data-panel-type="evidence" data-handbrake-section="dimensions" data-advanced>
+          <div class="panel-heading">
+            <h2>Dimensions</h2>
+            <strong>Read-only pending backend exposure</strong>
+          </div>
+          <p class="note">Dimensions controls become editable only when backend preset/schema data exposes stable crop, scale, pixel aspect, and resolution policy through the settings workspace or planner preview. Phase 08 does not add new persistence keys.</p>
+          <div class="settings-section-map">
+            <div><strong>Resolution</strong><span>Current legacy UI exposes route-affecting H.264 max height under Video.</span></div>
+            <div><strong>Crop</strong><span>No saved editable crop policy is exposed in this WebView settings workspace.</span></div>
+            <div><strong>Scale consequence</strong><span>Any future downscale control must show that it forces encode.</span></div>
+          </div>
+        </section>
+        </div>
+
+        <!-- TAB: FILTERS -->
+        <div class="settings-tab-pane" data-settings-tab="media-output">
+        <section class="panel" data-panel-type="evidence" data-handbrake-section="filters" data-advanced>
+          <div class="panel-heading">
+            <h2>Filters</h2>
+            <strong>Read-only pending backend exposure</strong>
+          </div>
+          <p class="note">Filter controls are intentionally not written from JavaScript in this phase. Future filter toggles must be backed by saved backend fields and must show when they require encode before entering the save candidate.</p>
+          <div class="settings-section-map">
+            <div><strong>Deinterlace / detelecine</strong><span>No editable saved field exposed here.</span></div>
+            <div><strong>Denoise / sharpen</strong><span>No editable saved field exposed here.</span></div>
+            <div><strong>Color / HDR transforms</strong><span>No editable saved field exposed here.</span></div>
+          </div>
+        </section>
+        </div>
+
+        <!-- TAB: CONTAINER -->
+        <div class="settings-tab-pane" data-settings-tab="media-output">
+        <section class="panel" data-panel-type="evidence" data-handbrake-section="container">
+          <div class="panel-heading">
+            <h2>Container</h2>
+            <strong>Linked to Routing</strong>
+          </div>
+          <p class="note">Editable container policy lives in Video with codec and encode target controls. This section is display-only orientation from saved settings.</p>
+          <div class="settings-section-map">
+            <div><strong>Container</strong><span id="settings-container-size-container">Output container is loaded from saved settings.</span></div>
+          </div>
+          <p class="note">Use the Video panel to change OutputContainer. Backend Save remains the source of truth before writing settings.</p>
+        </section>
+        </div>
+
+        <!-- TAB: VIDEO -->
+        <div class="settings-tab-pane" data-settings-tab="media-output">
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Video <span class="impact-chip" data-impact="medium" title="Encoder / GPU — speed preset, quality, codec, and container selection">Medium Impact</span></h2>
+            <strong id="settings-video-builder-status">No video detail changes built</strong>
+          </div>
+          <div class="form-grid launch-form-grid">
+            <label class="settings-slider-field">
+              Encoder speed preset
+              <input
+                id="settings-video-preset"
+                type="range"
+                min="1"
+                max="7"
+                step="1"
+                value="5"
+                data-settings-preserve-range-limits="true"
+                aria-describedby="settings-video-preset-value settings-video-preset-help">
+              <span class="settings-slider-readout">
+                <output id="settings-video-preset-value" for="settings-video-preset">P5 - balanced</output>
+              </span>
+              <span class="settings-slider-scale" aria-hidden="true">
+                <span>P1 fastest</span>
+                <span>P7 slowest</span>
+              </span>
+              <span id="settings-video-preset-help" class="settings-slider-help">Balanced speed and compression for normal unattended encodes.</span>
+            </label>
+            <label class="settings-slider-field">
+              Quality target
+              <input
+                id="settings-video-quality"
+                type="range"
+                min="18"
+                max="28"
+                step="1"
+                value="22"
+                data-settings-preserve-range-limits="true"
+                aria-describedby="settings-video-quality-value settings-video-quality-help">
+              <span class="settings-slider-readout">
+                <output id="settings-video-quality-value" for="settings-video-quality">22 - balanced default</output>
+              </span>
+              <span class="settings-slider-scale" aria-hidden="true">
+                <span>Cleaner / larger</span>
+                <span>Smaller / softer</span>
+              </span>
+              <span id="settings-video-quality-help" class="settings-slider-help">Lower targets keep more detail and create larger files; higher targets save space with more visible softness.</span>
+            </label>
+            <label>
+              Encode target calculation
+              <select id="settings-builder-encode-ladder" aria-describedby="settings-encode-ladder-help">
+                <option value="auto">Auto</option>
+                <option value="tv_balanced">TV balanced</option>
+                <option value="tv_space_saver">TV space saver</option>
+                <option value="movie_balanced">Movie balanced</option>
+                <option value="movie_archive">Movie archive</option>
+                <option value="plex_compat">Plex compatibility</option>
+              </select>
+            </label>
+            <div id="settings-encode-ladder-help" class="settings-size-guard-help settings-encode-ladder-help" aria-label="Encode target calculation descriptions">
+              <dl>
+                <div>
+                  <dt>Auto</dt>
+                  <dd>Uses TV balanced for TV sources and movie balanced for movie sources.</dd>
+                </div>
+                <div>
+                  <dt>TV balanced</dt>
+                  <dd>One step smaller/softer than the base quality, with 90M maxrate and 180M buffer.</dd>
+                </div>
+                <div>
+                  <dt>TV space saver</dt>
+                  <dd>Two steps smaller/softer than the base quality, with 80M maxrate and 160M buffer.</dd>
+                </div>
+                <div>
+                  <dt>Movie balanced</dt>
+                  <dd>Uses the configured base quality unchanged, with 120M maxrate and 240M buffer.</dd>
+                </div>
+                <div>
+                  <dt>Movie archive</dt>
+                  <dd>One step cleaner/larger than the base quality, with 160M maxrate and 320M buffer.</dd>
+                </div>
+                <div>
+                  <dt>Plex compatibility</dt>
+                  <dd>One step smaller/softer, 80M maxrate, 160M buffer, and conservative encoder flags for broader Plex playback.</dd>
+                </div>
+              </dl>
+            </div>
+            <label>
+              Video encoder
+              <select id="settings-builder-video-codec">
+                <option value="hevc_nvenc">HEVC NVENC</option>
+                <option value="h264_nvenc">H.264 NVENC</option>
+                <option value="libx265">x265 CPU</option>
+                <option value="libx264">x264 CPU</option>
+                <option value="av1_nvenc">AV1 NVENC</option>
+              </select>
+            </label>
+            <label>
+              Encoder backend
+              <select id="settings-builder-encoder-backend">
+                <option value="auto">Auto</option>
+                <option value="nvenc">NVENC</option>
+                <option value="qsv">QSV</option>
+                <option value="amf">AMF</option>
+                <option value="cpu">CPU</option>
+              </select>
+            </label>
+            <label>
+              Output container
+              <select id="settings-builder-output-container">
+                <option value="mkv">MKV</option>
+                <option value="mp4">MP4</option>
+              </select>
+            </label>
+            <label>
+              H.264 copy max Mbps
+              <input id="settings-video-h264-max-bitrate" type="number" min="1" step="1">
+            </label>
+            <label>
+              H.264 copy max height
+              <select id="settings-video-h264-max-height">
+                <option value="720">720p</option>
+                <option value="1080">1080p</option>
+                <option value="2160">2160p</option>
+              </select>
+            </label>
+          </div>
+          <div class="settings-routing-readout-grid">
+            <div><span>If encode is needed</span><strong id="settings-routing-video-codec-readout">HEVC NVENC</strong></div>
+            <div><span>Speed / quality</span><strong><output id="settings-routing-video-preset-readout">P5 - balanced</output>; quality <output id="settings-routing-video-quality-readout">22 - balanced default</output></strong></div>
+            <div><span>Output container</span><strong id="settings-routing-output-container-readout">MKV</strong></div>
+          </div>
+          <div class="option-grid option-grid-compact">
+            <label class="check-row"><input id="settings-video-h264-remux" type="checkbox"> Copy Plex-compatible H.264</label>
+          </div>
+          <details class="settings-advanced-disclosure">
+            <summary>Advanced encoder controls</summary>
+            <div class="form-grid launch-form-grid">
+              <label>
+                NVENC tuning bundle
+                <select id="settings-builder-encode-tuning" aria-describedby="settings-encode-tuning-help">
+                  <option value="balanced_nvenc">Balanced NVENC</option>
+                  <option value="quality_nvenc">Quality NVENC</option>
+                  <option value="fast_nvenc">Fast NVENC</option>
+                  <option value="compatibility">Compatibility</option>
+                  <option value="custom_legacy_flags">Custom legacy flags</option>
+                </select>
+              </label>
+              <div id="settings-encode-tuning-help" class="settings-size-guard-help settings-encode-tuning-help" aria-label="NVENC tuning bundle descriptions">
+                <dl>
+                  <div>
+                    <dt>Balanced NVENC</dt>
+                    <dd>Default HEVC NVENC bundle: VBR, 60-frame lookahead, spatial and temporal AQ, full-resolution multipass, 4 B-frames, and HQ tune.</dd>
+                  </div>
+                  <div>
+                    <dt>Quality NVENC</dt>
+                    <dd>Cleaner output: keeps deep lookahead, AQ, full-resolution multipass, and 4 B-frames while raising AQ strength for larger/slower encodes.</dd>
+                  </div>
+                  <div>
+                    <dt>Fast NVENC</dt>
+                    <dd>Faster output: shorter 20-frame lookahead, temporal AQ off, lower AQ strength, disabled multipass, 2 B-frames, and low-latency tune.</dd>
+                  </div>
+                  <div>
+                    <dt>Compatibility</dt>
+                    <dd>Conservative output: minimal VBR, spatial AQ, lower AQ strength, and 2 B-frames for fragile hardware or Plex compatibility.</dd>
+                  </div>
+                  <div>
+                    <dt>Custom legacy flags</dt>
+                    <dd>Bypasses the named bundles and passes raw ExtraVideoFlags to FFmpeg exactly as entered.</dd>
+                  </div>
+                </dl>
+              </div>
+              <label>
+                CPU fallback CRF
+                <input id="settings-video-cpu-quality" type="number" min="14" max="28" step="1">
+              </label>
+              <label>
+                CPU speed preset
+                <select id="settings-video-cpu-preset">
+                  <option value="ultrafast">ultrafast</option>
+                  <option value="superfast">superfast</option>
+                  <option value="veryfast">veryfast</option>
+                  <option value="faster">faster</option>
+                  <option value="fast">fast</option>
+                  <option value="medium">medium</option>
+                  <option value="slow">slow</option>
+                  <option value="slower">slower</option>
+                  <option value="veryslow">veryslow</option>
+                  <option value="placebo">placebo</option>
+                </select>
+              </label>
+              <label>
+                CPU priority
+                <select id="settings-video-cpu-priority">
+                  <option value="inherit">inherit</option>
+                  <option value="idle">idle</option>
+                  <option value="belownormal">belownormal</option>
+                  <option value="normal">normal</option>
+                  <option value="abovenormal">abovenormal</option>
+                  <option value="high">high</option>
+                </select>
+              </label>
+              <label>
+                CPU max threads
+                <input id="settings-video-cpu-threads" type="number" min="0" step="1">
+              </label>
+              <label>
+                CPU mutex wait (seconds)
+                <input id="settings-video-cpu-mutex-wait" type="number" min="0" max="86400" step="1">
+              </label>
+            </div>
+            <label class="full-field">
+              Remux-safe video codecs
+              <input id="settings-video-remux-safe-codecs" type="text" autocomplete="off" spellcheck="false" placeholder="hevc, h265, h264, avc">
+            </label>
+            <label class="full-field">
+              Advanced encoder flags
+              <input id="settings-video-extra-flags" type="text" autocomplete="off" spellcheck="false" placeholder="-spatial-aq 1, -aq-strength 8">
+            </label>
+            <p class="note">Advanced controls preserve existing keys. Use them only when the backend policy and validation evidence justify the override.</p>
+          </details>
+          <div class="action-row action-row-left">
+            <span class="action-hint-wrapper">
+              <button type="button" id="settings-video-apply-button" class="secondary-button" aria-describedby="settings-video-apply-hint">Update Video Changes</button>
+              <span id="settings-video-apply-hint" class="action-hover-hint" role="tooltip">
+                <strong>What this does</strong>
+                <span>Prepares the values in this Video builder for Save Settings. It does not save settings or decide remux versus encode by itself; Save Settings still runs backend validation, and the backend owns routing, codec, container, and encoder policy.</span>
+              </span>
+            </span>
+            <button type="button" id="settings-video-reset-button" class="secondary-button">Reset From Current</button>
+          </div>
+          <pre id="settings-video-guidance" class="prose-block">No video detail guidance loaded.</pre>
+          <p class="note">Use this for direct-copy allowlists and fallback encode controls. Backend Save remains authoritative before any future run uses these values.</p>
+        </section>
+        <section class="panel" data-panel-type="evidence" id="settings-encoder-capability-panel">
+          <div class="panel-heading">
+            <h2>Encoder Capability Evidence</h2>
+            <strong id="settings-encoder-capability-status">Not loaded</strong>
+          </div>
+          <pre id="settings-encoder-capability-summary" class="prose-block">No encoder capability evidence loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Encoder</th>
+                  <th scope="col">Backend</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Evidence</th>
+                </tr>
+              </thead>
+              <tbody id="settings-encoder-capability-rows">
+                <tr><td colspan="4">No encoder capability rows are loaded.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p id="settings-encoder-capability-legend" class="note table-legend">Encoder capability rows are read-only annotations from backend diagnostic evidence; unavailable rows do not remove saved choices.</p>
+        </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Quality Verification <span class="impact-chip" data-impact="medium" title="Quality verification — objective post-encode metric, sampling, thresholds, and review action">Medium Impact</span></h2>
+            <strong id="settings-quality-builder-status">No quality verification changes built</strong>
+          </div>
+          <div class="option-grid option-grid-compact">
+            <label class="check-row"><input id="settings-builder-quality-enable" type="checkbox"> Enable quality verification</label>
+          </div>
+          <div class="form-grid launch-form-grid">
+            <label>
+              Quality metric
+              <select id="settings-builder-quality-metric">
+                <option value="vmaf">VMAF</option>
+                <option value="ssim">SSIM</option>
+                <option value="psnr">PSNR</option>
+              </select>
+            </label>
+            <label>
+              Sample mode
+              <select id="settings-builder-quality-sample-mode">
+                <option value="sampled">Sampled windows</option>
+                <option value="full">Full file</option>
+              </select>
+            </label>
+            <label>
+              Sample seconds
+              <input id="settings-builder-quality-sample-seconds" type="number" min="2" max="60" step="1">
+            </label>
+            <label>
+              Sample count
+              <input id="settings-builder-quality-sample-count" type="number" min="1" max="10" step="1">
+            </label>
+            <label>
+              Warn threshold
+              <input id="settings-builder-quality-warn-threshold" type="number" min="0" step="0.01">
+            </label>
+            <label>
+              Fail threshold
+              <input id="settings-builder-quality-fail-threshold" type="number" min="0" step="0.01">
+            </label>
+            <label>
+              Fail action
+              <select id="settings-builder-quality-fail-action">
+                <option value="warn_only">Warn only</option>
+                <option value="block_review">Block for review</option>
+              </select>
+            </label>
+            <label>
+              Verify timeout s
+              <input id="settings-builder-quality-timeout" type="number" min="60" step="1">
+            </label>
+          </div>
+          <div class="action-row action-row-left">
+            <button type="button" id="settings-quality-apply-button" class="secondary-button">Update Quality Changes</button>
+            <button type="button" id="settings-quality-reset-button" class="secondary-button">Reset From Current</button>
+          </div>
+          <pre id="settings-quality-guidance" class="prose-block">No quality verification guidance loaded.</pre>
+          <p class="note">This only prepares objective quality verification keys for Save Settings. Backend Save and post-encode validation remain authoritative.</p>
+        </section>
+        </div>
+

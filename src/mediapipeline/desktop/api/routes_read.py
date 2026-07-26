@@ -6,6 +6,7 @@ from .routes_shared import RouteHandlerSpec
 GET_ROUTE_HANDLERS: dict[str, RouteHandlerSpec] = {
     "/api/contract": RouteHandlerSpec("_contract_payload"),
     "/api/snapshot": RouteHandlerSpec("_snapshot_payload"),
+    "/api/run-monitor": RouteHandlerSpec("_run_monitor_payload", needs_query=True),
     "/api/telemetry": RouteHandlerSpec("_telemetry_payload"),
     "/api/diagnostics": RouteHandlerSpec("_diagnostics_payload"),
     "/api/diagnostics/tail": RouteHandlerSpec("_diagnostics_tail_payload", needs_query=True),
@@ -20,6 +21,7 @@ GET_ROUTE_HANDLERS: dict[str, RouteHandlerSpec] = {
     "/api/commands": RouteHandlerSpec("_command_history_payload", needs_query=True),
     "/api/queue": RouteHandlerSpec("_queue_payload"),
     "/api/queue/priority": RouteHandlerSpec("_queue_priority_read_payload"),
+    "/api/queue/priority-export": RouteHandlerSpec("_queue_priority_export_read_payload"),
     "/api/queue/strategy": RouteHandlerSpec("_queue_strategy_read_payload"),
     "/api/queue/file-overrides": RouteHandlerSpec("_file_overrides_read_payload", needs_query=True),
     "/api/queue/file-overrides/effective": RouteHandlerSpec("_file_overrides_effective_read_payload", needs_query=True),

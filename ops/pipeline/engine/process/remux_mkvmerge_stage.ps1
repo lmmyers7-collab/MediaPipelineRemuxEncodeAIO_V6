@@ -4,6 +4,9 @@
 function Invoke-MediaPipelineRemuxMkvmergeStage {
     param([Parameter(Mandatory)] $Context)
 
+    if (Get-Command -Name Set-MediaPipelineCurrentRunMonitorOutput -ErrorAction SilentlyContinue) {
+        Set-MediaPipelineCurrentRunMonitorOutput -State active -ScratchPath ([string]$Context.LocalIn) -WorkingOutputPath ([string]$Context.Paths.LocalOut) -IntendedFinalPath ([string]$Context.Paths.ServerOut) -VerificationState not_started | Out-Null
+    }
     Set-ProgressStage -Stage 'remux_mux' -Status $script:pipelineStatus -Route 'remux' -Percent 0 -SaveNow
     $mkv = Invoke-MkvmergeWithProgress -ArgumentList @($Context.MkvArgs) -Label 'REMUX-MUX' -TimeoutSeconds $script:MkvmergeRemuxTimeoutSeconds -Stage 'remux-mkvmerge' -ProgressStage 'remux_mux' -ProgressRoute 'remux' -SaveReproOnFailure
     $Context.MkvmergeResult = $mkv

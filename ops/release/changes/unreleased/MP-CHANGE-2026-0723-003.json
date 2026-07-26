@@ -1,0 +1,57 @@
+{
+  "id": "MP-CHANGE-2026-0723-003",
+  "title": "Resume partially completed rename undo",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": "2026-07-23",
+  "summary": "Make multi-path rename undo durably resumable after a mid-sequence filesystem failure without reconstructing paths manually.",
+  "reason": "Remediate P1 AUDIT-FIND-W04-004. Rename undo currently records only run-level state, so one committed reversal followed by a later failure leaves a mixed layout that the next strict preflight rejects.",
+  "affected_areas": [
+    "rename undo transaction journal",
+    "mixed-layout recovery preflight",
+    "media and sidecar path identity",
+    "rename manifest restart evidence"
+  ],
+  "behavior_before": "Undo requires the entire original forward-renamed layout, mutates paths sequentially without per-operation checkpoints, and cannot retry after any operation succeeds before a later failure.",
+  "behavior_after": "Each undo operation has an identity-bound prepared/committed checkpoint. Retry reconciles only exact forward, reversed, or same-file layouts, promotes a filesystem reversal whose checkpoint was lost, skips committed work, and resumes remaining operations without weakening collision or boundary checks.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-003.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/rename/undo_runner.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_service_rename_apply_runner.py.md",
+    "src/mediapipeline/core/rename/undo_runner.py",
+    "tests/python/desktop/test_service_rename_apply_runner.py",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-003.json"
+  ],
+  "tests_added": [
+    "A deterministic sharing-violation fixture fails after one sidecar reversal, verifies its committed checkpoint, retries, skips that path, reverses the remaining media path, and compares content hashes.",
+    "A persistent manifest-checkpoint outage leaves the filesystem reversal ahead of its prepared record; restart reconciles the exact layout and completes safely.",
+    "A legacy failed manifest with no progress journal resumes from its exact mixed layout, preserving recovery for already-stranded manifests.",
+    "Progress identity tampering and a false committed status against a forward layout both fail before mutation."
+  ],
+  "manual_validation": [
+    "Pre-fix focused rename runner pytest - expected red: three new recovery/tamper tests failed because no undo_progress journal existed and tampered progress was ignored.",
+    "Focused rename apply/undo runner pytest - passed: 13 tests.",
+    "All desktop rename pytest modules - passed: 227 tests and 525 subtests.",
+    "Ruff and compileall passed for the changed source and test; targeted mypy passed for undo_runner.py.",
+    "Test-WebViewRenameReadinessSmoke.ps1 - passed one Node-backed test with no filesystem mutation.",
+    "Test-WebViewBrowserRenameSmoke.ps1 - passed two Chrome tests with zero skips against temporary state and without calling rename apply.",
+    "Targeted refresh_summaries wrote three summaries; project index regenerated 2,480 typed records, dependency graph, feature map, and 15 feature cards.",
+    "Summary integrity, risky-file registry, lifecycle-map, feature-card, and AI-guardrail unit set - passed: 35 tests and 72 subtests.",
+    "Project-index, feature-map, risky-file registry, architecture guardrails, and git diff whitespace checks passed.",
+    "Global summary freshness reports only the same six pre-existing stale files outside this packet; all three touched summaries are current.",
+    "God-file guard passed with zero errors and 49 unrelated repository-wide warnings; neither touched Python file triggered a god-file finding.",
+    "validate_changes --require-worktree-coverage - passed with 1,145 valid packets before completion."
+  ],
+  "rollback_plan": "Revert the operation-level undo journal/resume logic, focused synthetic filesystem tests, generated context, and packet metadata together; retain the packet as incomplete evidence if rollback occurs.",
+  "related_changes": [
+    "AUDIT-FIND-W04-004"
+  ],
+  "notes": "High-risk rename mutation boundary. The strict confirm_apply contract, configured-root authority, collision checks, metadata-backup boundaries, and reverse execution order remain intact. Existing atomic manifest writes now checkpoint operation identities and committed state. Representative synthetic media/sidecar files, injected failures, restart/resume, and content hashes are required; real-media decoding is not required by the audit rung."
+}

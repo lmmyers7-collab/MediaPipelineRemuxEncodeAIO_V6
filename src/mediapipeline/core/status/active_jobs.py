@@ -19,7 +19,21 @@ WORKER_PROGRESS_SCHEMA_VERSION = "desktop_worker_progress.v1"
 def active_job_status_state(status: str = "", issue: str = "", source: str = "") -> str:
     combined = " ".join(str(value or "").strip().casefold() for value in (status, issue, source))
     normalized_status = str(status or "").strip().casefold()
-    if any(term in combined for term in ("invalid", "unreadable", "failed", "failure", "killed", "orphan", "blocked", "malformed", "corrupt")):
+    if any(
+        term in combined
+        for term in (
+            "invalid",
+            "unreadable",
+            "failed",
+            "failure",
+            "killed",
+            "degraded",
+            "orphan",
+            "blocked",
+            "malformed",
+            "corrupt",
+        )
+    ):
         return "warning"
     if any(term in normalized_status for term in ("launching", "active", "running", "processing")):
         return "running"
@@ -349,7 +363,13 @@ def _progress_status_state(progress: Mapping[str, Any], *, stale: bool) -> str:
     return "empty"
 
 
-def _progress_is_stale(progress: Mapping[str, Any], *, stale_after_seconds: float, now: datetime | None = None) -> bool:
+def _progress_is_stale(
+    progress: Mapping[str, Any],
+    *,
+    stale_after_seconds: float,
+    now: datetime | None = None,
+    future_tolerance_seconds: float = 5.0,
+) -> bool:
     if not progress or not _progress_active(progress):
         return False
     stage = _text_from_mapping(progress, "CurrentStage", "current_stage").casefold()
@@ -364,7 +384,10 @@ def _progress_is_stale(progress: Mapping[str, Any], *, stale_after_seconds: floa
         reference = reference.replace(tzinfo=None)
     elif parsed.tzinfo is not None and reference.tzinfo is None:
         reference = reference.replace(tzinfo=parsed.tzinfo)
-    return (reference - parsed).total_seconds() > stale_after_seconds
+    age_seconds = (reference - parsed).total_seconds()
+    if age_seconds < -max(0.0, float(future_tolerance_seconds)):
+        return True
+    return age_seconds > max(0.0, float(stale_after_seconds))
 
 
 def _worker_progress_bar(row: Mapping[str, Any]) -> dict[str, Any]:

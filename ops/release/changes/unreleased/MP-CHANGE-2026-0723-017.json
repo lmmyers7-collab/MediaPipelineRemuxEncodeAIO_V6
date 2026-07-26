@@ -1,0 +1,64 @@
+{
+  "id": "MP-CHANGE-2026-0723-017",
+  "title": "Round-trip rename regression cases through strict HTTP validation",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": "2026-07-23",
+  "summary": "Align the strict rename filter-case command model with the exact backend-generated preview payload and prove the Save Case HTTP round trip.",
+  "reason": "Remediate P2 AUDIT-FIND-W14-001. Backend rename preview emits documented case fields that the extra-forbid Pydantic command model rejects before the active POST /api/rename/filter-cases handler can append the regression case.",
+  "affected_areas": [
+    "Local API strict command contracts",
+    "rename filename preview case payload",
+    "rename workbench Save Case workflow",
+    "regression corpus append confirmation"
+  ],
+  "behavior_before": "The WebView posts the backend-generated case_payload unchanged, but strict HTTP validation rejects documented and mode-specific fields as extras.",
+  "behavior_after": "One explicit strict request schema accepts every supported backend-generated case field, rejects unknown fields, preserves confirm_append=true, and round-trips movie and TV preview cases through the real HTTP boundary.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-017.json.md",
+    "docs/generated/summaries/src/mediapipeline/contracts/api_commands.py.md",
+    "docs/generated/summaries/src/mediapipeline/contracts/api_routes_command_operations.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/api/contract_command_operations.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_api_command_contracts.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_local_api_rename.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_rename_workbench.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-017.json",
+    "src/mediapipeline/contracts/api_commands.py",
+    "src/mediapipeline/contracts/api_routes_command_operations.py",
+    "src/mediapipeline/desktop/api/contract_command_operations.py",
+    "tests/python/desktop/test_api_command_contracts.py",
+    "tests/python/desktop/test_application_facade_local_api_rename.py",
+    "tests/python/desktop/test_rename_workbench.py"
+  ],
+  "tests_added": [
+    "Contract parity coverage requires both shared and desktop rename route mirrors to derive request_keys from RenameFilterCaseCommandPayload.model_fields.",
+    "Strict-model coverage accepts complete movie and TV preview shapes while rejecting unknown fixture paths, string confirmations, non-boolean filter options, and non-string filter terms.",
+    "An HTTP integration generates exact backend movie and TV case_payload values, proves missing confirmation and unknown fields do not write, then appends both through POST /api/rename/filter-cases into a temporary corpus.",
+    "WebView static coverage proves Save Case copies the backend case_payload, changes only supported status/notes/confirm_append fields, and submits that exact object."
+  ],
+  "manual_validation": [
+    "The pre-change reproduction generated a 12-field movie case_payload and strict validation failed at kind with extra_forbidden.",
+    "Focused schema/HTTP/WebView validation passed 3 tests with 6 subtests; the HTTP case writes only to a temporary fixture and never calls rename preview apply, rename apply, undo, or source-media mutation.",
+    "The widened owning slice passed 124 tests with 779 subtests across command contracts, route payloads, Local API rename, rename workbench, rename policy, WebView rename readiness, and API client smoke.",
+    "The browser rename smoke passed 2 tests.",
+    "Changed Python compiled successfully and targeted Ruff lint passed.",
+    "Architecture guardrails, risky-file registry, and naming lint passed; generated-context/tooling validation passed 44 tests with 72 subtests.",
+    "The god-file guard reported 0 errors and 61 warnings across 396 candidates, including existing size debt in the touched api_commands.py module.",
+    "An initial test-harness override was attached to the facade instead of the Local API server and appended six uniquely named synthetic cases to the repository test corpus across diagnostic reruns. Those six lines were removed exactly, git diff confirms the corpus has no remaining change, and the corrected harness is temp-root isolated.",
+    "Project-index and feature-map check modes passed; validate_changes --require-worktree-coverage passed with 1,159 valid packets; git diff --check passed with line-ending warnings only.",
+    "Summary freshness remains red only on five unrelated known stale files, and active-doc validation remains red only on unrelated DOC005 in the audit baseline reference.",
+    "No real-media validation was run because the change affects strict test-corpus request validation only and does not execute or change rename apply or source-media mutation."
+  ],
+  "rollback_plan": "Revert the command schema, preview/schema parity tests, HTTP/WebView round-trip tests, generated context, and this packet together. Do not relax extra=forbid or confirm_append to restore compatibility.",
+  "related_changes": [
+    "AUDIT-FIND-W14-001"
+  ],
+  "notes": "Strict JSON and rename boundaries reviewed. This packet is limited to appending explicitly confirmed test-corpus metadata; it does not call rename apply, mutate source media, or weaken confirmation. Required validation: Pydantic contract tests, HTTP route round trips from exact backend preview payloads, affected WebView static/browser smoke, confirmation-negative tests, generated-context checks, and strict packet coverage. Real-media validation is not required because no media rename/apply path is executed or changed."
+}

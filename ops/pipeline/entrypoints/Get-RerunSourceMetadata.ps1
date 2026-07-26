@@ -57,6 +57,8 @@ foreach ($sourcePath in @($payload.source_paths)) {
         source_size        = ''
         source_mtime_utc   = ''
         source_identity_v2 = ''
+        source_content_sha256 = ''
+        source_content_sha256_algorithm = ''
         error              = ''
     }
     try {
@@ -66,6 +68,15 @@ foreach ($sourcePath in @($payload.source_paths)) {
         $row.source_size = [string]([long]$fileInfo.Length)
         $row.source_mtime_utc = $fileInfo.LastWriteTimeUtc.ToString('o')
         $row.source_identity_v2 = Get-RerunSourceIdentityV2 -FileInfo $fileInfo -FfprobePath $ffprobePath
+        $row.source_content_sha256 = Get-RerunContentSha256 -Path $fileInfo.FullName
+        if ([string]::IsNullOrWhiteSpace([string]$row.source_content_sha256)) {
+            throw "full-file SHA-256 could not be computed: $pathText"
+        }
+        $afterInfo = Get-Item -LiteralPath $pathText -ErrorAction Stop
+        if ([long]$afterInfo.Length -ne [long]$fileInfo.Length -or $afterInfo.LastWriteTimeUtc.Ticks -ne $fileInfo.LastWriteTimeUtc.Ticks) {
+            throw "source changed while rerun metadata was captured: $pathText"
+        }
+        $row.source_content_sha256_algorithm = 'sha256-full-file'
     } catch {
         $row.error = [string]$_.Exception.Message
     }

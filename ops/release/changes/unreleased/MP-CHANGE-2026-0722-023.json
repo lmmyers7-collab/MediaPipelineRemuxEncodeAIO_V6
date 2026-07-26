@@ -1,0 +1,64 @@
+{
+  "id": "MP-CHANGE-2026-0722-023",
+  "title": "Isolate settings patch smoke before service startup",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-07-22",
+  "date_completed": "2026-07-22",
+  "summary": "Enter an explicit productized AppData sandbox and detach global desktop logger handlers before constructing the settings-patch smoke service, verify all declared runtime and logger paths remain contained, then close temporary handlers and restore process state exactly.",
+  "reason": "Remediate P2 AUDIT-FIND-W01-028. The smoke constructed DesktopAppService to discover its default pipeline before changing LOCALAPPDATA, which could prepare and lock a real user's product runtime and log despite the advertised temporary boundary.",
+  "affected_areas": [
+    "settings patch evidence smoke",
+    "productized AppData isolation",
+    "desktop logger handler lifecycle",
+    "strict settings confirmation smoke evidence",
+    "generated_context"
+  ],
+  "behavior_before": "DesktopAppService was constructed before LOCALAPPDATA isolation. Productized runtime roots and the global file logger could therefore be created under the caller's real AppData, then reused by the supposedly isolated service. The smoke also expected an obsolete command-result shape for a missing strict confirmation field.",
+  "behavior_after": "Pipeline default discovery occurs inside a forced productized sandbox. LOCALAPPDATA, the product AppData override, productized mode, and global logger handlers are scoped and restored; every declared service runtime path and file handler is verified beneath work_root. Missing confirm_save is required to fail strict HTTP validation, while explicit false still exercises backend command denial evidence.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/feature-cards/generated-context.md",
+    "docs/generated/feature-cards/local-api.md",
+    "docs/generated/feature-cards/network-mode.md",
+    "docs/generated/feature-cards/queue-launch.md",
+    "docs/generated/feature-cards/release-validation.md",
+    "docs/generated/feature-cards/webview.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0722-023.json.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/webview_settings_patch_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_settings_patch_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0722-023.json",
+    "src/mediapipeline/desktop/webview_settings_patch_smoke.py",
+    "tests/webview/test_webview_settings_patch_smoke.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_settings_patch_smoke.py: productized mode with a sentinel real LOCALAPPDATA leaves that sentinel absent, resolves the default pipeline inside isolation, and reports only work-root-contained runtime/logger paths.",
+    "tests/webview/test_webview_settings_patch_smoke.py: global desktop logger handlers are restored by identity after the smoke.",
+    "tests/webview/test_webview_settings_patch_smoke.py: missing confirm_save produces strict HTTP 400 field-required evidence while explicit false produces the backend-owned denied command result."
+  ],
+  "manual_validation": [
+    "Pre-fix productized reproduction - expected red: the smoke created and locked MediaPipelineRemuxEncodeAIO_DesktopApp.log beneath the sentinel real LOCALAPPDATA before isolation; temporary-directory cleanup failed on that open handle.",
+    "Post-fix settings patch smoke module - passed: 2 tests, including default pipeline discovery with no explicit pipeline path.",
+    "Affected settings smoke, facade patch policy, HTTP helpers, and API command contracts - passed: 83 tests and 375 subtests.",
+    "Focused Ruff and bundled Python py_compile for changed source/tests - passed.",
+    "Direct mypy for webview_settings_patch_smoke.py remains blocked by 28 pre-existing config-key export and optional-payload annotation errors outside the new isolation helpers.",
+    "WebView suite excluding test_webview_browser_settings_field_matrix_smoke.py - 295 tests: 288 passed, 7 failed, with 581 subtests passed. Failures are unrelated known browser control-census, close-readiness, stale command-boundary audit, and stale touchpoint-ledger assertions.",
+    "Complete WebView discovery was attempted with a 364-second bound. The settings-field-matrix child exceeded its advertised internal timeout and left its exact pytest PID 29624 and Node PID 20812; both validation-owned processes were terminated and absence was verified before the bounded exclusion rerun.",
+    "Full desktop discovery - 3,030 tests: 3,020 passed, 9 failed, 1 skipped, with 6,850 subtests passed. Every non-pass matches the unchanged pre-existing baseline categories: AUDIT-FIND-W02-004, AUDIT-FIND-W11-030, AUDIT-FIND-W15-001, AUDIT-FIND-W09-013, and unrelated topbar event-ticker assertions.",
+    "Targeted refresh_summaries wrote 3 summaries; generate_project_index regenerated 2,473 typed records and the dependency graph; feature-file map and 15 feature cards regenerated.",
+    "Summary integrity, risky-file registry, lifecycle-map, feature-card, and AI-guardrail unit set - passed: 35 tests and 72 subtests.",
+    "Project-index/dependency and feature-map/card generator checks passed; risky-file registry and architecture guardrails passed.",
+    "God-file guard completed with 0 errors and 1 warning-only finding across the 3 touched source/test/packet paths.",
+    "validate_changes --require-worktree-coverage - passed with 1,138 valid packets before completion."
+  ],
+  "rollback_plan": "Revert the pre-service environment/logger sandbox, contained-path evidence, strict-confirmation smoke updates, tests, generated context, and packet metadata together; retain this packet as incomplete evidence if rollback occurs.",
+  "related_changes": [
+    "AUDIT-FIND-W01-028"
+  ],
+  "notes": "Validation-only smoke behavior. No live config, source media, media policy, launch, publish, rename, or queue mutation is authorized; representative media is not required. The full WebView field-matrix timeout is recorded separately from the successful affected and broad-exclusion coverage."
+}

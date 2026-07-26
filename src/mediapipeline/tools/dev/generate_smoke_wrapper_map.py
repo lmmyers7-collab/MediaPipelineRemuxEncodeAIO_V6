@@ -28,6 +28,54 @@ RUN_COMMAND = (
     "mediapipeline.tools.dev.generate_smoke_wrapper_map"
 )
 
+BROWSER_CATALOG_HEADING_RE = re.compile(
+    r"^#{1,6}\s+`(?P<name>Test-WebViewBrowser[^`]+\.ps1)`\s*$",
+    flags=re.MULTILINE,
+)
+BROWSER_WRAPPER_COUNT_RE = re.compile(
+    r"\b(?P<count>\d+)\s+(?:canonical\s+)?browser(?:-backed)?(?:\s+smoke)?\s+wrappers?\b",
+    flags=re.IGNORECASE,
+)
+BROWSER_MODULE_COUNT_RE = re.compile(
+    r"\b(?P<count>\d+)\s+(?:browser(?:-backed)?\s+)?Python(?:\s+smoke)?\s+modules?\b",
+    flags=re.IGNORECASE,
+)
+BROWSER_WRAPPER_BACKED_MODULE_COUNT_RE = re.compile(
+    r"\b(?P<count>\d+)\s+wrapper-backed\s+browser(?:-backed)?(?:\s+Python)?\s+modules?\b",
+    flags=re.IGNORECASE,
+)
+BROWSER_DIRECT_ONLY_MODULE_COUNT_RE = re.compile(
+    r"\b(?P<count>\d+)\s+direct-only\s+browser(?:-backed)?(?:\s+Python)?\s+modules?\b",
+    flags=re.IGNORECASE,
+)
+CANONICAL_WRAPPER_COUNT_RE = re.compile(
+    r"\b(?P<count>\d+)\s+canonical\s+wrappers?\b",
+    flags=re.IGNORECASE,
+)
+LOCAL_API_WRAPPER_COUNT_RE = re.compile(
+    r"\b(?P<count>\d+)\s+Local API contract wrappers?\b",
+    flags=re.IGNORECASE,
+)
+WEBVIEW_NON_BROWSER_WRAPPER_COUNT_RE = re.compile(
+    r"\b(?P<count>\d+)\s+browser-free WebView wrappers?\b",
+    flags=re.IGNORECASE,
+)
+
+REPORTED_COUNT_DOC_PATHS = (
+    "docs/inventories/API_ROUTE_INVENTORY.md",
+    "docs/inventories/PACKAGING_DEPENDENCY_INVENTORY.md",
+    "docs/inventories/ROOT_SCRIPT_INVENTORY.md",
+    "docs/inventories/SMOKE_TEST_INVENTORY.md",
+    "docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md",
+    "docs/operator/OPERATOR_GLOSSARY.md",
+    "docs/testing/BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md",
+    "docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md",
+    "docs/testing/TEST_COVERAGE_MATRIX.md",
+    "docs/testing/VALIDATION_LADDER_RUNBOOK.md",
+    "docs/testing/WEBVIEW_SMOKE_RESULT_TEMPLATE.md",
+    "docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md",
+)
+
 
 @dataclass(frozen=True)
 class DriftFinding:
@@ -47,6 +95,49 @@ def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8", errors="replace") if path.exists() else ""
 
 
+def python_module_for(repo_root: Path, path: Path) -> str:
+    return ".".join(path.relative_to(repo_root).with_suffix("").parts)
+
+
+def extract_browser_catalog_headings(text: str) -> list[str]:
+    return [match.group("name") for match in BROWSER_CATALOG_HEADING_RE.finditer(text)]
+
+
+def extract_reported_browser_counts(repo_root: Path, paths: list[Path]) -> list[dict[str, Any]]:
+    matches: list[tuple[str, int, int, dict[str, Any]]] = []
+    patterns = (
+        ("canonical_wrapper_count", CANONICAL_WRAPPER_COUNT_RE),
+        ("local_api_wrapper_count", LOCAL_API_WRAPPER_COUNT_RE),
+        ("webview_non_browser_wrapper_count", WEBVIEW_NON_BROWSER_WRAPPER_COUNT_RE),
+        ("browser_wrapper_count", BROWSER_WRAPPER_COUNT_RE),
+        ("browser_module_count", BROWSER_MODULE_COUNT_RE),
+        ("browser_wrapper_backed_module_count", BROWSER_WRAPPER_BACKED_MODULE_COUNT_RE),
+        ("browser_direct_only_module_count", BROWSER_DIRECT_ONLY_MODULE_COUNT_RE),
+    )
+    for path in paths:
+        text = read_text(path)
+        relative_path = repo_rel(repo_root, path)
+        for kind, pattern in patterns:
+            for match in pattern.finditer(text):
+                line_start = text.rfind("\n", 0, match.start()) + 1
+                line_end = text.find("\n", match.end())
+                if line_end < 0:
+                    line_end = len(text)
+                line_text = text[line_start:line_end].strip()
+                if kind == "browser_module_count" and "browser" not in line_text.lower():
+                    continue
+                line_number = text.count("\n", 0, match.start()) + 1
+                record = {
+                    "kind": kind,
+                    "line": line_number,
+                    "matched_text": match.group(0),
+                    "path": relative_path,
+                    "reported_count": int(match.group("count")),
+                }
+                matches.append((relative_path, line_number, match.start(), record))
+    return [record for _path, _line, _offset, record in sorted(matches)]
+
+
 def extract_write_host_literals(text: str) -> list[str]:
     literals: list[str] = []
     for line in text.splitlines():
@@ -58,7 +149,7 @@ def extract_write_host_literals(text: str) -> list[str]:
 
 def extract_invocation(text: str) -> tuple[str, str, str, list[str]]:
     browser_match = re.search(
-        r"Invoke-WebViewBrowserSmokeUnittest\b.*?-Module\s+['\"]([^'\"]+)['\"]",
+        r"Invoke-WebView(?:Browser|Direct)SmokeUnittest\b.*?-Module\s+['\"]([^'\"]+)['\"]",
         text,
         re.DOTALL,
     )
@@ -124,7 +215,10 @@ def parse_wrapper(repo_root: Path, path: Path) -> dict[str, Any]:
         "python_module": python_module,
         "test_selector": test_selector,
         "test_selectors": test_selectors,
-        "uses_shared_browser_support": "Invoke-WebViewBrowserSmokeUnittest" in text,
+        "uses_shared_browser_support": any(
+            invocation in text
+            for invocation in ("Invoke-WebViewBrowserSmokeUnittest", "Invoke-WebViewDirectSmokeUnittest")
+        ),
     }
 
 
@@ -133,12 +227,67 @@ def build_smoke_wrapper_map(repo_root: Path = REPO_ROOT) -> tuple[dict[str, Any]
     release_script = repo_root / "ops" / "scripts" / "release" / "test.ps1"
     smoke_inventory = repo_root / "docs" / "inventories" / "SMOKE_TEST_INVENTORY.md"
     webview_catalog = repo_root / "docs" / "testing" / "WEBVIEW_SMOKE_TEST_CATALOG.md"
+    reported_count_documents = [repo_root / path for path in REPORTED_COUNT_DOC_PATHS]
 
     release_text = read_text(release_script)
     smoke_inventory_text = read_text(smoke_inventory)
     webview_catalog_text = read_text(webview_catalog)
 
     wrappers = [parse_wrapper(repo_root, path) for path in sorted(smoke_root.glob("Test-*.ps1"))]
+    browser_wrappers = [wrapper for wrapper in wrappers if wrapper["browser_backed"]]
+    browser_wrapper_names = [wrapper["name"] for wrapper in browser_wrappers]
+    browser_catalog_headings = extract_browser_catalog_headings(webview_catalog_text)
+    browser_catalog_heading_counts = Counter(browser_catalog_headings)
+    browser_catalog_heading_names = set(browser_catalog_headings)
+    browser_module_paths = sorted(
+        (repo_root / "tests" / "webview").rglob("test_webview_browser*.py")
+    )
+    browser_modules = [python_module_for(repo_root, path) for path in browser_module_paths]
+    wrappers_by_module: dict[str, list[str]] = {}
+    for wrapper in browser_wrappers:
+        module = wrapper["python_module"]
+        if module:
+            wrappers_by_module.setdefault(module, []).append(wrapper["name"])
+    browser_module_records = [
+        {
+            "coverage_kind": "wrapper_backed" if module in wrappers_by_module else "direct_only",
+            "path": repo_rel(repo_root, path),
+            "python_module": module,
+            "wrappers": sorted(wrappers_by_module.get(module, [])),
+        }
+        for path, module in zip(browser_module_paths, browser_modules, strict=True)
+    ]
+    wrapper_backed_modules = [
+        record["python_module"]
+        for record in browser_module_records
+        if record["coverage_kind"] == "wrapper_backed"
+    ]
+    direct_only_modules = [
+        record["python_module"]
+        for record in browser_module_records
+        if record["coverage_kind"] == "direct_only"
+    ]
+    reported_counts = extract_reported_browser_counts(
+        repo_root,
+        reported_count_documents,
+    )
+    disk_counts = {
+        "canonical_wrapper_count": len(wrappers),
+        "local_api_wrapper_count": sum(
+            wrapper["proof_tier"] == "local_api_contract_smoke" for wrapper in wrappers
+        ),
+        "webview_non_browser_wrapper_count": sum(
+            wrapper["proof_tier"] == "webview_non_browser_smoke" for wrapper in wrappers
+        ),
+        "browser_module_count": len(browser_modules),
+        "browser_wrapper_backed_module_count": len(wrapper_backed_modules),
+        "browser_direct_only_module_count": len(direct_only_modules),
+        "browser_wrapper_count": len(browser_wrappers),
+    }
+    for record in reported_counts:
+        record["disk_count"] = disk_counts[record["kind"]]
+        record["matches_disk"] = record["reported_count"] == record["disk_count"]
+
     support_files = [
         repo_rel(repo_root, path)
         for path in sorted(smoke_root.glob("*.ps1"))
@@ -151,7 +300,14 @@ def build_smoke_wrapper_map(repo_root: Path = REPO_ROOT) -> tuple[dict[str, Any]
         path = wrapper["path"]
         docs = {
             "listed_in_smoke_inventory": name in smoke_inventory_text,
-            "listed_in_webview_catalog": name in webview_catalog_text,
+            "listed_in_webview_catalog": (
+                name in browser_catalog_heading_names
+                if wrapper["browser_backed"]
+                else name in webview_catalog_text
+            ),
+            "listed_in_webview_catalog_heading": (
+                name in browser_catalog_heading_names if wrapper["browser_backed"] else None
+            ),
             "webview_catalog_required": name.startswith("Test-WebView"),
         }
         release = {"listed_in_release_layout": name in release_text}
@@ -174,7 +330,11 @@ def build_smoke_wrapper_map(repo_root: Path = REPO_ROOT) -> tuple[dict[str, Any]
                     message="wrapper is not referenced by docs/inventories/SMOKE_TEST_INVENTORY.md",
                 )
             )
-        if docs["webview_catalog_required"] and not docs["listed_in_webview_catalog"]:
+        if (
+            docs["webview_catalog_required"]
+            and not wrapper["browser_backed"]
+            and not docs["listed_in_webview_catalog"]
+        ):
             findings.append(
                 DriftFinding(
                     code="MISSING_WEBVIEW_CATALOG",
@@ -191,18 +351,101 @@ def build_smoke_wrapper_map(repo_root: Path = REPO_ROOT) -> tuple[dict[str, Any]
                 )
             )
 
+    for name in sorted(browser_wrapper_names):
+        heading_count = browser_catalog_heading_counts[name]
+        if heading_count == 0:
+            findings.append(
+                DriftFinding(
+                    code="MISSING_BROWSER_CATALOG_HEADING",
+                    path=repo_rel(repo_root, webview_catalog),
+                    message=f"browser wrapper has no exact catalog heading: {name}",
+                )
+            )
+        elif heading_count > 1:
+            findings.append(
+                DriftFinding(
+                    code="DUPLICATE_BROWSER_CATALOG_HEADING",
+                    path=repo_rel(repo_root, webview_catalog),
+                    message=f"browser wrapper has {heading_count} catalog headings: {name}",
+                )
+            )
+    browser_wrapper_name_set = set(browser_wrapper_names)
+    for name in sorted(browser_catalog_heading_names - browser_wrapper_name_set):
+        findings.append(
+            DriftFinding(
+                code="STALE_BROWSER_CATALOG_HEADING",
+                path=repo_rel(repo_root, webview_catalog),
+                message=f"catalog heading has no browser wrapper on disk: {name}",
+            )
+        )
+
+    count_labels = {
+        "canonical_wrapper_count": "canonical wrapper count",
+        "local_api_wrapper_count": "Local API contract wrapper count",
+        "webview_non_browser_wrapper_count": "browser-free WebView wrapper count",
+        "browser_module_count": "browser module count",
+        "browser_wrapper_backed_module_count": "wrapper-backed browser module count",
+        "browser_direct_only_module_count": "direct-only browser module count",
+        "browser_wrapper_count": "browser wrapper count",
+    }
+    count_codes = {
+        "canonical_wrapper_count": "CANONICAL_WRAPPER_COUNT_MISMATCH",
+        "local_api_wrapper_count": "LOCAL_API_WRAPPER_COUNT_MISMATCH",
+        "webview_non_browser_wrapper_count": "WEBVIEW_NON_BROWSER_WRAPPER_COUNT_MISMATCH",
+        "browser_module_count": "BROWSER_MODULE_COUNT_MISMATCH",
+        "browser_wrapper_backed_module_count": "BROWSER_WRAPPER_BACKED_MODULE_COUNT_MISMATCH",
+        "browser_direct_only_module_count": "BROWSER_DIRECT_ONLY_MODULE_COUNT_MISMATCH",
+        "browser_wrapper_count": "BROWSER_WRAPPER_COUNT_MISMATCH",
+    }
+    for record in reported_counts:
+        if record["matches_disk"]:
+            continue
+        findings.append(
+            DriftFinding(
+                code=count_codes[record["kind"]],
+                path=record["path"],
+                message=(
+                    f"{count_labels[record['kind']]} explicitly reported "
+                    f"{record['reported_count']}; disk has {record['disk_count']}"
+                ),
+            )
+        )
+
+    findings.sort(key=lambda finding: (finding.code, finding.path, finding.message))
     tiers = Counter(wrapper["proof_tier"] for wrapper in wrappers)
     output = {
+        "browser_suite": {
+            "browser_module_count": len(browser_modules),
+            "browser_modules": browser_module_records,
+            "browser_wrapper_count": len(browser_wrappers),
+            "browser_wrappers": browser_wrapper_names,
+            "catalog_heading_count": len(browser_catalog_headings),
+            "catalog_unique_heading_count": len(browser_catalog_heading_names),
+            "catalog_wrapper_headings": browser_catalog_headings,
+            "direct_only_module_count": len(direct_only_modules),
+            "direct_only_modules": direct_only_modules,
+            "reported_counts": reported_counts,
+            "wrapper_backed_module_count": len(wrapper_backed_modules),
+            "wrapper_backed_modules": wrapper_backed_modules,
+        },
         "drift_findings": [finding.as_dict() for finding in findings],
         "generated_by": RUN_COMMAND,
-        "schema_version": 1,
+        "schema_version": 2,
         "source_paths": {
             "release_script": repo_rel(repo_root, release_script),
+            "reported_count_documents": [
+                repo_rel(repo_root, path) for path in reported_count_documents
+            ],
             "smoke_inventory": repo_rel(repo_root, smoke_inventory),
             "smoke_root": repo_rel(repo_root, smoke_root),
             "webview_catalog": repo_rel(repo_root, webview_catalog),
         },
         "summary": {
+            "browser_catalog_heading_count": len(browser_catalog_headings),
+            "browser_direct_only_module_count": len(direct_only_modules),
+            "browser_module_count": len(browser_modules),
+            "browser_wrapper_backed_module_count": len(wrapper_backed_modules),
+            "browser_wrapper_count": len(browser_wrappers),
             "drift_finding_count": len(findings),
             "proof_tiers": dict(sorted(tiers.items())),
             "shared_support_files": support_files,

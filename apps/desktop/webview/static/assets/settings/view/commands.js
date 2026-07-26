@@ -43,6 +43,28 @@
       state,
     } = deps;
 
+    const SETTINGS_PATCH_NETWORK_CREDENTIAL_KEYS = new Set([
+      "coordinatorauthtoken",
+      "workerauthtoken",
+    ]);
+
+    function blockSettingsPatchNetworkCredentials(command, changes) {
+      const includesCredential = Object.keys(changes).some((key) => (
+        SETTINGS_PATCH_NETWORK_CREDENTIAL_KEYS.has(String(key || "").trim().toLowerCase())
+      ));
+      if (!includesCredential) return false;
+      const result = {
+        command,
+        ok: false,
+        severity: "error",
+        message: "Authentication tokens cannot be staged through WebView Settings. Use the backend network credential workflow.",
+      };
+      appendCommandResult(result);
+      setText("settings-patch-status", "Credential blocked");
+      setText("settings-patch-detail", result.message);
+      return true;
+    }
+
   function openSettingsSaveReviewDialog(options) {
       const dialog = ensureSettingsSaveReviewDialogGlobal(byId("settings-save-review-dialog"));
       if (!dialog || typeof dialog.showModal !== "function") {
@@ -278,6 +300,7 @@
       setText("settings-patch-detail", result.message);
       return;
     }
+    if (blockSettingsPatchNetworkCredentials("settings.preview_patch", changes)) return;
     if (settingsPatchHasStaleLibraryProfiles(changes)) {
       blockStaleLibraryProfilesPatch("settings.preview_patch");
       return;
@@ -400,6 +423,7 @@
       setText("settings-patch-detail", message);
       return;
     }
+    if (blockSettingsPatchNetworkCredentials("settings.save_patch", changes)) return;
     const renameMerge = mergeRenameCleaningFiltersForSave(changes);
     if (renameMerge.error) {
       const message = `Rename filter values could not be prepared for save: ${renameMerge.error}`;

@@ -1,0 +1,51 @@
+{
+  "id": "MP-CHANGE-2026-0713-004",
+  "title": "Cover Queue to Completed state handoff",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "test",
+  "risk_level": "medium",
+  "date_started": "2026-07-13",
+  "date_completed": "2026-07-13",
+  "summary": "Adds a stateful Queue-to-Completed browser workflow using an isolated Local API and deterministic fake runner.",
+  "reason": "Existing browser coverage stops before proving that one eligible queue item starts once, transitions to Completed, persists across reload, and leaves blocked or excluded entries untouched.",
+  "affected_areas": [
+    "api",
+    "docs",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Queue browser tests covered readiness and controls but not the complete persisted state handoff through the backend command path.",
+  "behavior_after": "A hermetic browser smoke proves the eligible item alone completes with one journaled start, duplicate protection, persisted reload state, and safe close readiness.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0713-004.json.md",
+    "docs/generated/summaries/ops/scripts/smoke/Test-WebViewBrowserQueueLaunchCompletedSmoke.ps1.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_queue_launch_completed_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0713-004.json",
+    "ops/scripts/smoke/Test-WebViewBrowserQueueLaunchCompletedSmoke.ps1",
+    "tests/webview/test_webview_browser_queue_launch_completed_smoke.py"
+  ],
+  "tests_added": [
+    "tests.webview.test_webview_browser_queue_launch_completed_smoke.WebViewBrowserQueueLaunchCompletedSmoke.test_real_browser_moves_only_runnable_queue_row_to_completed"
+  ],
+  "manual_validation": [
+    "GREEN ADJACENT: .\\ops\\scripts\\smoke\\Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1 (2 passed; no skipped tests).",
+    "GREEN ADJACENT: .\\ops\\scripts\\smoke\\Test-WebViewBrowserCompletedPendingProofSmoke.ps1 (1 passed; no skipped tests).",
+    "GREEN FOLLOW-UP: .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.tooling.test_webview_tooling_checks tests.python.desktop.test_browser_smoke_support -q (25 passed; every browser smoke, including Queue-to-Completed, uses the shared media no-mutation proof).",
+    "GREEN FOLLOW-UP: .\\ops\\scripts\\smoke\\Test-WebViewBrowserQueueLaunchCompletedSmoke.ps1 (1 passed again after the shared source snapshot integration; no skipped tests).",
+    "GREEN: .\\apps\\desktop\\runtime\\Python\\python.exe -m ruff check tests/webview/test_webview_browser_queue_launch_completed_smoke.py (passed).",
+    "GREEN: .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_browser_queue_launch_completed_smoke -v (1 passed).",
+    "GREEN: .\\ops\\scripts\\smoke\\Test-WebViewBrowserQueueLaunchCompletedSmoke.ps1 (1 passed; real installed browser, no skipped tests).",
+    "RED: bundled-Python unittest failed because the stateful Queue-to-Completed fixture was not yet implemented.",
+    "FINAL GREEN: the canonical Queue-to-Launch-to-Completed wrapper passed again, and the isolated -RequireTests release gate promoted and passed the workflow without skips."
+  ],
+  "rollback_plan": "Remove the dedicated browser smoke and wrapper and revert their active test inventories; no production behavior is changed.",
+  "related_changes": [
+    "MP-CHANGE-2026-0712-015",
+    "MP-CHANGE-2026-0712-020",
+    "MP-CHANGE-2026-0713-002",
+    "MP-CHANGE-2026-0713-003",
+    "MP-CHANGE-2026-0713-005"
+  ],
+  "notes": "The runner is test-only, operates entirely under a temporary root, and never launches media tools, pipeline child processes, network workers, or Pending Publish work. It waits for one successful and one rejected terminal pipeline.start journal record before completing, so duplicate suppression is observed while the durable lifecycle lease is active. Shared inventories, generated summaries/maps, and aggregate release-gate registration were completed by MP-CHANGE-2026-0713-002.\nAdd the canonical PowerShell entry point and explicit hermetic safety boundary for the new browser smoke.\nAdd a real-browser stateful Queue-to-Launch-to-Completed smoke with a journal-synchronized test-only runner.\nUse the shared media no-mutation snapshot helper over the temporary source root so repository-wide browser-smoke guardrails verify the stateful fake-output workflow preserves every source artifact."
+}

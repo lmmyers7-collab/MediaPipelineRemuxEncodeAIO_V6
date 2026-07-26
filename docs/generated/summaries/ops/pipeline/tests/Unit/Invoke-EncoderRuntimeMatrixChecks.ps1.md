@@ -1,5 +1,8 @@
 ---
 file: ops/pipeline/tests/Unit/Invoke-EncoderRuntimeMatrixChecks.ps1
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: PowerShell
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
@@ -9,8 +12,9 @@ sha256: 25af528c107944ced8c235f400cdb65900d4448df07c34f08f535f25c8c82e61
 ---
 # `ops/pipeline/tests/Unit/Invoke-EncoderRuntimeMatrixChecks.ps1`
 
-**Purpose:** (no .SYNOPSIS block)
+**Purpose:** PowerShell implementation for invoke encoder runtime matrix checks; exposes Assert-Contains, Assert-Equal, Assert-Throws.
 
-**Functions:** `Assert-Contains`, `Assert-Equal`, `Assert-Throws`, `Assert-True`, `Get-FlagValue`, `Invoke-Tool`, `Read-VideoStreamInfo`
+**Public symbols:** `Assert-Contains`, `Assert-Equal`, `Assert-Throws`, `Assert-True`, `Get-FlagValue`, `Invoke-Tool`, `Read-VideoStreamInfo`
+**Invoked tools:** `ffmpeg`, `ffprobe`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/pipeline/tests/Unit/Invoke-EncoderRuntimeMatrixChecks.ps1`._

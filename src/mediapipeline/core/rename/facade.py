@@ -6,6 +6,7 @@ import hmac
 from typing import TYPE_CHECKING, Any
 
 from mediapipeline.core.rename.policy import (
+    apply_production_naming_preview_to_clean_filename_payload,
     rename_apply_blockers_result,
     rename_apply_active_work_result,
     rename_apply_busy_result,
@@ -35,6 +36,7 @@ from mediapipeline.core.rename.policy import (
     rename_plan_outside_configured_roots,
     rename_plan_unscoped_operator_paths,
     rename_clean_filename_preview_from_request,
+    rename_cleaning_policy_from_request,
     rename_preview_change_kind_counts,
     rename_preview_confidence_counts,
     rename_preview_counts,
@@ -90,7 +92,13 @@ class RenameFacadeMixin:
             preview_fingerprint=rename_preview_fingerprint(rows),
         )
 
-    def get_rename_clean_filename_preview(self, request: dict[str, Any]) -> dict[str, Any]:
+    def get_rename_clean_filename_preview(
+        self,
+        request: dict[str, Any],
+        *,
+        powershell_host: str | None = None,
+        require_production: bool = False,
+    ) -> dict[str, Any]:
         cleaner = getattr(self.service, "_clean_pipeline_movie_name", None)
         if not callable(cleaner):
             return {
@@ -107,11 +115,53 @@ class RenameFacadeMixin:
                 "mutation_boundary": "read-only filename preview; no filesystem paths are opened, renamed, moved, deleted, or written",
             }
         parser = getattr(self.service, "parse_rename_remove_terms", None)
-        return rename_clean_filename_preview_from_request(
+        payload = rename_clean_filename_preview_from_request(
             request,
             parse_remove_terms=parser if callable(parser) else None,
             clean_movie_name=cleaner,
             build_auto_tv_name=getattr(self.service, "_build_auto_tv_rename_name", None),
+        )
+        if not require_production:
+            return payload
+
+        cleaning_policy = rename_cleaning_policy_from_request(
+            request,
+            parser if callable(parser) else None,
+        )
+        expected_fingerprint = str(cleaning_policy.get("policy_fingerprint") or "")
+        loader = getattr(self.service, "_load_synthetic_pipeline_name_preview", None)
+        if not callable(loader):
+            production_result: dict[str, Any] = {
+                "ok": False,
+                "requested_policy_fingerprint": expected_fingerprint,
+                "applied_policy_fingerprint": "",
+                "policy_fingerprint_match": False,
+                "row": {},
+                "error": "Production pipeline naming preview is unavailable.",
+            }
+        else:
+            try:
+                production_result = loader(
+                    filename=str(payload.get("input_name") or request.get("filename") or ""),
+                    source_folder=str(request.get("source_folder") or ""),
+                    media_kind="TV" if str(payload.get("mode") or "movie") == "tv" else "Movie",
+                    powershell_host=powershell_host,
+                    cleaning_policy=cleaning_policy,
+                )
+            except Exception as exc:
+                production_result = {
+                    "ok": False,
+                    "requested_policy_fingerprint": expected_fingerprint,
+                    "applied_policy_fingerprint": "",
+                    "policy_fingerprint_match": False,
+                    "row": {},
+                    "error": f"Production pipeline naming preview is unavailable: {exc}",
+                }
+        return apply_production_naming_preview_to_clean_filename_payload(
+            payload,
+            request,
+            production_result,
+            expected_policy_fingerprint=expected_fingerprint,
         )
 
     def get_rename_cleaning_filter_catalog(self, config: dict[str, Any] | None = None) -> dict[str, Any]:

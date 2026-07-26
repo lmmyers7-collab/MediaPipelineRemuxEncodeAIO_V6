@@ -122,7 +122,9 @@ function New-MediaQualityVerificationRecord {
 function Get-MediaQualityStreamInfo {
     param(
         [Parameter(Mandatory)] [string] $FilePath,
-        [int] $TimeoutSeconds = 30
+        [int] $TimeoutSeconds = 30,
+        [scriptblock] $PollHandler = $null,
+        [int] $PollMilliseconds = 100
     )
 
     try {
@@ -132,7 +134,7 @@ function Get-MediaQualityStreamInfo {
             '-show_entries', 'stream=width,height,avg_frame_rate,pix_fmt,duration:format=duration',
             '-of', 'json',
             '-i', $FilePath
-        ) -TimeoutSeconds $TimeoutSeconds -Stage 'quality-probe'
+        ) -TimeoutSeconds $TimeoutSeconds -Stage 'quality-probe' -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds
 
         $exitCode = [int](Get-MediaQualityObjectValue -Object $result -Name 'ExitCode' -Default -1)
         $stderr = [string](Get-MediaQualityObjectValue -Object $result -Name 'Stderr' -Default (Get-MediaQualityObjectValue -Object $result -Name 'Error' -Default ''))
@@ -312,7 +314,9 @@ function Invoke-MediaQualityVerification {
         [string] $SampleMode = 'sampled',
         [int] $SampleSeconds = 10,
         [int] $SampleCount = 3,
-        [int] $TimeoutSeconds = 1800
+        [int] $TimeoutSeconds = 1800,
+        [scriptblock] $PollHandler = $null,
+        [int] $PollMilliseconds = 100
     )
 
     $metricText = ([string]$Metric).Trim().ToLowerInvariant()
@@ -329,11 +333,11 @@ function Invoke-MediaQualityVerification {
         $probeTimeout = [int]$probeTimeoutVariable.Value
     }
 
-    $referenceInfo = Get-MediaQualityStreamInfo -FilePath $ReferencePath -TimeoutSeconds $probeTimeout
+    $referenceInfo = Get-MediaQualityStreamInfo -FilePath $ReferencePath -TimeoutSeconds $probeTimeout -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds
     if (-not [bool]$referenceInfo.Ok) {
         return New-MediaQualityVerificationRecord -Metric $metricText -SampleMode $sampleModeText -SampleSeconds $sampleSecondsValue -SampleCount $sampleCountValue -ReferencePath $ReferencePath -DistortedPath $DistortedPath -ToolError ("reference probe failed: {0}" -f [string]$referenceInfo.Error) -Outcome 'error'
     }
-    $distortedInfo = Get-MediaQualityStreamInfo -FilePath $DistortedPath -TimeoutSeconds $probeTimeout
+    $distortedInfo = Get-MediaQualityStreamInfo -FilePath $DistortedPath -TimeoutSeconds $probeTimeout -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds
     if (-not [bool]$distortedInfo.Ok) {
         return New-MediaQualityVerificationRecord -Metric $metricText -SampleMode $sampleModeText -SampleSeconds $sampleSecondsValue -SampleCount $sampleCountValue -ReferencePath $ReferencePath -DistortedPath $DistortedPath -ToolError ("distorted probe failed: {0}" -f [string]$distortedInfo.Error) -Outcome 'error'
     }
@@ -393,7 +397,7 @@ function Invoke-MediaQualityVerification {
             [void]$ffmpegArgs.Add('null')
             [void]$ffmpegArgs.Add('-')
 
-            $result = Invoke-FFmpegCommand -ArgumentList @($ffmpegArgs) -TimeoutSeconds $timeoutValue -Stage 'encode-quality-verify' -ProcessPriority 'BelowNormal'
+            $result = Invoke-FFmpegCommand -ArgumentList @($ffmpegArgs) -TimeoutSeconds $timeoutValue -Stage 'encode-quality-verify' -ProcessPriority 'BelowNormal' -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds
             $exitCode = [int](Get-MediaQualityObjectValue -Object $result -Name 'ExitCode' -Default -1)
             $stderr = [string](Get-MediaQualityObjectValue -Object $result -Name 'Stderr' -Default (Get-MediaQualityObjectValue -Object $result -Name 'Error' -Default ''))
             if ([bool](Get-MediaQualityObjectValue -Object $result -Name 'Stopped' -Default $false)) {

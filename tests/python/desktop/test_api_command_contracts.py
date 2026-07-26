@@ -12,13 +12,25 @@ REPO_ROOT = find_repo_root(Path(__file__))
 sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
-from mediapipeline.contracts.api_commands import COMMAND_ROUTE_PAYLOAD_MODELS, validate_api_command_payload  # noqa: E402
+from mediapipeline.contracts.api_commands import (  # noqa: E402
+    COMMAND_ROUTE_PAYLOAD_MODELS,
+    RenameFilterCaseCommandPayload,
+    validate_api_command_payload,
+)
+from mediapipeline.contracts.api_routes_command_operations import (  # noqa: E402
+    LOCAL_API_MAINTENANCE_COMMAND_ROUTE_CONTRACT as SHARED_MAINTENANCE_COMMAND_ROUTE_CONTRACT,
+    LOCAL_API_RENAME_COMMAND_ROUTE_CONTRACT as SHARED_RENAME_COMMAND_ROUTE_CONTRACT,
+)
 from mediapipeline.core.api.commands import COMMAND_ROUTE_METHODS  # noqa: E402
 from mediapipeline.core.validation.boundary import ValidationFailure, validate_api_payload  # noqa: E402
-from mediapipeline.desktop.api.command_journal_policy import bounded_command_evidence  # noqa: E402
+from mediapipeline.desktop.api.command_journal_policy import bounded_command_evidence, summarize_command_payload  # noqa: E402
 from mediapipeline.desktop.api.handler_policy import should_record_validation_failure_journal  # noqa: E402
 from mediapipeline.desktop.api.routes_command import POST_ROUTE_HANDLERS  # noqa: E402
 from mediapipeline.desktop.api.contract import LOCAL_API_ROUTE_CONTRACT  # noqa: E402
+from mediapipeline.desktop.api.contract_command_operations import (  # noqa: E402
+    LOCAL_API_MAINTENANCE_COMMAND_ROUTE_CONTRACT as DESKTOP_MAINTENANCE_COMMAND_ROUTE_CONTRACT,
+    LOCAL_API_RENAME_COMMAND_ROUTE_CONTRACT as DESKTOP_RENAME_COMMAND_ROUTE_CONTRACT,
+)
 
 
 FIXTURE_ROOT = REPO_ROOT / "tests" / "fixtures" / "source_media"
@@ -32,6 +44,75 @@ def _source_media_payload() -> dict:
 
 
 class ApiCommandContractsTests(unittest.TestCase):
+    def test_rename_filter_case_route_contract_is_derived_from_strict_model(self) -> None:
+        expected_fields = list(RenameFilterCaseCommandPayload.model_fields)
+        for contract in (SHARED_RENAME_COMMAND_ROUTE_CONTRACT, DESKTOP_RENAME_COMMAND_ROUTE_CONTRACT):
+            route = next(item for item in contract if item["path"] == "/api/rename/filter-cases")
+            self.assertEqual(route["request_keys"], expected_fields)
+
+        movie_payload = {
+            "kind": "movie_auto",
+            "source_folder": "Movies",
+            "source_file": "Scary.Movie.2026.1080p.WEB-DL-GROUP.mkv",
+            "expected_name": "Scary Movie (2026).mkv",
+            "expected_movie_title": "Scary Movie",
+            "expected_year": "2026",
+            "template_preset": "movie_standard",
+            "movie_filter_options": {"video_source": True},
+            "movie_filter_terms": {"release_groups": ["GROUP"]},
+            "remove_terms": ["sample"],
+            "status": "pending",
+            "confirm_append": True,
+        }
+        tv_payload = {
+            "kind": "tv_auto",
+            "source_folder": "The Web S01 1080p WEB-DL-GROUP",
+            "source_file": "S01E01-Pilot.1080p.WEB-DL-GROUP.mkv",
+            "expected_name": "The Web - S01E01 - Pilot.mkv",
+            "expected_show": "The Web",
+            "expected_clean_folder": "The Web",
+            "expected_season": 1,
+            "expected_episode": 1,
+            "expected_episode_end": None,
+            "expected_episode_title": "Pilot",
+            "season_number": 1,
+            "template_preset": "tv_standard",
+            "tv_filter_options": {"video_source": True},
+            "tv_filter_terms": {"release_groups": ["GROUP"]},
+            "tv_remove_terms": ["sample"],
+            "status": "pending",
+            "notes": "backend-generated regression case",
+            "confirm_append": True,
+        }
+        for payload in (movie_payload, tv_payload):
+            with self.subTest(kind=payload["kind"]):
+                self.assertEqual(validate_api_payload("/api/rename/filter-cases", payload), payload)
+
+        invalid_payloads = (
+            {**movie_payload, "fixture_path": "client-owned"},
+            {**movie_payload, "confirm_append": "true"},
+            {**movie_payload, "movie_filter_options": {"video_source": "true"}},
+            {**tv_payload, "tv_filter_terms": {"release_groups": [1]}},
+        )
+        for payload in invalid_payloads:
+            with self.subTest(payload=payload):
+                with self.assertRaises(ValidationFailure):
+                    validate_api_payload("/api/rename/filter-cases", payload)
+
+    def test_release_route_contracts_publish_builder_compatible_safe_defaults(self) -> None:
+        for contract in (SHARED_MAINTENANCE_COMMAND_ROUTE_CONTRACT, DESKTOP_MAINTENANCE_COMMAND_ROUTE_CONTRACT):
+            routes = {
+                str(item.get("path")): item
+                for item in contract
+                if item.get("path") in {"/api/maintenance/release-dry-run", "/api/maintenance/release-build"}
+            }
+            self.assertEqual(set(routes), {"/api/maintenance/release-dry-run", "/api/maintenance/release-build"})
+            for route in routes.values():
+                defaults = route["safe_defaults"]
+                self.assertTrue(defaults["verify"])
+                self.assertTrue(defaults["include_tests"])
+                self.assertFalse(defaults["include_tauri_preview_binary"])
+
     def test_queue_priority_position_is_in_canonical_route_contract(self) -> None:
         route = next(
             item
@@ -318,7 +399,12 @@ class ApiCommandContractsTests(unittest.TestCase):
             },
             "/api/rerun/start": {"csv_path": r"C:\Media\runs.csv", "dry_run": True, "path": r"C:\Other.csv"},
             "/api/rerun/control": {"action": "stop_after_current", "confirm_stop": True, "path": r"C:\Other.csv"},
-            "/api/rerun/continue": {"manifest_key": "manifest-1", "confirm_continue": True, "path": r"C:\Other.csv"},
+            "/api/rerun/continue": {
+                "manifest_key": "manifest-1",
+                "request_id": "continue-request-1",
+                "confirm_continue": True,
+                "path": r"C:\Other.csv",
+            },
             "/api/final-library-promotion/promote-queue": {"confirm_promote": True, "row_key": "client-owned"},
             "/api/final-library-promotion/pause": {"run_id": "run-1", "row_key": "client-owned"},
             "/api/final-library-promotion/resume": {"run_id": "run-1", "row_key": "client-owned"},
@@ -345,6 +431,25 @@ class ApiCommandContractsTests(unittest.TestCase):
             {"action": "kill", "confirm_force_stop": True},
         )
         self.assertEqual(validate_api_payload("/api/pipeline/control", {"action": "pause"}), {"action": "pause"})
+        self.assertEqual(
+            validate_api_payload(
+                "/api/pipeline/control",
+                {"action": "stop", "expected_run_id": "run-once-123"},
+            ),
+            {"action": "stop", "expected_run_id": "run-once-123"},
+        )
+        self.assertEqual(
+            validate_api_payload("/api/pipeline/control", {"action": "stop"}),
+            {"action": "stop"},
+        )
+        for payload in (
+            {"action": "stop", "expected_run_id": ""},
+            {"action": "stop", "expected_run_id": " run-once-123"},
+            {"action": "stop", "expected_run_id": "../run"},
+            {"action": "pause", "expected_run_id": "run-once-123"},
+        ):
+            with self.subTest(pipeline_control_identity=payload), self.assertRaises(ValidationFailure):
+                validate_api_payload("/api/pipeline/control", payload)
         self.assertEqual(
             validate_api_payload("/api/audit/stop", {"confirm_stop": True, "reason": "operator stop"}),
             {"confirm_stop": True, "reason": "operator stop"},
@@ -575,8 +680,19 @@ class ApiCommandContractsTests(unittest.TestCase):
             {"action": "pause", "confirm_pause": True},
         )
         self.assertEqual(
-            validate_api_payload("/api/rerun/continue", {"manifest_key": "manifest-1", "confirm_continue": True}),
-            {"manifest_key": "manifest-1", "confirm_continue": True},
+            validate_api_payload(
+                "/api/rerun/continue",
+                {
+                    "manifest_key": "manifest-1",
+                    "request_id": "continue-request-1",
+                    "confirm_continue": True,
+                },
+            ),
+            {
+                "manifest_key": "manifest-1",
+                "request_id": "continue-request-1",
+                "confirm_continue": True,
+            },
         )
         self.assertEqual(
             validate_api_payload("/api/rerun/promote", {"row_key": "abc", "dry_run_fingerprint": "fp", "confirm_promote": True}),
@@ -607,9 +723,25 @@ class ApiCommandContractsTests(unittest.TestCase):
         with self.assertRaises(ValidationFailure):
             validate_api_payload("/api/rerun/continue", {"manifest_key": "manifest-1"})
         with self.assertRaises(ValidationFailure):
-            validate_api_payload("/api/rerun/continue", {"manifest_key": "manifest-1", "confirm_continue": "true"})
+            validate_api_payload(
+                "/api/rerun/continue",
+                {"manifest_key": "manifest-1", "request_id": "continue-request-1", "confirm_continue": "true"},
+            )
         with self.assertRaises(ValidationFailure):
-            validate_api_payload("/api/rerun/continue", {"manifest_key": "", "confirm_continue": True})
+            validate_api_payload(
+                "/api/rerun/continue",
+                {"manifest_key": "", "request_id": "continue-request-1", "confirm_continue": True},
+            )
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload(
+                "/api/rerun/continue",
+                {"manifest_key": "manifest-1", "confirm_continue": True},
+            )
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload(
+                "/api/rerun/continue",
+                {"manifest_key": "manifest-1", "request_id": "   ", "confirm_continue": True},
+            )
         with self.assertRaises(ValidationFailure):
             validate_api_payload("/api/rerun/promote", {"row_key": "abc", "dry_run_fingerprint": "fp", "confirm_promote": "true"})
         self.assertEqual(
@@ -868,6 +1000,28 @@ class ApiCommandContractsTests(unittest.TestCase):
         self.assertNotIn("secret-blob-value", json.dumps(evidence, sort_keys=True))
         self.assertNotIn("secret-nested-value", json.dumps(evidence, sort_keys=True))
 
+    def test_accepted_route_and_backend_result_deep_secrets_reach_redaction_boundary(self) -> None:
+        fake_request_secret = "fake-accepted-route-secret-045"
+        fake_result_secret = "fake-backend-result-secret-045"
+        request = validate_api_payload(
+            "/api/settings/reload",
+            {"extra": [{"one": [{"password": fake_request_secret}]}]},
+        )
+        summary = summarize_command_payload(
+            {
+                "schema_version": "desktop_command_result.v1",
+                "command": "settings.reload",
+                "ok": True,
+                "data": {"extra": [{"one": [{"token": fake_result_secret}]}]},
+            },
+            request=request,
+        )
+
+        serialized = json.dumps(summary, sort_keys=True)
+        self.assertNotIn(fake_request_secret, serialized)
+        self.assertNotIn(fake_result_secret, serialized)
+        self.assertIn("<redacted>", serialized)
+
     def test_backend_shutdown_force_cleanup_requires_strict_boolean(self) -> None:
         for value in ("true", "false", 1, 0):
             with self.subTest(value=value):
@@ -928,6 +1082,20 @@ class ApiCommandContractsTests(unittest.TestCase):
                         },
                     )
 
+    def test_settings_save_confirm_save_is_required_and_strictly_boolean(self) -> None:
+        route = "/api/settings/save-patch"
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload(route, {"changes": {"VideoQuality": 24}})
+        for value in ("true", "false", 1, 0, None, [], {}):
+            with self.subTest(value=value), self.assertRaises(ValidationFailure):
+                validate_api_payload(route, {"changes": {"VideoQuality": 24}, "confirm_save": value})
+        for value in (True, False):
+            with self.subTest(value=value):
+                self.assertEqual(
+                    validate_api_payload(route, {"changes": {"VideoQuality": 24}, "confirm_save": value}),
+                    {"changes": {"VideoQuality": 24}, "confirm_save": value},
+                )
+
     def test_settings_schedule_and_maintenance_booleans_require_strict_boolean(self) -> None:
         cases = [
             ("/api/settings/save-patch", "confirm_save", {"changes": {}}),
@@ -976,6 +1144,26 @@ class ApiCommandContractsTests(unittest.TestCase):
     def test_non_object_payload_still_fails_at_api_boundary(self) -> None:
         with self.assertRaises(ValidationFailure):
             validate_api_payload("/api/queue/priority", ["not", "an", "object"])  # type: ignore[arg-type]
+
+    def test_network_rerun_manual_retry_requires_strict_confirmation_and_identity(self) -> None:
+        request = {
+            "batch_id": "batch-1",
+            "row_key": "row-1",
+            "request_id": "retry-request-1",
+            "reason": "Source share restored.",
+            "confirm_retry": True,
+        }
+        self.assertEqual(validate_api_payload("/api/rerun/network/retry", request), request)
+        for invalid in (
+            {key: value for key, value in request.items() if key != "confirm_retry"},
+            {**request, "confirm_retry": False},
+            {**request, "confirm_retry": "true"},
+            {**request, "request_id": ""},
+            {**request, "reason": ""},
+            {**request, "unexpected": True},
+        ):
+            with self.subTest(invalid=invalid), self.assertRaises(ValidationFailure):
+                validate_api_payload("/api/rerun/network/retry", invalid)
 
     def test_settings_pipeline_plan_preview_rejects_malformed_source_and_unknown_keys(self) -> None:
         with self.assertRaises(ValidationFailure):

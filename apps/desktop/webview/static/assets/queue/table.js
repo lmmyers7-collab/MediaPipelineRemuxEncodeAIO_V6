@@ -49,7 +49,7 @@
     if (status === "launch-check") return queueLaunchCheckEvidenceText(item, routeParts, false);
     const candidates = [];
     if (status === "blocked" || status === "failed") {
-      candidates.push(item.blocked_reason_code, item.blocked_reason, item.operator_status);
+      candidates.push(item.blocked_reason_code, item.blocking_reason, item.blocked_reason, item.error, item.operator_status);
     }
     if (queueRuntimeStoppedByRequest(item)) {
       candidates.push(item.operator_status, item.runtime_outcome_reason, item.runtime_outcome_error_code);
@@ -259,10 +259,12 @@
     cell.appendChild(badge);
   }
 
-  function createQueueFileSettingsButton(item) {
+  function createQueueFileSettingsButton(item, rovingTabStop = false) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "fo-open-btn queue-row-action-button";
+    button.dataset.queueRowAction = "file-overrides";
+    button.tabIndex = rovingTabStop ? 0 : -1;
     button.textContent = "File overrides";
     button.title = "Review or save settings that apply only to this queued file.";
     button.setAttribute("aria-label", `Open file overrides for ${item.display_name || item.relative_path || item.source_path || "queue row"}`);
@@ -278,8 +280,8 @@
     return button;
   }
 
-  function appendQueueFileSettingsButton(cell, item) {
-    if (cell) cell.appendChild(createQueueFileSettingsButton(item));
+  function appendQueueFileSettingsButton(cell, item, rovingTabStop) {
+    if (cell) cell.appendChild(createQueueFileSettingsButton(item, rovingTabStop));
   }
 
   function appendQueueRowCells(row, item, visibleIndex, context) {
@@ -299,7 +301,7 @@
     return { cells: row.querySelectorAll("td"), level, routeParts };
   }
 
-  function decorateQueueRowCells(cells, item, level, routeParts, context) {
+  function decorateQueueRowCells(cells, item, level, routeParts, context, rovingTabStop) {
     const backendOrder = item.global_order || item.queue_index || "";
     if (cells[0] && backendOrder) cells[0].title = `Backend queue order: ${backendOrder}`;
     if (cells[1]) cells[1].appendChild(makeQueueStateChip(item, context.queueTableRowStatus(item)));
@@ -308,7 +310,7 @@
     if (cells[5]) cells[5].title = queueEvidenceText(item, routeParts, context.queueTableRowStatus);
     appendQueuePriorityBadge(cells[6], level);
     if (cells[7]) cells[7].appendChild(makeOverrideChip(item));
-    appendQueueFileSettingsButton(cells[8], item);
+    appendQueueFileSettingsButton(cells[8], item, rovingTabStop);
   }
 
   function renderQueueTableRow(item, visibleIndex, context) {
@@ -321,6 +323,8 @@
     const selected = selectedKeys.size
       ? Boolean(key && selectedKeys.has(key))
       : Boolean(key && key === context.selectedQueueRowKey);
+    const rovingTabStop = Boolean(key && key === context.selectedQueueRowKey)
+      || (!context.selectedQueueRowKey && visibleIndex === 0);
     row.dataset.rowKey = key;
     row.dataset.status = String(context.queueTableRowStatus(item) || "queued");
     row.dataset.filterStatus = queueDisplayRowStatus(item, context.queueTableRowStatus);
@@ -328,13 +332,15 @@
     if (selected) row.dataset.prioritySelected = "true";
     if (context.manualOrderEnabled) row.dataset.manualOrderDraggable = "true";
     const rendered = appendQueueRowCells(row, item, visibleIndex, context);
-    decorateQueueRowCells(rendered.cells, item, rendered.level, rendered.routeParts, context);
-    ["Order", "Status", "Title", "Type", "Route", "Evidence", "Priority", "Override", "File overrides"].forEach((label, index) => {
+    decorateQueueRowCells(rendered.cells, item, rendered.level, rendered.routeParts, context, rovingTabStop);
+    ["Order", "Status", "Title", "Type", "Planned route", "Planned reason", "Priority", "Override", "File overrides"].forEach((label, index) => {
       if (rendered.cells[index]) rendered.cells[index].dataset.label = label;
     });
     context.makeRowSelectable(row, (event) => context.selectQueueRow(item, event), {
       selected,
-      label: `Queue row ${item.display_name || item.relative_path || item.source_path || ""}`,
+      roving: true,
+      rovingTabStop,
+      label: `Queue row ${item.source_path || item.relative_path || item.display_name || ""}`,
     });
     if (typeof context.wireManualOrderRow === "function") context.wireManualOrderRow(row, item);
     context.tbody.appendChild(row);

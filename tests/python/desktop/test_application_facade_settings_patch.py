@@ -12,7 +12,10 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.models import ConfigSaveResult
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
+from mediapipeline.core.config.load import config_from_mapping, config_to_flat_dict
 from mediapipeline.core.config.library_profiles import normalize_library_profile_config_values
+from mediapipeline.core.config.settings_patch_policy import settings_config_digest
+from mediapipeline.core.config.settings_store import SettingsAuthorityConflictError
 from tests.python.desktop.application_facade_test_support import DummyFacadeService, _resolved
 from tests.python.desktop.test_service_config_validation import (
     _path_key,
@@ -27,14 +30,58 @@ class AuthoritySaveService(DummyFacadeService):
         super().__init__(root)
         self.authority_save_calls: list[dict[str, object]] = []
 
-    def save_settings_authority(self, resolved, candidate_settings: dict[str, object]) -> ConfigSaveResult:
+    def save_settings_authority(
+        self,
+        resolved,
+        candidate_settings: dict[str, object],
+        *,
+        expected_authority_digest: str,
+    ) -> ConfigSaveResult:
         self.authority_save_calls.append(
             {
                 "config_path": resolved.config_path,
                 "candidate_settings": dict(candidate_settings),
+                "expected_authority_digest": expected_authority_digest,
             }
         )
         return ConfigSaveResult(output_path=resolved.config_path, backup_path=None)
+
+
+class StatefulAuthoritySaveService(AuthoritySaveService):
+    def __init__(self, root: Path, authority: dict[str, object]) -> None:
+        super().__init__(root)
+        self.authority = json.loads(json.dumps(authority))
+
+    def load_settings_authority(self, config_path: Path, powershell_host: str | None) -> dict[str, object]:
+        _ = config_path, powershell_host
+        return json.loads(json.dumps(self.authority))
+
+    def read_settings_authority(self, config_path: Path, powershell_host: str | None) -> dict[str, object]:
+        _ = config_path, powershell_host
+        return json.loads(json.dumps(self.authority))
+
+    def save_settings_authority(
+        self,
+        resolved,
+        candidate_settings: dict[str, object],
+        *,
+        expected_authority_digest: str,
+    ) -> ConfigSaveResult:
+        current_digest = settings_config_digest(self.authority)
+        candidate_digest = settings_config_digest(candidate_settings)
+        if candidate_digest != current_digest and expected_authority_digest != current_digest:
+            raise SettingsAuthorityConflictError(
+                expected_digest=expected_authority_digest,
+                current_digest=current_digest,
+                candidate_digest=candidate_digest,
+            )
+        result = super().save_settings_authority(
+            resolved,
+            candidate_settings,
+            expected_authority_digest=expected_authority_digest,
+        )
+        self.authority = json.loads(json.dumps(candidate_settings))
+        return result
 
 
 class ImportSettingsService(DummyFacadeService):
@@ -89,13 +136,87 @@ LIBRARY_PROFILE_ROUND_TRIP_FIXTURE = (
 
 
 class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
+    def test_settings_preview_uses_pure_authority_reader_and_never_repair_loader(self) -> None:
+        class PreviewAuthorityService(DummyFacadeService):
+            def __init__(self, root: Path) -> None:
+                super().__init__(root)
+                self.read_calls = 0
+                self.repair_calls = 0
+
+            def read_settings_authority(self, config_path: Path, powershell_host: str | None) -> dict[str, object]:
+                _ = config_path, powershell_host
+                self.read_calls += 1
+                return {"RoutingProfile": "plex_direct_stream"}
+
+            def load_settings_authority(self, config_path: Path, powershell_host: str | None) -> dict[str, object]:
+                _ = config_path, powershell_host
+                self.repair_calls += 1
+                return {"RoutingProfile": "repair-path-must-not-run"}
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = PreviewAuthorityService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+            resolved = _resolved(root)
+            resolved.config_data = {"RoutingProfile": "stale-resolved-value"}
+
+            preview = facade.preview_settings_patch(
+                resolved,
+                {"changes": {"RoutingProfile": "plex_direct_play"}},
+            )
+
+        self.assertTrue(preview.ok)
+        self.assertEqual(service.read_calls, 1)
+        self.assertEqual(service.repair_calls, 0)
+        routing_entry = next(entry for entry in preview.data["review_entries"] if entry["key"] == "RoutingProfile")
+        self.assertEqual(routing_entry["current_value"], "plex_direct_stream")
+
+    def test_legacy_movie_remove_terms_persist_only_on_next_explicit_settings_save(self) -> None:
+        legacy_terms = [
+            "sample",
+            "trailer",
+            "extras",
+            "featurette",
+            "deleted scenes",
+            "behind the scenes",
+            *(f"{value:02d}" for value in range(1, 13)),
+        ]
+        expected_terms = legacy_terms[:6]
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            config_path = root / "config.psd1"
+            original_text = "@{ RenameMovieRemoveTerms = @('sample', '01', '12'); RoutingProfile = 'plex_direct_stream' }\n"
+            config_path.write_text(original_text, encoding="utf-8")
+            loaded_config = config_to_flat_dict(
+                config_from_mapping(
+                    {
+                        "RoutingProfile": "plex_direct_stream",
+                        "RenameMovieRemoveTerms": legacy_terms,
+                    }
+                )
+            )
+            self.assertEqual(loaded_config["RenameMovieRemoveTerms"], expected_terms)
+            self.assertEqual(config_path.read_text(encoding="utf-8"), original_text)
+
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+            resolved = _resolved(root)
+            resolved.config_path = config_path
+            resolved.config_data = loaded_config
+            request = {"changes": {"RoutingProfile": "plex_direct_play"}}
+            saved = facade.save_settings_patch(resolved, _confirmed_patch_request(facade, resolved, request))
+
+            self.assertTrue(saved.ok)
+            self.assertEqual(service.saved_config_calls[-1]["config_values"]["RenameMovieRemoveTerms"], expected_terms)
+            self.assertNotEqual(config_path.read_text(encoding="utf-8"), original_text)
+
     def test_settings_save_rejects_stale_preview_when_authority_generation_changed(self) -> None:
         class CasService(DummyFacadeService):
             def __init__(self, root: Path) -> None:
                 super().__init__(root)
                 self.authority_reads = 0
 
-            def load_settings_authority(self, config_path, powershell_host):
+            def read_settings_authority(self, config_path, powershell_host):
                 _ = (config_path, powershell_host)
                 self.authority_reads += 1
                 if self.authority_reads == 1:
@@ -159,11 +280,31 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
             }
 
             preview = facade.preview_settings_patch(resolved, {"changes": {"RoutingProfile": "plex_direct_play"}})
-            secret_preview = facade.preview_settings_patch(
-                resolved,
-                {"changes": {"CoordinatorAuthToken": "new-secret-token"}},
-            )
-            rejected = facade.preview_settings_patch(resolved, {"changes": {"CoordinatorAuthToken": "<redacted>"}})
+            secret_attempts = [
+                facade.preview_settings_patch(
+                    resolved,
+                    {"changes": {"CoordinatorAuthToken": "new-coordinator-secret"}},
+                ),
+                facade.preview_settings_patch(
+                    resolved,
+                    {"changes": {"WorkerAuthToken": "new-worker-secret"}},
+                ),
+                facade.preview_settings_patch(
+                    resolved,
+                    {"changes": {"CoordinatorAuthToken": "<redacted>"}},
+                ),
+                facade.preview_settings_patch(
+                    resolved,
+                    {"changes": {}, "remove_keys": ["WorkerAuthToken"]},
+                ),
+                facade.preview_settings_patch(
+                    resolved,
+                    {
+                        "changes": {"CoordinatorAuthToken": "request-field-cannot-authorize"},
+                        "allow_network_credentials": True,
+                    },
+                ),
+            ]
 
         self.assertTrue(preview.ok)
         self.assertEqual(preview.command, "settings.preview_patch")
@@ -188,13 +329,19 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
         self.assertEqual(review_entry["current_value"], "plex_direct_stream")
         self.assertEqual(review_entry["submitted_value"], "plex_direct_play")
         self.assertEqual(review_entry["new_value"], "plex_direct_play")
-        secret_review_text = json.dumps(secret_preview.data["review_entries"])
-        self.assertIn("<redacted>", secret_review_text)
-        self.assertNotIn("secret-token", secret_review_text)
-        self.assertNotIn("new-secret-token", secret_review_text)
         self.assertEqual(preview.data["risk_summary"]["total_count"], 0)
-        self.assertFalse(rejected.ok)
-        self.assertIn("redacted display placeholder", "\n".join(rejected.errors))
+        for attempt in secret_attempts:
+            with self.subTest(errors=attempt.errors):
+                self.assertFalse(attempt.ok)
+                self.assertIn("cannot be changed through Settings Patch", "\n".join(attempt.errors))
+        serialized_attempts = json.dumps([attempt.to_mapping() for attempt in secret_attempts], sort_keys=True)
+        for secret in (
+            "secret-token",
+            "new-coordinator-secret",
+            "new-worker-secret",
+            "request-field-cannot-authorize",
+        ):
+            self.assertNotIn(secret, serialized_attempts)
 
     def test_settings_save_patch_uses_json_authority_when_available(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -216,6 +363,150 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
         self.assertEqual(len(service.authority_save_calls), 1)
         self.assertEqual(service.authority_save_calls[0]["candidate_settings"]["RoutingProfile"], "plex_direct_play")
         self.assertEqual(service.saved_config_calls, [])
+
+    def test_settings_save_patch_rejects_missing_false_and_non_boolean_confirmation_before_authority_write(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = StatefulAuthoritySaveService(
+                root,
+                {"RoutingProfile": "plex_direct_stream", "VideoQuality": 22},
+            )
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = dict(service.authority)
+            requests = [
+                {"changes": {"VideoQuality": 24}},
+                *(
+                    {"changes": {"VideoQuality": 24}, "confirm_save": value}
+                    for value in (False, "true", "false", 1, 0, None, [], {})
+                ),
+            ]
+
+            results = [facade.save_settings_patch(resolved, request) for request in requests]
+
+        self.assertTrue(all(not result.ok for result in results))
+        self.assertTrue(all("confirm_save must be true" in "\n".join(result.warnings) for result in results))
+        self.assertEqual(service.authority_save_calls, [])
+        self.assertEqual(service.authority["VideoQuality"], 22)
+
+    def test_settings_save_patch_retry_after_lost_response_reports_idempotent_durable_success(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = StatefulAuthoritySaveService(
+                root,
+                {"RoutingProfile": "plex_direct_stream", "VideoQuality": 22},
+            )
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = dict(service.authority)
+            confirmed = _confirmed_patch_request(
+                facade,
+                resolved,
+                {"changes": {"VideoQuality": 24}},
+            )
+
+            first = facade.save_settings_patch(resolved, confirmed)
+            retry = facade.save_settings_patch(resolved, confirmed)
+
+        self.assertTrue(first.ok)
+        self.assertTrue(retry.ok)
+        self.assertTrue(retry.data["idempotent_replay"])
+        self.assertEqual(retry.data["schema_version"], "desktop_settings_save_replay.v1")
+        self.assertEqual(retry.data["changed_keys"], ["VideoQuality"])
+        self.assertEqual(service.authority["VideoQuality"], 24)
+        self.assertEqual(len(service.authority_save_calls), 1)
+        self.assertFalse(retry.data["writes_config"])
+
+    def test_settings_save_patch_durable_retry_requires_every_review_confirmation_field(self) -> None:
+        required_fields = (
+            "schema_version",
+            "preview_id",
+            "request_digest",
+            "base_config_digest",
+            "authority_config_digest",
+            "candidate_config_digest",
+            "review_entries_digest",
+            "changed_keys",
+            "removed_keys",
+        )
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = StatefulAuthoritySaveService(
+                root,
+                {"RoutingProfile": "plex_direct_stream", "VideoQuality": 22},
+            )
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+            resolved = _resolved(root)
+            resolved.config_data = dict(service.authority)
+            confirmed = _confirmed_patch_request(
+                facade,
+                resolved,
+                {"changes": {"VideoQuality": 24}},
+            )
+            first = facade.save_settings_patch(resolved, confirmed)
+            results = []
+            for missing_field in required_fields:
+                partial = dict(confirmed)
+                partial_confirmation = dict(confirmed["review_confirmation"])
+                partial_confirmation.pop(missing_field)
+                partial["review_confirmation"] = partial_confirmation
+                with self.subTest(missing_field=missing_field):
+                    results.append(facade.save_settings_patch(resolved, partial))
+            for tampered_field, tampered_value in (
+                ("preview_id", "0" * 64),
+                ("base_config_digest", "1" * 64),
+                ("review_entries_digest", "2" * 64),
+                ("changed_keys", ["RoutingProfile", "VideoQuality"]),
+            ):
+                tampered = dict(confirmed)
+                tampered_confirmation = dict(confirmed["review_confirmation"])
+                tampered_confirmation[tampered_field] = tampered_value
+                tampered["review_confirmation"] = tampered_confirmation
+                with self.subTest(tampered_field=tampered_field):
+                    results.append(facade.save_settings_patch(resolved, tampered))
+
+        self.assertTrue(first.ok)
+        self.assertTrue(all(not result.ok for result in results))
+        self.assertTrue(all(result.data.get("writes_config") is False for result in results))
+        self.assertEqual(len(service.authority_save_calls), 1)
+
+    def test_settings_save_patch_conflict_response_is_digest_only_and_never_writes(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = StatefulAuthoritySaveService(
+                root,
+                {"RoutingProfile": "plex_direct_stream", "VideoQuality": 22},
+            )
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = dict(service.authority)
+            confirmed = _confirmed_patch_request(
+                facade,
+                resolved,
+                {"changes": {"RoutingProfile": "plex_direct_play"}},
+            )
+            service.authority["VideoQuality"] = 24
+
+            conflict = facade.save_settings_patch(resolved, confirmed)
+
+        self.assertFalse(conflict.ok)
+        self.assertEqual(
+            set(conflict.data),
+            {
+                "schema_version",
+                "conflict",
+                "refresh_required",
+                "expected_authority_digest",
+                "current_authority_digest",
+                "candidate_config_digest",
+                "writes_config",
+            },
+        )
+        self.assertTrue(conflict.data["conflict"])
+        self.assertFalse(conflict.data["writes_config"])
+        self.assertEqual(service.authority_save_calls, [])
+        self.assertNotIn("RoutingProfile", json.dumps(conflict.data, sort_keys=True))
+        self.assertNotIn("VideoQuality", json.dumps(conflict.data, sort_keys=True))
 
     def test_settings_psd1_import_preview_is_read_only_and_apply_requires_confirmation(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -689,6 +980,14 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
                 resolved,
                 {"changes": {"CoordinatorAuthToken": "<redacted>"}, "confirm_save": True},
             )
+            real_secret_rejected = facade.save_settings_patch(
+                resolved,
+                {"changes": {"CoordinatorAuthToken": "new-coordinator-secret"}, "confirm_save": True},
+            )
+            worker_secret_rejected = facade.save_settings_patch(
+                resolved,
+                {"changes": {"WorkerAuthToken": "new-worker-secret"}, "confirm_save": True},
+            )
 
             self.assertFalse(rejected.ok)
             self.assertIn("confirmation", rejected.message)
@@ -709,8 +1008,16 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
             self.assertEqual(saved.data["progress_bars"][0]["percent"], 60.0)
             self.assertEqual(service.saved_config_calls[-1]["config_values"]["CoordinatorAuthToken"], "secret-token")
             self.assertIn("plex_direct_play", config_path.read_text(encoding="utf-8"))
-            self.assertFalse(secret_rejected.ok)
-            self.assertIn("redacted display placeholder", "\n".join(secret_rejected.errors))
+            for secret_result in (secret_rejected, real_secret_rejected, worker_secret_rejected):
+                self.assertFalse(secret_result.ok)
+                self.assertIn("cannot be changed through Settings Patch", "\n".join(secret_result.errors))
+            secret_results = json.dumps(
+                [secret_rejected.to_mapping(), real_secret_rejected.to_mapping(), worker_secret_rejected.to_mapping()],
+                sort_keys=True,
+            )
+            self.assertNotIn("new-coordinator-secret", secret_results)
+            self.assertNotIn("new-worker-secret", secret_results)
+            self.assertEqual(len(service.saved_config_calls), 1)
 
     def test_settings_save_patch_uses_backend_save_lock_before_candidate_build(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

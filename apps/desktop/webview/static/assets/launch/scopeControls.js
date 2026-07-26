@@ -2,6 +2,7 @@
   function createLaunchScopeControlsModule(deps = {}) {
     const {
       byId = function () { return null; },
+      apiGet = async function () { return {}; },
       onControlsChanged = function () {},
       renderAllLaunchPreflights = function () {},
       setPipelineSingleFileBrowseStatus = function () {},
@@ -33,7 +34,9 @@
   function syncPipelineScopeControls() {
     const singleFile = pipelineSingleFileValue();
     if (singleFile) state.pipelineStartScope = "single_file";
-    const selectedScope = state.pipelineStartScope === "single_file" ? "single_file" : "queue";
+    const selectedScope = ["queue", "priority_export", "single_file"].includes(state.pipelineStartScope)
+      ? state.pipelineStartScope
+      : "queue";
     document.querySelectorAll("[data-pipeline-scope-preset]").forEach((button) => {
       const active = String(button.dataset.pipelineScopePreset || "") === selectedScope;
       button.classList.toggle("is-active", active);
@@ -45,21 +48,68 @@
       singleFileContainer.hidden = !show;
       singleFileContainer.setAttribute("aria-hidden", show ? "false" : "true");
     }
+    const priorityExportContainer = document.querySelector("[data-pipeline-priority-export-container]");
+    if (priorityExportContainer) {
+      const show = selectedScope === "priority_export";
+      priorityExportContainer.hidden = !show;
+      priorityExportContainer.setAttribute("aria-hidden", show ? "false" : "true");
+    }
+    document.querySelectorAll("[data-pipeline-mode-preset]").forEach((button) => {
+      button.disabled = selectedScope === "priority_export" && String(button.dataset.pipelineModePreset || "") !== "once";
+    });
     const status = byId("pipeline-single-file-browse-status");
     if (status && !singleFile && selectedScope === "queue" && !state.pipelineFileBrowseInFlight) {
       status.textContent = "Backend queue scope selected. This uses backend queue, schedule, and settings scope, not Queue tab visible or selected rows. Use Single File to stage one path.";
     }
   }
 
+  async function loadPriorityExportStatus() {
+    const status = byId("pipeline-priority-export-status");
+    const idInput = byId("pipeline-priority-export-id");
+    if (status) status.textContent = "Loading the latest backend-owned priority export...";
+    if (idInput) {
+      idInput.value = "";
+      idInput.dataset.exportCount = "0";
+    }
+    try {
+      const payload = await apiGet("/api/queue/priority-export");
+      const ready = Boolean(payload?.ready) && String(payload?.status || "").toLowerCase() === "ready";
+      const count = Number(payload?.count || 0);
+      const exportId = String(payload?.export_id || "");
+      if (ready && exportId) {
+        if (idInput) {
+          idInput.value = exportId;
+          idInput.dataset.exportCount = String(count);
+        }
+        if (status) status.textContent = `Ready: ${count} exported item${count === 1 ? "" : "s"}. Run Once will submit export ID ${exportId}; browser rows are not submitted.`;
+      } else if (status) {
+        status.textContent = payload?.message || "No ready priority export exists. Prepare one from Queue first.";
+      }
+    } catch (error) {
+      if (status) status.textContent = `Priority export status failed to load: ${error}`;
+    }
+    renderAllLaunchPreflights();
+    onControlsChanged();
+  }
+
   function selectPipelineScopePreset(scope) {
-    const selectedScope = String(scope || "").trim() === "single_file" ? "single_file" : "queue";
+    const requestedScope = String(scope || "").trim();
+    const selectedScope = ["queue", "priority_export", "single_file"].includes(requestedScope) ? requestedScope : "queue";
     state.pipelineStartScope = selectedScope;
-    if (selectedScope === "queue") {
+    if (selectedScope !== "single_file") {
       const input = byId("pipeline-start-single-file");
       if (input && input.value) {
         input.value = "";
         input.dispatchEvent(new Event("input", { bubbles: true }));
       }
+    }
+    if (selectedScope === "priority_export") {
+      const modeSelect = byId("pipeline-start-mode");
+      if (modeSelect && modeSelect.value !== "once") {
+        modeSelect.value = "once";
+        modeSelect.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      void loadPriorityExportStatus();
     }
     syncPipelineScopeControls();
     renderAllLaunchPreflights();
@@ -93,6 +143,7 @@
       pipelineSingleFileValue,
       pipelineModeLabel,
       pipelineModeStartLabel,
+      loadPriorityExportStatus,
       syncPipelineScopeControls,
       selectPipelineScopePreset,
       syncPipelineModeControls,

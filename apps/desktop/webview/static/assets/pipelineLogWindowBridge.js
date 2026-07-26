@@ -27,6 +27,16 @@
     );
   }
 
+  async function openNativeLogWindow() {
+    const tauri = window.__TAURI__;
+    const invoke = tauri && tauri.core && typeof tauri.core.invoke === "function"
+      ? tauri.core.invoke
+      : null;
+    if (!invoke) return false;
+    await invoke("open_pipeline_log_window");
+    return true;
+  }
+
   function showDiagnosticsLogsFallback() {
     if (typeof window.showPage === "function") window.showPage("diagnostics");
     const diagnosticsLogsTab = document.querySelector('[data-page-panel="diagnostics"] .settings-tab-btn[data-diag-tab="logs"]');
@@ -42,6 +52,10 @@
   async function openPipelineLogWindow(sourceButton) {
     setButtonBusy(sourceButton, true);
     try {
+      if (await openNativeLogWindow()) {
+        setLaunchStatus("Pipeline Log window opened", "ok");
+        return { opened: true, native: true, fallback: false };
+      }
       const logWindow = openBrowserLogWindow();
       if (!logWindow) {
         showDiagnosticsLogsFallback();
@@ -79,6 +93,7 @@
   window.mediaPipelinePipelineLogWindowBridge = {
     initPipelineLogWindowBridgeEvents,
     openPipelineLogWindow,
+    openNativeLogWindow,
     openBrowserLogWindow,
     showDiagnosticsLogsFallback,
     fallbackMessage: FALLBACK_MESSAGE,

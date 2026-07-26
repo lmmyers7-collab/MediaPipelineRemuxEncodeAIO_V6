@@ -7,7 +7,7 @@ This report groups exact bare Python test function/method names that appear in m
 ## Summary
 
 - Test roots: `tests/python`, `tests/webview`
-- Python test definitions scanned: **3180**
+- Python test definitions scanned: **4021**
 - Duplicate bare names across files: **9**
 
 ## Duplicate Names
@@ -30,7 +30,7 @@ This report groups exact bare Python test function/method names that appear in m
 
 | File | Qualname | Line |
 |---|---|---:|
-| `tests/python/desktop/test_service_status_active_jobs.py` | `StatusActiveJobsHelperTests.test_format_active_job_summary_reports_invalid_current_contract` | 117 |
+| `tests/python/desktop/test_service_status_active_jobs.py` | `StatusActiveJobsHelperTests.test_format_active_job_summary_reports_invalid_current_contract` | 154 |
 | `tests/python/desktop/test_status_service.py` | `StatusServiceContractTests.test_format_active_job_summary_reports_invalid_current_contract` | 154 |
 
 ### `test_format_bytes_compact_uses_existing_units`

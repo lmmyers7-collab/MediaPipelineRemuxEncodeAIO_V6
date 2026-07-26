@@ -13,7 +13,8 @@
 │ TAURI SHELL  (apps/desktop/tauri/src-tauri/src/)              │
 │   Rust process that owns app lifecycle, launches the backend,     │
 │   hosts the WebView2 window, enforces close-readiness.            │
-│   Files: lib.rs and focused Rust lifecycle/contract modules.      │
+│   Files: lib.rs and focused Rust lifecycle/contract modules,      │
+│   including updater_controller.rs for signed, close-gated updates.│
 └────────────────────────────────────────────────────────────────────┘
                               │  spawns
                               ▼
@@ -100,10 +101,12 @@
 │        decide/routing.ps1, decide/encode_policy.ps1                │
 │        policy/folder_policy.ps1, queue/file_overrides.ps1          │
 │        audio/audio.ps1, subtitles/*.ps1                            │
-│        shared/native.ps1, process/ffmpeg_progress.ps1              │
+│        shared/native.ps1, process/ffmpeg_progress.ps1,             │
+│        process/tool_log_lifecycle.ps1                              │
 │        status/progress_state.ps1, queue/queue_plan.ps1             │
 │        naming/naming.ps1, shared/source_identity.ps1               │
-│        publish/*.ps1, library/library_index.ps1                    │
+│        publish/*.ps1, rerun/publication_transaction.ps1,          │
+│        library/library_index.ps1                                   │
 │        process/pipeline_processing.ps1, queue/pipeline_engine.ps1  │
 │                                                                    │
 │  entrypoints/Audit-MediaLibrary.ps1, Backfill-CompletedManifest.ps1, │
@@ -212,7 +215,9 @@ Each persistent state file is read by both the Python backend and PS1 in differe
 | `Progress/pipeline_progress.json` | PS1 (`ops/pipeline/engine/status/progress_state.ps1`) | `src/mediapipeline/core/status/*.py` and desktop read payloads (GET `/api/snapshot`, GET `/api/diagnostics`) |
 | `Progress/pipeline_events.jsonl` | PS1 (`ops/pipeline/engine/queue/pipeline_engine.ps1`) | `src/mediapipeline/core/status/events.py` and desktop read payloads (GET `/api/snapshot`, GET `/api/diagnostics`) |
 | `Progress/queue_snapshot.json` | PS1 (`ops/pipeline/engine/queue/pipeline_engine.ps1`) | `src/mediapipeline/core/queue/*` and desktop read payloads (GET `/api/queue`) |
+| `RunMonitor/<run_id>.json` and `RunMonitor/latest.json` | PS1 contract validation (`ops/pipeline/engine/status/run_monitor_contract.ps1`), atomic persistence (`run_monitor_persistence.ps1`), and runtime orchestration (`run_monitor_state.ps1`) under `src/mediapipeline/contracts/run_monitor.py`; Python `RunMonitorStore` provides validated atomic storage | `src/mediapipeline/core/status/run_monitor.py` and desktop read payloads (GET `/api/run-monitor`) |
 | `Pipeline/pipeline_{pause,stop,rescan}.flag` | `src/mediapipeline/core/processes/control_flags.py` (POST `/api/pipeline/control`) | PS1 main loop (`ops/pipeline/entrypoints/MediaPipeline.ps1`) |
+| `Pipeline/ToolLogs/{Active,Interrupted}/*.log` | PS1 native-tool runner and exclusive-startup reconciliation (`ops/pipeline/engine/process/tool_log_lifecycle.ps1`) | PS1 lifecycle only; paths are linked from pipeline-event evidence and have no direct mutation route |
 | `ActiveJobs/*.json` | PS1 (`ops/pipeline/engine/status/progress_state.ps1`) | `src/mediapipeline/core/processes/active_jobs.py` |
 | `Completed/completed_jobs.jsonl` | PS1 (`ops/pipeline/engine/publish/publish_completion.ps1`) and `ops/pipeline/entrypoints/Backfill-CompletedManifest.ps1` | `src/mediapipeline/core/completed/manifest.py` |
 | `Failures/{Markers,Reports,Artifacts}/` | PS1 (`ops/pipeline/engine/failures/failure_state.ps1`, `ops/pipeline/engine/publish/publish_completion.ps1`) | `src/mediapipeline/core/failures/markers.py`, `src/mediapipeline/core/failures/facade.py` |
@@ -233,6 +238,7 @@ Parked output is media plus sidecars. The backend owns every decision about what
 | `ops/pipeline/engine/publish/pending_transactions.ps1` | Durable media-plus-sidecar park transaction, drain transaction, server-copy validation, sidecar rollback, and `pending_move` crash recovery. | Operator command routing, frontend policy, or read-only row shaping. |
 | `ops/pipeline/engine/publish/pending_push.ps1` | Public PowerShell facade for park/retry/drain commands, drain summary, event/log emission, and pending index refresh calls. | Low-level copy/reveal rollback details already owned by `PendingTransactions.ps1`. |
 | `ops/pipeline/engine/publish/pending_publish_index.ps1` | Read-only in-memory index and health rows for parked manifests and missing payloads. | Moving, deleting, draining, repairing, or accepting parked payloads. |
+| `ops/pipeline/engine/rerun/publication_transaction.ps1` | Same-volume staging, exact media/sidecar/SRT commit, idempotent completion evidence, replacement rollback, and restart reconciliation for CSV rerun final-library publication. | Source-media mutation, Pending Publish drain policy, frontend inference, or declaring success before companion and completion proof. |
 | `src/mediapipeline/core/publish/pending_*.py` | Read-only desktop scan, row shaping, open-target support, and API DTO normalization over backend-authored manifests. | Media copy/reveal policy, discard decisions, manifest repair side effects, or drain safety inference. |
 
 ---
@@ -244,7 +250,7 @@ Settings persistence is JSON-authoritative. `%LOCALAPPDATA%\MediaPipelineRemuxEn
 1. **Python backend** at API-resolution time — loads `settings.v1.json` when present, imports the PSD1 only for first-run or explicit recovery import, applies aliases/migrations, and regenerates the PSD1 projection.
 2. **PS1 entry** (`MediaPipeline.ps1`) at startup — validates the projection manifest when present, then reads the generated PSD1 with `Import-PowerShellDataFile`.
 
-Both sides ingest the same canonical known keys. Unknown imported PSD1 keys are preserved as inert `legacy_extras` for projection/recovery only and must not affect runtime policy. **Config-key names are documented in `docs/architecture/CONFIG_KEY_GLOSSARY.md`**. Python-side key names are guarded in `src/mediapipeline/core/kernel/config_key_groups.py` and related config metadata; PowerShell-side key names are guarded in `ops/pipeline/engine/config/config_keys.ps1`. Drift tests include `tests/python/desktop/test_config_keys.py`, `tests/python/desktop/test_settings_store.py`, and `ops/pipeline/tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1`.
+Both sides ingest the same canonical known keys. Unknown imported PSD1 keys are preserved only as archival `legacy_extras` in the JSON authority, with their count recorded in projection-manifest evidence; they are excluded from the active PSD1 and cannot become PowerShell runtime variables. **Config-key names are documented in `docs/architecture/CONFIG_KEY_GLOSSARY.md`**. Python-side key names are guarded in `src/mediapipeline/core/kernel/config_key_groups.py` and related config metadata; PowerShell runtime merge independently enforces `ops/pipeline/engine/config/config_keys.ps1`. Drift and executable-boundary tests include `tests/python/desktop/test_config_keys.py`, `tests/python/desktop/test_settings_store.py`, and `ops/pipeline/tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1`.
 
 ---
 
@@ -264,8 +270,9 @@ Each layer has at least one inventory file that lists what's in it. Updating the
 | Settings raw-key triage | `docs/architecture/SETTINGS_RAW_KEY_TRIAGE.md` |
 | Architecture decisions | `docs/architecture/DECISIONS_AND_HISTORY.md` |
 | Master doc index | `docs/DOCS_INDEX.md` |
-| Per-change evidence | `ops/release/changes/unreleased/` and `docs/change_control/` |
-| Chronological changelog | `docs/REMEDIATION_CHANGELOG.md` |
+| Per-change evidence | `ops/release/changes/unreleased/` (active), `ops/release/changes/archived/` (completed unreleased), `ops/release/changes/released/`, and `docs/change_control/` |
+| Shipped chronological changelog | `CHANGELOG.md` |
+| Remediation history index | `docs/REMEDIATION_CHANGELOG.md` |
 
 If you add a state file, route, DOM ID, or window-export and you do not update the corresponding inventory in the same chunk, the inventory drift tests will fail (`test_webview_inventory_docs.py`, etc.).
 

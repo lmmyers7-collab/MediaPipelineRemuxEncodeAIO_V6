@@ -19,6 +19,7 @@ $repoRoot = Split-Path -Parent (Split-Path -Parent $pipelineRoot)
 $releasePolicyPath = Join-Path $repoRoot 'ops\scripts\release\release_policy.ps1'
 $buildScriptPath = Join-Path $repoRoot 'ops\scripts\release\build.ps1'
 $backupScriptPath = Join-Path $repoRoot 'ops\scripts\release\Backup-PreOverhaul.ps1'
+$releaseAdminInventoryPath = Join-Path $repoRoot 'docs\inventories\RELEASE_PACKAGE_ADMIN_INVENTORY.md'
 $setupLauncherPath = Join-Path $repoRoot 'ops\scripts\dev\setup.bat'
 $runLauncherPath = Join-Path $repoRoot 'ops\scripts\dev\run.bat'
 $gitignorePath = Join-Path $repoRoot '.gitignore'
@@ -46,10 +47,11 @@ function Assert-Contains {
 function Assert-ReleaseExclusion {
     param(
         [string] $RelativePath,
-        [string] $ExpectedReason
+        [string] $ExpectedReason,
+        [bool] $IncludeTests = $false
     )
-    $actual = Get-MediaPipelineReleaseExclusionReason -RelativePath $RelativePath
-    Assert-True ($actual -eq $ExpectedReason) "Expected '$RelativePath' exclusion reason '$ExpectedReason'; got '$actual'."
+    $actual = Get-MediaPipelineReleaseExclusionReason -RelativePath $RelativePath -IncludeTests:$IncludeTests
+    Assert-True ([string]$actual -eq [string]$ExpectedReason) "Expected '$RelativePath' exclusion reason '$ExpectedReason'; got '$actual'."
 }
 
 function Assert-ThrowsContaining {
@@ -213,6 +215,7 @@ function Assert-CustomRenameFilterConfig {
 Assert-True (Test-Path -LiteralPath $releasePolicyPath -PathType Leaf) 'release_policy.ps1 is missing.'
 Assert-True (Test-Path -LiteralPath $buildScriptPath -PathType Leaf) 'build.ps1 is missing.'
 Assert-True (Test-Path -LiteralPath $backupScriptPath -PathType Leaf) 'Backup-PreOverhaul.ps1 is missing.'
+Assert-True (Test-Path -LiteralPath $releaseAdminInventoryPath -PathType Leaf) 'Release package admin inventory is missing.'
 Assert-True (Test-Path -LiteralPath $setupLauncherPath -PathType Leaf) 'ops\scripts\dev\setup.bat is missing.'
 Assert-True (Test-Path -LiteralPath $runLauncherPath -PathType Leaf) 'ops\scripts\dev\run.bat is missing.'
 if ($inReleasePackage) {
@@ -233,6 +236,10 @@ Assert-Contains $buildScriptText 'This is not release acceptance.' 'Release buil
 Assert-Contains $buildScriptText 'Test-ReleaseTraversalDirectoryPruned' 'Release builder must prune known excluded directories before recursive package traversal.'
 Assert-Contains $buildScriptText 'Get-ReleaseSourceFileItems' 'Release builder must use the pruned release source traversal helper.'
 Assert-True (-not $buildScriptText.Contains('Get-ChildItem -LiteralPath $script:SourceRoot -Recurse -File -Force')) 'Release builder must not recurse through every source file before applying package exclusions.'
+
+$releaseAdminInventoryText = Get-Content -LiteralPath $releaseAdminInventoryPath -Raw
+Assert-True (-not $releaseAdminInventoryText.Contains('-Zip -KeepPersonalConfig')) 'Release package admin inventory must not recommend the rejected zipped personal-mirror combination.'
+Assert-Contains $releaseAdminInventoryText '`-KeepPersonalConfig` is directory-only and cannot be combined with `-Zip`.' 'Release package admin inventory must document that personal mirrors are directory-only.'
 
 $rgignoreText = Get-Content -LiteralPath $rgignorePath -Raw
 if (-not $inReleasePackage) {
@@ -293,6 +300,18 @@ Assert-ReleaseExclusion -RelativePath 'node_modules\eslint\bin\eslint.js' -Expec
 Assert-ReleaseExclusion -RelativePath 'tools\node_modules\package\index.js' -ExpectedReason 'node modules omitted'
 Assert-ReleaseExclusion -RelativePath 'apps\desktop\tauri\node_modules\package\index.js' -ExpectedReason 'tauri node modules omitted'
 Assert-ReleaseExclusion -RelativePath 'apps\desktop\tauri\src-tauri\target\release\app.exe' -ExpectedReason 'tauri rust build output omitted'
+Assert-ReleaseExclusion -RelativePath 'apps\desktop\tauri\src-tauri\src\lib_tests\mod.rs' -ExpectedReason 'Tauri Rust test module omitted'
+Assert-ReleaseExclusion -RelativePath 'apps\desktop\tauri\src-tauri\src\lib_tests\python_runtime.rs' -ExpectedReason 'Tauri Rust test module omitted'
+Assert-ReleaseExclusion -RelativePath 'apps\desktop\tauri\src-tauri\src\backend_process\tests.rs' -ExpectedReason 'Tauri Rust test module omitted'
+Assert-ReleaseExclusion -RelativePath 'apps\desktop\tauri\src-tauri\src\lib_tests\mod.rs' -ExpectedReason $null -IncludeTests:$true
+Assert-ReleaseExclusion -RelativePath 'apps\desktop\tauri\src-tauri\src\backend_process\tests.rs' -ExpectedReason $null -IncludeTests:$true
+Assert-ReleaseExclusion -RelativePath 'apps\desktop\tauri\src-tauri\src\backend_process.rs' -ExpectedReason $null
+
+$tauriRustSource = @(
+    Get-ChildItem -LiteralPath (Join-Path $repoRoot 'apps\desktop\tauri\src-tauri\src') -Recurse -File -Filter '*.rs' |
+        ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }
+) -join "`n"
+Assert-True (-not [regex]::IsMatch($tauriRustSource, '(?i)LAYNE-SERVER|[A-Z]:\\Users\\Layne')) 'Tauri Rust source must not contain the audited personal server or user-profile identifiers.'
 Assert-ReleaseExclusion -RelativePath 'CodexVerification\run.jsonl' -ExpectedReason 'local verification evidence'
 Assert-ReleaseExclusion -RelativePath 'LocalBase\State\pipeline_progress.json' -ExpectedReason 'local runtime state'
 Assert-ReleaseExclusion -RelativePath '.release_in_progress.json' -ExpectedReason 'partial release build marker'
@@ -306,6 +325,13 @@ Assert-ReleaseExclusion -RelativePath 'docs\archive\root-artifacts\codex-config.
 Assert-ReleaseExclusion -RelativePath 'docs\reviews\function-module-audit-2026-06-11\workers\worker-08-webview-pages.md' -ExpectedReason 'active review/audit ledger omitted'
 Assert-ReleaseExclusion -RelativePath 'ops\release\changes\unreleased\MP-CHANGE-2026-0710-010.json' -ExpectedReason 'unreleased change record omitted'
 Assert-ReleaseExclusion -RelativePath 'docs\generated\summaries\ops\release\changes\unreleased\MP-CHANGE-2026-0710-010.json.md' -ExpectedReason 'unreleased change record summary omitted'
+Assert-ReleaseExclusion -RelativePath 'ops\release\changes\archived\2026-07\MP-CHANGE-2026-0710-010.json' -ExpectedReason 'archived unreleased change record omitted'
+Assert-ReleaseExclusion -RelativePath 'docs\generated\summaries\ops\release\changes\archived\2026-07\MP-CHANGE-2026-0710-010.json.md' -ExpectedReason 'archived unreleased change record summary omitted'
+Assert-ReleaseExclusion -RelativePath 'ops\release\evidence\operator-proof.png' -ExpectedReason 'raw release evidence screenshot omitted'
+Assert-ReleaseExclusion -RelativePath 'ops\release\evidence\operator-proof.JPEG' -ExpectedReason 'raw release evidence screenshot omitted'
+Assert-ReleaseExclusion -RelativePath 'docs\testing\operator-proof.md' -ExpectedReason $null
+Assert-ReleaseExclusion -RelativePath 'docs\archive\remediation-changelog\entries-0001-0250.md' -ExpectedReason 'historical remediation ledger segment omitted'
+Assert-ReleaseExclusion -RelativePath 'docs\REMEDIATION_CHANGELOG.md' -ExpectedReason 'historical remediation ledger omitted'
 Assert-ReleaseExclusion -RelativePath 'CON' -ExpectedReason 'windows reserved device name'
 Assert-ReleaseExclusion -RelativePath 'notes\AUX.txt' -ExpectedReason 'windows reserved device name'
 Assert-ReleaseExclusion -RelativePath 'artifacts\LPT1\capture.txt' -ExpectedReason 'windows reserved device name'
@@ -332,6 +358,8 @@ Assert-True ($rulePaths -contains 'node_modules') 'Release hygiene rules must re
 Assert-True ($rulePaths -contains '.github') 'Release hygiene rules must reject source-control workflow metadata.'
 Assert-True ($rulePaths -contains '.codex') 'Release hygiene rules must reject local Codex metadata.'
 Assert-True ($rulePaths -contains 'apps\desktop\tauri\node_modules') 'Release hygiene rules must reject Tauri node_modules.'
+Assert-True ($rulePaths -contains 'apps\desktop\tauri\src-tauri\src\lib_tests') 'Default release hygiene rules must reject Tauri Rust test modules.'
+Assert-True ($rulePaths -contains 'apps\desktop\tauri\src-tauri\src\backend_process\tests.rs') 'Default release hygiene rules must reject Tauri backend-process Rust tests.'
 Assert-True ($rulePaths -contains 'ops\pipeline\config\MediaPipeline_config.psd1') 'Release hygiene rules must reject the active live config by default.'
 Assert-True ($rulePaths -contains '.release_in_progress.json') 'Release hygiene rules must reject interrupted release markers.'
 Assert-True ($rulePaths -contains 'docs\reviews') 'Release hygiene rules must reject active review ledgers.'
@@ -340,6 +368,16 @@ Assert-True ($rulePaths -contains 'ops\pipeline\config\backups') 'Release hygien
 Assert-True ($rulePatterns -contains 'ops\pipeline\config\backups\*.psd1') 'Release hygiene rules must reject generated config backups in active backup folders.'
 Assert-True ($rulePatterns -contains 'src\*.log') 'Release hygiene rules must reject source-tree runtime logs.'
 Assert-True ($rulePatterns -contains 'src\*.egg-info\*') 'Release hygiene rules must reject Python packaging metadata.'
+Assert-True ($rulePatterns -contains 'ops\release\evidence\*.png') 'Release hygiene rules must reject raw PNG release evidence.'
+Assert-True ($rulePatterns -contains 'ops\release\evidence\*.jpeg') 'Release hygiene rules must reject raw JPEG release evidence.'
+
+$testPackageRulePaths = @(
+    Get-MediaPipelineReleaseHygieneRules -TestsIncluded:$true |
+        Where-Object { $_.kind -in @('path_absent', 'path_present') } |
+        ForEach-Object { $_.relative_path }
+)
+Assert-True ($testPackageRulePaths -notcontains 'apps\desktop\tauri\src-tauri\src\lib_tests') 'IncludeTests package hygiene must retain Tauri Rust test modules.'
+Assert-True ($testPackageRulePaths -notcontains 'apps\desktop\tauri\src-tauri\src\backend_process\tests.rs') 'IncludeTests package hygiene must retain Tauri backend-process Rust tests.'
 
 $policyManifest = Get-MediaPipelineReleasePolicyManifest
 Assert-True ($policyManifest.schema_version -eq 'mediapipeline_release_policy.v1') 'Release policy manifest schema drifted.'
@@ -347,7 +385,12 @@ Assert-True ($policyManifest.hygiene_rule_count -eq $hygieneRules.Count) 'Releas
 Assert-True (Test-MediaPipelineReleaseContentAllowed -RelativePath 'docs\README.md' -Content 'Use C:\MediaPipeline\Incoming as the deployment template path.') 'Stable deployment template paths should remain package-safe.'
 Assert-True (-not (Test-MediaPipelineReleaseContentAllowed -RelativePath 'docs\README.md' -Content 'Source path: C:\Users\operator\Videos')) 'User-profile paths must be rejected from package content.'
 Assert-True (-not (Test-MediaPipelineReleaseContentAllowed -RelativePath 'docs\README.md' -Content 'Source path: \\private-server\media')) 'UNC paths must be rejected from package content.'
+Assert-True (Test-MediaPipelineReleaseContentAllowed -RelativePath 'docs\README.md' -Content 'Parser fixture: r"\\\\?\\E:\\Videos\\file.mkv"') 'Escaped Windows extended drive-path fixtures must not be misclassified as UNC privacy leaks.'
+Assert-True (Test-MediaPipelineReleaseContentAllowed -RelativePath 'docs\inventory.json' -Content '{"anchor":"assert path r\"\\\\?\\E:\\Videos\\file.mkv\""}') 'JSON-escaped Windows extended drive-path fixtures must not be misclassified as UNC privacy leaks.'
+Assert-True (-not (Test-MediaPipelineReleaseContentAllowed -RelativePath 'docs\inventory.json' -Content '{"source":"\\\\private-server\\media"}')) 'JSON string values containing UNC paths must still be rejected.'
 Assert-True (-not (Test-MediaPipelineReleaseContentAllowed -RelativePath 'docs\README.md' -Content 'Authorization: Bearer secret-value-should-not-ship')) 'Bearer values must be rejected from package content.'
+Assert-True (Test-MediaPipelineReleaseContentScanEligible -RelativePath 'docs\testing\operator-proof.md') 'Sanitized text evidence must remain content-scanned.'
+Assert-True (-not (Test-MediaPipelineReleaseContentScanEligible -RelativePath 'ops\release\evidence\operator-proof.png')) 'Raw screenshot evidence must not rely on the text content scanner.'
 Assert-True (Test-MediaPipelineReleaseContentScanEligible -RelativePath 'ops\pipeline\config\MediaPipeline_config_template.psd1') 'Packaged configuration templates must be content-scanned.'
 Assert-True (-not (Test-MediaPipelineReleaseContentScanEligible -RelativePath 'apps\desktop\runtime\Python\Lib\tempfile.py')) 'Bundled third-party runtime source must not produce privacy false positives.'
 
@@ -367,14 +410,115 @@ if ($env:USERPROFILE) {
 $validDryRunDestination = Join-Path ([System.IO.Path]::GetTempPath()) ('mediapipeline-release-policy-valid-{0}' -f ([guid]::NewGuid().ToString('N')))
 & $buildScriptPath -DestinationRoot $validDryRunDestination -DryRun | Out-Null
 
-$unsafeReplacement = Join-Path ([System.IO.Path]::GetTempPath()) ('mediapipeline-release-policy-unsafe-{0}' -f ([guid]::NewGuid().ToString('N')))
-New-Item -ItemType Directory -Path $unsafeReplacement -Force | Out-Null
-Set-Content -LiteralPath (Join-Path $unsafeReplacement 'not-a-release.txt') -Value 'do not delete' -Encoding UTF8
+$replacementTestRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('mediapipeline-release-replacement-{0}' -f ([guid]::NewGuid().ToString('N')))
+$fixtureSource = Join-Path $replacementTestRoot 'source'
+$fixtureBuild = Join-Path $fixtureSource 'ops\scripts\release\build.ps1'
+$fixturePolicy = Join-Path $fixtureSource 'ops\scripts\release\release_policy.ps1'
+$fixtureVersion = Join-Path $fixtureSource 'ops\release\metadata\VERSION'
+$fixtureDestination = Join-Path $replacementTestRoot 'destination'
 try {
-    Assert-ReleaseBuildRejectsReplacement -DestinationRoot $unsafeReplacement -ExpectedText 'without a MediaPipeline release manifest marker'
-    Assert-True (Test-Path -LiteralPath (Join-Path $unsafeReplacement 'not-a-release.txt') -PathType Leaf) 'Unsafe replacement marker file should not be removed.'
+    New-Item -ItemType Directory -Path (Split-Path -Parent $fixtureBuild) -Force | Out-Null
+    New-Item -ItemType Directory -Path (Split-Path -Parent $fixtureVersion) -Force | Out-Null
+    Copy-Item -LiteralPath $buildScriptPath -Destination $fixtureBuild
+    Copy-Item -LiteralPath $releasePolicyPath -Destination $fixturePolicy
+    Copy-Item -LiteralPath (Join-Path $repoRoot 'ops\release\metadata\VERSION') -Destination $fixtureVersion
+    Set-Content -LiteralPath (Join-Path $fixtureSource 'payload.txt') -Value 'fixture payload' -Encoding UTF8
+    Set-Content -LiteralPath (Join-Path $fixtureSource '.gitignore') -Value 'fixture exclusion' -Encoding UTF8
+
+    $schemaOnlyManifest = Join-Path $replacementTestRoot 'schema-only-manifest'
+    New-Item -ItemType Directory -Path $schemaOnlyManifest -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $schemaOnlyManifest 'keep-important.txt') -Value 'preserve me' -Encoding UTF8
+    @{ schema_version = 'mediapipeline_release_manifest.v1' } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $schemaOnlyManifest 'release_manifest.json') -Encoding UTF8
+    Assert-ThrowsContaining `
+        -Action { & $fixtureBuild -DestinationRoot $schemaOnlyManifest -Force } `
+        -ExpectedText 'without a destination-bound MediaPipeline release identity' `
+        -Message 'A schema-only completed marker must not authorize replacement.'
+    Assert-True (Test-Path -LiteralPath (Join-Path $schemaOnlyManifest 'keep-important.txt') -PathType Leaf) 'Schema-only completed marker must preserve unrelated contents.'
+
+    $schemaOnlyPartial = Join-Path $replacementTestRoot 'schema-only-partial'
+    New-Item -ItemType Directory -Path $schemaOnlyPartial -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $schemaOnlyPartial 'keep-important.txt') -Value 'preserve me' -Encoding UTF8
+    @{ schema_version = 'mediapipeline_release_in_progress.v1' } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $schemaOnlyPartial '.release_in_progress.json') -Encoding UTF8
+    Assert-ThrowsContaining `
+        -Action { & $fixtureBuild -DestinationRoot $schemaOnlyPartial -Force } `
+        -ExpectedText 'without a destination-bound MediaPipeline release identity' `
+        -Message 'A schema-only partial marker must not authorize replacement.'
+    Assert-True (Test-Path -LiteralPath (Join-Path $schemaOnlyPartial 'keep-important.txt') -PathType Leaf) 'Schema-only partial marker must preserve unrelated contents.'
+
+    & $fixtureBuild -DestinationRoot $fixtureDestination | Out-Null
+    $firstManifest = Get-Content -LiteralPath (Join-Path $fixtureDestination 'release_manifest.json') -Raw | ConvertFrom-Json
+    Assert-True ([string]$firstManifest.replacement_identity.schema_version -eq 'mediapipeline_release_destination_identity.v1') 'Completed release marker must carry destination identity schema.'
+    Assert-True ([string]$firstManifest.replacement_identity.destination_path_sha256 -match '^[0-9a-f]{64}$') 'Destination identity must carry a SHA-256 path binding.'
+    Assert-True ([guid]::Parse([string]$firstManifest.replacement_identity.build_nonce) -ne [guid]::Empty) 'Destination identity must carry a valid build nonce.'
+
+    Set-Content -LiteralPath (Join-Path $fixtureDestination 'old-only.txt') -Value 'recoverable prior output' -Encoding UTF8
+    & $fixtureBuild -DestinationRoot $fixtureDestination -Force | Out-Null
+    $successfulQuarantines = @(Get-ChildItem -LiteralPath $replacementTestRoot -Directory -Filter 'destination.replaced.*')
+    Assert-True ($successfulQuarantines.Count -eq 1) 'Successful replacement must retain exactly one recoverable sibling quarantine.'
+    Assert-True (Test-Path -LiteralPath (Join-Path $successfulQuarantines[0].FullName 'old-only.txt') -PathType Leaf) 'Successful replacement quarantine must retain prior contents.'
+
+    $mismatchedDestination = Join-Path $replacementTestRoot 'copied-marker-destination'
+    Copy-Item -LiteralPath $fixtureDestination -Destination $mismatchedDestination -Recurse
+    Set-Content -LiteralPath (Join-Path $mismatchedDestination 'keep-important.txt') -Value 'preserve copied marker target' -Encoding UTF8
+    Assert-ThrowsContaining `
+        -Action { & $fixtureBuild -DestinationRoot $mismatchedDestination -Force } `
+        -ExpectedText 'without a destination-bound MediaPipeline release identity' `
+        -Message 'A marker copied from another destination must not authorize replacement.'
+    Assert-True (Test-Path -LiteralPath (Join-Path $mismatchedDestination 'keep-important.txt') -PathType Leaf) 'Destination-mismatched marker must preserve unrelated contents.'
+
+    $identityMismatchDestination = Join-Path $replacementTestRoot 'identity-mismatch-destination'
+    & $fixtureBuild -DestinationRoot $identityMismatchDestination | Out-Null
+    $identityManifestPath = Join-Path $identityMismatchDestination 'release_manifest.json'
+    $identityManifestBaseline = Get-Content -LiteralPath $identityManifestPath -Raw
+    Set-Content -LiteralPath (Join-Path $identityMismatchDestination 'keep-important.txt') -Value 'preserve identity mismatch target' -Encoding UTF8
+    foreach ($mismatch in @(
+        @{ Property = 'source_root_sha256'; Value = ('0' * 64); Label = 'source-root hash' },
+        @{ Property = 'normalized_version'; Value = '0.0.0+000'; Label = 'normalized version' },
+        @{ Property = 'source_revision'; Value = ('0' * 40); Label = 'source revision' }
+    )) {
+        $mismatchedManifest = $identityManifestBaseline | ConvertFrom-Json
+        $mismatchedManifest.replacement_identity.($mismatch.Property) = $mismatch.Value
+        $mismatchedManifest | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $identityManifestPath -Encoding UTF8
+        Assert-ThrowsContaining `
+            -Action { & $fixtureBuild -DestinationRoot $identityMismatchDestination -Force } `
+            -ExpectedText 'without a destination-bound MediaPipeline release identity' `
+            -Message "A mismatched $($mismatch.Label) must not authorize replacement."
+        Assert-True (Test-Path -LiteralPath (Join-Path $identityMismatchDestination 'keep-important.txt') -PathType Leaf) "Mismatched $($mismatch.Label) must preserve unrelated contents."
+        Set-Content -LiteralPath $identityManifestPath -Value $identityManifestBaseline -Encoding UTF8
+    }
+
+    Set-Content -LiteralPath (Join-Path $fixtureDestination 'restore-me.txt') -Value 'restore prior destination' -Encoding UTF8
+    $lockedPayload = Join-Path $fixtureSource 'locked-payload.txt'
+    Set-Content -LiteralPath $lockedPayload -Value 'force copy failure after quarantine' -Encoding UTF8
+    $lockedStream = [System.IO.File]::Open($lockedPayload, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::None)
+    try {
+        $replacementFailed = $false
+        try {
+            & $fixtureBuild -DestinationRoot $fixtureDestination -Force | Out-Null
+        } catch {
+            $replacementFailed = $true
+        }
+        Assert-True $replacementFailed 'A locked source fixture must fail after destination quarantine.'
+    } finally {
+        $lockedStream.Dispose()
+    }
+    Assert-True (Test-Path -LiteralPath (Join-Path $fixtureDestination 'restore-me.txt') -PathType Leaf) 'Failed replacement must restore the prior destination exactly.'
+    Assert-True (@(Get-ChildItem -LiteralPath $replacementTestRoot -Directory -Filter 'destination.failed.*').Count -eq 1) 'Failed replacement must preserve partial output in one sibling quarantine.'
+
+    $junctionTarget = Join-Path $replacementTestRoot 'junction-target'
+    $junctionPath = Join-Path $replacementTestRoot 'junction-destination'
+    New-Item -ItemType Directory -Path $junctionTarget -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $junctionTarget 'keep-important.txt') -Value 'preserve junction target' -Encoding UTF8
+    New-Item -ItemType Junction -Path $junctionPath -Target $junctionTarget | Out-Null
+    Assert-ThrowsContaining `
+        -Action { & $fixtureBuild -DestinationRoot $junctionPath -Force } `
+        -ExpectedText 'reparse-point path component' `
+        -Message 'A reparse-point destination must not authorize replacement.'
+    Assert-True (Test-Path -LiteralPath (Join-Path $junctionTarget 'keep-important.txt') -PathType Leaf) 'Rejected reparse destination must preserve target contents.'
 } finally {
-    Remove-Item -LiteralPath $unsafeReplacement -Recurse -Force -ErrorAction SilentlyContinue
+    if (Test-Path -LiteralPath $replacementTestRoot) {
+        Remove-Item -LiteralPath $replacementTestRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }
 Assert-NoLocalMachinePathLeaks
 

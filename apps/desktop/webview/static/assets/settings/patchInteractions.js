@@ -15,6 +15,9 @@
     const renderAllLaunchPreflights = deps.renderAllLaunchPreflights || function () {};
     const renderSettingsPatchSummary = deps.renderSettingsPatchSummary || function () {};
     const renderSettingsRows = deps.renderSettingsRows || function () {};
+    const resetSettingsBuilderFromConfig = deps.resetSettingsBuilderFromConfig || function (_fields, syncFromConfig) {
+      if (typeof syncFromConfig === "function") syncFromConfig();
+    };
     const routeClamp = deps.routeClamp || function (value) { return value; };
     const routeRailBoundaryConfig = deps.routeRailBoundaryConfig || function () { return null; };
     const routeRailCurrentBoundaryHeight = deps.routeRailCurrentBoundaryHeight || function () { return 0; };
@@ -145,6 +148,10 @@
       if (element && typeof handler === "function") element.addEventListener("click", handler);
     }
 
+    function bindSettingsReset(id, fields, syncFromConfig) {
+      bindSettingsClick(id, () => resetSettingsBuilderFromConfig(fields, syncFromConfig));
+    }
+
     function initSettingsViewEvents() {
       bindSettingsClick("settings-validate-button", addSettingsEventHandlers.validateCurrentSettings);
       bindSettingsClick("settings-reload-button", addSettingsEventHandlers.reloadSettingsFromDisk);
@@ -159,17 +166,17 @@
       const changedOnly = byId("settings-patch-summary-changed-only");
       if (changedOnly) changedOnly.addEventListener("change", renderSettingsPatchSummary);
       bindSettingsClick("settings-builder-apply-button", addSettingsEventHandlers.applySettingsBuilderToPatch);
-      bindSettingsClick("settings-builder-reset-button", addSettingsEventHandlers.syncSettingsBuilderFromConfig);
+      bindSettingsReset("settings-builder-reset-button", settingsBuilderFields, addSettingsEventHandlers.syncSettingsBuilderFromConfig);
       bindSettingsControls(settingsBuilderFields, addSettingsEventHandlers.markSettingsBuilderDirty);
       bindRouteRangeRailControls();
       bindSettingsClick("settings-video-apply-button", addSettingsEventHandlers.applyVideoDetailSettingsBuilderToPatch);
-      bindSettingsClick("settings-video-reset-button", addSettingsEventHandlers.syncVideoDetailSettingsBuilderFromConfig);
+      bindSettingsReset("settings-video-reset-button", videoDetailSettingsBuilderFields, addSettingsEventHandlers.syncVideoDetailSettingsBuilderFromConfig);
       bindSettingsControls(videoDetailSettingsBuilderFields, addSettingsEventHandlers.markVideoDetailSettingsBuilderDirty);
       bindSettingsClick("settings-quality-apply-button", addSettingsEventHandlers.applyQualityDetailSettingsBuilderToPatch);
-      bindSettingsClick("settings-quality-reset-button", addSettingsEventHandlers.syncQualityDetailSettingsBuilderFromConfig);
+      bindSettingsReset("settings-quality-reset-button", qualityDetailSettingsBuilderFields, addSettingsEventHandlers.syncQualityDetailSettingsBuilderFromConfig);
       bindSettingsControls(qualityDetailSettingsBuilderFields, addSettingsEventHandlers.markQualityDetailSettingsBuilderDirty);
       bindSettingsClick("settings-file-safety-apply-button", addSettingsEventHandlers.applyFileSafetySettingsBuilderToPatch);
-      bindSettingsClick("settings-file-safety-reset-button", addSettingsEventHandlers.syncFileSafetySettingsBuilderFromConfig);
+      bindSettingsReset("settings-file-safety-reset-button", fileSafetySettingsBuilderFields, addSettingsEventHandlers.syncFileSafetySettingsBuilderFromConfig);
       bindSettingsControls(fileSafetySettingsBuilderFields, addSettingsEventHandlers.markFileSafetySettingsBuilderDirty);
       document.querySelectorAll("[data-settings-path-browse-key]").forEach((button) => {
         button.addEventListener("click", () => {
@@ -179,22 +186,22 @@
         });
       });
       bindSettingsClick("settings-network-apply-button", addSettingsEventHandlers.applyNetworkSettingsBuilderToPatch);
-      bindSettingsClick("settings-network-reset-button", addSettingsEventHandlers.syncNetworkSettingsBuilderFromConfig);
+      bindSettingsReset("settings-network-reset-button", networkSettingsBuilderFields, addSettingsEventHandlers.syncNetworkSettingsBuilderFromConfig);
       bindSettingsControls(networkSettingsBuilderFields, addSettingsEventHandlers.markNetworkSettingsBuilderDirty);
       bindSettingsClick("settings-queue-apply-button", addSettingsEventHandlers.applyQueueSettingsBuilderToPatch);
-      bindSettingsClick("settings-queue-reset-button", addSettingsEventHandlers.syncQueueSettingsBuilderFromConfig);
+      bindSettingsReset("settings-queue-reset-button", queueSettingsBuilderFields, addSettingsEventHandlers.syncQueueSettingsBuilderFromConfig);
       bindSettingsControls(queueSettingsBuilderFields, addSettingsEventHandlers.markQueueSettingsBuilderDirty);
       bindSettingsClick("settings-runtime-apply-button", addSettingsEventHandlers.applyRuntimeSettingsBuilderToPatch);
-      bindSettingsClick("settings-runtime-reset-button", addSettingsEventHandlers.syncRuntimeSettingsBuilderFromConfig);
+      bindSettingsReset("settings-runtime-reset-button", runtimeSettingsBuilderFields, addSettingsEventHandlers.syncRuntimeSettingsBuilderFromConfig);
       bindSettingsControls(runtimeSettingsBuilderFields, addSettingsEventHandlers.markRuntimeSettingsBuilderDirty);
       bindSettingsClick("settings-pending-apply-button", addSettingsEventHandlers.applyPendingPublishSettingsBuilderToPatch);
-      bindSettingsClick("settings-pending-reset-button", addSettingsEventHandlers.syncPendingPublishSettingsBuilderFromConfig);
+      bindSettingsReset("settings-pending-reset-button", pendingPublishSettingsBuilderFields, addSettingsEventHandlers.syncPendingPublishSettingsBuilderFromConfig);
       bindSettingsControls(pendingPublishSettingsBuilderFields, addSettingsEventHandlers.markPendingPublishSettingsBuilderDirty);
       bindSettingsClick("settings-subtitle-apply-button", addSettingsEventHandlers.applySubtitleSettingsBuilderToPatch);
-      bindSettingsClick("settings-subtitle-reset-button", addSettingsEventHandlers.syncSubtitleSettingsBuilderFromConfig);
+      bindSettingsReset("settings-subtitle-reset-button", subtitleSettingsBuilderFields, addSettingsEventHandlers.syncSubtitleSettingsBuilderFromConfig);
       bindSettingsControls(subtitleSettingsBuilderFields, addSettingsEventHandlers.markSubtitleSettingsBuilderDirty);
       bindSettingsClick("settings-audio-apply-button", addSettingsEventHandlers.applyAudioSettingsBuilderToPatch);
-      bindSettingsClick("settings-audio-reset-button", addSettingsEventHandlers.syncAudioSettingsBuilderFromConfig);
+      bindSettingsReset("settings-audio-reset-button", audioSettingsBuilderFields, addSettingsEventHandlers.syncAudioSettingsBuilderFromConfig);
       bindSettingsControls(audioSettingsBuilderFields, addSettingsEventHandlers.markAudioSettingsBuilderDirty);
       const settingsFilter = byId("settings-filter");
       if (settingsFilter) settingsFilter.addEventListener("input", renderSettingsRows);

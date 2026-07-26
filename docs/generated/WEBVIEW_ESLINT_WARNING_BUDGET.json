@@ -1,9 +1,9 @@
 {
-  "schema_version": "webview_eslint_warning_budget.v1",
+  "schema_version": "webview_eslint_warning_budget.v2",
   "generated_by": "ops/scripts/dev/check-webview-lint-budget.mjs",
   "target": "apps/desktop/webview/static/assets/**/*.js",
-  "budget_policy": "Future checks fail on any ESLint error or on warning counts above this baseline by total or rule.",
-  "total_warnings": 1402,
+  "budget_policy": "Future checks fail on ESLint errors, warning increases by total/rule/file, or any no-undef pair drift. No-undef decreases must be accepted with the dedicated ratchet command.",
+  "total_warnings": 1387,
   "total_errors": 0,
   "by_rule": {
     "complexity": {
@@ -19,11 +19,11 @@
       "errors": 0
     },
     "no-undef": {
-      "warnings": 416,
+      "warnings": 404,
       "errors": 0
     },
     "no-unused-vars": {
-      "warnings": 729,
+      "warnings": 726,
       "errors": 0
     },
     "parse-error": {
@@ -31,6 +31,1233 @@
       "errors": 0
     }
   },
+  "no_undef_pairs": [
+    {
+      "path": "apps/desktop/webview/static/assets/app.js",
+      "identifier": "dashboardCurrentWork",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app.js",
+      "identifier": "dashboardText",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app.js",
+      "identifier": "getCommandHistory",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app.js",
+      "identifier": "refreshAll",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app.js",
+      "identifier": "refreshAllNow",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/dashboard.js",
+      "identifier": "lastCloseReadiness",
+      "warnings": 5
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/dashboard.js",
+      "identifier": "lastDiagnostics",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/dashboard.js",
+      "identifier": "lastSchedule",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/dashboard.js",
+      "identifier": "lastSnapshot",
+      "warnings": 9
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/dashboard.js",
+      "identifier": "lastStdoutTail",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/dashboard.js",
+      "identifier": "renderBackendLifecycle",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/dashboard.js",
+      "identifier": "renderBrandVersion",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/dashboard.js",
+      "identifier": "renderControlReadiness",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/dashboard.js",
+      "identifier": "renderHomePipelineState",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/dashboard.js",
+      "identifier": "renderLaunchReadinessPanel",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/dashboard.js",
+      "identifier": "renderSparkline",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/dashboard.js",
+      "identifier": "renderTopbarActivity",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/dashboard.js",
+      "identifier": "renderTopbarEventTicker",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/home.js",
+      "identifier": "setPanelStatus",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "applyDefaultActionTooltips",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "applyDiagnosticCallouts",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "AUTOMATIC_REFRESH_INTERVAL_MS",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "closeReadinessRequiresWarning",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "closeReadinessWarningMessage",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "CORE_REFRESH_REQUESTS",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "handleTauriBackendLifecycleEvent",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "initAdvancedToggle",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "initBackendRowOpenActions",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "initCollapsibleSummaries",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "initCompletedTabNav",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "initDiagnosticsTabNav",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "initEvidenceToggle",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "initKeyboardShortcuts",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "initLaunchEvidenceToggle",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "initLayoutManager",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "initNavigation",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "initPageRefreshButtons",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "initSampleValidationViewEvents",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "initSettingsTabNav",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "initThemeToggle",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "installSharedUiPreferenceStorageSync",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "refreshAll",
+      "warnings": 10
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "refreshCurrentOutputStatus",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "renderBrandVersion",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "requestBackendShutdown",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "requestDiagnosticsOpen",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "requestPendingRecoveryPlan",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "restoreSharedUiPreferences",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "startSharedUiPreferenceRemoteRefresh",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "identifier": "updatePagePanelEmptyStates",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "attachRefreshMetadata",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "AUTOMATIC_OPTIONAL_GET_TIMEOUT_MS",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "AUTOMATIC_REFRESH_INTERVAL_MS",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "bootstrap",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "lastCloseReadiness",
+      "warnings": 11
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "lastDiagnostics",
+      "warnings": 8
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "lastRefreshCompletedAt",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "lastRefreshDurationMs",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "lastRefreshStartedAt",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "lastSchedule",
+      "warnings": 3
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "lastSnapshot",
+      "warnings": 16
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "lastStartupProgress",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "lastStdoutTail",
+      "warnings": 6
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "refreshFailure",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "refreshInFlight",
+      "warnings": 3
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "refreshQueued",
+      "warnings": 3
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "refreshQueuedOptions",
+      "warnings": 4
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "renderBackendLifecycle",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "renderCloseReadiness",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "renderCloseReadinessUnavailable",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "renderCrossPageContext",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "renderDailyDriverReadiness",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "renderDiagnostics",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "renderDiagnosticsInvestigationTrail",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "renderExternalDependencyDigest",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "renderHomePendingCount",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "renderHomePipelineQueueOutcome",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "renderHomePromotionEntry",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "renderHomeQueueSnapshot",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "renderHomeReadiness",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "renderHomeRecentCompleted",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "renderHomeStorageHealth",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "renderLaunchReadinessPanel",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "renderLiveWorkHomeSummary",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "renderPendingPublish",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "renderRefreshHealth",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "renderRefreshInProgress",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "renderSnapshot",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "renderTelemetrySafely",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "identifier": "renderTopbarActivity",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/commandHistory.js",
+      "identifier": "renderCompletedFinalTrust",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/commandHistory.js",
+      "identifier": "renderMaintenanceDryRunHistory",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/commandHistory.js",
+      "identifier": "renderPendingDrainDecisionChecklist",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/commandHistory.js",
+      "identifier": "renderPendingDrainGuard",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/commandHistory.js",
+      "identifier": "renderPendingDrainHistory",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/commandHistory.js",
+      "identifier": "renderPendingOpenHistory",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/commandHistory.js",
+      "identifier": "renderPendingRecoveryPlanHistory",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/commandHistory.js",
+      "identifier": "renderQueueLaunchDecisionChecklist",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/commandHistory.js",
+      "identifier": "renderQueueOpenHistory",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/commandHistory.js",
+      "identifier": "requestDiagnosticsOpen",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/commandHistory.js",
+      "identifier": "requestDiagnosticsTail",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/commandHistory.js",
+      "identifier": "setPanelStatus",
+      "warnings": 5
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/commandHistory/diagnosticEvidence.js",
+      "identifier": "getLastDiagnosticsLogRows",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/commandHistory/diagnosticEvidence.js",
+      "identifier": "getLastPendingPublishPayload",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/commandHistory/diagnosticEvidence.js",
+      "identifier": "getLastQueuePayload",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/commandHistory/diagnosticEvidence.js",
+      "identifier": "getLastQueueRows",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/commandHistory/diagnosticEvidence.js",
+      "identifier": "getLastSettings",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/commandHistory/diagnosticEvidence.js",
+      "identifier": "pendingDrainGuardState",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/commandHistory/diagnosticEvidence.js",
+      "identifier": "queueLaunchDecisionStatus",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/commandHistory/diagnosticEvidence.js",
+      "identifier": "settingsPatchHasUnsavedChanges",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/commandHistory/formatters.js",
+      "identifier": "getLastPendingPublishPayload",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completed/review/metricsValidation.js",
+      "identifier": "renderCompletedFinalTrust",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completed/review/metricsValidation.js",
+      "identifier": "renderCompletedOutputAcceptance",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completed/review/metricsValidation.js",
+      "identifier": "renderCompletedPendingProof",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completed/review/metricsValidation.js",
+      "identifier": "renderCompletedPilotEvidencePacket",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completed/review/metricsValidation.js",
+      "identifier": "renderCompletedRealMediaProof",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completed/review/metricsValidation.js",
+      "identifier": "renderCompletedRows",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completed/review/metricsValidation.js",
+      "identifier": "renderCompletedSizeReview",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completed/review/reviewRows.js",
+      "identifier": "backendRowStatusState",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completedView.js",
+      "identifier": "commandHistoryCompactEvidenceLine",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completedView.js",
+      "identifier": "filterRowsByInvestigation",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completedView.js",
+      "identifier": "filterRowsByStatus",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completedView.js",
+      "identifier": "getCommandHistory",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completedView.js",
+      "identifier": "requestDiagnosticsOpen",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completedView.js",
+      "identifier": "requestDiagnosticsTail",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completedView.js",
+      "identifier": "tableStatusFilterLabel",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completedView.js",
+      "identifier": "tableStatusMatchesFilter",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completedView.proof.js",
+      "identifier": "renderCompletedDetail",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completedView.proof.js",
+      "identifier": "renderCompletedReviewDigest",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completedView.proof.js",
+      "identifier": "renderCompletedRows",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completedView.proof.js",
+      "identifier": "renderCompletedSizeReview",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/contractView.js",
+      "identifier": "setPanelStatus",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.conflict.js",
+      "identifier": "setPanelStatus",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.js",
+      "identifier": "refreshAll",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.js",
+      "identifier": "setPanelStatus",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.sample.js",
+      "identifier": "setPanelStatus",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.js",
+      "identifier": "setInlineActionStatus",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.js",
+      "identifier": "setPanelStatus",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.records.js",
+      "identifier": "setPanelStatus",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.runbook.js",
+      "identifier": "setPanelStatus",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.worksheet.js",
+      "identifier": "setPanelStatus",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnostics/firstResponse.js",
+      "identifier": "diagnosticsCommandIssueRows",
+      "warnings": 3
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnostics/firstResponse.js",
+      "identifier": "diagnosticsCrossPageConflictRows",
+      "warnings": 3
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnostics/firstResponse.js",
+      "identifier": "diagnosticsInvestigationActions",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnostics/firstResponse.js",
+      "identifier": "diagnosticsInvestigationStatus",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnostics/firstResponse.js",
+      "identifier": "diagnosticsPageReviewRows",
+      "warnings": 9
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnostics/firstResponse.js",
+      "identifier": "diagnosticsStateIssueRows",
+      "warnings": 3
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnosticsBridge.js",
+      "identifier": "setPanelStatus",
+      "warnings": 3
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnosticsStateSummaryView.js",
+      "identifier": "backendRowStatusState",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnosticsStateSummaryView.js",
+      "identifier": "setPanelStatus",
+      "warnings": 3
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnosticsTailView.js",
+      "identifier": "normalizeBackendStatusState",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnosticsTailView.js",
+      "identifier": "setActionBusy",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnosticsTailView.js",
+      "identifier": "setInlineActionStatus",
+      "warnings": 4
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnosticsTailView.js",
+      "identifier": "setPanelStatus",
+      "warnings": 6
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnosticsView.activejobs.js",
+      "identifier": "backendRowStatusState",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnosticsView.activejobs.js",
+      "identifier": "setPanelStatus",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnosticsView.investigation.js",
+      "identifier": "commandHistoryCompactEvidenceLine",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnosticsView.investigation.js",
+      "identifier": "getCommandHistory",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnosticsView.investigation.js",
+      "identifier": "setPanelStatus",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnosticsView.js",
+      "identifier": "setActionBusy",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnosticsView.js",
+      "identifier": "setInlineActionStatus",
+      "warnings": 4
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnosticsView.js",
+      "identifier": "setPanelStatus",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnosticsView.log.js",
+      "identifier": "setPanelStatus",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launch/scope/compactGate.js",
+      "identifier": "updatePagePanelEmptyStates",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchHistoryView.js",
+      "identifier": "commandHistoryCompactEvidenceLine",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchHistoryView.js",
+      "identifier": "commandHistoryRequestData",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchHistoryView.js",
+      "identifier": "getCommandHistory",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchHistoryView.js",
+      "identifier": "queueLaunchDecisionPostureStatus",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchHistoryView.js",
+      "identifier": "queueLaunchDecisionRows",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchHistoryView.js",
+      "identifier": "requestCommandDiagnosticsAction",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchHistoryView.js",
+      "identifier": "requestDiagnosticsOpen",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchHistoryView.js",
+      "identifier": "requestDiagnosticsTail",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchView.js",
+      "identifier": "commandHistoryCompactEvidenceLine",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchView.js",
+      "identifier": "commandResultDisplayMessage",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchView.js",
+      "identifier": "formatSettingsChoiceLabel",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchView.js",
+      "identifier": "getCommandHistory",
+      "warnings": 3
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchView.js",
+      "identifier": "getLastQueuePayload",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchView.js",
+      "identifier": "getLastQueueRows",
+      "warnings": 4
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchView.js",
+      "identifier": "getSelectedQueueRow",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchView.js",
+      "identifier": "pendingDrainGuardState",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchView.js",
+      "identifier": "queueCurrentFilterScope",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchView.js",
+      "identifier": "queueFilterScopeDetailLines",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchView.js",
+      "identifier": "queueLaunchDecisionPostureStatus",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchView.js",
+      "identifier": "queueLaunchDecisionRows",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchView.js",
+      "identifier": "queueLaunchDecisionStatus",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchView.js",
+      "identifier": "queueLaunchDecisionSummaryLines",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchView.js",
+      "identifier": "renderQueueLaunchDecisionChecklist",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchView.js",
+      "identifier": "showPage",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchView.js",
+      "identifier": "updatePagePanelEmptyStates",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/maintenance/health.js",
+      "identifier": "requestDiagnosticsOpen",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/maintenance/health.js",
+      "identifier": "requestDiagnosticsTail",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/metricsView.js",
+      "identifier": "refreshAllNow",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/metricsView.js",
+      "identifier": "updatePagePanelEmptyStates",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/networkView.js",
+      "identifier": "commandHistoryCompactEvidenceLine",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/networkView.js",
+      "identifier": "getCommandHistory",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/networkView.js",
+      "identifier": "refreshAll",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/networkView.js",
+      "identifier": "renderOverviewTiles",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/networkView.js",
+      "identifier": "updatePagePanelEmptyStates",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.js",
+      "identifier": "commandHistoryCompactEvidenceLine",
+      "warnings": 4
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.js",
+      "identifier": "filterRowsByInvestigation",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.js",
+      "identifier": "filterRowsByStatus",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.js",
+      "identifier": "getCommandHistory",
+      "warnings": 5
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.js",
+      "identifier": "requestDiagnosticsOpen",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.js",
+      "identifier": "requestDiagnosticsTail",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.js",
+      "identifier": "tableStatusFilterLabel",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/progress/barState.js",
+      "identifier": "setPanelStatus",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queue/decisionSummary.js",
+      "identifier": "getSelectedQueuePriorityRowKeys",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queue/decisionSummary.js",
+      "identifier": "queueLaunchDecisionStatusState",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queue/decisionSummary.js",
+      "identifier": "queueReadinessStatus",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queue/decisionSummary.js",
+      "identifier": "queueSnapshotIsStale",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queue/manualOrder.js",
+      "identifier": "getSelectedQueuePriorityRowKeys",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queue/manualOrder.js",
+      "identifier": "selectQueueRow",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queue/tabs.js",
+      "identifier": "updatePagePanelEmptyStates",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queueView.js",
+      "identifier": "filterResultSummaryLines",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queueView.js",
+      "identifier": "filterRowsByInvestigation",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queueView.js",
+      "identifier": "filterRowsByStatus",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queueView.js",
+      "identifier": "getCommandHistory",
+      "warnings": 4
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queueView.js",
+      "identifier": "refreshAll",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queueView.js",
+      "identifier": "requestDiagnosticsOpen",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queueView.js",
+      "identifier": "requestDiagnosticsTail",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queueView.launch.js",
+      "identifier": "filterRowsByInvestigation",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queueView.launch.js",
+      "identifier": "filterRowsByStatus",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queueView.launch.js",
+      "identifier": "renderLaunchScopeReconciliation",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queueView.launch.js",
+      "identifier": "tableStatusFilterLabel",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queueView.review.js",
+      "identifier": "backendRowStatusState",
+      "warnings": 3
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queueView.review.js",
+      "identifier": "tableStatusFilterLabel",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queueView.review.js",
+      "identifier": "tableStatusMatchesFilter",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/rename/editing.js",
+      "identifier": "appendRenamePaths",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/rename/editing.js",
+      "identifier": "renameCurrentFinalName",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/rename/selection.js",
+      "identifier": "renderRenameFileSourceSummary",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/rename/selection.js",
+      "identifier": "renderRenameRows",
+      "warnings": 3
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/renameHistoryView.js",
+      "identifier": "commandHistoryCompactEvidenceLine",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/renameHistoryView.js",
+      "identifier": "renderRenameApplyResult",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/reportsView.js",
+      "identifier": "commandHistoryCompactEvidenceLine",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/reportsView.js",
+      "identifier": "getCommandHistory",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/reportsView.js",
+      "identifier": "refreshAll",
+      "warnings": 2
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/reportsView.js",
+      "identifier": "requestDiagnosticsOpen",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/reportsView.js",
+      "identifier": "requestDiagnosticsTail",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/reportsView.js",
+      "identifier": "updatePagePanelEmptyStates",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settings/patchReview.js",
+      "identifier": "formatSettingsSummaryValue",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settingsCommandHistory.js",
+      "identifier": "commandHistoryCompactEvidenceLine",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settingsOverview.js",
+      "identifier": "setPanelStatus",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settingsView.js",
+      "identifier": "getCommandHistory",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settingsView.js",
+      "identifier": "refreshAll",
+      "warnings": 1
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settingsView.js",
+      "identifier": "renderAllLaunchPreflights",
+      "warnings": 1
+    }
+  ],
   "files": [
     {
       "path": "apps/desktop/webview/static/assets/app.js",
@@ -261,13 +1488,12 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/completed/review/metricsValidation.js",
-      "warnings": 16,
+      "warnings": 11,
       "errors": 0,
       "rules": {
         "complexity": 3,
         "max-lines-per-function": 1,
-        "no-undef": 10,
-        "no-unused-vars": 2
+        "no-undef": 7
       }
     },
     {
@@ -473,11 +1699,10 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/diagnostics/triage.js",
-      "warnings": 10,
+      "warnings": 5,
       "errors": 0,
       "rules": {
         "complexity": 1,
-        "no-undef": 5,
         "no-unused-vars": 4
       }
     },
@@ -727,12 +1952,10 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/maintenance/dryRunReadiness.js",
-      "warnings": 3,
+      "warnings": 1,
       "errors": 0,
       "rules": {
-        "max-lines-per-function": 1,
-        "no-undef": 1,
-        "no-unused-vars": 1
+        "max-lines-per-function": 1
       }
     },
     {
@@ -746,12 +1969,11 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/maintenance/releaseCommands.js",
-      "warnings": 4,
+      "warnings": 3,
       "errors": 0,
       "rules": {
         "complexity": 2,
-        "max-lines-per-function": 1,
-        "no-undef": 1
+        "max-lines-per-function": 1
       }
     },
     {
@@ -1133,14 +2355,6 @@
       }
     },
     {
-      "path": "apps/desktop/webview/static/assets/queue/strategy.js",
-      "warnings": 1,
-      "errors": 0,
-      "rules": {
-        "no-undef": 1
-      }
-    },
-    {
       "path": "apps/desktop/webview/static/assets/queue/tableView.js",
       "warnings": 1,
       "errors": 0,
@@ -1288,12 +2502,11 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/rename/previewLifecycle.js",
-      "warnings": 5,
+      "warnings": 4,
       "errors": 0,
       "rules": {
         "complexity": 2,
         "max-lines-per-function": 1,
-        "no-undef": 1,
         "no-unused-vars": 1
       }
     },

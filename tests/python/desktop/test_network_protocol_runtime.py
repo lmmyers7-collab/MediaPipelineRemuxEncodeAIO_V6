@@ -295,12 +295,36 @@ class NetworkProtocolRuntimeTests(unittest.TestCase):
                 "worker_source_path",
                 "handoff_probe",
                 "destination_policy_applied",
+                "worker_result_artifact",
                 "worker_result_artifact_path",
             ],
         )
         self.assertEqual(DoneRequest.from_dict(done_payload).publish_state, "published")
         self.assertTrue(DoneRequest.from_dict(done_payload).queue_terminal)
         self.assertEqual(DoneRequest.from_dict(done_payload).job_kind, "pipeline_queue")
+
+    def test_done_request_round_trips_bounded_inline_worker_result_artifact(self) -> None:
+        artifact = {
+            "SchemaVersion": "local_worker_result.v1",
+            "JobKind": "csv_rerun_row",
+            "WorkerClaimId": "job-inline",
+            "Success": True,
+            "OutputPath": r"\\server\handoff\row\Movie.mkv",
+        }
+        payload = DoneRequest(
+            job_id="job-inline",
+            worker_id="worker-inline",
+            worker_result_artifact=artifact,
+            worker_result_artifact_path=r"D:\WorkerState\worker_result.json",
+        ).to_dict()
+
+        rebuilt = DoneRequest.from_dict(payload)
+
+        self.assertEqual(rebuilt.worker_result_artifact, artifact)
+        oversized = dict(payload)
+        oversized["worker_result_artifact"] = {"Reason": "x" * (64 * 1024)}
+        with self.assertRaisesRegex(ValueError, "worker_result_artifact exceeds"):
+            DoneRequest.from_dict(oversized)
 
     def test_network_csv_rerun_claim_and_done_fields_round_trip_additively(self) -> None:
         claim = ClaimResponse(
@@ -513,6 +537,82 @@ class NetworkProtocolRuntimeTests(unittest.TestCase):
         text = "\n".join(logs.output)
         self.assertIn("Failed to schedule abort for reclaimed job job-1", text)
         self.assertIn("ui queue offline", text)
+
+    def test_worker_reclaimed_abort_schedule_failure_uses_owned_direct_containment(self) -> None:
+        contained: list[str] = []
+
+        class App:
+            def abort_current_worker_job(self, reason: str) -> None:
+                contained.append(reason)
+
+            def wait_for_active_process_exit(self, timeout_seconds: float = 10.0) -> bool:
+                self.timeout_seconds = timeout_seconds
+                return bool(contained)
+
+        worker = WorkerDispatcher.__new__(WorkerDispatcher)
+        worker.app = App()
+        job = SimpleNamespace(job_id="job-1")
+        worker._post_app_callback = lambda _name, _callback: (_ for _ in ()).throw(  # type: ignore[method-assign]
+            RuntimeError("ui queue offline")
+        )
+
+        with self.assertLogs("mediapipeline.desktop.network.worker", level="ERROR"):
+            contained_ok = worker._request_abort_reclaimed_job(job)
+
+        self.assertTrue(contained_ok)
+        self.assertEqual(contained, ["network worker reclaimed fail-closed fallback"])
+
+    def test_worker_reclaimed_abort_reports_uncontained_when_direct_kill_fails(self) -> None:
+        class App:
+            def abort_current_worker_job(self, _reason: str) -> None:
+                raise RuntimeError("owned process kill failed")
+
+            def wait_for_active_process_exit(self, timeout_seconds: float = 10.0) -> bool:
+                raise AssertionError(f"wait should not run after failed kill: {timeout_seconds}")
+
+        worker = WorkerDispatcher.__new__(WorkerDispatcher)
+        worker.app = App()
+        job = SimpleNamespace(job_id="job-1")
+        worker._post_app_callback = lambda _name, _callback: (_ for _ in ()).throw(  # type: ignore[method-assign]
+            RuntimeError("ui queue offline")
+        )
+
+        with self.assertLogs("mediapipeline.desktop.network.worker", level="ERROR") as logs:
+            contained_ok = worker._request_abort_reclaimed_job(job)
+
+        self.assertFalse(contained_ok)
+        self.assertIn("owned process kill failed", "\n".join(logs.output))
+
+    def test_worker_reclaimed_heartbeat_retries_abort_until_containment_is_accepted(self) -> None:
+        class StopAfterTwoAttempts:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def wait(self, _seconds: float) -> bool:
+                self.calls += 1
+                return self.calls > 2
+
+        worker = WorkerDispatcher.__new__(WorkerDispatcher)
+        worker.app = SimpleNamespace(snapshot=None)
+        worker._worker_id = "worker-1"
+        worker._heartbeat_stop = StopAfterTwoAttempts()
+        worker._http_post = lambda _path, _data: {"status": "reclaimed"}
+        worker._notify_status = lambda _message: None
+        worker._safe_log_cluster_event = lambda *_args, **_kwargs: None
+        abort_results = iter((False, True))
+        abort_calls: list[str] = []
+
+        def abort(job: object) -> bool:
+            abort_calls.append(str(getattr(job, "job_id", "")))
+            return next(abort_results)
+
+        worker._request_abort_reclaimed_job = abort  # type: ignore[method-assign]
+        worker._job_reclaimed = False
+        job = SimpleNamespace(job_id="job-1", record=SimpleNamespace(source_path=r"C:\Media\movie.mkv"))
+
+        WorkerDispatcher._heartbeat_loop(worker, job)
+
+        self.assertEqual(abort_calls, ["job-1", "job-1"])
 
     def test_worker_reclaimed_abort_schedule_failure_diagnostic_is_bounded(self) -> None:
         worker = WorkerDispatcher.__new__(WorkerDispatcher)

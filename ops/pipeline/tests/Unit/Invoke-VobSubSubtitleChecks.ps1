@@ -39,6 +39,75 @@ function Write-Log {
     param([string] $Message, [string] $Level = 'INFO')
 }
 
+$script:SubtitleEvidenceTrackIds = [System.Collections.Generic.List[string]]::new()
+function Write-SubtitleTrackProgress {
+    param(
+        [string]$Kind,
+        [int]$StreamIndex = -1,
+        [string]$Stage,
+        [string]$Status,
+        [int]$StepIndex = 0,
+        [int]$StepTotal = 4,
+        [array]$Steps = @(),
+        [string]$Detail = '',
+        [object]$CueCount = $null,
+        [switch]$Completed,
+        [switch]$Failed
+    )
+    $activeTrackId = if (Get-Variable -Name CurrentSubtitleEvidenceTrackId -Scope Script -ErrorAction SilentlyContinue) { [string]$script:CurrentSubtitleEvidenceTrackId } else { '' }
+    $script:SubtitleEvidenceTrackIds.Add($activeTrackId) | Out-Null
+}
+
+$script:VobSubHeartbeatRequests = [System.Collections.Generic.List[object]]::new()
+$script:VobSubHeartbeatState = [pscustomobject]@{ PollCount = 0 }
+function New-SubtitleTrackHeartbeatHandler {
+    param(
+        [string] $Kind,
+        [string] $TrackId,
+        [int] $StreamIndex,
+        [string] $Stage,
+        [string] $Status,
+        [int] $StepIndex,
+        [int] $StepTotal,
+        [array] $Steps,
+        [string] $Detail,
+        [double] $MinimumIntervalSeconds = 5
+    )
+    $script:VobSubHeartbeatRequests.Add([pscustomobject]@{
+        Kind = $Kind
+        TrackId = $TrackId
+        StreamIndex = $StreamIndex
+        Stage = $Stage
+        Status = $Status
+        Detail = $Detail
+    }) | Out-Null
+    $heartbeatState = $script:VobSubHeartbeatState
+    return {
+        param($ElapsedSeconds, $Process)
+        $heartbeatState.PollCount++
+        return $null
+    }.GetNewClosure()
+}
+
+$script:VobSubMutexAcquireCount = 0
+function Acquire-CpuEncodeMutex {
+    param(
+        [int] $TimeoutSeconds,
+        [scriptblock] $PollHandler,
+        [int] $PollMilliseconds = 1000
+    )
+    $script:VobSubMutexAcquireCount++
+    if ($script:VobSubMutexAcquireCount -eq 1) {
+        return [pscustomobject]@{ Acquired = $false; Reason = 'fixture CPU slot busy'; Release = {} }
+    }
+    $script:VobSubMutexPollMilliseconds = $PollMilliseconds
+    if ($PollHandler) {
+        & $PollHandler 0 $null
+        & $PollHandler 6 $null
+    }
+    return [pscustomobject]@{ Acquired = $true; Reason = ''; Release = {} }
+}
+
 function Get-NormalizedSubtitleLanguage {
     param([string] $Language)
     $text = if ($Language) { ([string]$Language).Trim().ToLowerInvariant() } else { '' }
@@ -131,8 +200,14 @@ function Invoke-VobSubOcrCommand {
         [int] $TimeoutSeconds,
         [string] $Stage,
         [switch] $SaveReproOnFailure,
-        [string] $ProcessPriority
+        [string] $ProcessPriority,
+        [scriptblock] $PollHandler,
+        [int] $PollMilliseconds = 100
     )
+    Assert-True ($null -ne $PollHandler) 'VobSub OCR must pass an exact active-track heartbeat into the native wrapper.'
+    $script:VobSubOcrPollMilliseconds = $PollMilliseconds
+    & $PollHandler 0 $null
+    & $PollHandler 6 $null
     $script:LastVobSubOcrArguments = @($ArgumentList)
     $folder = ''
     $file = ''
@@ -269,6 +344,7 @@ try {
     Assert-True (-not [bool]$ambiguousTrack.Ok) 'VobSub track id mapping should fail closed when multiple same-language VobSub tracks cannot be distinguished.'
 
     $entry = @{
+        TrackId = 'subtitle:sidecar:7'
         SourceKind = 'sidecar'
         IdxPath = Join-Path $root 'Movie.idx'
         SubPath = Join-Path $root 'Movie.sub'
@@ -279,11 +355,17 @@ try {
         IsSupplemental = $false
     }
     $out = Join-Path $root 'Movie.vobsub.srt'
-    $converted = Convert-VobSubToSrt -SourceFile $media -StreamIndex -1 -StreamInfo $entry -DestinationPath $out
+    $converted = Convert-VobSubToSrt -SourceFile $media -StreamIndex -1 -StreamInfo $entry -DestinationPath $out -TrackId $entry.TrackId
     Assert-True ([bool]$converted.Ok) "Fake Subtitle Edit VobSub conversion failed: $($converted.Reason)"
     Assert-Equal $converted.CueCount 1 'Fake Subtitle Edit VobSub conversion should report one cue.'
     Assert-True ((Test-Path -LiteralPath $out -PathType Leaf) -and ((Get-Content -LiteralPath $out -Raw) -match 'Hello VobSub')) 'Fake Subtitle Edit VobSub conversion did not write expected SRT.'
     Assert-True (@($script:LastVobSubOcrArguments) -contains '/ocrdb:eng') 'Subtitle Edit VobSub OCR should pass the resolved Tesseract language via /ocrdb.'
+    Assert-True ([bool](@($script:SubtitleEvidenceTrackIds | Where-Object { $_ -eq 'subtitle:sidecar:7' }))) 'VobSub conversion progress must retain the exact external-sidecar TrackId across extract, OCR, and validation calls.'
+    Assert-True (@($script:VobSubHeartbeatRequests | Where-Object { $_.TrackId -eq 'subtitle:sidecar:7' -and $_.Stage -eq 'convert_ocr' -and $_.Status -like 'Waiting for CPU slot*' }).Count -eq 1) 'VobSub CPU-slot wait must create one exact correlated heartbeat.'
+    Assert-True (@($script:VobSubHeartbeatRequests | Where-Object { $_.TrackId -eq 'subtitle:sidecar:7' -and $_.Stage -eq 'convert_ocr' -and $_.Status -eq 'Running VobSub OCR' }).Count -eq 1) 'VobSub OCR work must create one exact correlated heartbeat.'
+    Assert-True ($script:VobSubHeartbeatState.PollCount -ge 4) 'Fake VobSub mutex wait and OCR tool must both propagate their heartbeat handlers.'
+    Assert-Equal $script:VobSubMutexPollMilliseconds 1000 'VobSub CPU-slot wait must use an explicit bounded polling cadence.'
+    Assert-Equal $script:VobSubOcrPollMilliseconds 250 'VobSub OCR native polling must use an explicit bounded cadence.'
 
     $mp4Media = Join-Path $root 'Movie.mp4'
     Set-Content -LiteralPath $mp4Media -Value 'fake mp4 media' -Encoding ASCII

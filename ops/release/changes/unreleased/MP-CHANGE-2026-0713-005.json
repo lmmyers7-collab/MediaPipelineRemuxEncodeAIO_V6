@@ -1,0 +1,62 @@
+{
+  "id": "MP-CHANGE-2026-0713-005",
+  "title": "Cover Settings metadata field matrix",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-07-13",
+  "date_completed": "2026-07-13",
+  "summary": "Fixes Settings display-unit and LibraryProfiles inheritance state while adding a hermetic metadata-driven browser matrix.",
+  "reason": "Backend byte limits were copied directly into GiB controls, and LibraryProfiles reset or compatibility coercion could lose the actual inherited or prior explicit value. Existing tests did not traverse every structured Settings binding and eligible override.",
+  "affected_areas": [
+    "config",
+    "docs",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Byte-valued metadata exposed raw byte constraints in GiB controls, LibraryProfiles reset could fall back to schema defaults or compatibility-forced values, and Settings coverage did not prove metadata and save/reload behavior across the structured field surface.",
+  "behavior_after": "Controls retain backend unit metadata and convert byte constraints for GiB display, LibraryProfiles preserve explicit versus inherited state across compatibility changes and reset to the effective inherited value, and a real-browser smoke validates all 204 metadata fields, 155 structured bindings, 145 structured keys, 77 eligible overrides, ten tabs, and the isolated save/reload path.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/settings/builderControls.js",
+    "apps/desktop/webview/static/assets/settingsLibraries/interaction.js",
+    "apps/desktop/webview/static/assets/settingsLibraries/render.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settings/builderControls.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsLibraries/interaction.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsLibraries/render.js.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0713-005.json.md",
+    "docs/generated/summaries/ops/scripts/smoke/Test-WebViewBrowserSettingsFieldMatrixSmoke.ps1.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_settings_field_matrix_smoke.py.md",
+    "docs/inventories/SETTINGS_BUILDER_COVERAGE_MATRIX.md",
+    "docs/inventories/SETTINGS_KEY_OWNERSHIP_MAP.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0713-005.json",
+    "ops/scripts/smoke/Test-WebViewBrowserSettingsFieldMatrixSmoke.ps1",
+    "tests/webview/test_webview_browser_settings_field_matrix_smoke.py",
+    "tests/webview/test_webview_handbrake_settings_ui.py",
+    "tests/webview/test_webview_settings_libraries.py"
+  ],
+  "tests_added": [
+    "tests.webview.test_webview_browser_settings_field_matrix_smoke.WebViewBrowserSettingsFieldMatrixSmoke.test_real_browser_covers_settings_metadata_and_save_reload_matrix",
+    "Static assertions for Settings unit metadata and LibraryProfiles inherited-value behavior"
+  ],
+  "manual_validation": [
+    "RED: the initial Settings field-matrix smoke exposed raw byte constraints in GiB controls and incorrect inherited/reset state.",
+    "GREEN: bundled-Python pytest tests/webview/test_webview_handbrake_settings_ui.py (43 passed, 99 subtests).",
+    "GREEN: bundled-Python focused Settings/config pytest set (84 passed, 182 subtests).",
+    "GREEN: node --check apps/desktop/webview/static/assets/settings/builderControls.js.",
+    "GREEN: canonical Settings field-matrix browser wrapper passed twice consecutively (1 real-browser test each; no skips).",
+    "GREEN: adjacent Settings Launch browser wrapper passed (1 real-browser test; no skips).",
+    "GREEN: adjacent LibraryProfiles Save browser wrapper passed (1 real-browser test; no skips).",
+    "RED then GREEN: the matrix save fixture initially used a lowercase log level outside the backend uppercase enum; selecting a non-empty canonical alternate fixed the deterministic reload assertion.",
+    "FINAL GREEN: the canonical Settings field-matrix wrapper passed twice consecutively, adjacent Settings Launch and LibraryProfiles Save wrappers passed, and the isolated -RequireTests release gate passed without skips."
+  ],
+  "rollback_plan": "Revert the unit-aware display constraints, LibraryProfiles explicit/inherited state handling, matrix smoke, wrapper, documentation, and regenerated summaries together.",
+  "related_changes": [
+    "MP-CHANGE-2026-0712-015",
+    "MP-CHANGE-2026-0712-020",
+    "MP-CHANGE-2026-0713-002",
+    "MP-CHANGE-2026-0713-003",
+    "MP-CHANGE-2026-0713-004"
+  ],
+  "notes": "The matrix uses representative equivalence classes rather than claiming a literal Cartesian product for unbounded values. It activates ten Settings tabs, exercises all 155 structured bindings and 77 eligible overrides, and accounts for all 204 backend metadata fields. The isolated save candidate contains two deliberately changed keys; deterministic rename-filter compatibility contributes six additional keys, so the submitted patch contains exactly eight keys. All runtime and configuration writes remain under the test temporary root. Real-media validation is not required."
+}

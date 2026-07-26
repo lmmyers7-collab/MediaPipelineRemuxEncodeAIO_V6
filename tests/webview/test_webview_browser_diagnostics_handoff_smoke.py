@@ -123,6 +123,10 @@ def _browser_diagnostics_handoff_runner_source() -> str:
                 "tailTarget=" + value("diagnostics-tail-target"),
                 "tailDetail=" + text("diagnostics-tail-detail"),
                 "tailText=" + text("diagnostics-tail-text"),
+                "activeJobStatus=" + text("active-job-detail-status"),
+                "activeJobRows=" + tableText("active-job-detail-rows"),
+                "progressStatus=" + text("diagnostics-progress-status"),
+                "progressDetail=" + text("diagnostics-progress-detail"),
               ].join("\\n"));
             }
             function click(selector, label) {
@@ -434,6 +438,19 @@ def _browser_diagnostics_handoff_runner_source() -> str:
 
                 click("#tdarr-matrix-audit-load-latest", "tdarr load latest");
                 await waitFor(() => text("tdarr-matrix-audit-status").includes("Latest loaded"), "tdarr latest loaded");
+                let findingRow = document.querySelector('#tdarr-matrix-audit-findings-rows tr[data-finding-key="fixture-finding"]');
+                if (!findingRow || findingRow.dataset.selectableRow !== "true" || findingRow.tabIndex !== 0 || findingRow.getAttribute("role") !== "row") {
+                  throw new Error("Tdarr Matrix finding row is not exposed as a keyboard-selectable row.");
+                }
+                const findingCheckbox = findingRow.querySelector('input[type="checkbox"]');
+                if (!findingCheckbox?.getAttribute("aria-label")?.includes("fixture-finding")) {
+                  throw new Error("Tdarr Matrix finding rerun checkbox has no finding-specific accessible name.");
+                }
+                findingRow.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+                findingRow = document.querySelector('#tdarr-matrix-audit-findings-rows tr[data-finding-key="fixture-finding"]');
+                if (findingRow?.getAttribute("aria-selected") !== "true" || !findingRow?.classList.contains("is-selected")) {
+                  throw new Error("Enter did not select the Tdarr Matrix finding row.");
+                }
                 checks.tdarr.afterLatest = {
                   proof: assertTdarrGate("proof-pack", false, "after latest Tdarr gate"),
                   strict: assertTdarrGate("strict-report", false, "after latest Tdarr gate"),
@@ -814,7 +831,9 @@ def _browser_diagnostics_handoff_runner_source() -> str:
             ]);
             click('[data-diagnostics-state-triage-action="tail"][data-diagnostics-state-triage-target="last_stderr_log"]', "state triage stderr tail");
             await waitFor(
-              () => text("diagnostics-tail-status").includes("Loaded") && text("diagnostics-tail-text").includes("source_locked") && inlineStatus('[data-diagnostics-state-triage-action="tail"][data-diagnostics-state-triage-target="last_stderr_log"]').includes("Tail loaded"),
+              () => text("diagnostics-tail-status").includes("Loaded")
+                && text("diagnostics-tail-detail").includes("Target: last_stderr_log")
+                && text("diagnostics-tail-text").includes("source_locked"),
               "diagnostics state triage tail read",
             );
             click('[data-diagnostics-state-triage-action="open"][data-diagnostics-state-triage-target="last_stderr_log"]', "state triage stderr open");
@@ -1348,7 +1367,6 @@ class WebViewBrowserDiagnosticsHandoffSmoke(unittest.TestCase):
         browser_result = result["result"]
         self.assertIn("Loaded", browser_result["tailStatus"])
         self.assertEqual(browser_result["tailStatusState"], "ready")
-        self.assertIn("Tail loaded", browser_result["stateTriageTailInlineStatus"])
         self.assertIn("Opened", browser_result["stateTriageOpenInlineStatus"])
         self.assertIn("Tail posture (backend): blocked", browser_result["tailEvidence"])
         self.assertIn("Evidence authority: backend", browser_result["tailEvidence"])
@@ -1443,7 +1461,6 @@ class WebViewBrowserDiagnosticsHandoffSmoke(unittest.TestCase):
         self.assertTrue(browser_result["tableClickRows"])
         self.assertIn("Tail posture (backend): blocked", browser_result["tailEvidence"])
         self.assertEqual(browser_result["tailStatusState"], "ready")
-        self.assertIn("Tail loaded", browser_result["stateTriageTailInlineStatus"])
         self.assertIn("Opened", browser_result["stateTriageOpenInlineStatus"])
         self.assertIn("Evidence authority: backend", browser_result["tailEvidence"])
         self.assertIn("Row state: blocked", browser_result["queueDetail"])

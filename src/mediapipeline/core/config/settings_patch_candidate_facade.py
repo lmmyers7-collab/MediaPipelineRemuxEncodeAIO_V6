@@ -22,7 +22,11 @@ from mediapipeline.core.kernel.config_keys import (
     KEY_SOURCE_TV,
     KEY_VOBSUB_OCR_TOOL_PATH,
 )
-from mediapipeline.core.config.metadata_network import KEY_COORDINATOR_ALSO_ENCODE_LOCALLY
+from mediapipeline.core.config.metadata_network import (
+    KEY_COORDINATOR_ALSO_ENCODE_LOCALLY,
+    KEY_COORDINATOR_AUTH_TOKEN,
+    KEY_WORKER_AUTH_TOKEN,
+)
 from mediapipeline.core.rename.policy import rename_cleaning_policy_from_config
 from mediapipeline.core.config.settings_patch_policy import (
     settings_patch_changes_from_request,
@@ -44,6 +48,12 @@ if TYPE_CHECKING:
 
 
 REGISTERED_CONFIG_KEYS = frozenset(ALL_CONFIG_KEYS)
+NETWORK_CREDENTIAL_CONFIG_KEYS = frozenset(
+    {
+        KEY_COORDINATOR_AUTH_TOKEN,
+        KEY_WORKER_AUTH_TOKEN,
+    }
+)
 LIBRARY_PROFILE_MIRRORED_KEYS = frozenset(
     {
         KEY_SOURCE_MOVIES,
@@ -254,7 +264,14 @@ class SettingsPatchCandidateFacadeMixin:
             )
         return entries
 
-    def _settings_patch_candidate(self, resolved: ResolvedPaths, request: dict[str, Any], *, command: str) -> dict[str, Any]:
+    def _settings_patch_candidate(
+        self,
+        resolved: ResolvedPaths,
+        request: dict[str, Any],
+        *,
+        command: str,
+        allow_network_credentials: bool = False,
+    ) -> dict[str, Any]:
         raw_changes, fatal_result = settings_patch_changes_from_request(request, command=command)
         if fatal_result is not None:
             return {"fatal_result": fatal_result}
@@ -270,7 +287,7 @@ class SettingsPatchCandidateFacadeMixin:
         removed_keys: list[str] = []
         raw_library_profile_resets = request.get("library_profile_resets")
         request_evidence = {
-            "changes": _json_safe(raw_changes),
+            "changes": self._redacted_config(raw_changes),
             "remove_keys": _json_safe(raw_remove_keys),
             "library_profile_resets": _json_safe(raw_library_profile_resets or []),
             "preserve_outsource_root": request.get("preserve_outsource_root") is True,
@@ -284,6 +301,9 @@ class SettingsPatchCandidateFacadeMixin:
             spelling_error = canonical_config_key_spelling_error(key, context="remove key")
             if spelling_error:
                 errors.append(spelling_error)
+                continue
+            if key in NETWORK_CREDENTIAL_CONFIG_KEYS and not allow_network_credentials:
+                errors.append(f"{key} cannot be changed through Settings Patch; use the backend network credential workflow.")
                 continue
             if key not in REGISTERED_CONFIG_KEYS:
                 errors.append(f"Unknown config key {key}. Use a registered backend config key.")
@@ -300,6 +320,9 @@ class SettingsPatchCandidateFacadeMixin:
             spelling_error = canonical_config_key_spelling_error(key)
             if spelling_error:
                 errors.append(spelling_error)
+                continue
+            if key in NETWORK_CREDENTIAL_CONFIG_KEYS and not allow_network_credentials:
+                errors.append(f"{key} cannot be changed through Settings Patch; use the backend network credential workflow.")
                 continue
             if self._is_sensitive_key(key) and str(value or "").strip() == "<redacted>":
                 errors.append(f"{key} is sensitive and cannot be set to the redacted display placeholder.")

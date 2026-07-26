@@ -1,5 +1,8 @@
 ---
 file: apps/desktop/webview/static/assets/renameLabels.js
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: JavaScript
 pipeline_stage: rename
 token_priority: medium
 owner_domain: webview
@@ -9,6 +12,9 @@ sha256: 802faa1d9135ee65d83cdb04c600cd27378ae579a51d2aec1d4b773d2c18068f
 ---
 # `apps/desktop/webview/static/assets/renameLabels.js`
 
-**Purpose:** (unparsed)
+**Purpose:** JavaScript implementation for rename labels; exposes renameConfidenceExplanation, renameConfidenceLabel, renamePreviewSourceLabel.
+
+**Public symbols:** `renameConfidenceExplanation`, `renameConfidenceLabel`, `renamePreviewSourceLabel`, `renameStatusExplanation`
+**In-repo imports:** `window.mediaPipelineRenameLabels`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/renameLabels.js`._

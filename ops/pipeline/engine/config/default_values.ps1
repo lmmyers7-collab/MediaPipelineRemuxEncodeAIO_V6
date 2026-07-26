@@ -378,6 +378,7 @@ function Get-MediaPipelineConfigDefaultValues {
         RobocopyFlags              = @('/J','/R:3','/W:15','/MT:2','/NP','/NDL','/NFL')
         DebugMode                  = $true
         LogRetentionDays           = 7
+        InterruptedToolLogRetentionDays = 3
         PipelineDebugLogMaxBytes   = 104857600
         FailureArtifactWarningThresholdGB = 100
         FailureArtifactRetentionDays = 0
@@ -424,6 +425,7 @@ function Get-MediaPipelineConfigDefaultValues {
         PauseFlagBlockSeconds = 21600
         LocalWorkerHeartbeatGraceSeconds = 900
         QueueExecutionMaxRunnablePerRound = 500
+        QueueLaunchSnapshotFreshnessSeconds = 60
         StateDbMaintenanceIntervalSeconds = 21600
         StateDbWalReviewBytes = 33554432
         StateDbCompletedJobsMaxRows = 250000

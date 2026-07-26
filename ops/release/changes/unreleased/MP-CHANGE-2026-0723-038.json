@@ -1,0 +1,66 @@
+{
+  "id": "MP-CHANGE-2026-0723-038",
+  "title": "Scope private-beta signing secrets to the build step",
+  "version_target": "2026.06.04.001",
+  "status": "in_progress",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": null,
+  "summary": "Separate unprivileged private-beta validation from protected signing and expose signing credentials only to the exact certificate-import and Tauri build step.",
+  "reason": "Remediate AUDIT-FIND-W10-014, which exposes updater and Windows signing credentials to every job step, including dependency installation and repository tests.",
+  "affected_areas": [
+    "ci",
+    "documentation",
+    "release-security",
+    "release-tooling",
+    "tests"
+  ],
+  "behavior_before": "Updater and Authenticode signing secrets were declared at job scope and therefore readable by checkout/setup actions, dependency lifecycle scripts, tests, and unrelated release steps.",
+  "behavior_after": "An unprivileged job validates and emits a SHA-256-bound nonsecret handoff; the protected signing job verifies it before one step-local secret scope imports the certificate, builds signed artifacts, and removes the certificate.",
+  "files_touched": [
+    ".github/workflows/private-beta-windows.yml",
+    "docs/change_control/CHANGELOG.md",
+    "docs/change_control/CHANGE_INDEX.md",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/feature-cards/release-validation.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-038.json.md",
+    "docs/generated/summaries/ops/scripts/dev/check-github-audit-spine.ps1.md",
+    "docs/generated/summaries/ops/scripts/release/Test-PrivateBetaReleasePreflight.ps1.md",
+    "docs/generated/summaries/tests/python/tooling/test_private_beta_release_preflight.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_private_beta_workflow_secret_scope.py.md",
+    "docs/operator/PRIVATE_BETA_INSTALL_UPDATE_RUNBOOK.md",
+    "docs/testing/PRIVATE_BETA_RELEASE_CHECKLIST.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-038.json",
+    "ops/scripts/dev/check-github-audit-spine.ps1",
+    "ops/scripts/release/Test-PrivateBetaReleasePreflight.ps1",
+    "tests/python/tooling/test_private_beta_release_preflight.py",
+    "tests/python/tooling/test_private_beta_workflow_secret_scope.py"
+  ],
+  "tests_added": [
+    "Workflow policy parsing proves unsigned validation and protected signing are separate jobs with least-privilege permissions and no validation-job secret references.",
+    "Sentinel signing credentials resolve only in the reviewed consuming step; the public updater key resolves only in preflight and build.",
+    "Dependency installation and SHA-256 handoff verification precede the sole private-secret step.",
+    "Certificate-store and temporary PFX cleanup are inside finally and fail closed when credential artifacts remain.",
+    "Preflight can defer private-secret presence while still generating and validating nonsecret updater configuration."
+  ],
+  "manual_validation": [
+    "Workflow YAML parsing, GitHub audit-spine hardening, touched Python Ruff/compileall, and 53 private-beta tooling tests passed; the focused secret-scope/preflight selection passed 11 tests.",
+    "Risky-file registry, test-subsystem inventory, architecture, naming, and god-file checks passed; god-file output contained warnings only.",
+    "A full Windows release build with -Zip -Verify -IncludeTests copied 18,439 files and ran for 983 seconds. Package policy, environment, Tauri prerequisites, tool integration, and end-to-end smoke passed; aggregate verification exited 1 only on established WebView static-asset, dependency-cycle, generated/status-document, tracked-office-document, and unrelated Ruff baselines.",
+    "A fresh exact release-policy copy matched all six included implementation/test/document paths by SHA-256 and passed four package-applicable tests with seven expected skips because .github workflow metadata is intentionally excluded from release packages.",
+    "Not run: protected GitHub Actions execution with disposable updater/private certificate credentials, successful signed NSIS/updater artifact production, and post-signature verification. This external acceptance prerequisite keeps the packet in_progress."
+  ],
+  "rollback_plan": "Revert the split-job workflow, nonsecret handoff verification, scoped preflight option, secret-scope policy tests, documentation, generated artifacts, and packet metadata together. Do not restore job-level signing-secret declarations.",
+  "related_changes": [
+    "AUDIT-FIND-W10-014",
+    "AUDIT-FIND-W10-012",
+    "AUDIT-FIND-W10-013",
+    "MP-CHANGE-2026-0723-020",
+    "MP-CHANGE-2026-0723-037"
+  ],
+  "notes": "High-risk release-secret boundary. Local implementation and nonsecret validation are complete, but the audit's Rung 6 acceptance requires a protected GitHub environment run with disposable signing credentials and verified signed artifacts; that external prerequisite is unavailable here, so status remains in_progress. No signing credential was loaded, and no remote workflow dispatch, release publication, signing, GitHub mutation, lifecycle action, or media access occurred. Existing overlapping batch-020 and batch-037 edits in the workflow, preflight, tests, checker, and private-beta documentation were preserved. Known unrelated worktree baselines remain outside this packet: stale generated summaries, DOC005 at the active audit BASELINE reference, the mediapipeline.core.processes to mediapipeline.core.queue dependency cycle, two rename-test Ruff B023 findings, the WebView static-asset reliability assertion, tracked-office-document findings, and generated/status-document drift. Immutable audit evidence remained read-only."
+}

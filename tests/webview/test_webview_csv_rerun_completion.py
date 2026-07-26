@@ -108,6 +108,79 @@ class WebViewCsvRerunCompletionTests(unittest.TestCase):
         result = subprocess.run([node, "-e", script], cwd=repo_root, text=True, capture_output=True, check=False)
         self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
 
+    def test_terminal_premanifest_evidence_does_not_render_as_running(self) -> None:
+        node = shutil.which("node")
+        if not node:
+            raise unittest.SkipTest("Node.js is required for the WebView CSV completion smoke.")
+        repo_root = find_repo_root(Path(__file__))
+        script = textwrap.dedent(
+            r"""
+            const fs = require("fs");
+            global.window = global;
+            eval(fs.readFileSync("apps/desktop/webview/static/assets/progress/csvRerun.js", "utf8"));
+            eval(fs.readFileSync("apps/desktop/webview/static/assets/progress/liveRun.js", "utf8"));
+            const csv = window.__progressCsvRerunModule.createProgressCsvRerunModule({
+              progressWorkerRows: () => [],
+            });
+            const live = window.__progressLiveRunModule.createProgressLiveRunModule({
+              formatProgressValue: String,
+              progressNumericValue(value, fallback) {
+                return Number.isFinite(Number(value)) ? Number(value) : fallback;
+              },
+              csvRerunCompletionSummary: () => null,
+              csvRerunActivityEvidence: csv.csvRerunActivityEvidence,
+              timelineLooksIdleWaiting: () => false,
+              compactProgressUpdatedAt: () => null,
+              progressWorkerRows: () => [],
+              progressEtaRows: () => [],
+              progressFfmpegPayload: () => null,
+              activeWorkProgressLine: () => "",
+              activeWorkRouteLine: () => "",
+              activeWorkQueueLine: () => "",
+              activeWorkControlLine: () => "",
+              progressWorkerSummaryLine: () => "",
+              progressFfmpegSummaryLine: () => "",
+              progressEtaSummaryLine: () => "",
+              formatEtaSeconds: String,
+              formatWorkerProgressRow: () => "",
+              byId: () => null,
+              setText: () => {},
+              setProgressPanelStatus: () => {},
+            });
+            const context = {
+              snapshot: { pipeline_state: "idle", activity: "" },
+              closeReadiness: { safe_to_close: true, state: "idle" },
+              stdoutTail: {
+                text: [
+                  "2026-07-13 10:00:00 [INFO] Rerun CSV rows listed: 2; enabled/planned: 2",
+                  "2026-07-13 10:00:01 [ERROR] CSV rerun failed before manifest creation",
+                  "2026-07-13 10:00:02 [INFO] Cleaning temporary CSV rerun workspace",
+                  "at Invoke-RerunCsv, C:\\repo\\Invoke-RerunCsv.ps1: line 411",
+                  "at <ScriptBlock>, <No file>: line 1",
+                ].join("\n"),
+              },
+            };
+            const evidence = csv.csvRerunActivityEvidence(context);
+            if (!evidence.hasEvidence || evidence.isActive) {
+              throw new Error(`terminal evidence classification is wrong: ${JSON.stringify(evidence)}`);
+            }
+            if (!/failed before manifest creation/i.test(evidence.terminalLine || "")) {
+              throw new Error(`terminal event was lost behind cleanup/stack output: ${JSON.stringify(evidence)}`);
+            }
+            const status = live.liveRunStatus(context);
+            if (status.state === "running" || /active/i.test(status.label)) {
+              throw new Error(`terminal premanifest evidence rendered as running: ${JSON.stringify(status)}`);
+            }
+            const items = live.liveRunStripItems(context);
+            const fakeActive = items.filter((item) => ["CSV rows", "Importing", "Processing"].includes(item.label));
+            if (fakeActive.length) {
+              throw new Error(`terminal premanifest evidence retained active CSV rows: ${JSON.stringify(fakeActive)}`);
+            }
+            """
+        )
+        result = subprocess.run([node, "-e", script], cwd=repo_root, text=True, capture_output=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

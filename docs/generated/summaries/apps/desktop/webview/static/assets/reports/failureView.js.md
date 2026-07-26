@@ -1,5 +1,8 @@
 ---
 file: apps/desktop/webview/static/assets/reports/failureView.js
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: JavaScript
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
@@ -9,6 +12,10 @@ sha256: c3d31a0d52cded161b391bea6e302ff21b43e1977c5639996f327830dedea234
 ---
 # `apps/desktop/webview/static/assets/reports/failureView.js`
 
-**Purpose:** (unparsed)
+**Purpose:** JavaScript implementation for failure view; exposes artifactCleanupPolicyText, artifactDateText, artifactNumber.
+
+**Public symbols:** `artifactCleanupPolicyText`, `artifactDateText`, `artifactNumber`, `artifactPathKey`, `artifactSizeText`, `artifactThresholdText`, `createReportsFailureViewModule`, `ensureSelectedFailureGroupVisible`, `eventTargetAcceptsText`, `failureArtifactFiles`, `handleReportsFailureKeyboard`, `hiddenSelectedFailureCount`, `moveFailureGroupSelection`, `noop`, `renderFailureArtifactSummary`, `renderFailureDetail`, `renderFailureEvidenceLinks`, `renderFailureLifecycleControls`, `renderFailureLifecyclePanels`, `renderFailurePlaybook`, `renderFailurePreview`, `renderFailureResolutionDetail`, `renderFailureResolutionGroups`, `renderFailureResolutionSummary`, `renderFailureReviewBoard`, `renderFailureRows`, `renderFailureTimeline`, `renderFailureVerification`, `reportsFailuresTabActive`, `selectedFailureArtifactPaths`, `selectFailureGroup`, `selectFailureRow`, `selectVisibleFailureArtifacts`, `toggleFailureArtifactSelection`, `toggleFailureRowSelection`
+**In-repo imports:** `window.__reportsViewFailureViewModule`
+**DOM selectors:** `.failure-lifecycle-chip`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/reports/failureView.js`._

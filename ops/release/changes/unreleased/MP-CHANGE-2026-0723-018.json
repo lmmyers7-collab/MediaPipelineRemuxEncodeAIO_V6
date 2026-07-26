@@ -1,0 +1,49 @@
+{
+  "id": "MP-CHANGE-2026-0723-018",
+  "title": "Enforce API route inventory section counts",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-07-23",
+  "date_completed": "2026-07-23",
+  "summary": "Correct stale GET, POST, and Process Commands counts and derive inventory heading parity from route rows.",
+  "reason": "Remediate P3 AUDIT-FIND-W14-002 against the live route contract. The audit snapshot found stale POST and Process Commands headings at 172 routes; the contract has since grown to 174 routes, leaving the GET, POST, and Process Commands headings inconsistent with their current rows.",
+  "affected_areas": [
+    "Local API route inventory",
+    "audit coverage accounting",
+    "documentation drift validation"
+  ],
+  "behavior_before": "Manual section headings could disagree with the route rows and still pass inventory tests.",
+  "behavior_after": "Every counted route section must match the number of table rows beneath it, duplicate route rows fail explicitly, and the corrected GET, POST, and Process Commands headings report 56, 118, and 19 routes.",
+  "files_touched": [
+    "docs/inventories/API_ROUTE_INVENTORY.md",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/docs/inventories/API_ROUTE_INVENTORY.md.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-018.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_api_route_inventory.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-018.json",
+    "tests/python/desktop/test_api_route_inventory.py"
+  ],
+  "tests_added": [
+    "Inventory duplicate-row coverage now inspects raw route rows instead of a deduplicating dictionary.",
+    "Every counted level-two and level-three inventory heading is checked against the exact route rows in its Markdown section."
+  ],
+  "manual_validation": [
+    "tests/python/desktop/test_api_route_inventory.py: 11 passed, 61 subtests passed.",
+    "Targeted Ruff validation for test_api_route_inventory.py passed.",
+    "Active-document reference tests: 9 passed.",
+    "Project-index and feature-map check modes passed after targeted summary refresh.",
+    "git diff --check passed with line-ending warnings only.",
+    "validate_changes --require-worktree-coverage passed with 1,160 valid packets.",
+    "Release self-test with tool integration and end-to-end smoke disabled reached only known unrelated global failures: accumulated desktop/tooling drift, stale generated reports and five baseline summaries, DOC005, AUDIT-FIND-DEP-001, two unrelated Ruff B023 findings, and current WebView reliability."
+  ],
+  "rollback_plan": "Revert the three heading corrections, deterministic section-count and duplicate-row tests, generated context, and this packet together.",
+  "related_changes": [
+    "AUDIT-FIND-W14-002"
+  ],
+  "notes": "Documentation/test-only correction. The Python impact is confined to deterministic inventory test coverage; no runtime Python, route, payload, WebView, filesystem, or media behavior changes. Real-media validation is not required."
+}

@@ -24,15 +24,20 @@ function Get-MediaPipelineResolvedConfigDump {
         'ConvertTx3gToSrt','DropTx3gAfterConversion','CreateExternalTx3gSrtSidecars','Tx3gPreserveExistingSrt','Tx3gTreatForcedAsSeparate',
         'ConvertBdpgsToSrt','DropBdpgsAfterConversion','TreatBdpgsSignsSongsAsForced','BdpgsOcrToolPath','BdpgsOcrTessdataPath',
         'ConvertVobSubToSrt','DropVobSubAfterConversion','TreatVobSubSignsSongsAsForced','VobSubOcrToolPath',
-        'TreatAssSignsSongsAsForced','TreatTx3gSignsSongsAsForced','AggressiveEpisodeParsing','AllowSystemTools',
-        'MergeThresholdMs','LogRetentionDays','FailureArtifactWarningThresholdGB','FailureArtifactRetentionDays','FailureArtifactCleanupTargetGB',
+        'TreatAssSignsSongsAsForced','TreatTx3gSignsSongsAsForced','AggressiveEpisodeParsing','AllowSystemTools','AllowSubtitleHelperFallback',
+        'MergeThresholdMs','LogRetentionDays','InterruptedToolLogRetentionDays','FailureArtifactWarningThresholdGB','FailureArtifactRetentionDays','FailureArtifactCleanupTargetGB',
         'FFmpegEncodeTimeoutSeconds','FFmpegCpuEncodeTimeoutSeconds','CpuEncodeMutexWaitSeconds','FFmpegRemuxTimeoutSeconds','MkvmergeRemuxTimeoutSeconds',
         'SubtitleExtractTimeoutSeconds','SubtitleProbeTimeoutSeconds','BdpgsOcrTimeoutSeconds','VobSubOcrTimeoutSeconds',
         'EnableQualityVerification','QualityMetric','QualitySampleMode','QualitySampleSeconds','QualitySampleCount',
         'QualityWarnThreshold','QualityFailThreshold','QualityFailAction','QualityVerifyTimeoutSeconds',
         'SourceScanIntervalSeconds','ProcessedIndexRefreshSeconds','RobocopyTimeoutSeconds','SourceScanTimeoutSeconds',
         'CleanupScanTimeoutSeconds','CleanupRemoteStaging','CleanupStaleAgeHours','TransientFailureRetryLimit',
-        'AutonomyPendingTotalReviewBytes','AutonomyPendingTotalBlockBytes',
+        'ConsecutiveRoundFailureBlockLimit','ConsecutiveRoundFailureProbeBackoffSeconds',
+        'PendingPublishBacklogBlockThreshold','PendingPublishDeferredBlockThreshold',
+        'AutonomyPendingTotalReviewBytes','AutonomyPendingTotalBlockBytes','PendingPublishDrainBatchSize',
+        'PauseFlagReviewSeconds','PauseFlagBlockSeconds','LocalWorkerHeartbeatGraceSeconds',
+        'QueueExecutionMaxRunnablePerRound','QueueLaunchSnapshotFreshnessSeconds',
+        'StateDbMaintenanceIntervalSeconds','StateDbWalReviewBytes','StateDbCompletedJobsMaxRows',
         'IndexScanTimeoutSeconds','OutsourceMinFreeSpaceGB',
         'ExcludeSubtitleStyles','IncludeSubtitleStyles','Tx3gExtractLanguages','BdpgsExtractLanguages','VobSubExtractLanguages',
         'PriorityMarkers','MixPriorityPhase','QueueOrderingStrategy','MaxParallelEncodes','ParallelEncodeMode',
@@ -46,9 +51,9 @@ function Get-MediaPipelineResolvedConfigDump {
         'EncodeWasteGuardPreflightSampleSeconds','EncodeWasteGuardPreflightSampleCount','EncodeWasteGuardPreflightTimeoutSeconds',
         'ExtraVideoFlags','AudioPassthroughProfile','CompatibleAudioCodecs','AudioTranscodeCodec','AudioTranscodeBitrate',
         'AudioDownmixMode','AudioMaxChannels','AllowNoAudio','AudioTranscodeAutoBitrateByChannels',
-        'ProductVersion','PipelineVersion','MinPipelineVersion','ReprocessAll','DeferredPublish',
+        'ProductVersion','PipelineVersion','MinPipelineVersion','ReprocessAll','DeferredPublish','PendingPublishDrainMode',
         'OutputSizeMultiplier','FallbackCpuQuality','CpuEncodePreset','CpuEncodeProcessPriority','CpuEncodeMaxThreads','WatchScanTimeoutSeconds',
-        'ConsoleLogLevel','FileLogLevel','ConfigSchemaVersion'
+        'ConsoleLogLevel','FileLogLevel','PipelineDebugLogMaxBytes','ConfigSchemaVersion'
     ) | Sort-Object -Unique
 
     $dump = [ordered]@{}

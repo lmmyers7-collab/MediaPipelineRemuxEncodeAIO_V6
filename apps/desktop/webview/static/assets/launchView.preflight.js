@@ -322,11 +322,6 @@
     return rows.sort((left, right) => launchBackendPreflightStatusRank(left.posture) - launchBackendPreflightStatusRank(right.posture));
   }
 
-  function launchBackendPreflightStartupAlertSuppressesRow(row) {
-    const checkKey = String(row?.checkKey || "").toLowerCase();
-    return checkKey === "active_work" || checkKey === "process_launch_lock";
-  }
-
   function launchBackendPreflightList(value) {
     return Array.isArray(value)
       ? value.map((item) => String(item || "").trim()).filter(Boolean)
@@ -398,75 +393,6 @@
       lines.push(`Skipped hardware runtime probes require host-hardware validation before activation: ${skippedList.join(", ")}.`);
     }
     return lines;
-  }
-
-  function launchBackendPreflightPipelineBlockers(payloads = []) {
-    return launchBackendPreflightRows(payloads).filter((row) => {
-      const target = String(row?.target || row?.payload?.target || "").toLowerCase();
-      const posture = String(row?.posture || "").toLowerCase();
-      return target === "pipeline" && posture === "blocked" && !launchBackendPreflightStartupAlertSuppressesRow(row);
-    });
-  }
-
-  function launchBackendPreflightStartupAlertDetail(row) {
-    const details = Array.isArray(row?.detail) ? row.detail : [];
-    const lines = details.map((item) => {
-      if (item && typeof item === "object") return JSON.stringify(item);
-      return String(item || "").trim();
-    }).filter(Boolean);
-    if (lines.length) return `Backend detail: ${lines.slice(0, 4).join(" | ")}`;
-    return "Where to look: Open Diagnostics > Readiness > Backend Preflight, then inspect the owning page named by the blocked row.";
-  }
-
-  function launchBackendPreflightStartupAlertRecovery(row) {
-    const actions = Array.isArray(row?.recoveryActions) ? row.recoveryActions : [];
-    const action = actions.find((item) => item && typeof item === "object");
-    if (!action) return "";
-    const label = String(action.label || action.kind || "Backend recovery action").trim();
-    const route = String(action.route || "").trim();
-    const safeNextStep = String(action.safe_next_step || "").trim();
-    const routeText = route ? ` at ${route}` : "";
-    const stepText = safeNextStep ? ` Safe next step: ${safeNextStep}` : "";
-    return `Recovery route: ${label}${routeText}.${stepText}`;
-  }
-
-  function renderLaunchBackendPreflightStartupAlert(payloads = []) {
-    if (typeof document === "undefined" || typeof document.querySelector !== "function") return;
-    const blockers = launchBackendPreflightPipelineBlockers(payloads);
-    let node = document.querySelector(".launch-preflight-startup-alert");
-    if (!blockers.length) {
-      if (node && typeof node.remove === "function") node.remove();
-      return;
-    }
-    const topbar = document.querySelector(".topbar");
-    if (!node) {
-      if (!topbar || typeof document.createElement !== "function") return;
-      node = document.createElement("div");
-      node.className = "launch-preflight-startup-alert";
-      node.setAttribute("role", "alert");
-      node.setAttribute("aria-live", "assertive");
-      topbar.insertAdjacentElement("afterend", node);
-    }
-    node.dataset.state = "blocked";
-    const first = blockers[0] || {};
-    const title = document.createElement("strong");
-    title.textContent = "Pipeline launch blocked by backend preflight";
-    const detail = document.createElement("span");
-    detail.textContent = `Backend preflight found ${blockers.length} launch-blocking check${blockers.length === 1 ? "" : "s"}. What is wrong: ${first.check || "Backend check"} is blocked; ${first.evidence || "no evidence text supplied"}.`;
-    const hint = document.createElement("span");
-    hint.textContent = first.action
-      ? `How to fix: ${first.action}`
-      : "How to fix: the backend did not provide a specific action; open Diagnostics > Readiness > Backend Preflight for the owning row.";
-    const backendDetail = document.createElement("span");
-    backendDetail.textContent = launchBackendPreflightStartupAlertDetail(first);
-    const recoveryText = launchBackendPreflightStartupAlertRecovery(first);
-    if (recoveryText) {
-      const recovery = document.createElement("span");
-      recovery.textContent = recoveryText;
-      node.replaceChildren(title, detail, hint, backendDetail, recovery);
-    } else {
-      node.replaceChildren(title, detail, hint, backendDetail);
-    }
   }
 
   function getLastLaunchBackendPreflightPayloads() {
@@ -596,7 +522,6 @@
   function renderLaunchBackendPreflight(payloads = []) {
     const items = Array.isArray(payloads) ? payloads : [];
     lastLaunchBackendPreflightPayloads = items.slice();
-    renderLaunchBackendPreflightStartupAlert(items);
     const pipelineBackendPreflight = launchBackendPreflightPayloadForTarget("pipeline", items);
     const launchReadinessView = window.mediaPipelineLaunchReadinessView || {};
     if (typeof launchReadinessView.renderLaunchReadiness === "function") {
@@ -887,8 +812,6 @@
       launchBackendPreflightStatusState,
       launchBackendPreflightRows,
       launchBackendPreflightEncoderHardwareRuntimeLines,
-      launchBackendPreflightPipelineBlockers,
-      renderLaunchBackendPreflightStartupAlert,
       getLastLaunchBackendPreflightPayloads,
       launchBackendPreflightPayloadForTarget,
       getLastLaunchBackendPreflightRefreshInfo,

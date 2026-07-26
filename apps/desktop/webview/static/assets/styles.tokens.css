@@ -99,6 +99,8 @@
   --semantic-active-nav-bg: var(--blue-900);
   --semantic-active-nav-border: var(--blue-500);
   --semantic-focus-outline: var(--blue-300);
+  --semantic-focus-inverse-outline: var(--blue-100);
+  --semantic-focus-inverse-surround: var(--blue-900);
 
   --semantic-backend-evidence-bg: hsl(265, 15%, 14%);
   --semantic-backend-evidence-border: var(--purple-700);

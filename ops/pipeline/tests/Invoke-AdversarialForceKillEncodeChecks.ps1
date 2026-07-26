@@ -247,6 +247,9 @@ $stdoutPath = Join-Path $workRoot 'pipeline_stdout.txt'
 $stderrPath = Join-Path $workRoot 'pipeline_stderr.txt'
 $progressPath = Join-Path $localBase 'State\Progress\pipeline_progress.json'
 $eventPath = Join-Path $localBase 'State\Progress\pipeline_events.jsonl'
+$activeToolLogPath = Join-Path $localBase 'State\Pipeline\ToolLogs\Active'
+$interruptedToolLogPath = Join-Path $localBase 'State\Pipeline\ToolLogs\Interrupted'
+$failureArtifactPath = Join-Path $localBase 'State\Failures\Artifacts'
 $sourcePath = Join-Path $sourceMovies 'Force.Kill.Encode.2026.mp4'
 $previousMutexSuffix = $env:MEDIA_PIPELINE_TEST_MUTEX_SUFFIX
 $hadPreviousMutexSuffix = Test-Path Env:\MEDIA_PIPELINE_TEST_MUTEX_SUFFIX
@@ -392,6 +395,10 @@ try {
     $sourceHashAfterKill = (Get-FileHash -LiteralPath $sourcePath -Algorithm SHA256).Hash
     Assert-True ($sourceHashAfterKill -eq $sourceHashBefore) 'source hash changed after force-killing active encode'
     Assert-NoAcceptedOutput -Outsource $outsource -LocalBase $localBase -SourcePath $sourcePath
+    $activeToolLogsAfterKill = @(Get-ChildItem -LiteralPath $activeToolLogPath -Filter 'ffmpeg_*.log' -File -ErrorAction SilentlyContinue)
+    $failureToolLogsAfterKill = @(Get-ChildItem -LiteralPath $failureArtifactPath -Filter 'ffmpeg_*.log' -File -ErrorAction SilentlyContinue)
+    Assert-True ($activeToolLogsAfterKill.Count -ge 1) 'force-killed FFmpeg capture was not left in the active diagnostic directory for startup reconciliation'
+    Assert-True ($failureToolLogsAfterKill.Count -eq 0) 'force-killed FFmpeg capture was incorrectly promoted as failure evidence'
 
     Invoke-SmokeCommand -FilePath $bundledPwshPath -Label 'pipeline queue plan after force-kill' -ArgumentList @(
         '-NoProfile', '-ExecutionPolicy', 'Bypass',
@@ -406,13 +413,19 @@ try {
     $routeAfter = [string]$sourceRowsAfter[0].route
     Assert-True ($routeAfter -in @('encode', 'REMUX (codec check pending)')) "source was not still backend-planned for processing after force-kill: $($sourceRowsAfter[0] | ConvertTo-Json -Depth 6)"
     Assert-True (-not [string]::IsNullOrWhiteSpace([string]$sourceRowsAfter[0].route_reason_code)) 'queue plan after force-kill did not include backend route evidence'
+    $activeToolLogsAfterRestart = @(Get-ChildItem -LiteralPath $activeToolLogPath -Filter 'ffmpeg_*.log' -File -ErrorAction SilentlyContinue)
+    $interruptedToolLogsAfterRestart = @(Get-ChildItem -LiteralPath $interruptedToolLogPath -Filter 'ffmpeg_*.log' -File -ErrorAction SilentlyContinue)
+    $failureToolLogsAfterRestart = @(Get-ChildItem -LiteralPath $failureArtifactPath -Filter 'ffmpeg_*.log' -File -ErrorAction SilentlyContinue)
+    Assert-True ($activeToolLogsAfterRestart.Count -eq 0) 'exclusive restart did not reconcile the force-killed FFmpeg capture out of the active directory'
+    Assert-True ($interruptedToolLogsAfterRestart.Count -ge 1) 'exclusive restart did not retain the force-killed FFmpeg capture as interrupted evidence'
+    Assert-True ($failureToolLogsAfterRestart.Count -eq 0) 'exclusive restart incorrectly converted force-kill evidence into a failure artifact'
 
     $sourceHashAfterQueuePlan = (Get-FileHash -LiteralPath $sourcePath -Algorithm SHA256).Hash
     Assert-True ($sourceHashAfterQueuePlan -eq $sourceHashBefore) 'source hash changed after post-kill queue planning'
     Assert-NoAcceptedOutput -Outsource $outsource -LocalBase $localBase -SourcePath $sourcePath
 
     $remainingPartials = @(Get-ChildItem -LiteralPath $processingDir -Filter 'encode_temp*.mkv' -File -ErrorAction SilentlyContinue)
-    Write-Host "PASS: force-killed encode was not accepted as complete; source remained queued. Remaining processing temp files: $($remainingPartials.Count)"
+    Write-Host "PASS: force-killed encode was not accepted as complete; source remained queued; active diagnostics reconciled to interrupted. Remaining processing temp files: $($remainingPartials.Count)"
     $smokeSucceeded = $true
 } finally {
     if ($pipelineProcess -and -not $pipelineProcess.HasExited) {

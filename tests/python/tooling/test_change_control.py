@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from mediapipeline.tools.dev import audit_checks
 from mediapipeline.tools.paths import find_repo_root
@@ -621,6 +622,176 @@ class ChangeControlToolingTests(unittest.TestCase):
             self.assertEqual(changelog_path.read_text(encoding="utf-8"), "# old changelog\n")
             self.assertEqual(index_path.read_text(encoding="utf-8"), "# old index\n")
             self.assertFalse((history_root / "1.0.0").exists())
+
+    def test_finalize_release_refuses_existing_history_before_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            unreleased = root / "ops" / "release" / "changes" / "unreleased"
+            released = root / "ops" / "release" / "changes" / "released"
+            version_file = root / "ops" / "release" / "metadata" / "VERSION"
+            manifest_path = root / "ops" / "release" / "metadata" / "RELEASE_MANIFEST.json"
+            changelog_path = root / "docs" / "change_control" / "CHANGELOG.md"
+            index_path = root / "docs" / "change_control" / "CHANGE_INDEX.md"
+            history_root = root / "ops" / "release" / "metadata" / "history"
+            archive_dir = history_root / "1.0.0"
+            version_file.parent.mkdir(parents=True)
+            changelog_path.parent.mkdir(parents=True)
+            archive_dir.mkdir(parents=True)
+            version_file.write_text("0.1.0-dev\n", encoding="utf-8")
+            manifest_path.write_text('{"version":"0.1.0-dev"}\n', encoding="utf-8")
+            changelog_path.write_text("# old changelog\n", encoding="utf-8")
+            index_path.write_text("# old index\n", encoding="utf-8")
+            archived_version = archive_dir / "VERSION"
+            archived_version.write_bytes(b"immutable-old-history\x00")
+            partial_file = archive_dir / "partial.tmp"
+            partial_file.write_bytes(b"partial-release-evidence")
+            packet = _packet("MP-CHANGE-2026-0604-001", "0.1.0-dev")
+            packet_path = _write_packet(root, "ops/release/changes/unreleased/MP-CHANGE-2026-0604-001.json", packet)
+            original_packet = packet_path.read_bytes()
+
+            with mock.patch.multiple(
+                finalize_release,
+                REPO_ROOT=root,
+                UNRELEASED_DIR=unreleased,
+                RELEASED_DIR=released,
+                VERSION_FILE=version_file,
+                MANIFEST_PATH=manifest_path,
+                CHANGELOG_PATH=changelog_path,
+                INDEX_PATH=index_path,
+                HISTORY_ROOT=history_root,
+                ARCHIVE_FILES=[version_file, manifest_path, changelog_path, index_path],
+                _run_script=mock.Mock(side_effect=AssertionError("generators must not run")),
+            ):
+                with self.assertRaisesRegex(SystemExit, "Refusing to overwrite existing release history"):
+                    finalize_release._finalize("1.0.0", "local", [(packet_path, packet)])
+
+            self.assertEqual(archived_version.read_bytes(), b"immutable-old-history\x00")
+            self.assertEqual(partial_file.read_bytes(), b"partial-release-evidence")
+            self.assertEqual(version_file.read_text(encoding="utf-8"), "0.1.0-dev\n")
+            self.assertEqual(packet_path.read_bytes(), original_packet)
+            self.assertFalse((released / "1.0.0").exists())
+
+    def test_history_archive_publishes_complete_bytes_without_staging_residue(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            history_root = root / "history"
+            metadata = root / "metadata"
+            metadata.mkdir()
+            version_file = metadata / "VERSION"
+            manifest_path = metadata / "RELEASE_MANIFEST.json"
+            version_file.write_bytes(b"1.0.0\n")
+            manifest_path.write_bytes(b'{"version":"1.0.0"}\n')
+            archive_dir = history_root / "1.0.0"
+
+            with mock.patch.multiple(
+                finalize_release,
+                HISTORY_ROOT=history_root,
+                ARCHIVE_FILES=[version_file, manifest_path],
+            ):
+                finalize_release._publish_history_archive(
+                    archive_dir,
+                    version="1.0.0",
+                    channel="local",
+                    release_date="2026-07-23",
+                    packets=[_packet("MP-CHANGE-2026-0723-001", "1.0.0")],
+                )
+
+            self.assertEqual((archive_dir / "VERSION").read_bytes(), b"1.0.0\n")
+            self.assertEqual((archive_dir / "RELEASE_MANIFEST.json").read_bytes(), b'{"version":"1.0.0"}\n')
+            self.assertIn("# Release Summary - 1.0.0", (archive_dir / "RELEASE_SUMMARY.md").read_text(encoding="utf-8"))
+            self.assertEqual(list(history_root.iterdir()), [archive_dir])
+
+    def test_history_archive_publish_race_preserves_competing_history(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            history_root = root / "history"
+            version_file = root / "VERSION"
+            version_file.write_bytes(b"1.0.0\n")
+            archive_dir = history_root / "1.0.0"
+
+            def inject_competing_archive(staged_dir: Path, target: Path) -> Path:
+                self.assertNotEqual(staged_dir, archive_dir)
+                target.mkdir()
+                (target / "VERSION").write_bytes(b"concurrent-history")
+                raise FileExistsError("synthetic publication race")
+
+            with (
+                mock.patch.multiple(
+                    finalize_release,
+                    HISTORY_ROOT=history_root,
+                    ARCHIVE_FILES=[version_file],
+                ),
+                mock.patch.object(Path, "rename", new=inject_competing_archive),
+            ):
+                with self.assertRaisesRegex(FileExistsError, "synthetic publication race"):
+                    finalize_release._publish_history_archive(
+                        archive_dir,
+                        version="1.0.0",
+                        channel="local",
+                        release_date="2026-07-23",
+                        packets=[],
+                    )
+
+            self.assertEqual((archive_dir / "VERSION").read_bytes(), b"concurrent-history")
+            self.assertEqual(list(history_root.iterdir()), [archive_dir])
+
+    def test_finalize_release_rolls_back_archive_staging_failure_without_partial_history(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            unreleased = root / "ops" / "release" / "changes" / "unreleased"
+            released = root / "ops" / "release" / "changes" / "released"
+            version_file = root / "ops" / "release" / "metadata" / "VERSION"
+            manifest_path = root / "ops" / "release" / "metadata" / "RELEASE_MANIFEST.json"
+            changelog_path = root / "docs" / "change_control" / "CHANGELOG.md"
+            index_path = root / "docs" / "change_control" / "CHANGE_INDEX.md"
+            history_root = root / "ops" / "release" / "metadata" / "history"
+            version_file.parent.mkdir(parents=True)
+            changelog_path.parent.mkdir(parents=True)
+            version_file.write_text("0.1.0-dev\n", encoding="utf-8")
+            manifest_path.write_text('{"version":"0.1.0-dev"}\n', encoding="utf-8")
+            changelog_path.write_text("# old changelog\n", encoding="utf-8")
+            index_path.write_text("# old index\n", encoding="utf-8")
+            packet = _packet("MP-CHANGE-2026-0604-001", "0.1.0-dev")
+            packet_path = _write_packet(root, "ops/release/changes/unreleased/MP-CHANGE-2026-0604-001.json", packet)
+            original_packet = packet_path.read_bytes()
+            original_copy2 = shutil.copy2
+            copy_count = 0
+
+            def fail_second_archive_copy(source: Path, destination: Path) -> Path:
+                nonlocal copy_count
+                copy_count += 1
+                if copy_count == 2:
+                    raise OSError("synthetic archive copy failure")
+                return Path(original_copy2(source, destination))
+
+            with (
+                mock.patch.multiple(
+                    finalize_release,
+                    REPO_ROOT=root,
+                    UNRELEASED_DIR=unreleased,
+                    RELEASED_DIR=released,
+                    VERSION_FILE=version_file,
+                    MANIFEST_PATH=manifest_path,
+                    CHANGELOG_PATH=changelog_path,
+                    INDEX_PATH=index_path,
+                    HISTORY_ROOT=history_root,
+                    ARCHIVE_FILES=[version_file, manifest_path, changelog_path, index_path],
+                    _run_script=mock.Mock(),
+                ),
+                mock.patch.object(finalize_release.shutil, "copy2", side_effect=fail_second_archive_copy),
+            ):
+                with self.assertRaisesRegex(OSError, "synthetic archive copy failure"):
+                    finalize_release._finalize("1.0.0", "local", [(packet_path, packet)])
+
+            self.assertEqual(copy_count, 2)
+            self.assertEqual(packet_path.read_bytes(), original_packet)
+            self.assertEqual(version_file.read_text(encoding="utf-8"), "0.1.0-dev\n")
+            self.assertEqual(manifest_path.read_text(encoding="utf-8"), '{"version":"0.1.0-dev"}\n')
+            self.assertEqual(changelog_path.read_text(encoding="utf-8"), "# old changelog\n")
+            self.assertEqual(index_path.read_text(encoding="utf-8"), "# old index\n")
+            self.assertFalse((released / "1.0.0").exists())
+            self.assertFalse((history_root / "1.0.0").exists())
+            self.assertEqual(list(history_root.iterdir()), [])
 
     def test_manifest_can_preview_dev_placeholder_packets_for_target_version(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

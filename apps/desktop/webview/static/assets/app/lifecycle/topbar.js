@@ -1,5 +1,58 @@
 /* global homeProgressPercent, lastCloseReadiness, lastSnapshot, lastStartupProgress, lastTauriBackendLifecycleEvent */
 (function () {
+  function topbarObject(value) {
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  }
+
+  function topbarFirstText(...values) {
+    const value = values.find((candidate) => String(candidate ?? "").trim());
+    return String(value ?? "").trim();
+  }
+
+  function topbarSnapshotParts(snapshot) {
+    const payload = topbarObject(snapshot);
+    return {
+      payload,
+      progress: topbarObject(payload.progress),
+      currentWork: topbarObject(payload.current_work),
+      progressHealth: topbarObject(payload.progress_health),
+      pipelineState: topbarFirstText(payload.pipeline_state).toLowerCase(),
+    };
+  }
+
+  function topbarBackendQueueRun(value) {
+    const run = topbarObject(value);
+    return Object.keys(run).length ? run : null;
+  }
+
+  function topbarRunIsBackendQueueOnce(run) {
+    return topbarFirstText(run?.mode).toLowerCase() === "once"
+      && topbarFirstText(run?.scope).toLowerCase() === "backend_queue";
+  }
+
+  function topbarMonitorIsTerminal(freshness, lifecycleState) {
+    return freshness === "terminal"
+      || ["completed", "failed", "stopped", "force_stopped"].includes(lifecycleState);
+  }
+
+  function topbarCurrentWorkers(projection, freshness) {
+    return freshness === "current" && Array.isArray(projection.current_workers)
+      ? projection.current_workers
+      : [];
+  }
+
+  function topbarActiveWorkerNames(projection, currentWorkers, formatValue) {
+    const items = Array.isArray(projection.items) ? projection.items : [];
+    const itemsByJob = new Map(items.map((item) => [topbarFirstText(item?.job_id), item]));
+    const activeFiles = [];
+    currentWorkers.forEach((worker) => {
+      const item = itemsByJob.get(topbarFirstText(worker?.job_id));
+      const displayName = formatValue(item?.display_name || "").trim();
+      if (displayName && !activeFiles.includes(displayName)) activeFiles.push(displayName);
+    });
+    return activeFiles;
+  }
+
   function createAppLifecycleTopbar() {  const TOPBAR_PENDING_LAUNCH_TTL_MS = 120000;
   const TOPBAR_IDLE_PENDING_GRACE_MS = 45000;
   const COMPLETED_TAB_STORAGE_KEY = "mediapipeline-completed-tab";
@@ -15,6 +68,174 @@
   const scheduleView = window.mediaPipelineScheduleView || {};
   const scheduleDisplayValue = typeof scheduleView.scheduleDisplayValue === "function" ? scheduleView.scheduleDisplayValue : null;
   let topbarPendingLaunch = null;
+
+  function topbarSnapshotIsFreshlyActive(snapshot = {}) {
+    const payload = snapshot && typeof snapshot === "object" ? snapshot : {};
+    const progressHealth = payload.progress_health && typeof payload.progress_health === "object" ? payload.progress_health : {};
+    const pipelineState = String(payload.pipeline_state || "").trim().toLowerCase();
+    const activeSnapshot = !["", "idle", "completed", "failed", "stopped", "unknown"].includes(pipelineState);
+    return activeSnapshot && progressHealth.available === true && progressHealth.stale_evidence === false;
+  }
+
+  function topbarSnapshotProvesSameBackendQueueRun(snapshot = {}, expectedRunId = "", projectedRunId = "") {
+    if (!topbarSnapshotIsFreshlyActive(snapshot)) return false;
+    const payload = snapshot && typeof snapshot === "object" ? snapshot : {};
+    const progress = payload.progress && typeof payload.progress === "object" ? payload.progress : {};
+    const currentWork = payload.current_work && typeof payload.current_work === "object" ? payload.current_work : {};
+    const explicitMode = String(progress.Mode || progress.RunMode || progress.PipelineMode || currentWork.mode || payload.mode || "").trim().toLowerCase();
+    const explicitScope = String(progress.Scope || currentWork.scope || payload.scope || "").trim().toLowerCase();
+    const explicitRunId = String(progress.RunMonitorRunId || progress.RunId || currentWork.run_id || payload.run_id || "").trim();
+    const correlatedRunId = String(expectedRunId || projectedRunId || "").trim();
+    return explicitMode === "once"
+      && explicitScope === "backend_queue"
+      && Boolean(correlatedRunId)
+      && explicitRunId === correlatedRunId;
+  }
+
+  function topbarSnapshotProvesDifferentWorkflow(snapshot = {}, expectedRunId = "") {
+    const {
+      payload,
+      progress,
+      currentWork,
+      progressHealth,
+      pipelineState,
+    } = topbarSnapshotParts(snapshot);
+    if (["csv_rerun_active", "audit", "publishing_parked_outputs", "retrying_pending_push"].includes(pipelineState)) return true;
+    const activeSnapshot = !["", "idle", "completed", "failed", "stopped", "unknown"].includes(pipelineState);
+    const currentProgress = progressHealth.available !== false && progressHealth.stale_evidence !== true;
+    if (!activeSnapshot || !currentProgress) return false;
+    const explicitMode = topbarFirstText(progress.Mode, progress.RunMode, progress.PipelineMode, currentWork.mode, payload.mode).toLowerCase();
+    if (explicitMode && explicitMode !== "once") return true;
+    const explicitScope = topbarFirstText(progress.Scope, currentWork.scope, payload.scope).toLowerCase();
+    if (explicitScope && explicitScope !== "backend_queue") return true;
+    const singleFile = topbarFirstText(progress.SingleFile, currentWork.single_file, payload.single_file);
+    if (singleFile) return true;
+    const explicitRunId = topbarFirstText(progress.RunMonitorRunId, progress.RunId, currentWork.run_id, payload.run_id);
+    return Boolean(expectedRunId && explicitRunId && explicitRunId !== expectedRunId);
+  }
+
+  function topbarSnapshotDeclaresBackendQueueRun(snapshot = {}) {
+    const payload = snapshot && typeof snapshot === "object" ? snapshot : {};
+    const progress = payload.progress && typeof payload.progress === "object" ? payload.progress : {};
+    const currentWork = payload.current_work && typeof payload.current_work === "object" ? payload.current_work : {};
+    const explicitMode = String(progress.Mode || progress.RunMode || progress.PipelineMode || currentWork.mode || payload.mode || "").trim().toLowerCase();
+    const explicitScope = String(progress.Scope || currentWork.scope || payload.scope || "").trim().toLowerCase();
+    const explicitRunId = String(progress.RunMonitorRunId || progress.RunId || currentWork.run_id || payload.run_id || "").trim();
+    return explicitMode === "once" && explicitScope === "backend_queue" && Boolean(explicitRunId);
+  }
+
+  function topbarRouteCategory(value) {
+    const route = String(value || "").trim().toLowerCase().replace(/_/g, "-");
+    if (route === "remux") return "remux";
+    if ([
+      "encode",
+      "transcode",
+      "encode-hardware",
+      "hardware-encode",
+      "encode-cpu-fallback",
+      "cpu-encode-fallback",
+      "encode-safe-retry",
+      "safe-hardware-retry",
+    ].includes(route)) return "encode";
+    return "";
+  }
+
+  function topbarRouteCategories(values = []) {
+    return [...new Set(values.map(topbarRouteCategory).filter(Boolean))];
+  }
+
+  function replaceTopbarActivityContent(node, primaryText, metaText, routeCategories = []) {
+    const primary = document.createElement("span");
+    primary.className = "activity-primary";
+    primary.textContent = primaryText;
+    primary.title = primaryText;
+
+    const primaryRow = document.createElement("span");
+    primaryRow.className = "activity-primary-row";
+    primaryRow.append(primary);
+    routeCategories.forEach((route) => {
+      const badge = document.createElement("span");
+      badge.className = "activity-route-badge";
+      badge.dataset.route = route;
+      badge.textContent = route === "remux" ? "REMUX" : "ENCODE";
+      badge.title = `Backend-confirmed active route: ${badge.textContent}`;
+      primaryRow.append(badge);
+    });
+
+    const meta = document.createElement("span");
+    meta.className = "activity-meta";
+    meta.textContent = metaText;
+    if (metaText) meta.title = metaText;
+    node.replaceChildren(primaryRow, meta);
+    return { primary, meta };
+  }
+
+  function topbarBackendQueueMonitorContext(snapshot = {}) {
+    const correlation = topbarObject(window.mediaPipelineRunMonitor?.backendQueueCorrelationContext?.());
+    const expectedRunId = topbarFirstText(correlation.requested_run_id);
+    if (topbarSnapshotProvesDifferentWorkflow(snapshot, expectedRunId)) return null;
+    const projection = topbarObject(window.mediaPipelineRunMonitor?.getPayload?.());
+    const run = topbarBackendQueueRun(projection.run);
+    if (!run) {
+      if (!correlation.expected && !topbarSnapshotDeclaresBackendQueueRun(snapshot)) return null;
+      return {
+        freshness: topbarFirstText(projection?.freshness?.state, correlation.freshness, "unavailable").toLowerCase(),
+        lifecycleLabel: "Correlated Monitor Unavailable",
+        displayMode: "Run Once · Backend Queue",
+        accepted: null,
+        workers: 0,
+      };
+    }
+    if (!topbarRunIsBackendQueueOnce(run)) return null;
+    const freshness = topbarFirstText(projection?.freshness?.state, "unavailable").toLowerCase();
+    const lifecycleState = topbarFirstText(run.lifecycle_state, "unknown").toLowerCase();
+    const terminalMonitor = topbarMonitorIsTerminal(freshness, lifecycleState);
+    if (
+      terminalMonitor
+      && topbarSnapshotIsFreshlyActive(snapshot)
+      && !topbarSnapshotProvesSameBackendQueueRun(snapshot, expectedRunId, topbarFirstText(run.run_id))
+    ) return null;
+    const lifecycleLabel = lifecycleState.replace(/[_-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+    const counts = topbarObject(run.counts);
+    const accepted = Number(counts.accepted ?? run.accepted_queue?.accepted_count);
+    const currentWorkers = topbarCurrentWorkers(projection, freshness);
+    const activeFiles = topbarActiveWorkerNames(projection, currentWorkers, formatProgressValue);
+    return {
+      freshness,
+      lifecycleLabel,
+      displayMode: topbarFirstText(run.display_mode, "Run Once · Backend Queue"),
+      accepted: Number.isFinite(accepted) && accepted >= 0 ? accepted : null,
+      workers: currentWorkers.length,
+      activeFiles,
+      routeCategories: topbarRouteCategories(currentWorkers.map((worker) => worker?.route)),
+    };
+  }
+
+  function topbarBackendQueueMonitorText(context) {
+    if (!context) return null;
+    const current = context.freshness === "current";
+    const terminal = context.freshness === "terminal";
+    const activeFiles = Array.isArray(context.activeFiles) ? context.activeFiles : [];
+    if (current && activeFiles.length) {
+      const additionalCount = activeFiles.length - 1;
+      return {
+        primary: `${activeFiles[0]}${additionalCount ? ` + ${additionalCount} more` : ""}`,
+        primaryTitle: activeFiles.join("\n"),
+        meta: `${context.displayMode} · ${context.lifecycleLabel}`,
+        routeCategories: context.routeCategories,
+      };
+    }
+    const primary = `${context.displayMode} · ${context.lifecycleLabel}`;
+    const meta = current || terminal
+      ? [
+          current ? "Backend-confirmed current" : "Terminal backend evidence",
+          context.accepted === null ? "Accepted count unavailable" : `${context.accepted} accepted`,
+          current ? `${context.workers} active worker${context.workers === 1 ? "" : "s"}` : "No current worker claim",
+          "Open Current Work for file and stage detail",
+        ].join(" · ")
+      : `Current-work evidence ${context.freshness || "unavailable"} · No file, stage, route, or percent claim · Open Current Work`;
+    return { primary, meta };
+  }
 
   function topbarPathLeaf(value) {
     const text = formatProgressValue(value || "").trim();
@@ -69,6 +290,20 @@
     const node = byId("activity");
     if (!node) return;
     const payload = snapshot && typeof snapshot === "object" ? snapshot : {};
+    const monitorText = topbarBackendQueueMonitorText(topbarBackendQueueMonitorContext(payload));
+    if (monitorText) {
+      const { primary } = replaceTopbarActivityContent(
+        node,
+        monitorText.primary,
+        monitorText.meta,
+        monitorText.routeCategories,
+      );
+      primary.title = monitorText.primaryTitle || monitorText.primary;
+      node.title = `${monitorText.primaryTitle || monitorText.primary}\n${monitorText.meta}`;
+      node.dataset.authority = "run_monitor";
+      return;
+    }
+    delete node.dataset.authority;
     const latestEvent = topbarLatestEvent(Array.isArray(payload.recent_events) ? payload.recent_events : []);
     const pendingLaunch = topbarPendingLaunchIsValid(payload, latestEvent) ? topbarPendingLaunch : null;
     const progress = payload.progress && typeof payload.progress === "object" ? payload.progress : {};
@@ -88,17 +323,11 @@
     const metaText = pendingLaunch
       ? topbarTickerCompactText(pendingLaunch.waitLabel || "", 64)
       : topbarCurrentWorkMeta(currentWork, progress) || topbarStageContext(progress);
-    const primaryText = activeSummary || cleanName || activity || "No active work reported.";
-
-    const primary = document.createElement("span");
-    primary.className = "activity-primary";
-    primary.textContent = primaryText;
-    primary.title = primaryText;
-    const meta = document.createElement("span");
-    meta.className = "activity-meta";
-    meta.textContent = metaText;
-    if (metaText) meta.title = metaText;
-    node.replaceChildren(primary, meta);
+    const primaryText = cleanName || activeSummary || activity || "No active work reported.";
+    const routeCategories = topbarSnapshotIsFreshlyActive(payload)
+      ? topbarRouteCategories([progress.CurrentRoute || progress.Route])
+      : [];
+    replaceTopbarActivityContent(node, primaryText, metaText, routeCategories);
     node.title = [phaseLabel, primaryText, metaText].filter(Boolean).join("\n");
   }
 
@@ -172,7 +401,10 @@
     const status = topbarTickerCompactText(event.status || "", 44);
     const display = topbarTickerCompactText(topbarEventDisplayName(event), 96);
     const parts = [type, stage, route, status, display].filter(Boolean);
-    return parts.length ? `Latest event: ${parts.join(" · ")}` : "Latest event: backend event received";
+    const line = parts.length
+      ? `Supporting telemetry — latest backend event: ${parts.join(" · ")}`
+      : "Supporting telemetry — backend event received";
+    return topbarTickerCompactText(line, 180);
   }
 
   function topbarPendingLaunchLine(pending) {
@@ -180,7 +412,7 @@
     const status = topbarTickerCompactText(pending?.statusLabel || "accepted", 32) || "accepted";
     const wait = topbarTickerCompactText(pending?.waitLabel || "waiting for backend event", 64);
     const pid = pending?.pid ? ` · PID ${pending.pid}` : "";
-    return `Latest event: ${label} ${status}${pid}${wait ? ` · ${wait}` : ""}`;
+    return `Supporting telemetry — launch response: ${label} ${status}${pid}${wait ? ` · ${wait}` : ""}`;
   }
 
   function topbarPipelineState(snapshot = {}) {
@@ -215,14 +447,19 @@
     const latestEvent = topbarLatestEvent(events);
     let text = "";
     let state = "empty";
-    if (topbarPendingLaunchIsValid(payload, latestEvent)) {
+    const monitorContext = topbarBackendQueueMonitorContext(payload);
+    if (monitorContext) {
+      const eventType = latestEvent ? topbarTickerCompactText(latestEvent.event_type || latestEvent.type || latestEvent.kind || "backend event", 48) : "none reported";
+      text = `Supporting telemetry — latest backend event: ${eventType}. Not current-work authority; open Current Work for correlated evidence.`;
+      state = "telemetry";
+    } else if (topbarPendingLaunchIsValid(payload, latestEvent)) {
       text = topbarPendingLaunchLine(topbarPendingLaunch);
       state = "pending";
     } else if (latestEvent) {
       text = topbarEventTickerLine(latestEvent);
       state = "event";
     } else {
-      text = "Latest event: no backend pipeline events reported yet";
+      text = "Supporting telemetry — no backend pipeline events reported yet";
     }
     node.textContent = text;
     node.title = text;

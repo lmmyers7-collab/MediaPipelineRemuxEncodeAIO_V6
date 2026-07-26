@@ -1,0 +1,67 @@
+{
+  "id": "MP-CHANGE-2026-0723-035",
+  "title": "Validate network join secret before rotation",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": "2026-07-23",
+  "summary": "Prevalidate the exact coordinator secret-transfer blob before rotating any config, app-state, or running-runtime token authority.",
+  "reason": "Remediate CSW-2026-07-09-NETWORK-001. Join-blob preflight used a shorter placeholder token, then committed rotation before final exact-token encoding could fail.",
+  "affected_areas": [
+    "configuration",
+    "documentation",
+    "local-api",
+    "network-runtime",
+    "network-security",
+    "tests"
+  ],
+  "behavior_before": "A near-limit payload could pass placeholder preflight, rotate config/app-state/runtime credentials, then fail final encoding and return no replacement join blob.",
+  "behavior_after": "The exact candidate token and complete join blob are validated once before mutation; persistence failure leaves the running token unchanged, and commit failures retain compensating rollback evidence without exposing secrets.",
+  "files_touched": [
+    "docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md",
+    "docs/change_control/CHANGELOG.md",
+    "docs/change_control/CHANGE_INDEX.md",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/feature-cards/local-api.md",
+    "docs/generated/feature-cards/network-mode.md",
+    "docs/generated/summaries/docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md.md",
+    "docs/generated/summaries/docs/change_control/CHANGELOG.md.md",
+    "docs/generated/summaries/docs/change_control/CHANGE_INDEX.md.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-035.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/network/facade.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/coordinator_auth.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_network_join.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_network_security.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-035.json",
+    "src/mediapipeline/core/network/facade.py",
+    "src/mediapipeline/desktop/network/coordinator_auth.py",
+    "tests/python/desktop/test_network_join.py",
+    "tests/python/desktop/test_network_security.py"
+  ],
+  "tests_added": [
+    "Near-limit exact-token encoding failure leaves config, app-state, and running-runtime authorities unchanged.",
+    "Exact join-blob encoding occurs once before rotation commit, and one token reaches config, app-state, runtime, and the returned blob.",
+    "Injected running-coordinator persistence failure rolls config back and keeps the old live token without secret disclosure.",
+    "A rotated token persisted by one spawned process is reloaded by a distinct spawned process from the same app-state file."
+  ],
+  "manual_validation": [
+    "Focused network join/security/lifecycle/done-release suites passed: 103 tests and 16 subtests; touched Python Ruff and compileall checks passed.",
+    "Local API and WebView network boundary suites passed: 75 tests and 777 subtests; the real-browser network smoke passed against disposable state without executing confirmed lifecycle commands.",
+    "The broader network suite passed 475 tests and 167 subtests; its sole failure was the pre-existing unrelated pending-publish rerun-claim KeyError for pending_publish_payload_path.",
+    "The active reliability wrapper passed architecture, native process cleanup, runtime-state hygiene, and sidecar safety before stopping at the established unrelated WebView static-asset assertion.",
+    "A full Windows release build with -Zip -Verify -IncludeTests ran for 897 seconds. Tool integration and end-to-end smoke passed; aggregate verification exited 1 only on established WebView static-asset, dependency-cycle, generated/status-doc, tracked-document, and unrelated Ruff baselines.",
+    "All five finding-specific implementation/test/document files matched the preserved package by SHA-256. Inside that exact package, 103 network tests plus 16 subtests, 75 Local API/boundary tests plus 777 subtests, and the real-browser network smoke passed using bundled runtimes."
+  ],
+  "rollback_plan": "Revert the exact-token join preparation, transactional coordinator-token persistence, focused network/Local API/restart tests, documentation, generated artifacts, and packet metadata together. Do not restore placeholder preflight or post-mutation encoding.",
+  "related_changes": [
+    "CSW-2026-07-09-NETWORK-001",
+    "CSW-2026-07-09-NETWORK-003",
+    "MP-CHANGE-2026-0723-033"
+  ],
+  "notes": "High-risk network secret transaction boundary. No source/scratch/output media, queue, publish, rename, or lifecycle start/stop was performed. Validation used disposable config/app-state and loopback or in-memory coordinator instances; representative real-media validation was not required. Python impact: coordinator join orchestration and runtime token persistence semantics with focused secret redaction, transaction, two-process recovery, and Local API coverage. Immutable audit evidence remained read-only.\nBound exact join-blob validation ahead of token authority mutation and made running-token persistence fail closed. Existing overlapping changes in facade.py, both network test modules, and the Local API matrix were preserved; coordinator_auth.py was clean before this batch. Known unrelated worktree baselines remain outside this packet: three stale summaries, DOC005 at the active audit BASELINE reference, the mediapipeline.core.processes to mediapipeline.core.queue dependency cycle, two rename-test Ruff B023 findings, the WebView static-asset reliability assertion, and package/generated-document drift."
+}

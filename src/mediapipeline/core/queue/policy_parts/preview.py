@@ -114,18 +114,19 @@ def queue_completed_collision_fields(
     if not source_count and not runnable_count:
         flags.append("no_source_candidates")
 
-    if completed_excluded_count > 0 and (snapshot_stale or produced_stale):
-        status = "Stale exclusions"
-        severity = "warning"
-        guidance = "Refresh Queue before launch. Aggregate completed/blocked exclusions exist and the snapshot is stale, so newly moved or half-copied files may be hidden."
-    elif completed_excluded_count > 0:
+    if completed_excluded_count > 0:
         status = "Excluded candidates"
         severity = "info"
-        guidance = "Some source candidates are excluded from runnable rows. This can be correct when completed history, source filters, or block policies apply."
+        guidance = (
+            "Some source candidates are excluded from runnable rows. Snapshot age is preview context only; "
+            "Run Once rebuilds and fingerprint-verifies the queue before media dispatch."
+            if snapshot_stale or produced_stale
+            else "Some source candidates are excluded from runnable rows. This can be correct when completed history, source filters, or block policies apply."
+        )
     elif snapshot_stale or produced_stale:
-        status = "Snapshot stale"
-        severity = "warning"
-        guidance = "Refresh Queue before launch. A stale snapshot can hide files whose completed status or source state changed."
+        status = "Snapshot age advisory"
+        severity = "info"
+        guidance = "Snapshot age is informational. Run Once rebuilds and fingerprint-verifies the queue before media dispatch; refresh only to update the displayed preview."
     elif not source_count and not runnable_count:
         status = "No candidates"
         severity = "info"
@@ -159,7 +160,7 @@ def queue_completed_collision_fields(
     if completed_excluded_count > 0:
         lines.append("Interpretation: the aggregate exclusion count can include already-completed files, blocked rows, and source rows filtered before runnable planning.")
     if snapshot_stale or produced_stale:
-        lines.append("Risk: stale queue state can make completed-history collisions look resolved when source folders changed after the snapshot was written.")
+        lines.append("Age advisory: this preview may predate source or completed-history changes; runtime rebuilds and fingerprint-verifies the queue before media dispatch.")
     lines.append("Mutation guardrail: this is read-only guidance; queue mutation, completed reconciliation, and rerun remain backend-owned.")
     return {
         "completed_collision_status": status,
@@ -191,7 +192,7 @@ def queue_source_scan_progress_payload(
     runnable_count = _snapshot_int_with_fallback(fields, "runnable_count", row_count)
     effective_status = status.strip().casefold() if status else ""
     if not effective_status:
-        if stale or warnings_list:
+        if warnings_list:
             effective_status = "warning"
         elif source or row_count or source_count:
             effective_status = "complete"

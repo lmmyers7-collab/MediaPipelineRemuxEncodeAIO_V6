@@ -154,7 +154,6 @@ class ApplicationFacadeWebStaticPendingPublishTests(unittest.TestCase):
             self,
             bundle.js,
             (
-                "pendingClearFiltersButton.addEventListener(\"click\", () => window.mediaPipelinePendingPublishView?.resetPendingFilters?.())",
                 "requestPendingRecoveryPlan(\"selected\")",
                 "requestPendingRecoveryPlan(\"all\")",
                 'targetDataset: "openPending"',
@@ -195,6 +194,7 @@ class ApplicationFacadeWebStaticPendingPublishTests(unittest.TestCase):
                 "function pendingFilterVisibilityLines",
                 "function pendingFocusedInvestigationLabels",
                 "function resetPendingFilters",
+                'if (clearFiltersButton) clearFiltersButton.addEventListener("click", resetPendingFilters);',
                 "Pending Publish display filters cleared.",
                 "function pendingInvestigationSignalLines",
                 "function pendingRealMediaTraceLines",

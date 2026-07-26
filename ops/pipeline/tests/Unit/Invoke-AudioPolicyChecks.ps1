@@ -12,6 +12,49 @@ function DebugLog {
     param([string] $Message)
 }
 
+$script:AudioProgressCalls = [System.Collections.Generic.List[object]]::new()
+$script:AudioPolicySeedCalls = [System.Collections.Generic.List[object]]::new()
+function Set-MediaPipelineRunMonitorAudioRecords {
+    param(
+        [string] $RunId,
+        [string] $JobId,
+        [array] $Records,
+        [switch] $FinalPolicy
+    )
+    $script:AudioPolicySeedCalls.Add([pscustomobject]@{
+        RunId = $RunId
+        JobId = $JobId
+        Records = @($Records)
+        FinalPolicy = [bool]$FinalPolicy
+    }) | Out-Null
+}
+function Set-ProgressAudioTrack {
+    param(
+        [int] $StreamIndex = -1,
+        [string] $Stage,
+        [string] $Status,
+        [string] $AudioAction,
+        [string] $SourceCodec,
+        $SourceChannels,
+        [string] $OutputCodec,
+        $OutputChannels,
+        [string] $Language,
+        [string] $Reason,
+        [int] $StepIndex,
+        [int] $StepTotal,
+        [string] $Detail,
+        [switch] $Completed,
+        [switch] $Failed,
+        [switch] $SaveNow
+    )
+    $script:AudioProgressCalls.Add([pscustomobject]@{
+        StreamIndex = $StreamIndex
+        Stage = $Stage
+        AudioAction = $AudioAction
+        PolicySeeded = ($script:AudioPolicySeedCalls.Count -gt 0)
+    }) | Out-Null
+}
+
 function Assert-True {
     param(
         [bool] $Condition,
@@ -48,30 +91,7 @@ function Assert-SequenceEqual {
     }
 }
 
-function Resolve-MediaPipelineAudioPassthroughProfile {
-    param(
-        [string] $Profile,
-        [array] $LegacyCompatibleAudioCodecs = @()
-    )
-
-    $normalized = if ($Profile) { $Profile.Trim().ToLowerInvariant() } else { '' }
-    if ($normalized -in @('plex_balanced','compatibility','lossless_passthrough','custom_codec_list')) {
-        return $normalized
-    }
-    if (@($LegacyCompatibleAudioCodecs).Count -gt 0) { return 'custom_codec_list' }
-    return 'plex_balanced'
-}
-
-function Get-MediaPipelineAudioPassthroughProfileCodecs {
-    param([string] $Profile)
-
-    switch (($Profile ?? '').Trim().ToLowerInvariant()) {
-        'compatibility'         { return @('aac','ac3','eac3') }
-        'lossless_passthrough'  { return @('aac','ac3','eac3','truehd','flac','dts') }
-        'plex_balanced'         { return @('aac','ac3','eac3','mp3','opus','vorbis') }
-        default                 { return @() }
-    }
-}
+. (Join-Path $repoRoot 'ops\pipeline\engine\config\choice_registry.ps1')
 
 function Get-MediaAudioCodecFlacName { return 'flac' }
 
@@ -170,9 +190,9 @@ function Invoke-FFprobeCommand {
 
     $payload = @{
         streams = @(
-            @{ index = 0; codec_name = 'ac3'; channels = 6; channel_layout = '5.1(side)'; tags = @{ language = 'en'; title = 'Director Commentary' }; disposition = @{ forced = 0; default = 1 } },
-            @{ index = 1; codec_name = 'pcm_s16le'; channels = 2; channel_layout = 'stereo'; tags = @{ language = 'jpn'; title = '' }; disposition = @{ forced = 1; default = 0 } },
-            @{ index = 2; codec_name = 'truehd'; channels = 8; channel_layout = '7.1'; tags = @{ language = 'english'; title = 'Main Audio' }; disposition = @{ forced = 0; default = 0 } }
+            @{ index = 4; codec_name = 'ac3'; channels = 6; channel_layout = '5.1(side)'; tags = @{ language = 'en'; title = 'Director Commentary' }; disposition = @{ forced = 0; default = 1 } },
+            @{ index = 9; codec_name = 'pcm_s16le'; channels = 2; channel_layout = 'stereo'; tags = @{ language = 'jpn'; title = '' }; disposition = @{ forced = 1; default = 0 } },
+            @{ index = 15; codec_name = 'truehd'; channels = 8; channel_layout = '7.1'; tags = @{ language = 'english'; title = 'Main Audio' }; disposition = @{ forced = 0; default = 0 } }
         )
     }
     return [pscustomobject]@{ ExitCode = 0; Output = ($payload | ConvertTo-Json -Depth 8); Error = ''; TimedOut = $false; Stopped = $false }
@@ -190,10 +210,17 @@ $script:AudioDownmixMode = 'max_channels'
 $script:AudioMaxChannels = 6
 $script:AllowNoAudio = $false
 $script:ProbeMode = 'normal'
+$script:PipelineRunId = 'audio-policy-run'
+$script:CurrentRunMonitorJobId = 'audio-policy-run:item:1'
 
 Assert-True (Test-IsPcmAudioCodec 'pcm_s16le') 'pcm_s16le was not detected as PCM audio.'
 Assert-True (Test-IsPcmAudioCodec 'A_PCM/INT/LIT') 'A_PCM/INT/LIT was not detected as PCM audio.'
 Assert-True (-not (Test-IsPcmAudioCodec 'eac3')) 'EAC3 was incorrectly detected as PCM audio.'
+$compatibilityProfileCodecs = @(Get-MediaPipelineAudioPassthroughProfileCodecs -Profile 'compatibility')
+Assert-True ($compatibilityProfileCodecs -notcontains 'truehd' -and $compatibilityProfileCodecs -notcontains 'flac') 'Production compatibility profile should exclude lossless/high-transcode-risk codecs.'
+Assert-True ($compatibilityProfileCodecs -contains 'ac3' -and $compatibilityProfileCodecs -contains 'eac3') 'Production compatibility profile should include AC3/EAC3.'
+$losslessProfileCodecs = @(Get-MediaPipelineAudioPassthroughProfileCodecs -Profile 'lossless_passthrough')
+Assert-True ($losslessProfileCodecs -contains 'truehd' -and $losslessProfileCodecs -contains 'flac' -and $losslessProfileCodecs -contains 'dts') 'Production lossless passthrough profile should include TrueHD/FLAC/DTS.'
 
 $script:AllowNoAudio = 'false'
 Assert-True (-not (Get-EffectiveAllowNoAudio)) 'String AllowNoAudio=false should not enable no-audio output.'
@@ -240,6 +267,10 @@ $expectedArgs = @(
 )
 $audioArgs = @(Build-AudioArgs 'source.mkv')
 Assert-SequenceEqual $audioArgs $expectedArgs 'Build-AudioArgs changed FFmpeg audio arguments.'
+$policyProgressStreamIndexes = @($script:AudioProgressCalls | Where-Object { $_.Stage -eq 'audio_policy' -and $_.StreamIndex -ge 0 } | ForEach-Object { $_.StreamIndex })
+Assert-SequenceEqual $policyProgressStreamIndexes @(4, 9, 15) 'Audio monitor evidence must use exact ffprobe source stream indexes while FFmpeg map ordinals stay unchanged.'
+Assert-Equal $script:AudioPolicySeedCalls.Count 1 'Audio policy must seed the exact Run Monitor tracks once before emitting per-track progress.'
+Assert-True ([bool](@($script:AudioProgressCalls | Where-Object { $_.Stage -eq 'audio_policy' -and $_.StreamIndex -ge 0 -and -not $_.PolicySeeded }).Count -eq 0)) 'Per-track audio progress must never run before exact backend track records exist.'
 Assert-Equal $script:LastAudioDefaultIndex 1 'Default audio index changed.'
 Assert-Equal $script:LastAudioTrackCount 3 'Audio track count changed.'
 Assert-True $script:LastAudioTranscodeActive 'Audio transcode-active flag was not set.'
@@ -250,8 +281,14 @@ Assert-True $audioDecisions[0].is_commentary 'Commentary flag changed.'
 Assert-Equal $audioDecisions[1].action 'transcode' 'PCM action changed.'
 Assert-Equal $audioDecisions[1].reason 'PCM standardization' 'PCM transcode reason changed.'
 Assert-True $audioDecisions[1].is_default 'Preferred forced Japanese track was not recorded as default.'
+Assert-Equal $audioDecisions[1].source_layout 'stereo' 'Audio source layout should retain ffprobe evidence.'
+Assert-Equal $audioDecisions[1].output_layout 'stereo' 'Transcoded audio output layout should retain the backend-authored FFmpeg layout.'
+Assert-Equal $audioDecisions[1].planned_action 'transcode' 'Audio planned transcode action should be explicit.'
+Assert-Equal $audioDecisions[1].reason_code 'pcm_standardization' 'Audio policy should retain a stable transcode reason code.'
 Assert-Equal $audioDecisions[2].output_codec 'truehd' 'TrueHD copy output codec decision changed.'
 Assert-Equal $audioDecisions[2].passthrough_profile 'custom_codec_list' 'Passthrough profile was not recorded.'
+Assert-Equal $audioDecisions[2].output_layout '7.1' 'Passthrough audio output layout should retain the probed source layout.'
+Assert-Equal $audioDecisions[2].planned_action 'passthrough' 'Audio passthrough planned action should be explicit.'
 
 $script:OutputContainer = 'mp4'
 $mp4Args = @(Build-AudioArgs 'source.mkv')
@@ -322,6 +359,7 @@ Assert-SequenceEqual $noAudioArgs @('-an') 'AllowNoAudio did not emit -an.'
 $noAudioDecisions = @(Get-LastAudioDecisionRecords)
 Assert-Equal $noAudioDecisions.Count 1 'AllowNoAudio decision record count changed.'
 Assert-Equal $noAudioDecisions[0].action 'omit_all' 'AllowNoAudio decision action changed.'
+Assert-Equal $noAudioDecisions[0].planned_action 'not_applicable' 'AllowNoAudio should expose explicit not-applicable evidence.'
 
 foreach ($presenceProbeMode in @('presence-nonzero', 'presence-timedout', 'presence-stopped')) {
     foreach ($allowNoAudioValue in @($false, $true)) {

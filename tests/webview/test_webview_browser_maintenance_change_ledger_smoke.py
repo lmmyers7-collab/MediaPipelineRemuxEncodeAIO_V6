@@ -44,12 +44,13 @@ def _change_ledger_payload(root: Path) -> dict[str, object]:
         "schema_version": "desktop_change_ledger.v1",
         "read_only": True,
         "counts": {
-            "total": 2,
+            "total": 3,
             "unreleased": 1,
+            "archived": 1,
             "released": 1,
             "planned": 0,
             "in_progress": 1,
-            "complete": 1,
+            "complete": 2,
             "high_or_critical_risk": 1,
         },
         "python_impact": {
@@ -82,9 +83,9 @@ def _change_ledger_payload(root: Path) -> dict[str, object]:
             "errors": [],
         },
         "summary_lines": [
-            "Change ledger: 2 packet(s)",
-            "Unreleased: 1; released: 1",
-            "Open: 1; complete: 1",
+            "Change ledger: 3 packet(s)",
+            "Active unreleased: 1; archived completed: 1; released: 1",
+            "Open: 1; complete: 2",
             "High/critical risk: 1",
         ],
         "source_paths": [
@@ -92,6 +93,7 @@ def _change_ledger_payload(root: Path) -> dict[str, object]:
             {"path": "docs/change_control/CHANGELOG.md", "exists": True, "stale": False},
             {"path": "docs/change_control/CHANGE_INDEX.md", "exists": True, "stale": False},
             {"path": "ops/release/changes/unreleased", "exists": True, "stale": False},
+            {"path": "ops/release/changes/archived", "exists": True, "stale": False},
             {"path": "ops/release/changes/released", "exists": True, "stale": False},
         ],
         "hygiene": {
@@ -105,7 +107,7 @@ def _change_ledger_payload(root: Path) -> dict[str, object]:
             "summary_lines": [
                 "Unrecorded changed files: 0",
                 "Change ledger hygiene: ready",
-                "Loaded packets: 2",
+                "Loaded packets: 3",
                 "Issues: 0",
                 "Coverage scope: worktree",
                 "Mutation guardrail: this ledger is read-only.",
@@ -182,6 +184,29 @@ def _change_ledger_payload(root: Path) -> dict[str, object]:
                 "related_changes": [],
                 "notes": "High-risk fixture row only.",
             },
+            {
+                "id": "MP-CHANGE-SMOKE-003",
+                "title": "Archive Completed Change Evidence",
+                "version_target": "0.1.0-dev",
+                "status": "complete",
+                "type": "release",
+                "risk_level": "low",
+                "location": "archived",
+                "release_version": "2026-06",
+                "validation_status": "complete",
+                "source_path": "ops/release/changes/archived/2026-06/MP-CHANGE-SMOKE-003.json",
+                "summary": "Fixture row proving archived evidence remains visible and searchable.",
+                "reason": "Browser smoke must cover the completed-evidence archive location.",
+                "affected_areas": ["release", "tests"],
+                "files_touched": ["ops/release/changes/archived/2026-06/MP-CHANGE-SMOKE-003.json"],
+                "python_impact": {"file_count": 0, "summary": "No Python files.", "groups": []},
+                "behavior_before": "Archived evidence was absent from the fixture.",
+                "behavior_after": "Archived evidence is represented as a distinct ledger row.",
+                "manual_validation": ["Browser ledger smoke fixture passed."],
+                "rollback_plan": "Remove the archived fixture row.",
+                "related_changes": [],
+                "notes": "Browser-only fixture data.",
+            },
         ],
         "warnings": [],
     }
@@ -245,6 +270,7 @@ def _browser_change_ledger_runner_source() -> str:
               posts.push({ url: String(url || ""), body });
               throw new Error("unexpected mutation POST " + url);
             };
+            window.__mediaPipelineBrowserSmokeMaskGlobal("startMaintenanceProgressPolling");
 
             if (typeof window.showPage !== "function") throw new Error("missing showPage");
             if (typeof window.mediaPipelineMaintenanceView?.refreshChangeLedger !== "function") throw new Error("missing refreshChangeLedger");
@@ -252,39 +278,42 @@ def _browser_change_ledger_runner_source() -> str:
 
             window.showPage("maintenance");
             if (!visiblePage("maintenance")) throw new Error("Maintenance page did not become visible.");
+            await waitFor(() => gets.includes("/api/maintenance"), "initial Maintenance health request");
+            await waitFor(() => gets.includes("/api/maintenance/progress"), "initial Maintenance progress request");
+            await waitFor(() => !byId("maintenance-refresh-button")?.disabled, "Maintenance refresh controls to recover");
             await waitFor(() => text("maintenance-change-ledger-status") !== "Loading...", "initial ledger refresh to settle");
             await window.mediaPipelineMaintenanceView.refreshChangeLedger();
-            await waitFor(() => text("maintenance-change-ledger-status").includes("ready (2)"), "fixture ledger refresh");
-            requireText("maintenance-change-ledger-status", ["ready (2)"]);
-            requireText("maintenance-change-ledger-summary", ["Change ledger: 2 packet(s)", "Affected Python scripts:", "ops/release/changes/", "read-only"]);
+            await waitFor(() => text("maintenance-change-ledger-status").includes("ready (3)"), "fixture ledger refresh");
+            requireText("maintenance-change-ledger-status", ["ready (3)"]);
+            requireText("maintenance-change-ledger-summary", ["Change ledger: 3 packet(s)", "archived completed: 1", "Affected Python scripts:", "ops/release/changes/", "read-only"]);
             requireText("maintenance-change-ledger-hygiene", ["Unrecorded changed files: 0", "Change ledger hygiene: ready", "No changelog hygiene issues reported.", "never writes packets"]);
             requireText("maintenance-change-ledger-detail", ["Add Maintenance Change Ledger", "Affected Python scripts:", "src/mediapipeline/core/maintenance/change_ledger.py"]);
-            if (rowCount() !== 2) throw new Error("expected 2 ledger rows, saw " + rowCount());
+            if (rowCount() !== 3) throw new Error("expected 3 ledger rows, saw " + rowCount());
 
             clickRowContaining("Plan Queue Strategy Audit");
             requireText("maintenance-change-ledger-detail", ["Plan Queue Strategy Audit", "Risk: high", "Validation status: incomplete"]);
 
             setValue("maintenance-change-ledger-status-filter", "complete");
             window.mediaPipelineMaintenanceView.renderChangeLedgerRows();
-            requireText("maintenance-change-ledger-table-status", ["1/2 shown"]);
-            if (rowCount() !== 1) throw new Error("status filter expected 1 row, saw " + rowCount());
+            requireText("maintenance-change-ledger-table-status", ["2/3 shown"]);
+            if (rowCount() !== 2) throw new Error("status filter expected 2 rows, saw " + rowCount());
             requireText("maintenance-change-ledger-detail", ["Add Maintenance Change Ledger", "Validation status: complete"]);
 
             setValue("maintenance-change-ledger-status-filter", "");
             setValue("maintenance-change-ledger-search", "src/mediapipeline/core/maintenance/change_ledger.py");
             window.mediaPipelineMaintenanceView.renderChangeLedgerRows();
-            requireText("maintenance-change-ledger-table-status", ["1/2 shown"]);
+            requireText("maintenance-change-ledger-table-status", ["1/3 shown"]);
             requireText("maintenance-change-ledger-rows", ["MP-CHANGE-SMOKE-001"]);
 
             setValue("maintenance-change-ledger-search", "no-match-filter");
             window.mediaPipelineMaintenanceView.renderChangeLedgerRows();
-            requireText("maintenance-change-ledger-table-status", ["0/2 shown"]);
+            requireText("maintenance-change-ledger-table-status", ["0/3 shown"]);
             requireText("maintenance-change-ledger-rows", ["No change packets match"]);
             requireText("maintenance-change-ledger-detail", ["No change selected."]);
 
             setValue("maintenance-change-ledger-search", "");
             window.mediaPipelineMaintenanceView.renderChangeLedgerRows();
-            if (rowCount() !== 2) throw new Error("cleared filters expected 2 rows, saw " + rowCount());
+            if (rowCount() !== 3) throw new Error("cleared filters expected 3 rows, saw " + rowCount());
             requireText("maintenance-change-ledger-detail", ["Add Maintenance Change Ledger"]);
 
             const forbiddenPosts = posts.filter((entry) =>
@@ -428,7 +457,7 @@ class WebViewBrowserMaintenanceChangeLedgerSmoke(unittest.TestCase):
 
         self.assertTrue(result["ok"])
         browser_result = result["result"]
-        self.assertEqual(browser_result["status"], "ready (2)")
+        self.assertEqual(browser_result["status"], "ready (3)")
         self.assertEqual(browser_result["posts"], [])
         self.assertIn("/api/maintenance/change-ledger?limit=200", browser_result["gets"])
         self.assertIn("Add Maintenance Change Ledger", browser_result["detail"])

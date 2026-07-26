@@ -25,6 +25,8 @@ $bundledPwshPath = Join-Path $pipelineRoot 'runtime\PowerShell-7.6.0-win-x64\pws
 $ffmpegPath  = Join-Path $pipelineRoot 'tools\ffmpeg\bin\ffmpeg.exe'
 $ffprobePath = Join-Path $pipelineRoot 'tools\ffmpeg\bin\ffprobe.exe'
 $scriptPath  = Join-Path $pipelineRoot 'entrypoints\MediaPipeline.ps1'
+$runtimeConfigPath = Join-Path $projectRoot 'ops\pipeline\engine\config\runtime_config.ps1'
+$runtimePathsPath  = Join-Path $projectRoot 'ops\pipeline\engine\config\runtime_paths.ps1'
 
 $missing = @()
 foreach ($tool in @(
@@ -116,6 +118,45 @@ $workRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("mp-cfgres-" + [guid]::
 $prevMutexSuffix = $env:MEDIA_PIPELINE_TEST_MUTEX_SUFFIX
 New-Item -ItemType Directory -Path $workRoot -Force | Out-Null
 try {
+    # ---- Static contract: every runtime assignment has a dump disposition ---
+    try {
+        $runtimeConfigSource = Get-Content -LiteralPath $runtimeConfigPath -Raw
+        $runtimePathsSource = Get-Content -LiteralPath $runtimePathsPath -Raw
+        $assignedNames = @(
+            [regex]::Matches($runtimeConfigSource, '(?m)^\s*\$script:([A-Za-z][A-Za-z0-9_]*)\s*=') |
+                ForEach-Object { $_.Groups[1].Value } |
+                Sort-Object -Unique
+        )
+        $dumpListMatch = [regex]::Match(
+            $runtimePathsSource,
+            '(?s)\$names\s*=\s*@\((.*?)\)\s*\|\s*Sort-Object\s+-Unique'
+        )
+        Assert-True $dumpListMatch.Success 'could not locate the resolved-config dump name registry'
+        $dumpNames = @(
+            [regex]::Matches($dumpListMatch.Groups[1].Value, "'([A-Za-z][A-Za-z0-9_]*)'") |
+                ForEach-Object { $_.Groups[1].Value } |
+                Sort-Object -Unique
+        )
+        $explicitDispositions = [ordered]@{
+            ActiveOverrides = 'internal runtime overlay metadata, not a config value'
+            CurrentSizePolicyResult = 'transient per-item policy result'
+            LastQualityVerification = 'transient per-item verification result'
+            ShowOverrides = 'emitted as stable ShowOverrides_Keys projection'
+        }
+        $undisposedNames = @(
+            $assignedNames |
+                Where-Object { $_ -notin $dumpNames -and -not $explicitDispositions.Contains($_) }
+        )
+        $staleDispositions = @(
+            $explicitDispositions.Keys |
+                Where-Object { $_ -notin $assignedNames }
+        )
+        Assert-True ($undisposedNames.Count -eq 0) "runtime assignments missing dump disposition: $($undisposedNames -join ', ')"
+        Assert-True ($staleDispositions.Count -eq 0) "stale runtime dump dispositions: $($staleDispositions -join ', ')"
+        Assert-True ($runtimePathsSource -match '\$dump\[''ShowOverrides_Keys''\]') 'ShowOverrides key-only dump projection is missing'
+        Write-Host "PASS [P] runtime assignment/dump disposition parity ($($assignedNames.Count) assignments)"
+    } catch { Write-Host "FAIL [P] $_"; $failures++ }
+
     # ---- Scenario A: reserved-key guard + cross-key defaults -----------------
     $a = New-FixtureConfig -WorkRoot (Join-Path $workRoot 'A')
     $cfgA = $a.Config
@@ -124,6 +165,28 @@ try {
     $cfgA.Remove('FFmpegCpuEncodeTimeoutSeconds') | Out-Null
     $cfgA['MinFreeSpaceGB'] = 7
     $cfgA['OutsourceMinFreeSpaceGB'] = 0           # should fall back to MinFreeSpaceGB (7)
+    $expectedRestoredDumpValues = [ordered]@{
+        AllowSubtitleHelperFallback = $true
+        InterruptedToolLogRetentionDays = 9
+        ConsecutiveRoundFailureBlockLimit = 13
+        ConsecutiveRoundFailureProbeBackoffSeconds = 901
+        PendingPublishBacklogBlockThreshold = 101
+        PendingPublishDeferredBlockThreshold = 26
+        PendingPublishDrainBatchSize = 101
+        PauseFlagReviewSeconds = 1801
+        PauseFlagBlockSeconds = 21601
+        LocalWorkerHeartbeatGraceSeconds = 901
+        QueueExecutionMaxRunnablePerRound = 501
+        QueueLaunchSnapshotFreshnessSeconds = 61
+        StateDbMaintenanceIntervalSeconds = 21601
+        StateDbWalReviewBytes = 33554433
+        StateDbCompletedJobsMaxRows = 250001
+        PendingPublishDrainMode = 'trusted'
+        PipelineDebugLogMaxBytes = 104857601
+    }
+    foreach ($entry in $expectedRestoredDumpValues.GetEnumerator()) {
+        $cfgA[$entry.Key] = $entry.Value
+    }
     $cfgPathA = Join-Path $workRoot 'configA.psd1'
     $dumpA    = Join-Path $workRoot 'dumpA.json'
     Write-FixtureConfig -Config $cfgA -Path $cfgPathA
@@ -140,8 +203,13 @@ try {
             Assert-True ([int]$d.FFmpegEncodeTimeoutSeconds -eq 1000) "FFmpegEncodeTimeoutSeconds expected 1000, got $($d.FFmpegEncodeTimeoutSeconds)"
             Assert-True ([long]$d.AutonomyPendingTotalReviewBytes -eq 107374182400) "AutonomyPendingTotalReviewBytes expected 107374182400, got $($d.AutonomyPendingTotalReviewBytes)"
             Assert-True ([long]$d.AutonomyPendingTotalBlockBytes -eq 268435456000) "AutonomyPendingTotalBlockBytes expected 268435456000, got $($d.AutonomyPendingTotalBlockBytes)"
+            foreach ($entry in $expectedRestoredDumpValues.GetEnumerator()) {
+                $actual = $d.PSObject.Properties[$entry.Key].Value
+                Assert-True ($null -ne $d.PSObject.Properties[$entry.Key]) "effective dump is missing $($entry.Key)"
+                Assert-True ($actual -eq $entry.Value) "$($entry.Key) expected '$($entry.Value)', got '$actual'"
+            }
             Assert-True (@($d.PSObject.Properties.Name).Count -ge 99) "dump field count too low: $(@($d.PSObject.Properties.Name).Count)"
-            Write-Host "PASS [A] reserved-key guard + cross-key defaults"
+            Write-Host "PASS [A] reserved-key guard + cross-key defaults + restored diagnostic values"
         } catch { Write-Host "FAIL [A] $_"; $failures++ }
     }
 

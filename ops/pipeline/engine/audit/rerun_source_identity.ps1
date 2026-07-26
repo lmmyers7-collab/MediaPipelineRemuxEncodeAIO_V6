@@ -135,6 +135,33 @@ function Get-RerunSourceSampleHash {
     }
 }
 
+function Get-RerunContentSha256 {
+    param([Parameter(Mandatory)] [string]$Path)
+    $stream = $null
+    $sha = $null
+    try {
+        # Deny writers while the full-content digest is being read so the hash
+        # represents one stable byte sequence. The caller supplies the hard
+        # timeout by running this helper inside a killable probe job.
+        $stream = [System.IO.FileStream]::new(
+            $Path,
+            [System.IO.FileMode]::Open,
+            [System.IO.FileAccess]::Read,
+            [System.IO.FileShare]::Read,
+            4MB,
+            [System.IO.FileOptions]::SequentialScan
+        )
+        $sha = [System.Security.Cryptography.SHA256]::Create()
+        return -join ($sha.ComputeHash($stream) | ForEach-Object { $_.ToString('x2') })
+    } catch {
+        Write-RerunIdentityLog "Full source SHA-256 failed for $Path : $_" "WARN"
+        return ''
+    } finally {
+        if ($stream) { $stream.Dispose() }
+        if ($sha) { $sha.Dispose() }
+    }
+}
+
 function Get-RerunSourceIdentityV2 {
     param(
         [System.IO.FileInfo]$FileInfo,

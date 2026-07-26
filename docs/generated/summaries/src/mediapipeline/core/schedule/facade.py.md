@@ -1,5 +1,8 @@
 ---
 file: src/mediapipeline/core/schedule/facade.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: schedule
@@ -11,7 +14,7 @@ sha256: 9456d5f69e1acc500caec8807c16db6a9d6483ea5f140ac957caf612d5e582a0
 
 **Purpose:** Schedule workspace facade adapter.
 
-**Classes:** `ScheduleFacadeMixin`
+**Public symbols:** `ScheduleFacadeMixin`
 **In-repo imports:** `mediapipeline.core.kernel.dto_base`, `mediapipeline.core.kernel.dto_commands`, `mediapipeline.core.kernel.dto_workspaces`, `mediapipeline.core.schedule.policy`, `mediapipeline.core.schedule.stop_watcher`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/schedule/facade.py`._

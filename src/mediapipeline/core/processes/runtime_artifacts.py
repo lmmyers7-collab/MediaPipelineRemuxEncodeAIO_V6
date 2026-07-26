@@ -11,6 +11,7 @@ class ResolvedRuntimePaths(Protocol):
     progress_file: Path | None
     pause_flag: Path | None
     stop_flag: Path | None
+    stop_after_current_flag: Path | None
     rescan_flag: Path | None
     audit_reports_path: Path | None
 
@@ -60,18 +61,20 @@ def runtime_artifact_specs(
         add("legacy pipeline progress", progress_expected[1], progress_expected)
 
         control_specs = (
-            ("pause flag", "pipeline_pause.flag", resolved.pause_flag),
-            ("stop flag", "pipeline_stop.flag", resolved.stop_flag),
-            ("rescan flag", "pipeline_rescan.flag", resolved.rescan_flag),
+            ("pause flag", "pipeline_pause.flag", resolved.pause_flag, True),
+            ("stop flag", "pipeline_stop.flag", resolved.stop_flag, True),
+            ("stop after current flag", "pipeline_stop_after_current.flag", resolved.stop_after_current_flag, False),
+            ("rescan flag", "pipeline_rescan.flag", resolved.rescan_flag, True),
         )
-        for label, filename, target in control_specs:
+        for label, filename, target, allow_legacy in control_specs:
             expected = [
                 pipeline_root / filename if pipeline_root else None,
-                local_base / filename if local_base else None,
+                local_base / filename if local_base and allow_legacy else None,
             ]
             add(label, target, expected)
             add(label, expected[0], expected)
-            add(f"legacy {label}", expected[1], expected)
+            if allow_legacy:
+                add(f"legacy {label}", expected[1], expected)
 
     if include_audit:
         audit_expected = [local_base / "AuditReports" / "audit_progress.json" if local_base else None]

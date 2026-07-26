@@ -4,9 +4,10 @@ This folder is the operator evidence anchor for representative real-media
 validation. Detailed worksheets may contain personal source/output paths, so
 release packaging can exclude run-specific files from this folder.
 
-## Current status
+## Historical baseline status
 
-- Status: complete by operator attestation.
+- Status: complete by operator attestation for the 2026-05-28 baseline. This
+  does not satisfy the newer recurring rerun gate described below.
 - Attested date: 2026-05-28.
 - Covered categories: remux, encode/size policy, subtitle conversion, audio
   policy, and pending-publish/final-placement behavior.
@@ -25,9 +26,10 @@ release packaging can exclude run-specific files from this folder.
 - Scratch-only post-move validation covers forced encode/size policy, subtitle
   conversion, audio evidence, deferred pending publish, drain, and rename-output
   safety without processing the original real source directly.
-- The legacy-removal gate is closed in `docs/OPEN_WORK_CHECKLIST.md`: `Pipeline\Modules`
-  is no longer an active module surface, and active PowerShell implementations
-  live under `ops\pipeline\engine\<domain>`.
+- The legacy-removal gate is historically closed: `Pipeline\Modules` is no
+  longer an active module surface, and active PowerShell implementations live
+  under `ops\pipeline\engine\<domain>`. Closure history is indexed from
+  `docs/ARCHIVED_MD_INDEX.md`; it is no longer carried as active checklist work.
 
 See `post-module-move-evidence-2026-05-29.md` for the non-sensitive local
 evidence summary.

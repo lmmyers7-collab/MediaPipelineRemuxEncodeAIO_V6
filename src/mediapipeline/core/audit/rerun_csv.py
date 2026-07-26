@@ -21,6 +21,8 @@ RERUN_CSV_COLUMNS = (
     "source_size",
     "source_mtime_utc",
     "source_identity_v2",
+    "source_content_sha256",
+    "source_content_sha256_algorithm",
     "priority_fix_level",
     "effective_bucket",
     "primary_issue_code",
@@ -40,10 +42,22 @@ _MOVIE_NOISE_RE = re.compile(
     r")\b",
     re.IGNORECASE,
 )
+_FULL_CONTENT_SHA256_RE = re.compile(r"^[0-9a-f]{64}$", re.IGNORECASE)
+FULL_CONTENT_SHA256_ALGORITHM = "sha256-full-file"
 
 
 def _clean_text(value: Any) -> str:
     return str(value or "").strip()
+
+
+def normalize_source_content_sha256(value: Any) -> str:
+    normalized = _clean_text(value).casefold()
+    return normalized if _FULL_CONTENT_SHA256_RE.fullmatch(normalized) else ""
+
+
+def normalize_source_content_sha256_algorithm(value: Any) -> str:
+    normalized = _clean_text(value)
+    return FULL_CONTENT_SHA256_ALGORITHM if normalized == FULL_CONTENT_SHA256_ALGORITHM else ""
 
 
 def _mapping_value(row: Mapping[str, Any], *names: str) -> Any:
@@ -207,6 +221,18 @@ def build_rerun_csv_row(
     source_path = record.path
     if not source_path:
         return None
+    content_sha256 = normalize_source_content_sha256(
+        audit_row_value(record, "source_content_sha256", "SourceContentSha256")
+    )
+    content_sha256_algorithm = normalize_source_content_sha256_algorithm(
+        audit_row_value(
+            record,
+            "source_content_sha256_algorithm",
+            "SourceContentSha256Algorithm",
+        )
+    )
+    if not content_sha256_algorithm:
+        content_sha256 = ""
     return {
         "enabled": "true",
         "source_path": str(source_path),
@@ -221,6 +247,8 @@ def build_rerun_csv_row(
         "source_size": "",
         "source_mtime_utc": "",
         "source_identity_v2": audit_row_value(record, "source_identity_v2", "SourceIdentityV2"),
+        "source_content_sha256": content_sha256,
+        "source_content_sha256_algorithm": content_sha256_algorithm,
         "priority_fix_level": record.priority_fix_level,
         "effective_bucket": record.effective_bucket,
         "primary_issue_code": record.primary_issue_code,
@@ -233,14 +261,33 @@ def build_rerun_csv_row(
 def apply_rerun_source_metadata(row: dict[str, str], metadata: dict[str, Any] | None) -> dict[str, str]:
     updated = dict(row)
     if not metadata:
+        updated["enabled"] = "false"
+        append_rerun_note(updated, "source metadata failed: metadata unavailable; automatic rerun disabled")
         return updated
     updated["source_size"] = str(metadata.get("source_size") or "")
     updated["source_mtime_utc"] = str(metadata.get("source_mtime_utc") or "")
     if not updated["source_identity_v2"]:
         updated["source_identity_v2"] = str(metadata.get("source_identity_v2") or "")
+    source_content_sha256 = normalize_source_content_sha256(metadata.get("source_content_sha256"))
+    source_content_sha256_algorithm = normalize_source_content_sha256_algorithm(
+        metadata.get("source_content_sha256_algorithm")
+    )
+    if not source_content_sha256_algorithm:
+        source_content_sha256 = ""
+    updated["source_content_sha256"] = source_content_sha256
+    updated["source_content_sha256_algorithm"] = source_content_sha256_algorithm
     if not bool(metadata.get("exists", False)):
         updated["enabled"] = "false"
-        updated["notes"] = f"source metadata failed: {metadata.get('error') or 'source unavailable'}"
+        append_rerun_note(updated, f"source metadata failed: {metadata.get('error') or 'source unavailable'}")
+    elif not source_content_sha256:
+        updated["enabled"] = "false"
+        if not source_content_sha256_algorithm:
+            append_rerun_note(
+                updated,
+                "source metadata failed: full-content SHA-256 algorithm must be sha256-full-file",
+            )
+        else:
+            append_rerun_note(updated, "source metadata failed: full-content SHA-256 is missing or invalid")
     return updated
 
 

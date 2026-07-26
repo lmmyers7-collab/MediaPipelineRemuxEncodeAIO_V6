@@ -1,12 +1,16 @@
 # Extracted from ops/pipeline/engine/probe/media_probe.ps1. Responsibility: duration and compatibility report rendering
 
 function Get-MediaDuration {
-    param([string]$FilePath)
+    param(
+        [string]$FilePath,
+        [scriptblock] $PollHandler = $null,
+        [int] $PollMilliseconds = 100
+    )
     if (-not (Test-Path -LiteralPath $FilePath)) { return 0.0 }
     $r = Invoke-FFprobeCommand -ArgumentList @(
         "-v","error","-show_entries","format=duration",
         "-of","default=noprint_wrappers=1:nokey=1","--",$FilePath
-    ) -TimeoutSeconds 30 -Stage 'media-duration'
+    ) -TimeoutSeconds 30 -Stage 'media-duration' -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds
     if ($r.ExitCode -ne 0) { return 0.0 }
     $d = 0.0
     if ([double]::TryParse($r.Output.Trim(), [ref]$d)) { return $d }
@@ -16,7 +20,9 @@ function Get-MediaDuration {
 function Get-PrimaryAVEndTime {
     param(
         [string]$FilePath,
-        [int]$TimeoutSeconds = 180
+        [int]$TimeoutSeconds = 180,
+        [scriptblock] $PollHandler = $null,
+        [int] $PollMilliseconds = 100
     )
 
     if (-not (Test-Path -LiteralPath $FilePath)) { return 0.0 }
@@ -30,7 +36,7 @@ function Get-PrimaryAVEndTime {
             '-show_entries', 'packet=pts_time',
             '-of', 'csv=p=0',
             '--', $FilePath
-        ) -TimeoutSeconds $TimeoutSeconds -Stage 'primary-av-end-time'
+        ) -TimeoutSeconds $TimeoutSeconds -Stage 'primary-av-end-time' -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds
 
         if ($probe.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($probe.Output)) {
             continue
@@ -64,10 +70,12 @@ function Test-DurationMatch {
         [string]$OutputPath,
         [double]$ToleranceSeconds = 1.0,
         [string]$Label = "ENCODE",
-        [switch]$AllowAVFallback
+        [switch]$AllowAVFallback,
+        [scriptblock] $PollHandler = $null,
+        [int] $PollMilliseconds = 100
     )
-    $srcDur = Get-MediaDuration $SourcePath
-    $outDur = Get-MediaDuration $OutputPath
+    $srcDur = Get-MediaDuration -FilePath $SourcePath -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds
+    $outDur = Get-MediaDuration -FilePath $OutputPath -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds
     if ($srcDur -le 0) {
         Write-Log "${Label}: source duration probe failed - treating verification as failed" "ERROR"
         return $false
@@ -79,8 +87,8 @@ function Test-DurationMatch {
     $delta = [math]::Abs($srcDur - $outDur)
     if ($delta -gt $ToleranceSeconds) {
         if ($AllowAVFallback) {
-            $srcAvEnd = Get-PrimaryAVEndTime -FilePath $SourcePath
-            $outAvEnd = Get-PrimaryAVEndTime -FilePath $OutputPath
+            $srcAvEnd = Get-PrimaryAVEndTime -FilePath $SourcePath -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds
+            $outAvEnd = Get-PrimaryAVEndTime -FilePath $OutputPath -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds
 
             if ($srcAvEnd -gt 0 -and $outAvEnd -gt 0) {
                 $avDelta = [math]::Abs($srcAvEnd - $outAvEnd)
@@ -190,14 +198,16 @@ function Write-OutputSummary {
 function Write-PlexCompatibilityReport {
     param(
         [string]$FilePath,
-        [string]$Context = ''
+        [string]$Context = '',
+        [scriptblock] $PollHandler = $null,
+        [int] $PollMilliseconds = 100
     )
 
     $probe = Invoke-FFprobeCommand -ArgumentList @(
         "-v","error",
         "-show_entries","stream=index,codec_name,codec_type,disposition:stream_tags=language,title",
         "-of","json","--",$FilePath
-    ) -TimeoutSeconds 45 -Stage 'plex-compatibility-probe'
+    ) -TimeoutSeconds 45 -Stage 'plex-compatibility-probe' -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds
     if ($probe.ExitCode -ne 0) {
         Write-Log "${Context}PLEX CHECK: ffprobe failed for compatibility summary" "WARN"
         return

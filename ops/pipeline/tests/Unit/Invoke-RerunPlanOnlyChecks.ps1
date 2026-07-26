@@ -63,7 +63,7 @@ Assert-Match $rerunScriptText 'RERUN_OUTPUT_EVIDENCE_MISSING' 'Unverified rerun 
 Assert-Match $rerunScriptText 'RERUN_OUTPUT_AMBIGUOUS' 'Ambiguous rerun output needs a stable operator-facing error code.'
 Assert-False ($rerunScriptText -match "(?s)`$plan\.status = 'parked'\s+`$plan\.failure_code = 'RERUN_OUTPUT_MISSING'") 'Missing planned output must not be classified as parked.'
 Assert-False ($rerunScriptText -match "(?s)`$plan\.status = 'parked'\s+`$plan\.failure_code = 'RERUN_OUTPUT_EMPTY'") 'Empty planned output must not be classified as parked.'
-Assert-True ($rerunScriptText.Contains('if ($pipelineExitFailures -gt 0 -or $failed -gt 0) { exit 1 }')) 'Rerun process exit must fail when failed rows remain.'
+Assert-True ($rerunScriptText.Contains('if ($terminalBlockers -gt 0) { exit 1 }')) 'Rerun process exit must fail when failed, review, pipeline-exit, or unfinished rows remain.'
 Assert-Match $rerunScriptText 'function Resolve-RerunSourcePath' 'CSV source path resolver is missing.'
 Assert-Match $rerunScriptText 'function Test-RerunSourcePathFullyQualified' 'CSV source path absolute-path guard is missing.'
 Assert-Match $rerunScriptText 'relative source_path:' 'Relative CSV source_path failure text is missing.'
@@ -194,6 +194,28 @@ try {
 enabled,source_path,media_kind,stage_mode,post_success_original,return_mode
 true,"$source",Movie,copy,keep,park
 "@ | Set-Content -LiteralPath $csv -Encoding UTF8
+
+    # Source-mutating robocopy flags must be rejected during config loading,
+    # before PlanOnly can report a safe plan or create any request artifacts.
+    $unsafeConfig = Join-Path $root 'unsafe-robocopy-config.psd1'
+    @"
+@{
+    LocalBase = '$escapedRoot\UnsafeLocal'
+    Outsource = '$escapedRoot\UnsafeOut'
+    OutputContainer = 'mkv'
+    CreateTVSubfolder = `$true
+    AggressiveEpisodeParsing = `$true
+    ValidExtensions = @('.mkv')
+    PriorityMarkers = @('!')
+    RobocopyFlags = @('/J', ' /MoVe ', '/R:0')
+}
+"@ | Set-Content -LiteralPath $unsafeConfig -Encoding UTF8
+    $unsafeFlagResult = Invoke-RerunPlanOnlyCase -CsvPath $csv -ConfigPath $unsafeConfig
+    Assert-True ($unsafeFlagResult.ExitCode -ne 0) 'PlanOnly accepted a source-mutating robocopy flag.'
+    Assert-Match $unsafeFlagResult.Output 'destructive robocopy flag' 'PlanOnly did not report the source-mutating robocopy flag rejection.'
+    Assert-False (Test-Path -LiteralPath (Join-Path $root 'UnsafeLocal') -ErrorAction SilentlyContinue) 'Unsafe PlanOnly validation created LocalBase.'
+    Assert-False (Test-Path -LiteralPath (Join-Path $root 'UnsafeOut') -ErrorAction SilentlyContinue) 'Unsafe PlanOnly validation created Outsource.'
+    Assert-False (Test-Path -LiteralPath (Join-Path $root 'UnsafeLocal_RerunWorkspace') -ErrorAction SilentlyContinue) 'Unsafe PlanOnly validation created a rerun workspace.'
 
     $result = Invoke-RerunPlanOnlyCase -CsvPath $csv -ConfigPath $config
     $output = $result.Output

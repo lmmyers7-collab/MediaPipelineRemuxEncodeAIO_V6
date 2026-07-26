@@ -1,139 +1,108 @@
 # Open Work Checklist
 
-> **Generated:** 2026-05-19 by full scan of all non-archived Markdown files; reconciled 2026-05-20 after stale-gate review; refreshed 2026-05-30 after legacy-surface cleanup and operator-confirmed default-launcher promotion; refreshed 2026-06-19 after a source/docs audit of reopened remediation work; refreshed 2026-06-26 after GitHub audit/security follow-up disposition.
-> **Sources:** archived housekeeping and transition-review evidence under `docs/archive/docs-housekeeping/2026-05-20-review/`, `docs/testing/TEST_COVERAGE_MATRIX.md`, `docs/testing/VALIDATION_LADDER_RUNBOOK.md`, `docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md`, `docs/inventories/RENAME_SAFETY_TEST_INVENTORY.md`, `docs/inventories/PENDING_PUBLISH_FIXTURE_INVENTORY.md`, `docs/inventories/RELEASE_PACKAGE_ADMIN_INVENTORY.md`, `docs/architecture/SETTINGS_RAW_KEY_TRIAGE.md`, `docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md`, `docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md`, `docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md`, `docs/reviews/function-module-audit-2026-06-11/FINDINGS_REGISTER.md`, `docs/reviews/network-coordinator-worker-mode-2026-06-15/FINDINGS_REGISTER.md`, and `docs/REMEDIATION_CHANGELOG.md`.
-> **Excludes:** `docs/archive/`, config backups, run logs.
+Last audited: 2026-07-20
 
----
+This file contains only unresolved implementation work and recurring release
+gates. Completed work is historical evidence, not backlog. See `CHANGELOG.md`,
+`docs/architecture/DECISIONS_AND_HISTORY.md`, `docs/ARCHIVED_MD_INDEX.md`,
+the compact `docs/REMEDIATION_CHANGELOG.md` history index, and
+`ops/release/changes/` for closed detail.
 
-## P0 — Closed Promotion Gates
+## Open / Partial Implementation Work
 
-No P0 promotion gates remain unresolved. Local source/dev gates are tracked as closed below unless a later scan reopens them.
+- [ ] **Encoder breadth and AV1** — Descriptor-owned H.264, HEVC, and AV1
+  planning/fallback behavior exists. Literal `av1_nvenc` is active for
+  `EncoderBackend=auto|nvenc` only after exact encoder-list and runtime probes;
+  the current RTX 5080 host passed one-frame and synthetic SDR/HDR10 topology
+  checks. Before AV1/NVENC is daily-driver safe, run representative-media
+  validation for HDR side data, playback, subtitle/audio/chapter parity,
+  quality, and size. QSV and AMF remain fail-closed and require separate
+  descriptor, runtime, and real-media activation work. Plan:
+  `docs/implementation/encoder-breadth-av1-plan.md`.
 
-- [x] **Backend shutdown safety** — Reconciled as complete: `/api/backend/shutdown` now returns `ok: false` and does not request shutdown when close-readiness is unsafe, including an armed schedule-stop watcher; WebView shutdown stays disabled until backend close-readiness is safe. Validation on 2026-05-19: lifecycle smoke, route inventory, and contract payload tests passed. Source: `REMEDIATION_CHANGELOG.md` row "Shutdown fail-closed" plus 2026-05-19 stale-blocker reconciliation.
+- [ ] **Further Python stage mutation expansion (separately gated)** — The
+  dispatcher intentionally stops at read-only `probe`/`decide`, guarded
+  source-to-scratch `ingest`, scratch-only single-file `rename`, and standalone
+  scratch ASS/SSA-to-SRT `subtitle-convert`. PowerShell remains the production
+  media engine. `transcode`, `audio-mix`, `publish`, and `drain` stay disabled
+  until they reach production-policy, transaction/recovery, journal, trusted
+  root, and representative-media parity. Decision: PI-002 in
+  `docs/architecture/DECISIONS_AND_HISTORY.md`.
 
-- [x] **Queue priority route contract** — Reconciled as complete: `GET/POST /api/queue/priority` remain active, are documented in route inventory and ownership map, are present in read/command contracts, and are covered by source-scope/journaling tests. Validation on 2026-05-19: route inventory, contract payload, and focused Local API queue state route tests passed. Source: `REMEDIATION_CHANGELOG.md` row "Queue contract/source scope" plus 2026-05-19 stale-blocker reconciliation.
+- [ ] **WebView flat-export cleanup** — Namespace-first access is guarded, but
+  the authoritative generated inventory still reports 532 flat `window.*`
+  assignments across 235 files. Reduce them opportunistically by touched page
+  or domain with matching static and browser evidence; do not run an unbounded
+  compatibility purge. Inventory:
+  `docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md`.
 
-- [x] **PowerShell reliability regression** — Reconciled as complete: queue priority phase contract and deferred-publish drain smoke are restored. Validation on 2026-05-19: `Invoke-ReliabilityRegressionChecks.ps1` passed and `Invoke-EndToEndSmokeChecks.ps1` passed. Current validation uses `Invoke-ReliabilityRegressionChecks.ps1` as the active WebView/backend compatibility wrapper, with archived legacy desktop-shell checks available only through `-RunLegacyDesktopChecks`. Source: archived reconciliation evidence for queue plan reliability and end-to-end smoke restoration plus 2026-05-19 stale-blocker reconciliation.
+- [ ] **#15 Linux GTK `glib` Dependabot alert** — Still blocked upstream as of
+  2026-07-12. Tauri/Wry currently retains Linux-only GTK 0.18 and `glib` 0.18;
+  forcing `glib >= 0.20` is incompatible. This does not affect the Windows
+  WebView2 application, but it blocks safe Linux GTK/WebKit packaging. Recheck
+  after upstream Tauri/Wry/GTK movement, before adding Linux packaging, or by
+  2026-08-07, whichever comes first. Evidence:
+  `docs/inventories/RELEASE_DEPENDENCY_REVIEW.md`.
 
-- [x] **Package-mode/default-launcher validation** — Closed on 2026-05-30 by operator confirmation. WebView/Tauri is promoted as the default launcher; future launcher, package, Tauri, or Local API changes still require package/open/close validation. Source: operator confirmation plus `VALIDATION_LADDER_RUNBOOK.md` and `RELEASE_PACKAGE_ADMIN_INVENTORY.md`.
+## Recurring Validation Gates
 
-- [x] **Real-media validation playbook** — Closed on 2026-05-28 by operator attestation. Representative real-media validation covered remux, encode/size policy, subtitle conversion, audio policy, and pending-publish/final-placement behavior. `docs/RealMediaValidationRuns/README.md` records the non-sensitive status anchor; detailed run worksheets may remain local or excluded from release packaging when they contain personal paths. Re-run this validation after any FFmpeg/media-policy, subtitle, audio, publish/drain, source/scratch/output movement, or cleanup behavior change.
+- [ ] **Representative real-media rerun** — Required after Dynamic HDR,
+  encoder/media policy, subtitle, audio, publish/drain, source/scratch/output
+  movement, cleanup, or other high-risk execution changes. The 2026-07-11
+  attempt (MP-CHANGE-2026-0711-010) stopped before materialization because all
+  15 checked-in Policy Proof catalog hashes are placeholders, the external
+  fixture root is absent, and `policy_proof_sources.json` is not provisioned.
+  This gate also carries the newer Run Once monitor's representative
+  multi-track/remux/encode/worker/source-unchanged/scratch-copy proof, broader
+  Dolby profile and playback-device HDR10+ checks, and relevant Windows/UNC
+  filesystem stress when file-handling behavior changes. Prerequisites and
+  commands: `docs/RealMediaValidationRuns/README.md`.
 
----
+  Latest accepted evidence remains reachable there: broad media-policy proof
+  MP-CHANGE-2026-0622-001 (92 cases, 76 ffprobe-verified published outputs,
+  92/92 source hashes unchanged), multi-video proof MP-CHANGE-2026-0622-003,
+  Dolby Vision P8.1 proof MP-CHANGE-2026-0622-004, and HDR10+ metadata proof
+  MP-CHANGE-2026-0622-007. Those runs are historical baselines, not proof for
+  later high-risk changes.
 
-## High — Closed Local Legacy / Packaging Work
-
-- [x] **Legacy surface removal gate** — Closed on 2026-05-29 for the local legacy surface cleanup: config-schema compatibility files, former command-payload adapters, flat Python facades/services, root launcher shims, `Pipeline` root launcher shims, and `Pipeline\Modules` are removed or empty, with active implementations under `src\mediapipeline\core\<domain>`, desktop adapters under `src\mediapipeline\desktop`, and PowerShell implementation under `ops\pipeline\engine\<domain>`. Post-deletion validation covered active-reference cleanup, full source release wrapper validation, copied package-mode Tauri launch/close, Local API health plus WebView open, and fresh representative real-media validation for remux, encode/size, subtitles, audio, deferred pending publish, drain, and rename-output safety. Guardrails still block reintroducing old root launcher shim names and new dotted `Pipeline\Modules` files.
-
-- [x] **Rename undo manifest state-root cleanup** — New rename undo manifests now resolve under `State\RenameUndo` when service state or app root is available; focused rename tests passed. Source: archived reconciliation evidence for rename undo state-root safety cleanup.
-
-- [x] **Rename safety test gaps** — Closed with backend-side duplicate-destination blocking for every colliding planned row plus Local API `rename.apply` absent/false `confirm_apply` rejection coverage that verifies no rename mutation occurs. Files: `service_rename_planner.py`, `test_service_rename_planner.py`, `test_application_facade_local_api.py`, `RENAME_SAFETY_TEST_INVENTORY.md`.
-
-- [x] **Pending publish module ownership** — `MODULE_MAP.md`, pending-publish fixture inventory, and focused PowerShell guards now document/test parked media-plus-sidecars and backend-owned drain safety. Source: archived reconciliation evidence for pending publish safety guardrails and ownership boundary coverage.
-
-- [x] **Dashboard command-surface drift** — Reconciled as complete: the rendered Home/Dashboard page does not expose pipeline start or pending-drain command controls, while it does expose backend-owned Pause/Resume, Stop After Current, and Force Stop shortcuts through the existing `/api/pipeline/control` command surface. Launch remains the owner for starting work and full readiness detail, and Pending Publish remains the owner for pending-drain commands. `test_application_facade_web_static.py` pins this command-surface boundary.
-
-- [x] **Evidence panel type violations and H1 title drift** — Closed with rendered WebView static checks: all panels declare `data-panel-type="evidence"` or `data-panel-type="interactive"`, evidence panels contain no buttons, and all 13 rendered page H1 titles match the canonical design-reference page titles.
-
-- [x] **No adversarial duplicate-instance test** — Closed with a process-launch facade test that starts one pipeline, simulates the first child process still running from the same bundle, then verifies the second pipeline start is rejected and the service launcher is not called again. Source: `TEST_SUITE_SUBSYSTEM_INVENTORY.md`.
-
----
-
-## Medium — Closed Pre-Package / Wave Work
-
-- [x] **WebView advisory logic duplicates backend policy** — Settings/Launch frontend risk helpers are now labelled/tested as advisory-only; backend Preview/Save and Launch validation remain authoritative. Source: archived reconciliation evidence for frontend media-policy advisory boundary coverage.
-
-- [x] **Hardcoded server paths** — active audit and legacy GUI defaults no longer seed `\\LAYNE-SERVER\Video`; audit defaults derive from config source roots or fail clearly, with `Invoke-PortablePathChecks.ps1` guarding drift.
-
-- [x] **Analytics state in source folder** — encode-speed history now lives under `LocalBase\State\App`; stale app-root state was archived and `Invoke-RuntimeStateHygieneChecks.ps1` guards drift. Source: archived reconciliation evidence for runtime analytics state-root hygiene.
-
-- [x] **Unknown disk space should fail closed** — Reconciled as complete: `Test-DiskSpace` fails closed when free space is indeterminate, `Copy-FileRobocopy` refuses copy before robocopy/staging when destination free space is unknown, records `OUTPUT_DESTINATION_SPACE_UNKNOWN`, and publish completion parks verified local output as output-space deferred when possible. Source: archived reconciliation evidence for unknown destination space fail-closed copy preflight and current reliability-wrapper coverage.
-
-- [x] **Frontend readiness inference should move to backend DTOs** — Closed: `GET /api/launch/preflight` now publishes backend-authored `operator_readiness` (`desktop_launch_readiness.v1`) and the Launch readiness card/start-decision summary prefer that DTO; the old Launch inference is labelled frontend advisory fallback only. Diagnostics tail already returns backend `evidence_authority=backend` evidence and labels older/no-evidence text scans as frontend advisory only. Focused unit/static tests and the browser-backed Launch/Queue readiness smoke passed.
-
-- [x] **Repo artifact cleanup** — root log/jsonl captures and DesktopApp root API validation captures are ignored/guarded; stale root desktop log was archived under ignored `RunLogs`; active DesktopApp live log remains deferred while processes may own it. Source: archived reconciliation evidence for generated log hygiene guard.
-
-- [x] **Wave B code cleanup — completed for current Python/PowerShell scope** — Config-key constants are complete for the Python desktop host and PowerShell pipeline: `test_config_keys.py` guards Python schema/network/PowerShell-order alignment plus Network runtime, settings/media-policy, and package-wide registered-key raw lookup drift; and `Invoke-ConfigKeyRegistryChecks.ps1` guards PowerShell registry/order, PSD1 known-key coverage, and literal PowerShell config-reference drift. Current Python package code no longer has raw registered-key config lookups for keys in `ALL_CONFIG_KEYS`; legacy sample-validation aliases (`OutsourcePath`, `ServerOut`, `OutputRoot`) are isolated as compatibility-only names. `FailureCodes.ps1` now exposes a 37-code classifier registry plus a 119-code broader outcome registry with family, stage, when-fires, retryability, operator severity, handler, and operator-action metadata guarded by `Invoke-FailureCodeRegistryChecks.ps1`. `service_runner_protocols.py` now types path/config/audit-rerun, process lifecycle, queue, rename, and status runner boundaries, and low-level process logger parameters use explicit logger Protocols. Application facade/DTO boundary modules now declare literal `__all__` lists guarded by `test_application_public_api.py`. A desktop-app scan no longer finds `service: Any`, `_service: Any`, `logger: Any`, or `run_capture_func: Any` signatures. JS namespace tiering remains deferred to the separate namespace/JSDoc/dead-export cleanup stream. Source: archived reconciliation evidence, `docs/REMEDIATION_CHANGELOG.md`, and the focused config/failure/protocol guard tests.
-
-- [x] **Adversarial force-kill during encode test** — Closed with `ops\pipeline\tests\Invoke-AdversarialForceKillEncodeChecks.ps1`: generated-media backend `-Once` run reaches CPU fallback encode, a byte-bearing `encode_temp_cpu_*.mkv` is observed, the PowerShell/FFmpeg process tree is force-killed, source hash is unchanged, no Outsource/local encoded/completed-manifest/pending-publish artifact is accepted, and the source remains in a backend-authored queue plan.
-
-- [x] **Settings raw-only high-priority keys** — `BdpgsOcrToolPath` and `BdpgsOcrTessdataPath` are now covered by the Subtitle Settings builder as staged text fields. The WebView still does not browse or resolve arbitrary paths; backend Preview/Save plus saved path evidence remain authoritative. Source: `SETTINGS_RAW_KEY_TRIAGE.md`.
-
----
-
-## Low — Acknowledged Deferred / Improvement Backlog
-
-- [x] **Wave C code cleanup — finite checklist scope closed** — Namespace object boundary comments are in place for all 29 `window.mediaPipeline* = { ... }` objects and guarded by `test_webview_inventory_docs.py`; the dead-export audit plus nine high-confidence flat-export removal chunks are complete, leaving 756 generated flat compatibility exports; completed god-file split waves now have focused child tests while parent facade/controller files serve fixture/import-boundary roles; and logging convention is complete. Remaining per-member JSDoc and medium-confidence flat-export decisions are intentionally opportunistic per touched module, not a standalone bulk cleanup mandate. No UI/backend/media behavior changed. Source: `docs/archive/docs-housekeeping/2026-06-04-completed-md-pass/audits/DEAD_EXPORT_AUDIT_2026-05-19.md`, `docs/architecture/LOGGING_CONVENTION.md`, archived reconciliation evidence, and `docs/REMEDIATION_CHANGELOG.md`.
-
-- [x] **Test god-file splits (Wave 5)** — Wave 5 test-file splits are complete; `test_application_facade.py` and `test_controllers.py` are now shared fixture/import-boundary modules with focused child test files. Full split history is quarantined at `docs\archive\docs-housekeeping\2026-05-20-review\archive-historical\docs\archive\completed-checklists\GOD_FILE_SPLIT_PLAN.md`.
-
-- [x] **Tauri production-hardening lifecycle** — Closed on 2026-05-19 for the WebView/Tauri shell: spawn/bootstrap resilience remains bounded, Tauri now emits backend health/crash lifecycle events, WebView renders a visible read-only recovery banner through an event-only Tauri bridge, a per-user Windows mutex rejects second Tauri shell instances before backend startup, ActiveJobs orphan reconciliation remains backend-owned and guarded, and `Test-TauriShell-ProductionSurface.ps1` checks no production devtools flags, no token-adjacent runtime logging, one dynamic main window, the single-instance guard, and event-only bridge posture. Representative real-media validation was later closed by operator attestation on 2026-05-28, and default-launcher promotion was closed by operator confirmation on 2026-05-30. Source: `TAURI_BACKEND_LIFECYCLE_BOUNDARY.md`.
-
-- [x] **Network page lifecycle controls** — Closed as a backend-owned route gate, not as frontend process ownership. WebView Network may call provider-guarded Local API routes for lifecycle dry-runs, confirmed lifecycle start/stop, worker test-connection, coordinator discovery, coordinator join-blob creation, and worker join import. `/api/contract` and `docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md` record the dry-run/cleanup/journal/source-policy gates, and static/API/browser tests prove the frontend does not implement lifecycle, claim, done-report, queue, settings-save, publish, rename, or media mutation logic directly.
-
-- [x] **Repair/reconcile mutation contract** — The contract surface is no longer design-only: `/api/contract` now defines backend dry-run and confirmed apply routes for selected Completed/Pending repairs, with explicit dry-run, rollback, source-file, route-exposure, fingerprint, and confirmation gates. WebView controls and remaining pending apply evidence gaps are tracked in the 2026-06-19 phased workstreams below. Source: `docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md` + archived active-fix evidence.
-
-- [x] **Settings builder for remaining raw-only keys** — `SubSDHTitleKeywords` and `SubSupplementalKeywords` are now covered by the Subtitle Settings builder as staged list fields. The WebView only stages list text; backend Preview/Save and backend subtitle classification remain authoritative. Auth tokens remain intentionally hidden. Source: `SETTINGS_RAW_KEY_TRIAGE.md`.
-
-- [x] **Active docs consolidation** — Closed on 2026-05-20. `docs/CURRENT_PROJECT_STATE.md` is the single current-state source, root `docs/OPEN_WORK_CHECKLIST.md` is the single active checklist, and the prior active-fix checklist, Tauri transition current plan, transition status board, and transition-review fix checklist bodies were quarantined under `docs/archive/docs-housekeeping/2026-05-20-review/archive-historical/docs/archive/historical-plans/` with compatibility redirect stubs left at their old paths. Source: archived housekeeping evidence.
-
-- [x] **UI improvement backlog** — Closed on 2026-05-20 for the active 23-item low-priority backlog. State-aware Launch controls, emergency topbar Force Stop, progress/status handling, WebView root-cause summaries, telemetry render diagnostics, status-chip/tooltips, and layout decisions are recorded in archived reconciliation evidence and `docs/REMEDIATION_CHANGELOG.md`; no active standalone UI-improvement checklist remains in `docs/ui/`.
-
-- [x] **Layout manager edge cases** — Closed on 2026-05-20. Stored page order now resets to authored default order when a page's panel-key set changes, so newly added panels are no longer appended below every stored panel; dragging an advanced-gated panel now shows a transient "Still gated" hint in the customize bar. Source: archived reconciliation evidence, `docs/REMEDIATION_CHANGELOG.md`, and guarded WebView layout-manager tests.
-
-- [x] **Housekeeping report archival** — Superseded housekeeping reports and delete candidates were quarantined under `docs\archive\docs-housekeeping\2026-05-20-review\`; active handoff guidance now lives in `README.md`, `AGENTS.md`, `docs\CURRENT_PROJECT_STATE.md`, and `docs\DOCS_INDEX.md`.
-
----
-
-## 2026-06-19 Phased Remediation Workstreams
-
-These rows are the active implementation worklist reopened by the 2026-06-19
-source/docs audit. They do not reopen the closed promotion gates above unless a
-future code change touches the matching validation gate.
-
-### Completed Elsewhere / No Active Implementation Work
-
-- [x] **Watch-folder auto-start** — Implemented through the desktop watch manager, Local API status route, Schedule/Settings WebView surfaces, config keys, and Python/WebView tests. Keep disabled-by-default scan behavior guarded during future changes.
-- [x] **Objective quality verification** — Implemented for VMAF/SSIM/PSNR with config keys, Settings UI, encode/publish sidecar evidence, PowerShell tests, and completed-policy coverage. Future threshold changes still need media-specific validation.
-- [x] **Settings raw-key cleanup** — Completed for the audited high-priority keys. Network auth tokens remain intentionally hidden/redacted rather than unfinished UI work.
-- [x] **Function/module audit disposition** — The 2026-06-11 findings register records 59 fixed findings, 2 deferred-with-reason findings, and 0 ready-to-fix findings. Deferred items are tracked below.
-- [x] **Historical real-media and package validation gates** — Representative real-media validation and default-launcher/package-mode promotion remain operator-attested complete for the validated behavior. They are recurring gates for future high-risk changes.
-- [x] **Sidecar overwrite fallback local fix** — Local implementation and unit coverage exist for overwrite fallback behavior. External Windows/UNC stress validation remains a future validation consideration for filesystem-risk changes.
-- [x] **Network review reconciliation and hardening** — Reconciled on 2026-06-19 in `docs/reviews/network-coordinator-worker-mode-2026-06-15/DISPOSITION_LEDGER.md`: all 14 P1, 19 P2, and 2 P3 findings are fixed by the 2026-06-15 network implementation batches plus current focused network/WebView tests. Future network lifecycle, coordinator/worker, auth, claim, done/release, join, or WebView route changes still require the network validation ladder.
-- [x] **#20 GitHub workflow hardening** — Closed on 2026-06-26: GitHub workflows now have explicit permissions where missing, CodeQL and drift-check `run:` blocks avoid direct GitHub-expression interpolation for dynamic values, private-beta release inputs are validated before use, and `check-github-audit-spine.ps1` guards the workflow hardening posture.
-- [x] **#22 Deep Audit CI runtime blocker** — Closed on 2026-06-26 by preserving strict package validation and provisioning the expected bundled Python runtime layout in CI release/package jobs via `ops/scripts/release/Initialize-CiPythonRuntime.ps1`. This avoids weakening `release/test.ps1` bundled-runtime checks.
-- [x] **#24 Ruff undefined-name and shim export findings** — Closed on 2026-06-26: the `F821/F822/F823` Ruff slice passes for `src` and `tests`, with missing type names resolved and desktop compatibility shim exports made visible to static analysis while retaining their compatibility `__all__` contract.
-- [x] **#25 Local API/network URL/WebView security findings** — Closed for the actionable 2026-06-26 batch: Local API static asset resolution now rejects percent-decoded traversal/backslash input, WebView API calls normalize to loopback Local API origins and reject non-`/api/` routes before `fetch`, and the dynamic glob regex path is pinned as escaped-before-regex by static coverage. Worker coordinator URL parsers remain valid operator endpoint validators; they reject userinfo, path, query, fragment, invalid ports, and listen addresses before backend lifecycle use.
-- [x] **#23 architecture guardrail baseline cleanup** — Closed on 2026-06-29 for `NO_CORE_TO_DESKTOP`: all ledger rows are migrated, strict `check_dependency_boundaries` reports zero core-to-desktop imports, the dependency-boundary allowlist has no entries for that rule, and the checker rejects future `NO_CORE_TO_DESKTOP` allowlist lines. Adjacent module/package cycles and config higher-level findings remain separate non-#23 maintenance debt.
-- [x] **Repair/reconcile operator surface** — Backend dry-run and confirmed apply routes exist for selected Completed/Pending repairs, while startup reconciliation remains dry-run only. Pending manifest repair can write backend-validated manifest-normalization candidates only, and the WebView has selected-row Pending Publish manifest repair, Pending Publish orphan-payload reconcile, plus Completed manifest reconciliation/sidecar metadata repair dry-run/apply controls with strict fingerprint and `confirm_apply=true` gating. Orphan-payload reconcile can create only the missing payload-adjacent pending manifest when the backend dry-run row already carries a complete validated `pending_push_manifest.v1` proposal; ordinary orphan rows remain blocked. Automated Local API/temp-fixture coverage proves Completed manifest and sidecar metadata apply routes are journaled as repair-only, write only their selected Completed manifest/sidecar state, and leave representative source/output/sidecar hashes unchanged; Pending manifest repair and orphan-payload apply are journaled as repair-only, write only backend-authorized manifest state, leave representative source/output/payload hashes plus the pending drain summary unchanged, and record no drain command. MP-CHANGE-2026-0622-005 closes the remaining deferred publish/drain validation gap with generated-runtime bridge evidence: orphan-payload apply creates only the backend-authorized pending manifest, leaves source/output/payload unchanged before drain, records only the repair command, and `MediaPipeline.ps1 -DrainPendingPushes` then publishes final output bytes, removes the parked payload/manifest, writes a successful drain summary, and leaves the source unchanged. Future publish/drain behavior changes still require the recurring validation gate.
-- [x] **Dynamic HDR preservation metadata proof** — Detection, warning, tool availability, config, sidecar evidence, a pure preserve/remux/review planner, and a pure encode-preservation decision resolver are implemented. `Do-Encode` honors Dynamic HDR policy routing before FFmpeg attempt planning, including fail-closed review behavior and guarded preserve-or-remux fallback. It can resolve MKV video track IDs from `mkvmerge -J`, extract Dolby Vision RPU/HDR10+ metadata evidence, resolve relative colon-free Dynamic HDR artifact paths, force CPU/libx265 encode with an explicit artifact working directory, enable FFmpeg native Dolby Vision coding for Dolby sources, pass guarded HDR10+ JSON parameters only to CPU HDR plans, and verify preservation-ready encoded output before publish. MP-CHANGE-2026-0622-004 proves Dolby Vision P8.1 preservation with the public Dolby Browser Test Kit source (`output_dovi_p81_preserved.mkv`, source/output RPU frame counts 1721/1721, source hash unchanged). MP-CHANGE-2026-0622-007 proves representative HDR10+ metadata preservation with the FFPictures Lake sample: source SHA256 unchanged, x265 HDR10+ capability available, output HDR10+ detected by `Test-DynamicHdrOutputPreservation`, and source/output extracted HDR10+ JSON hashes match (`3c7c9e988de07be5d98ecf1e8121ded6df89ac3bfe077157a9747720815690e0`). Playback-device HDR10+ indicator validation and broader untested Dolby profiles remain future recurring real-media gates, not claims from this automated metadata proof.
-
-### Open / Partial Implementation Work
-
-- [ ] **Encoder breadth and AV1** — Config/schema choices include AV1/QSV/AMF/libaom families, and Phase 0 encode-argument snapshots plus the Phase 1 HEVC/NVENC/libx265 descriptor parity scaffold are in place. H.264/NVENC primary SDR encode flags, H.264/NVENC-to-libx264 CPU fallback, CPU-primary libx264 flags, AV1/NVENC primary plus AV1/NVENC-to-libaom CPU fallback, and CPU-primary libaom AV1 flags are descriptor-owned with SDR/HDR command-topology coverage and fail-closed CPU/HDR fallback coverage. `Do-Encode` fails closed before FFmpeg planning when the configured encoder is unsupported, HDR-unsafe, or cataloged but not active for descriptor-owned flags. Literal `av1_nvenc` selections with `EncoderBackend=auto` or `EncoderBackend=nvenc` are active; every hardware attempt requires the descriptor-owned exact encoder-list plus runtime probe, and an NVENC runtime failure invalidates only the NVENC cache before the existing fallback ladder is considered. On 2026-07-11, bundled FFmpeg 8.1 listed and successfully ran the one-frame `av1_nvenc` runtime probe on the current RTX 5080 (driver 610.62); the host synthetic matrix gate executes AV1/NVENC SDR and HDR10 topology rows with `MEDIAPIPELINE_ENCODER_RUNTIME_HARDWARE=1`. QSV and AMF descriptors remain dormant. Descriptor-owned list/runtime capability-probe scaffolding, generic backend invalidation, and `-DumpEncoderCapabilitiesPath` produce read-only resolved primary/fallback evidence. `EncoderBackend` round-trips through PowerShell/Python schemas and the WebView with `auto` default. Settings workspace and Launch preflight expose the bounded read-only capability report, including active/inactive counts and hardware runtime verified/skipped/proof-gap lists; WebView only renders that backend-authored evidence. The synthetic matrix verifies 10-bit BT.2020/PQ output tags for executed HDR rows and HDR-unsafe hardware descriptors fail closed, but does not certify real-media HDR side-data preservation. Representative media, HDR10 side-data, playback, subtitle/audio/chapter parity, quality, and size validation remain open before AV1/NVENC can be considered daily-driver safe; no real-media HDR preservation claim is made. QSV/AMF activation needs its own descriptor, runtime, and real-media validation work.
-- [ ] **Further Python stage mutation expansion (separately gated)** — The supported dispatcher role is intentionally limited to read-only `probe`/`decide`, guarded source-to-scratch `ingest`, Python scratch-only single-file `rename`, and Python standalone scratch ASS/SSA-to-SRT `subtitle-convert`. Both Python executors require trusted disjoint roots, strict confirmation, content-bound dry-run evidence, command/operation journals, duplicate-operation protection, no overwrite, and recovery evidence. Subtitle-convert does not enable TX3G, BDPGS/OCR, embedded streams, language routing, container mutation, or publish integration. Neither executor is a production media-engine cutover. PowerShell remains the production media engine. The four remaining contracts fail closed with machine-readable blockers: `transcode` needs FFmpeg/stream-map/recovery parity plus representative encode/remux validation; `audio-mix` needs profile-driven passthrough/transcode/downmix/default-language parity plus representative multi-audio validation; `publish` needs partial-reveal/sidecar/pending-park/final-placement transaction parity plus representative publish validation; and `drain` needs trusted-manifest/attempt/copy-hash/sidecar/crash-recovery parity plus representative deferred-publish-to-drain validation. See PI-002 in `docs/architecture/DECISIONS_AND_HISTORY.md`.
-- [ ] **WebView flat export cleanup** — Namespace-first access is guarded, but transitional flat `window.*` compatibility exports remain. Continue reducing them opportunistically by touched domain with WebView static/browser evidence.
-- [ ] **#15 glib Dependabot alert in Tauri GTK stack** — Re-verified 2026-07-12 and still blocked upstream. The repository locks `tauri 2.11.1` -> `tauri-runtime-wry 2.11.1` -> `wry 0.55.1` -> Linux-only `gtk 0.18.2` -> `glib 0.18.5`. A Cargo-only dry-run reached `tauri 2.11.5` and `tauri-runtime-wry 2.11.4` but retained Wry/GTK/glib at `0.55.1`/`0.18.2`/`0.18.5`; a direct glib 0.20 dry-run remains incompatible with GTK 0.18.2, and current upstream `dev` manifests still require GTK `0.18`. Dependabot alert 1 remains open. This does not affect the Windows WebView2 portable application, but it blocks safe Linux GTK/WebKit package promotion. Do not force glib `>=0.20` with a patch or override. Re-review on upstream Tauri/Wry/GTK movement, before adding Linux packaging, or by 2026-08-07, whichever comes first. See `docs/inventories/RELEASE_DEPENDENCY_REVIEW.md`.
-
-### Deferred / Recently Resolved Decisions
-
-- [x] **FR-016 multi-video stream policy/evidence** — Resolved on 2026-06-22 with preserve-all real-video stream policy. `docs/architecture/DECISIONS_AND_HISTORY.md` records the rejected primary-only and block/review alternatives, required `-map 0:V` remux/encode topology, subtitle-burn fail-closed boundary, and real-media validation implications. Remux and encode now verify source/output real-video stream counts before publish, and `Invoke-MultiVideoTopologyChecks.ps1` proves bundled FFmpeg remux plus `New-EncodeFfmpegArgumentList` encode topology preserve a Tdarr-derived two-real-video sample (`source=2 remux=2 encode=2`). Broader Dynamic HDR and hardware-encoder real-media validation remain separate open gates.
-- [x] **FR-042 rerun `-DryRun` semantics** — Resolved on 2026-06-22: `-DryRun` remains evidence-writing, and CSV rerun now has a distinct no-write `-PlanOnly` mode. `docs/architecture/DECISIONS_AND_HISTORY.md` records why `-DryRun` was not redefined, why `-PlanOnly` is required, and the temp-LocalBase no-write test implications. Validation includes temp-LocalBase PlanOnly no-write coverage plus backend launch-plan/route/WebView preflight/request tests.
-
-### Recurring Validation Gates
-
-- [ ] **Real-media rerun gate** — Re-run representative real-media validation after Dynamic HDR, encoder breadth/AV1, media policy, subtitle, audio, publish/drain, source/scratch/output movement, or cleanup behavior changes. The 2026-07-11 refresh (`MP-CHANGE-2026-0711-010`) stopped at strict Policy Proof preflight: all 15 checked-in catalog SHA-256 values are placeholders, the external fixture root is absent, and the local source mapping is not provisioned, so no current remux, encode/size, subtitle, audio, deferred publish/drain, source-hash, ffprobe, or playback evidence was generated. Exact prerequisites and rerun commands are in `docs/RealMediaValidationRuns/README.md`. Latest accepted media-policy rerun remains MP-CHANGE-2026-0622-001 on 2026-06-22, Tdarr proof-pack run `run-20260622-codex-proof-all-final`, 92 cases executed, 76 published outputs ffprobe-verified, 92/92 source hashes unchanged, remaining warnings terminal/non-retryable expected-invalid fixtures. Latest targeted FR-016 proof: MP-CHANGE-2026-0622-003 on 2026-06-22, `Invoke-MultiVideoTopologyChecks.ps1`, Tdarr-derived two-real-video sample, `source=2 remux=2 encode=2`. Latest targeted Dynamic HDR proofs: MP-CHANGE-2026-0622-004 on 2026-06-22, Dolby Browser Test Kit P8.1 SD source preserved through CPU/libx265 with FFmpeg native Dolby Vision coding, output DOVI verified, RPU frame counts `1721/1721`, source hash unchanged; MP-CHANGE-2026-0622-007 on 2026-06-22, FFPictures HDR10+ Lake sample preserved through CPU/libx265 with relative `dhdr10-info`, output HDR10+ verified, source/output HDR10+ JSON hashes matched, source hash unchanged. Playback-device HDR10+ indicator validation remains outside that automated metadata proof.
-- [x] **Package/open/close rerun gate** — Completed for integrated runtime commit `52e9be6564aeb13571c0231e2b55ea2903cbc0c0`. The deployable wrapper passed required source validation, copied a lean package with live config/tests excluded, verified package hygiene and prerequisites, and passed isolated copied-folder plus extracted-ZIP launch/backend/WebView/runtime-state/safe-close acceptance. Both acceptance runs left the install tree immutable and no Tauri, Local API, PowerShell, or media-tool child process. A separate launch against existing per-user state was correctly blocked by backend close-readiness and was not bypassed. Re-run this gate after future launcher, package, Tauri, Local API bootstrap, or release-layout changes. Artifact hashes and command evidence are in `docs/RealMediaValidationRuns/README.md`.
-
----
+- [ ] **Package/open/close and signed-updater evidence for the current integrated
+  runtime** — The prior package/open/close evidence for commit
+  `52e9be6564aeb13571c0231e2b55ea2903cbc0c0` was reopened by the Tauri updater
+  lifecycle change in MP-CHANGE-2026-0723-041. Reaccept on a clean Windows
+  account with copied-folder/extracted-package startup, AppData state,
+  safe-close, immutable-install-root, and no-leftover-child checks plus a signed
+  local update fixture covering no-update, available/declined update,
+  network/signature rejection, unsafe/safe close-readiness, installer restart,
+  and rollback. Evidence location: `docs/RealMediaValidationRuns/README.md`.
 
 ## Summary Count
 
 | Category | Count |
 |---|---:|
-| Closed promotion blockers | 0 |
-| Completed elsewhere / no active implementation work | 14 |
-| Open or partial implementation workstreams | 4 |
-| Deferred/recently resolved decisions | 2 |
-| Recurring validation gates | 2 |
+| Open implementation or externally blocked items | 4 |
+| Currently blocked validation gates | 2 |
+| Satisfied recurring gates that reopen on a named trigger | 0 |
+
+<a id="p0--closed-promotion-gates"></a>
+<a id="high--closed-local-legacy--packaging-work"></a>
+<a id="medium--closed-pre-package--wave-work"></a>
+<a id="low--acknowledged-deferred--improvement-backlog"></a>
+<a id="2026-06-19-phased-remediation-workstreams"></a>
+<a id="completed-elsewhere--no-active-implementation-work"></a>
+<a id="deferred--recently-resolved-decisions"></a>
+
+## Historical Evidence
+
+The legacy anchors above preserve practical inbound links from the former
+closed-work sections. Their completed detail was removed from this active
+checklist and remains reachable through:
+
+- `CHANGELOG.md` for notable project changes and promotion-state updates;
+- `docs/REMEDIATION_CHANGELOG.md` for a compact topic/date index into the
+  archived 2026-05 remediation entries;
+- `docs/architecture/DECISIONS_AND_HISTORY.md` for FR-016, FR-042, dispatcher,
+  architecture, and documentation decisions;
+- `docs/ARCHIVED_MD_INDEX.md` for completed plan/audit/checklist locations;
+- `docs/reviews/*/DISPOSITION_LEDGER.md` for review finding closure; and
+- `ops/release/changes/` and `docs/RealMediaValidationRuns/README.md` for
+  change-scoped validation evidence.

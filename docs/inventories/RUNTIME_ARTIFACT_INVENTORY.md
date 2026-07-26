@@ -10,6 +10,15 @@ Purpose: reference map of runtime files and folders created, read, or mutated by
 
 Runtime state lives under `LocalBase\State\`. `LocalBase` is a config key; its default is the bundle root, but operators may set it to a different path.
 
+Native shell evidence that must survive a backend stop is the narrow exception:
+it lives under the Windows app-local data root, not under `LocalBase\State`.
+
+## Native Shell Update Evidence
+
+| Artifact | Relative path | Owner | Produced by | Consumed by | Safe to delete manually | Diagnostics target key |
+|---|---|---|---|---|---|---|
+| Native updater lifecycle events | `<Tauri app-local data>\UpdateState\NativeUpdater\update-event-*.json` (the app-local root is resolved by Tauri for identifier `com.mediapipeline.remuxencodeaio`) | Tauri shell (Rust) | Productized-shell startup update check, signed download/verification, explicit install prompt, fresh close-readiness gate, safe-only backend shutdown, and installer handoff/recovery | Operator/support recovery review; never update-channel, close-readiness, backend, or install authority | Only with the app fully stopped and after retaining any evidence needed for update recovery. The shell keeps the newest 64 complete events and prunes older events after an atomic write. | N/A |
+
 ---
 
 ## Local Work and Output Staging
@@ -17,6 +26,7 @@ Runtime state lives under `LocalBase\State\`. `LocalBase` is a config key; its d
 | Artifact | Relative path | Owner | Produced by | Consumed by | Safe to delete manually | Diagnostics target key |
 |---|---|---|---|---|---|---|
 | Scratch processing root | `Incoming\Processing\` | Pipeline (PS) | Source-to-scratch copy and temp subtitle/remux/encode helpers | Pipeline processing stages | No during active work; pipeline startup removes stale generated temp files and stale `src_*` scratch-copy folders only after boundary checks | N/A |
+| Scratch source-identity evidence | `<scratch-file>.srcinfo` beside each copied source | Pipeline (PS) | Scratch-copy completion after stable full-file SHA-256 verification of source and landed scratch | Scratch reuse preflight; never source, queue, or publish authority | No during active work. If absent, malformed, unsupported, stale, or mismatched, reuse is denied and the guarded copy path re-copies or fails closed | N/A |
 | Scratch-only rename stage undo record | `<scratch_root>\.mediapipeline-stage\rename\<operation-id>.json` | Python dispatcher | Planned/completed/rolled-back evidence for one scratch-local rename; never source, output, pending-publish, or final-library authority | Python stage runner and recovery review only | Keep until the scratch operation is accepted or recovered; removal follows scratch cleanup policy | `pipeline_stage_rename_undo.v1` |
 | Scratch-only subtitle stage output/evidence | `<scratch-artifact>.srt` and `<scratch_root>\.mediapipeline-stage\subtitle-convert\<operation-id>.json` | Python dispatcher | One standalone ASS/SSA-to-SRT sidecar plus planned/completed/rolled-back evidence; never container, source, publish, or final-library authority | Python stage runner and subtitle review only | Keep until accepted or recovered; removal follows scratch cleanup policy | `pipeline_stage_subtitle_convert_evidence.v1` |
 | Local encoded output staging | `Encoded\` | Pipeline (PS) | Remux/encode output before publish or pending-publish park | Publish, pending-publish park, and retry paths | No during active work; successful publish deletes local output files, and pipeline cleanup may remove only empty folders older than `CleanupStaleAgeHours` under this root | N/A |
@@ -39,7 +49,10 @@ The SQLite mirror is additive diagnostic evidence only. Do not use it as the sou
 
 | Artifact | Relative path | Owner | Produced by | Consumed by | Safe to delete manually | Diagnostics target key |
 |---|---|---|---|---|---|---|
-| Queue snapshot | `State\Progress\queue_snapshot.json` | Pipeline (PS) | `-EmitQueuePlan` flag | Desktop app, local API, WebView Queue | No — pipeline reads at startup and refresh | `queue_snapshot` |
+| Queue snapshot | `State\Progress\queue_snapshot.json` | Pipeline (PS), promoted by Python Queue dry-run service | `-EmitQueuePlan` flag via `POST /api/queue/scan`; includes uncapped `accepted_run_rows`, versioned `planned_display_name` evidence, and an accepted-membership content fingerprint separately from capped display rows | Desktop app, local API, WebView Queue, blank Run Once launch gate | No — authoritative preview evidence is atomically replaced; request-unique temporary snapshots are cleaned after every attempt. Legacy snapshots without versioned name/digest evidence require Queue refresh before launch. | `queue_snapshot` |
+| Priority queue exports | `State\QueueExports\Priority\priority-export-*.json` plus `latest.json` | Desktop app / Python queue service | `POST /api/queue/priority-export` runs the PowerShell `PriorityOnly` dry-run and atomically stores uncapped runnable effective-High accepted membership, queue/input fingerprints, count, export ID, and creation time | `GET /api/queue/priority-export`; Launch `queue_scope=priority_export`; Python Run Monitor seeding; PowerShell runtime fingerprint gate | No during preparation or launch. Exports are immutable launch evidence; any queue-affecting input change makes an export stale and requires a new export. They never replace the normal queue snapshot or priority manifest. | N/A |
+| Run monitor record | `State\RunMonitor\<run_id>.json` | Python launch backend before spawn; PowerShell pipeline engine after exact adoption | Python atomically seeds immutable `starting` membership from validated accepted rows; PowerShell verifies run/command/fingerprint/membership and writes exact run/job-correlated runtime updates; terminal fields reconcile only from matching Completed, Pending Publish, or failure artifacts | `GET /api/run-monitor`, Home Current Work, terminal deep-link handoff | No during active work. Nonterminal records are retained; the latest ten terminal records are retained by default. Never hand-edit membership, accepted labels, name evidence, stage, worker, route, track, path, or terminal evidence. A legacy accepted label is never rewritten or promoted to Queue-plan evidence. The read-only Local API projection may instead expose an effective terminal filename only when the same item has exact terminal output evidence plus an exact job-correlated Completed or Pending Publish path reference; it preserves the stored label separately and fails honestly when that proof is absent or contradictory. | N/A |
+| Run monitor latest pointer | `State\RunMonitor\latest.json` | Shared Run Monitor storage contract | Atomic update after a valid per-run monitor write; Python may repair a missing pointer only from the exact persisted record during idempotent pre-spawn adoption | `GET /api/run-monitor` when `run_id` is omitted | No — it is a validated identity pointer only and must stay correlated with its per-run record. | N/A |
 | Progress JSON | `State\Progress\pipeline_progress.json` | Pipeline (PS) | Running pipeline | Desktop app, local API | No during active run | (via `state`) |
 | Pipeline events log | `State\Progress\pipeline_events.jsonl` | Pipeline (PS) | Runtime events | Desktop app, WebView Diagnostics | No during active run; bounded-tail read is safe | (via `state`) |
 | Encoder capability report | `State\Progress\encoder_capabilities.json` | Pipeline (PS) | `-DumpEncoderCapabilitiesPath` diagnostic | Operator diagnostics, `/api/settings/workspace` and `/api/launch/preflight` read-only encoder capability evidence | Yes only through journaled `POST /api/diagnostics/encoder-capabilities/refresh`; GET routes never regenerate it | N/A |
@@ -56,6 +69,15 @@ The SQLite mirror is additive diagnostic evidence only. Do not use it as the sou
 |---|---|---|---|---|---|---|
 | ActiveJobs folder | `State\ActiveJobs\` | Desktop app (Python) | Job launch commands | Status service, WebView Home / Diagnostics | No during active work | `active_jobs` |
 | Per-job launch record | `State\ActiveJobs\<job-id>.json` | Desktop app (Python) | `POST /api/pipeline/start`, audit, rerun | Status service, Diagnostics | After job is confirmed complete and no longer shown in active state | `active_jobs` |
+
+---
+
+## Backend Lifecycle Reconciliation
+
+| Artifact | Relative path | Owner | Produced by | Consumed by | Safe to delete manually | Diagnostics target key |
+|---|---|---|---|---|---|---|
+| Lifecycle reconciliation transaction guard | `State\LifecycleReconciliationPending.json` | Local API (Python) | Confirmed `POST /api/backend/lifecycle/reconcile` while the archive transaction is in progress | Lifecycle lease guard and later reconciliation review if a transaction is interrupted | No — its presence deliberately blocks new lifecycle leases until transaction recovery is reviewed | N/A |
+| Lifecycle reconciliation archive and manifest | `State\LifecycleArchive\<transaction-id>\Lifecycle\*`, `reconciliation-intent.json`, and `reconciliation-manifest.json` | Local API (Python) | Confirmed lifecycle reconciliation after exact dry-run correlation and strict command evidence | Operator recovery review and durable proof of the archived failed-recovery chain | No — retain the manifest and archived evidence together; never manually restore or delete individual files | N/A |
 
 ---
 
@@ -104,6 +126,7 @@ Legacy `DesktopApp\encode_speed_history.json` and `DesktopApp\MediaPipelineRemux
 | Pending publish root | `State\PendingServerPush\` | Pipeline (PS) | Deferred publish events | Desktop app, local API, WebView Pending Publish | No — backend drain reads these | `pending_publish` |
 | Pending publish manifests | `State\PendingServerPush\*.manifest.json` | Pipeline (PS) | Deferred publish, CSV rerun auto-review routing | Drain service, recovery dry-run | No — drain service owns lifecycle | `pending_publish` |
 | Parked output payloads | `State\PendingServerPush\*` beside matching `.manifest.json` files | Pipeline (PS) | Deferred publish | Drain service | No — use recovery-plan to assess before draining | `pending_publish` |
+| Pending destination lock sentinels | `State\PendingServerPush\.destination-locks\<canonical-destination-sha256>.lock` | Pipeline (PS) | First drain or stale-attempt recovery for a canonical final destination | Cross-process drain and recovery transaction guards | No — empty sentinels are deliberately retained so lock identity cannot split during release/reacquire races | N/A |
 | Drain summary | `State\Progress\pending_drain_summary.json` | Pipeline (PS) | Drain execution | WebView Pending Publish evidence | No during ongoing drain | `pending_publish` |
 
 ---
@@ -113,7 +136,8 @@ Legacy `DesktopApp\encode_speed_history.json` and `DesktopApp\MediaPipelineRemux
 | Artifact | Relative path | Owner | Produced by | Consumed by | Safe to delete manually | Diagnostics target key |
 |---|---|---|---|---|---|---|
 | Pause flag | `State\Pipeline\pipeline_pause.flag` | Desktop app (Python) | `POST /api/pipeline/control` (pause) | Running pipeline | No — app owns lifecycle; use app commands | N/A |
-| Stop flag | `State\Pipeline\pipeline_stop.flag` | Desktop app (Python) | `POST /api/pipeline/control` (stop) | Running pipeline | No | N/A |
+| Immediate stop flag | `State\Pipeline\pipeline_stop.flag` | Pipeline runtime compatibility surface | Legacy/immediate stop integrations; not the standard Current Work stop command | Running pipeline native-process boundary | No | N/A |
+| Stop After Current flag | `State\Pipeline\pipeline_stop_after_current.flag` | Desktop app (Python) | `POST /api/pipeline/control` (`action=stop`) and schedule boundary watcher | Running pipeline queue-dispatch boundary | No — app owns lifecycle; standard Run Once markers require exact run/PID/launch correlation | N/A |
 | Rescan flag | `State\Pipeline\pipeline_rescan.flag` | Desktop app (Python) | `POST /api/pipeline/control` (rescan) | Running pipeline | No | N/A |
 
 ---
@@ -126,9 +150,11 @@ Legacy `DesktopApp\encode_speed_history.json` and `DesktopApp\MediaPipelineRemux
 | Audit rerun import CSV | `State\Rerun\ImportCsv\audit_rerun_export_*.csv` | Desktop app (Python) | Reports audit export for CSV rerun | Rerun UI recent CSV picker, `/api/rerun/preview`, `/api/rerun/start` | After reviewing and when no rerun uses it | N/A |
 | Scoped rerun CSV | `State\Rerun\ScopedCsv\rerun_scoped_*.csv`; `State\Rerun\ScopedCsv\rerun_continue_pending_*.csv` | Desktop app (Python) | `/api/rerun/start` when CSV preview scope excludes rows; `/api/rerun/continue` for stopped-after-current pending rows only | `Invoke-RerunCsv.ps1` launch input | After the corresponding rerun completes and evidence is retained | N/A |
 | CSV rerun control marker | `State\Rerun\Control\stop_after_current.json` | Desktop app (Python) | `/api/rerun/control` | `Invoke-RerunCsv.ps1` after each completed row/window chunk | Yes after the matching rerun has written terminal manifest evidence; stale markers are ignored by batch/path/start-time checks | N/A |
+| CSV rerun local enrollment | `State\Rerun\Local\<batch_id>.json` | Desktop app (Python) | Accepted local rerun launch and backend lifecycle transitions | Duplicate/recovery admission, startup reconciliation, rerun results | No while the correlated rerun or recovery evidence is active | N/A |
+| CSV rerun startup reconciliation summary | `State\Rerun\StartupReconciliation\latest.json` | Desktop app (Python) | Backend startup reconciliation | Rerun results and operator diagnostics | After all referenced enrollments are terminal and evidence retention permits | N/A |
 | CSV rerun manifests | `RerunManifests\*.json` and `RerunManifests\*.config.psd1` | Pipeline (PS) | `Invoke-RerunCsv.ps1` | Queue/Home manifest fallback, rerun result reconciliation, Pending Publish promotion | No during active rerun; retain as launch/result evidence | N/A |
 | CSV rerun workspace roots | Sibling of `LocalBase`: `<LocalBaseLeaf>_RerunWorkspace\RerunQueue\<batch>` and `<LocalBaseLeaf>_RerunWorkspace\RerunParked\<batch>` | Pipeline (PS) | `Invoke-RerunCsv.ps1` staging and parked output flows | Nested pipeline, rerun manifests, result reconciliation | No during active rerun; clean only after reviewing manifests and parked output state | N/A |
-| CSV rerun replaced-final hold | `State\Rerun\FinalReplaced\<batch>\*` | Pipeline (PS) | Confirmed CSV rerun final replacement | Rerun manifest evidence and operator recovery | No until the replacement manifest/sidecar and final output have been reviewed | N/A |
+| CSV rerun final-publication transaction and replaced-final hold | Durable transaction manifests and committed backups under `State\Rerun\FinalReplaced\<batch>\{PublicationTransactions,CommittedBackups}\`; hidden `*.mediapipeline-rerun-*.{stage,backup}` artifacts beside a final target exist only while its transaction is nonterminal | Pipeline (PS) | Confirmed CSV rerun replacement, clean auto-replacement, or non-overlap publication | Rerun restart recovery, row evidence, completed-job mirror, and operator recovery | No while nonterminal; after commit retain transaction/held-backup evidence per operator policy. Never delete a hidden stage/backup without transaction reconciliation. | N/A |
 | Priority CSV | Config-specified path | Pipeline (PS) | Audit run | Reports, Queue priority | After reviewing | `latest_priority_csv` |
 | Audit reports folder | Config-specified path | Pipeline (PS) | Audit run | Desktop app, Diagnostics | After reviewing | `audit_reports` |
 

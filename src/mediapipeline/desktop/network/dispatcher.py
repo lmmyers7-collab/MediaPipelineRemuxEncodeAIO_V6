@@ -12,7 +12,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from ..models import QueueRecord
@@ -81,6 +81,8 @@ class QueueDispatcher(ABC):
         queue_terminal: bool = False,
         reason_code: str | None = None,
         reason: str | None = None,
+        worker_result_artifact: dict[str, Any] | None = None,
+        worker_result_artifact_path: str | None = None,
     ) -> None:
         """Report a job as finished (success or failure).
 

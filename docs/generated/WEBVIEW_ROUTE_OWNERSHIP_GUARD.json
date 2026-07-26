@@ -55,6 +55,18 @@
       ]
     },
     {
+      "route": "/api/backend/lifecycle/reconcile",
+      "files": [
+        "apps/desktop/webview/static/assets/recoverySupportView.js"
+      ]
+    },
+    {
+      "route": "/api/backend/lifecycle/reconcile-dry-run",
+      "files": [
+        "apps/desktop/webview/static/assets/recoverySupportView.js"
+      ]
+    },
+    {
       "route": "/api/backend/shutdown",
       "files": [
         "apps/desktop/webview/static/assets/app.js"
@@ -358,6 +370,13 @@
       "route": "/api/queue/priority",
       "files": [
         "apps/desktop/webview/static/assets/queue/manualOrder.js",
+        "apps/desktop/webview/static/assets/queue/priority.js"
+      ]
+    },
+    {
+      "route": "/api/queue/priority-export",
+      "files": [
+        "apps/desktop/webview/static/assets/launch/scopeControls.js",
         "apps/desktop/webview/static/assets/queue/priority.js"
       ]
     },

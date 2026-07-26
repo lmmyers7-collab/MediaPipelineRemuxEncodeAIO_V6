@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -18,9 +19,165 @@ from mediapipeline.core.processes.control_policy import (
     pipeline_control_success_data,
 )
 from mediapipeline.core.processes.file_io import atomic_write_text
+from mediapipeline.core.processes.kill import RelatedProcessKillEvidence, RelatedProcessKillReport
+from mediapipeline.core.status.active_jobs import active_job_detail_rows
+from mediapipeline.core.status.run_monitor import terminalize_force_stopped_run
 
 _IDLE_STAGES = frozenset({"idle", "startup", ""})
 _IDLE_STATUSES = frozenset({"", "idle", "none"})
+_ACTIVE_PIPELINE_STATUSES = frozenset({"launching", "active"})
+
+
+def _active_pipeline_stop_target(
+    resolved: ResolvedPaths,
+    *,
+    expected_run_id: str = "",
+) -> tuple[str, int, str]:
+    rows = active_job_detail_rows(resolved.active_jobs_path, max_items=100000)
+    uncertain = [row for row in rows if str(row.get("source") or "") != "contract"]
+    if uncertain:
+        raise RuntimeError(
+            "Stop After Current could not verify ActiveJobs because one or more records are unreadable or invalid."
+        )
+    active = [
+        row
+        for row in rows
+        if str(row.get("job_kind") or "").casefold() == "pipeline"
+        and str(row.get("status") or "").casefold() in _ACTIVE_PIPELINE_STATUSES
+    ]
+    if len(active) != 1:
+        raise RuntimeError(f"Stop After Current requires exactly one active pipeline; found {len(active)}.")
+    target = active[0]
+    try:
+        target_pid = int(target.get("pid") or 0)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError("Stop After Current requires an exact active pipeline PID.") from exc
+    target_launch_id = str(target.get("launch_id") or "").strip()
+    if target_pid <= 0 or not target_launch_id:
+        raise RuntimeError("Stop After Current requires an exact active pipeline PID and launch ID.")
+    raw_metadata = target.get("metadata")
+    metadata = raw_metadata if isinstance(raw_metadata, dict) else {}
+    run_id = str(metadata.get("run_id") or "").strip()
+    row_mode = str(target.get("mode") or "").strip().casefold()
+    metadata_mode = str(metadata.get("mode") or "").strip().casefold()
+    single_file = str(metadata.get("single_file") or "").strip()
+    queue_fingerprint = str(metadata.get("expected_queue_plan_fingerprint") or "").strip()
+    expected_raw = str(expected_run_id or "")
+    expected = expected_raw.strip()
+    if expected and (
+        expected != expected_raw
+        or len(expected) > 128
+        or not expected[0].isalnum()
+        or any(character not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-" for character in expected)
+    ):
+        raise RuntimeError("Stop After Current expected_run_id is invalid.")
+
+    backend_queue_once_candidate = row_mode == "once" and not single_file
+    if backend_queue_once_candidate:
+        if metadata_mode != "once" or "single_file" not in metadata or not queue_fingerprint:
+            raise RuntimeError(
+                "Stop After Current could not verify exact Run Once · Backend Queue launch metadata."
+            )
+        if not expected:
+            raise RuntimeError(
+                "Stop After Current requires expected_run_id from the active Current Work monitor."
+            )
+        if not run_id:
+            raise RuntimeError(
+                "Stop After Current requires a nonblank run ID in the active Backend Queue launch record."
+            )
+        if run_id != expected:
+            raise RuntimeError(
+                "Stop After Current expected_run_id does not match the active Backend Queue run. Refresh Current Work before retrying."
+            )
+    elif expected:
+        raise RuntimeError(
+            "A run-correlated Stop After Current request may target only Run Once · Backend Queue work, not Continuous or Single File work."
+        )
+    return run_id, target_pid, target_launch_id
+
+
+@dataclass(frozen=True)
+class _ForceStopRunTarget:
+    run_id: str
+    pid: int
+    command_id: str
+    launch_id: str
+
+
+def _active_pipeline_force_stop_targets(resolved: ResolvedPaths) -> list[_ForceStopRunTarget]:
+    """Snapshot exact contract-backed targets; emergency kill is never blocked."""
+
+    rows = active_job_detail_rows(resolved.active_jobs_path, max_items=100000)
+    targets: list[_ForceStopRunTarget] = []
+    for row in rows:
+        if str(row.get("source") or "") != "contract":
+            continue
+        if str(row.get("job_kind") or "").casefold() != "pipeline":
+            continue
+        if str(row.get("status") or "").casefold() not in _ACTIVE_PIPELINE_STATUSES:
+            continue
+        raw_metadata = row.get("metadata")
+        metadata = raw_metadata if isinstance(raw_metadata, dict) else {}
+        run_id = str(metadata.get("run_id") or "").strip()
+        launch_id = str(row.get("launch_id") or "").strip()
+        try:
+            pid = int(row.get("pid") or 0)
+        except (TypeError, ValueError):
+            continue
+        if not run_id or not launch_id or pid <= 0:
+            continue
+        target = _ForceStopRunTarget(
+            run_id=run_id,
+            pid=pid,
+            command_id=str(metadata.get("command_id") or "").strip(),
+            launch_id=launch_id,
+        )
+        if target not in targets:
+            targets.append(target)
+    return targets
+
+
+def _correlated_force_stop_run_ids(
+    targets: list[_ForceStopRunTarget],
+    evidence_rows: tuple[RelatedProcessKillEvidence, ...],
+) -> tuple[list[str], list[str]]:
+    """Require exact killed PID + process RunId proof before monitor takeover."""
+
+    proven_targets: set[_ForceStopRunTarget] = set()
+    errors: list[str] = []
+    for evidence in evidence_rows:
+        if not evidence.exit_verified or "pipeline" not in evidence.matched_job_kinds or not evidence.run_id:
+            continue
+        matches = [
+            target
+            for target in targets
+            if target.pid == evidence.pid
+            and target.run_id == evidence.run_id
+            and (not target.command_id or target.command_id == evidence.command_id)
+        ]
+        if len(matches) != 1:
+            if matches:
+                errors.append(
+                    f"{evidence.run_id}: killed pipeline PID {evidence.pid} matched multiple ActiveJobs records; "
+                    "Run Monitor was left unchanged"
+                )
+            continue
+        proven_targets.add(matches[0])
+    run_ids: list[str] = []
+    for run_id in dict.fromkeys(target.run_id for target in targets):
+        run_targets = [target for target in targets if target.run_id == run_id]
+        if run_targets and all(target in proven_targets for target in run_targets):
+            run_ids.append(run_id)
+            continue
+        if any(target in proven_targets for target in run_targets):
+            errors.append(
+                f"{run_id}: not every active pipeline target has exact killed PID/RunId proof; "
+                "Run Monitor was left unchanged"
+            )
+        elif not any(error.startswith(f"{run_id}:") for error in errors):
+            errors.append(f"{run_id}: no exact killed pipeline PID/RunId proof; Run Monitor was left unchanged")
+    return run_ids, errors
 
 
 def _write_idle_progress_file(progress_file: Path | None, logger: Any = None) -> str:
@@ -105,12 +262,15 @@ def _write_idle_progress_file(progress_file: Path | None, logger: Any = None) ->
 class ProcessControlFacadeMixin:
     """Control-flag commands for the active PowerShell pipeline."""
 
+    service: Any
+
     def request_pipeline_control(
         self,
         resolved: ResolvedPaths,
         action: str,
         *,
         confirm_force_stop: bool = False,
+        expected_run_id: str = "",
     ) -> CommandResult:
         normalized = normalize_pipeline_control_action(action)
         command = pipeline_control_command(normalized)
@@ -150,11 +310,28 @@ class ProcessControlFacadeMixin:
                 message = str(method(resolved))
                 flag_path = resolved.pause_flag
             elif normalized == "stop":
-                method = getattr(self.service, "write_flag", None)
+                method = getattr(self.service, "write_stop_after_current_flag", None)
                 if not callable(method):
-                    raise RuntimeError("Stop control service is not available.")
-                message = str(method(resolved.stop_flag, "Stop"))
-                flag_path = resolved.stop_flag
+                    raise RuntimeError("Stop After Current control service is not available.")
+                run_id, target_pid, target_launch_id = _active_pipeline_stop_target(
+                    resolved,
+                    expected_run_id=expected_run_id,
+                )
+                message = str(
+                    method(
+                        resolved.stop_after_current_flag,
+                        run_id=run_id,
+                        target_pid=target_pid,
+                        target_launch_id=target_launch_id,
+                    )
+                )
+                flag_path = resolved.stop_after_current_flag
+                success_extra = {
+                    "semantic_action": "stop_after_current",
+                    "run_id": run_id,
+                    "target_pid": target_pid,
+                    "target_launch_id": target_launch_id,
+                }
             elif normalized == "rescan":
                 method = getattr(self.service, "write_flag", None)
                 if not callable(method):
@@ -165,15 +342,41 @@ class ProcessControlFacadeMixin:
                 method = getattr(self.service, "kill_related_pipeline_processes", None)
                 if not callable(method):
                     raise RuntimeError("Kill control service is not available.")
-                messages = [str(item) for item in method(resolved)]
+                force_stop_targets = _active_pipeline_force_stop_targets(resolved)
+                kill_result = method(resolved)
+                messages = [str(item) for item in kill_result]
+                termination_evidence = (
+                    kill_result.termination_evidence
+                    if isinstance(kill_result, RelatedProcessKillReport)
+                    else ()
+                )
+                force_stop_run_ids, monitor_errors = _correlated_force_stop_run_ids(
+                    force_stop_targets,
+                    termination_evidence,
+                )
                 logger = getattr(getattr(self, "service", None), "logger", None)
                 reset_msg = _write_idle_progress_file(resolved.progress_file, logger)
                 kill_summary = "; ".join(messages) if messages else "No related pipeline, audit, or CSV rerun processes found to kill."
                 message = f"{kill_summary}; {reset_msg}"
+                terminalized_run_ids: list[str] = []
+                monitor_state_root = resolved.state_root
+                if monitor_state_root is None and resolved.run_monitor_path is not None:
+                    monitor_state_root = resolved.run_monitor_path.parent
+                for run_id in force_stop_run_ids:
+                    if monitor_state_root is None:
+                        monitor_errors.append(f"{run_id}: Run Monitor state root is unavailable")
+                        continue
+                    try:
+                        if terminalize_force_stopped_run(monitor_state_root, run_id):
+                            terminalized_run_ids.append(run_id)
+                    except Exception as exc:
+                        monitor_errors.append(f"{run_id}: {exc}")
                 success_extra = {
                     "kill_report": messages,
                     "killed_process_tree_count": len(messages),
                     "progress_reset": reset_msg,
+                    "force_stopped_run_ids": terminalized_run_ids,
+                    "force_stop_monitor_errors": monitor_errors,
                 }
                 flag_path = None
         except Exception as exc:

@@ -1,7 +1,8 @@
 # File summaries
 
-This file explains `docs/generated/summaries/`. For the generated navigation
-list, see `docs/generated/PROJECT_INDEX.md`.
+This file explains the generated navigation surfaces and their bounded MCP/CLI
+entry points. The full `docs/generated/PROJECT_INDEX.md` is a query aid, not an
+ordinary startup read.
 
 ## Active source roots
 
@@ -89,13 +90,62 @@ python -m mediapipeline.tools.dev.refresh_summaries --check
 
 ## Rules for AI sessions
 
-1. Start with `AGENTS.md`, `docs/generated/PROJECT_INDEX.md`,
-   `docs/architecture/ARCHITECTURE.md`, and `docs/generated/PIPELINE_MAP.md`.
-2. Read the matching summary before editing a source file.
-3. Open full source when the summary is high priority or the change requires
+1. Read `AGENTS.md`, then call the `mediapipeline-code` MCP `repo_context` tool
+   with the actual task and default 2,000-token budget.
+2. Use `code_lookup` for ownership/relationships, `code_bundle` for several
+   budgeted source ranges, `code_read` for one exact range, and `code_search`
+   only for precise or low-confidence follow-up.
+3. If MCP is unavailable, use `context_slice --task "<task>" --budget 2000`.
+4. Read the matching summary before editing a source file.
+5. Open full source when the summary is high priority or the change requires
    details the summary does not expose.
-4. Regenerate summaries after source edits.
-5. Do not hand-edit generated per-file summaries.
+6. Regenerate summaries after source edits.
+7. Do not hand-edit generated per-file summaries.
+
+## Local code-context MCP
+
+The MCP server is read-only. It atomically reloads valid `PROJECT_INDEX.jsonl`
+revisions, retains the last valid snapshot after a bad reload, reports stale
+returned records without regenerating them, searches current tracked and
+untracked active files, and caps every source read.
+
+| Tool | Use |
+| --- | --- |
+| `repo_context` | Task-ranked implementation slice; default 2,000 tokens |
+| `code_lookup` | Catalog ownership, symbols, dependencies, tests, and validation |
+| `code_search` | Bounded live literal/regex text search |
+| `code_read` | UTF-8 source ranges capped at 400 lines and 64 KiB |
+| `code_bundle` | Up to eight source ranges under one shared 800–8,000-token budget |
+
+Run the versioned 48-case retrieval and latency benchmark:
+
+```powershell
+.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.dev.code_context_benchmark --check
+```
+
+Preview or apply setup for both installed clients:
+
+```powershell
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -File .\ops\scripts\dev\setup-code-context-mcp.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -File .\ops\scripts\dev\setup-code-context-mcp.ps1 -Apply
+```
+
+The apply path creates an isolated environment below
+`LocalBase/Tooling/code-context-mcp/` and registers `mediapipeline-code` in the
+Codex user configuration and Claude local project configuration. It refuses to
+replace a different same-named registration unless `-Replace` is supplied.
+
+Remove matching registrations without deleting the environment:
+
+```powershell
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -File .\ops\scripts\dev\setup-code-context-mcp.ps1 -Remove
+```
+
+The server denies repository escapes, local state, bundled runtimes/tools,
+personal config, credentials, and binary files. Generated evidence, archives,
+and release packets are excluded from broad search but may be read or searched
+through an explicit path. It has no write, shell-command, network, prompt, or
+resource surface.
 
 ## Pointers
 

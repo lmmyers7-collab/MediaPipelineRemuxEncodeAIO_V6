@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import shutil
 import stat
+import uuid
 from dataclasses import replace
 from datetime import datetime, UTC
 from pathlib import Path
@@ -33,6 +35,8 @@ DEFAULT_TEMPLATE = materializer.DEFAULT_TEMPLATE
 PROOF_CASES_NAME = "proof_pack_cases.json"
 PASS_HISTORY_NAME = "pass_history.json"
 ARCHIVE_MANIFEST_NAME = "full_matrix_archive_manifest.json"
+PROOF_ROOT_IDENTITY_SCHEMA = "mediapipeline_tdarr_proof_root_identity.v1"
+PROOF_ROOT_PURPOSE = "mediapipeline_tdarr_proof_pack"
 
 
 def utc_now() -> str:
@@ -52,6 +56,88 @@ def is_under(path: Path, root: Path) -> bool:
         return True
     except ValueError:
         return False
+
+
+def path_has_link_component(path: Path) -> bool:
+    absolute = path.absolute()
+    current = Path(absolute.anchor)
+    for part in absolute.parts[1:]:
+        current /= part
+        if not current.exists() and not current.is_symlink():
+            continue
+        is_junction = bool(getattr(current, "is_junction", lambda: False)())
+        file_attributes = int(getattr(current.lstat(), "st_file_attributes", 0))
+        is_reparse_point = bool(file_attributes & int(getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)))
+        if current.is_symlink() or is_junction or is_reparse_point:
+            return True
+    return False
+
+
+def proof_root_path_identity(path: Path) -> str:
+    normalized = os.path.normcase(str(resolve_path(path)))
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def assert_proof_root_allowed(
+    proof_root: Path,
+    *,
+    allowed_test_parent: Path | None = None,
+    original_path: Path | None = None,
+) -> Path:
+    original = Path(original_path if original_path is not None else proof_root)
+    if path_has_link_component(original):
+        raise ValueError(f"Proof root must not contain a symlink or junction component: {original}")
+    resolved = resolve_path(proof_root)
+    canonical = resolve_path(tdarr_proof_pack_root(REPO_ROOT))
+    if resolved == canonical:
+        return resolved
+    if allowed_test_parent is None:
+        raise ValueError(f"Proof root must equal the canonical Tdarr Proof Pack root: {canonical}")
+    allowed = resolve_path(allowed_test_parent)
+    if path_has_link_component(Path(allowed_test_parent)):
+        raise ValueError(f"Allowed disposable proof parent must not contain a symlink or junction component: {allowed_test_parent}")
+    if resolved == allowed or not is_under(resolved, allowed):
+        raise ValueError(f"Disposable proof root must be a child of the allowed test parent: {allowed}")
+    return resolved
+
+
+def proof_root_identity_payload(proof_root: Path) -> dict[str, str]:
+    return {
+        "schema_version": PROOF_ROOT_IDENTITY_SCHEMA,
+        "purpose": PROOF_ROOT_PURPOSE,
+        "proof_root_sha256": proof_root_path_identity(proof_root),
+        "build_nonce": str(uuid.uuid4()),
+    }
+
+
+def validate_proof_root_sentinel(proof_root: Path) -> dict[str, Any]:
+    sentinel_path = proof_root / TDARR_PROOF_PACK_SENTINEL
+    try:
+        payload = json.loads(sentinel_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"Proof root sentinel is unreadable or malformed: {sentinel_path}") from exc
+    identity = payload.get("root_identity")
+    if not isinstance(identity, dict):
+        raise ValueError(f"Proof root sentinel has no root identity: {sentinel_path}")
+    expected = {
+        "schema_version": PROOF_ROOT_IDENTITY_SCHEMA,
+        "purpose": PROOF_ROOT_PURPOSE,
+        "proof_root_sha256": proof_root_path_identity(proof_root),
+    }
+    for key, value in expected.items():
+        if identity.get(key) != value:
+            raise ValueError(f"Proof root sentinel {key} does not match this root: {sentinel_path}")
+    try:
+        nonce = uuid.UUID(str(identity.get("build_nonce", "")))
+    except ValueError as exc:
+        raise ValueError(f"Proof root sentinel build_nonce is invalid: {sentinel_path}") from exc
+    if nonce.int == 0:
+        raise ValueError(f"Proof root sentinel build_nonce is invalid: {sentinel_path}")
+    if payload.get("schema_version") != TDARR_PROOF_PACK_SCHEMA_VERSION:
+        raise ValueError(f"Proof root sentinel schema does not match: {sentinel_path}")
+    if resolve_path(payload.get("proof_root", "")) != resolve_path(proof_root):
+        raise ValueError(f"Proof root sentinel path does not match this root: {sentinel_path}")
+    return payload
 
 
 def source_manifest_candidates(workspace_root: Path) -> tuple[Path, ...]:
@@ -125,17 +211,43 @@ def select_proof_rows(rows: Sequence[tdarr_matrix_audit.ManifestRow]) -> list[td
     return sorted(selected, key=lambda row: (manifest_case_id_number(row.case_id), row.view))
 
 
-def prepare_proof_root(proof_root: Path, *, rebuild: bool) -> dict[str, Any]:
+def prepare_proof_root(
+    proof_root: Path,
+    *,
+    rebuild: bool,
+    allowed_test_parent: Path | None = None,
+) -> dict[str, Any]:
+    proof_root = assert_proof_root_allowed(
+        proof_root,
+        allowed_test_parent=allowed_test_parent,
+        original_path=proof_root,
+    )
     sentinel = proof_root / TDARR_PROOF_PACK_SENTINEL
     existing_children = list(proof_root.iterdir()) if proof_root.exists() else []
     if existing_children and not sentinel.exists():
         raise FileExistsError(f"{proof_root} has no {TDARR_PROOF_PACK_SENTINEL}; refusing to reuse it.")
     if existing_children and not rebuild:
         return {"already_exists": True}
+    quarantine_root: Path | None = None
     if existing_children and rebuild:
-        shutil.rmtree(proof_root)
+        validate_proof_root_sentinel(proof_root)
+        suffix = f"{datetime.now(UTC):%Y%m%d_%H%M%S}.{uuid.uuid4().hex}"
+        quarantine_root = proof_root.with_name(f"{proof_root.name}.replaced.{suffix}")
+        if quarantine_root.exists():
+            raise FileExistsError(f"Proof root quarantine already exists: {quarantine_root}")
+        proof_root.rename(quarantine_root)
     proof_root.mkdir(parents=True, exist_ok=True)
-    return {"already_exists": False}
+    return {"already_exists": False, "quarantine_root": quarantine_root}
+
+
+def restore_proof_root_after_failure(proof_root: Path, quarantine_root: Path) -> Path | None:
+    failed_root: Path | None = None
+    if proof_root.exists():
+        suffix = f"{datetime.now(UTC):%Y%m%d_%H%M%S}.{uuid.uuid4().hex}"
+        failed_root = proof_root.with_name(f"{proof_root.name}.failed.{suffix}")
+        proof_root.rename(failed_root)
+    quarantine_root.rename(proof_root)
+    return failed_root
 
 
 def link_or_copy(source: Path, destination: Path) -> str:
@@ -170,27 +282,15 @@ def copy_source_to_cache(row: tdarr_matrix_audit.ManifestRow, *, proof_root: Pat
     return destination
 
 
-def materialize_proof_pack(
+def _populate_proof_pack(
     *,
     proof_root: Path,
     source_manifest: Path,
-    template_path: Path = DEFAULT_TEMPLATE,
-    rebuild: bool = False,
+    template_path: Path,
+    source_library_root: Path,
+    proof_rows: Sequence[tdarr_matrix_audit.ManifestRow],
+    quarantine_root: Path | None,
 ) -> dict[str, Any]:
-    proof_root = resolve_path(proof_root)
-    source_manifest = resolve_path(source_manifest)
-    template_path = resolve_path(template_path)
-    if proof_root.exists() and not rebuild and (proof_root / TDARR_PROOF_PACK_SENTINEL).exists():
-        verification = verify_proof_pack(proof_root)
-        if verification["ok"]:
-            return {"action": "prepare-proof-pack", "already_exists": True, **verification}
-    source_library_root, source_rows = load_source_manifest_rows(source_manifest)
-    proof_rows = select_proof_rows(source_rows)
-    state = prepare_proof_root(proof_root, rebuild=rebuild)
-    if state.get("already_exists"):
-        verification = verify_proof_pack(proof_root)
-        return {"action": "prepare-proof-pack", "already_exists": True, **verification}
-
     by_case: dict[str, tdarr_matrix_audit.ManifestRow] = {}
     for row in proof_rows:
         by_case.setdefault(row.case_id, row)
@@ -261,6 +361,7 @@ def materialize_proof_pack(
         "manifest_count": len(materialized_rows),
         "cache_verified": True,
         "link_modes": sorted(link_modes),
+        "root_identity": proof_root_identity_payload(proof_root),
     }
     (proof_root / TDARR_PROOF_PACK_SENTINEL).write_text(
         json.dumps(sentinel, indent=2, sort_keys=True) + "\n",
@@ -273,8 +374,55 @@ def materialize_proof_pack(
         "config_path": str(config_path),
         "source_library_root": str(source_library_root),
         "source_manifest": str(source_manifest),
+        "quarantine_root": str(quarantine_root) if quarantine_root else "",
         **verification,
     }
+
+
+def materialize_proof_pack(
+    *,
+    proof_root: Path,
+    source_manifest: Path,
+    template_path: Path = DEFAULT_TEMPLATE,
+    rebuild: bool = False,
+    allowed_test_parent: Path | None = None,
+) -> dict[str, Any]:
+    original_proof_root = Path(proof_root)
+    proof_root = assert_proof_root_allowed(
+        original_proof_root,
+        allowed_test_parent=allowed_test_parent,
+        original_path=original_proof_root,
+    )
+    source_manifest = resolve_path(source_manifest)
+    template_path = resolve_path(template_path)
+    if proof_root.exists() and not rebuild and (proof_root / TDARR_PROOF_PACK_SENTINEL).exists():
+        verification = verify_proof_pack(proof_root)
+        if verification["ok"]:
+            return {"action": "prepare-proof-pack", "already_exists": True, **verification}
+    source_library_root, source_rows = load_source_manifest_rows(source_manifest)
+    proof_rows = select_proof_rows(source_rows)
+    state = prepare_proof_root(
+        proof_root,
+        rebuild=rebuild,
+        allowed_test_parent=allowed_test_parent,
+    )
+    if state.get("already_exists"):
+        verification = verify_proof_pack(proof_root)
+        return {"action": "prepare-proof-pack", "already_exists": True, **verification}
+    quarantine_root = state.get("quarantine_root")
+    try:
+        return _populate_proof_pack(
+            proof_root=proof_root,
+            source_manifest=source_manifest,
+            template_path=template_path,
+            source_library_root=source_library_root,
+            proof_rows=proof_rows,
+            quarantine_root=quarantine_root,
+        )
+    except Exception:
+        if isinstance(quarantine_root, Path) and quarantine_root.exists():
+            restore_proof_root_after_failure(proof_root, quarantine_root)
+        raise
 
 
 def verify_proof_pack(proof_root: Path) -> dict[str, Any]:
@@ -284,6 +432,11 @@ def verify_proof_pack(proof_root: Path) -> dict[str, Any]:
     errors: list[str] = []
     if not sentinel_path.exists():
         errors.append(f"Missing proof sentinel: {sentinel_path}")
+    else:
+        try:
+            validate_proof_root_sentinel(proof_root)
+        except ValueError as exc:
+            errors.append(str(exc))
     if not manifest_path.exists():
         errors.append(f"Missing proof manifest: {manifest_path}")
         return {"ok": False, "proof_root": str(proof_root), "errors": errors, "source_count": 0, "manifest_count": 0}

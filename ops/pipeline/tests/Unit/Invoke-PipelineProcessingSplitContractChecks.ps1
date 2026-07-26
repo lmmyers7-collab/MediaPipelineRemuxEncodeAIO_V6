@@ -58,12 +58,40 @@ $loaderPath = Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline\module
 $encodePath = Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline\encode.ps1'
 $remuxPath = Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline\remux.ps1'
 $processingPath = Join-Path $repoRoot 'ops\pipeline\engine\process\pipeline_processing.ps1'
+$scratchCopyPath = Join-Path $repoRoot 'ops\pipeline\engine\storage\scratch_copy.ps1'
+$probeHdrPath = Join-Path $repoRoot 'ops\pipeline\engine\probe\media_probe_hdr.ps1'
+$probeReportsPath = Join-Path $repoRoot 'ops\pipeline\engine\probe\media_probe_reports.ps1'
+$probeStreamsPath = Join-Path $repoRoot 'ops\pipeline\engine\probe\media_probe_streams.ps1'
+$trackVerificationPath = Join-Path $repoRoot 'ops\pipeline\engine\verify\media_track_verification.ps1'
+$qualityVerificationPath = Join-Path $repoRoot 'ops\pipeline\engine\verify\quality.ps1'
+$dynamicHdrOutputPath = Join-Path $repoRoot 'ops\pipeline\engine\process\dynamic_hdr_output.ps1'
+$encodeFallbackPath = Join-Path $repoRoot 'ops\pipeline\engine\process\encode_fallback.ps1'
+$remuxFfmpegAvPath = Join-Path $repoRoot 'ops\pipeline\engine\process\remux_ffmpeg_av_stage.ps1'
+$pipelineEnginePath = Join-Path $repoRoot 'ops\pipeline\engine\queue\pipeline_engine.ps1'
+$libraryIndexPath = Join-Path $repoRoot 'ops\pipeline\engine\library\library_index.ps1'
+$queueEntriesPath = Join-Path $repoRoot 'ops\pipeline\engine\queue\queue_entries.ps1'
+$phasePlanPath = Join-Path $repoRoot 'ops\pipeline\engine\queue\phase_plan.ps1'
+$strategySortingPath = Join-Path $repoRoot 'ops\pipeline\engine\queue\strategy_sorting.ps1'
 
 $entrypointText = Get-Content -LiteralPath $entrypointPath -Raw
 $loaderText = Get-Content -LiteralPath $loaderPath -Raw
 $encodeText = Get-Content -LiteralPath $encodePath -Raw
 $remuxText = Get-Content -LiteralPath $remuxPath -Raw
 $processingText = Get-Content -LiteralPath $processingPath -Raw
+$scratchCopyText = Get-Content -LiteralPath $scratchCopyPath -Raw
+$probeHdrText = Get-Content -LiteralPath $probeHdrPath -Raw
+$probeReportsText = Get-Content -LiteralPath $probeReportsPath -Raw
+$probeStreamsText = Get-Content -LiteralPath $probeStreamsPath -Raw
+$trackVerificationText = Get-Content -LiteralPath $trackVerificationPath -Raw
+$qualityVerificationText = Get-Content -LiteralPath $qualityVerificationPath -Raw
+$dynamicHdrOutputText = Get-Content -LiteralPath $dynamicHdrOutputPath -Raw
+$encodeFallbackText = Get-Content -LiteralPath $encodeFallbackPath -Raw
+$remuxFfmpegAvText = Get-Content -LiteralPath $remuxFfmpegAvPath -Raw
+$pipelineEngineText = Get-Content -LiteralPath $pipelineEnginePath -Raw
+$libraryIndexText = Get-Content -LiteralPath $libraryIndexPath -Raw
+$queueEntriesText = Get-Content -LiteralPath $queueEntriesPath -Raw
+$phasePlanText = Get-Content -LiteralPath $phasePlanPath -Raw
+$strategySortingText = Get-Content -LiteralPath $strategySortingPath -Raw
 $encodeModuleRelativePaths = @(
     'ops\pipeline\engine\process\encode_context.ps1',
     'ops\pipeline\engine\process\encode_preflight.ps1',
@@ -252,6 +280,39 @@ foreach ($eventType in @(
     )) {
     Assert-ContainsText ($encodeContractText + $processingText) $eventType "Expected event type '$eventType' to remain present."
 }
+
+Assert-Matches $encodeModuleText "Set-MediaPipelineEncodeVerificationMonitorOutcome\s+-State\s+completed" 'Encode verification must explicitly close the canonical Verification stage on success.'
+Assert-Matches $encodeModuleText "Set-MediaPipelineEncodeVerificationMonitorOutcome\s+-State\s+(failed|review)" 'Encode verification failures must explicitly close the canonical Verification stage.'
+Assert-Matches $remuxModuleText "Set-MediaPipelineRemuxVerificationMonitorOutcome\s+-State\s+completed" 'Remux verification must explicitly close the canonical Verification stage on success.'
+Assert-Matches $remuxModuleText "Set-MediaPipelineRemuxVerificationMonitorOutcome\s+-State\s+(failed|review)" 'Remux verification failures must explicitly close the canonical Verification stage.'
+Assert-Matches $scratchCopyText 'Set-MediaPipelineCurrentRunMonitorOutput\s+-State\s+active\s+-ScratchPath\s+\$localIn' 'Scratch copy must publish its exact backend-owned scratch path to the current monitor.'
+Assert-Matches $encodeModuleText 'Set-MediaPipelineCurrentRunMonitorOutput[\s\S]{0,260}-WorkingOutputPath[\s\S]{0,180}-IntendedFinalPath' 'Encode processing must publish current working and intended final paths without frontend inference.'
+Assert-Matches $remuxModuleText 'Set-MediaPipelineCurrentRunMonitorOutput[\s\S]{0,260}-WorkingOutputPath[\s\S]{0,180}-IntendedFinalPath' 'Remux processing must publish current working and intended final paths without frontend inference.'
+Assert-Matches $encodeModuleText 'Set-MediaPipelineCurrentRunMonitorOutput\s+-State\s+verified[\s\S]{0,260}-VerificationState\s+completed' 'Encode verification must mark backend output evidence verified before publish.'
+Assert-Matches $remuxModuleText 'Set-MediaPipelineCurrentRunMonitorOutput\s+-State\s+verified[\s\S]{0,260}-VerificationState\s+completed' 'Remux verification must mark backend output evidence verified before publish.'
+
+# Every native operation that can legitimately outlive current-evidence
+# freshness must receive the exact run/job/stage heartbeat explicitly. These
+# are source/verification facts, not ambient log or filename inference.
+Assert-Matches $processingText 'New-MediaPipelineCurrentStageNativePollHandler[\s\S]{0,360}-Stage\s+''probe''[\s\S]{0,360}Get-SourceMediaRouteProfile[\s\S]{0,220}-PollHandler\s+\$sourceProbePollHandler' 'Source discovery/probe must explicitly pass a correlated probe heartbeat.'
+Assert-True ([regex]::Matches($probeHdrText, '-PollHandler\s+\$PollHandler\s+-PollMilliseconds\s+\$PollMilliseconds').Count -ge 4) 'Source and Dynamic HDR ffprobe helpers must propagate the supplied poll handler to every potentially long probe.'
+Assert-True ([regex]::Matches($probeReportsText, '-PollHandler\s+\$PollHandler\s+-PollMilliseconds\s+\$PollMilliseconds').Count -ge 4) 'Duration and compatibility-report probes must propagate verification heartbeat evidence.'
+Assert-True ([regex]::Matches($probeStreamsText, '-PollHandler\s+\$PollHandler\s+-PollMilliseconds\s+\$PollMilliseconds').Count -ge 2) 'Video stream inventory probes must propagate verification heartbeat evidence.'
+Assert-Matches $trackVerificationText 'Get-MediaTrackOutputInventory[\s\S]{0,260}-PollHandler\s+\$PollHandler\s+-PollMilliseconds\s+\$PollMilliseconds' 'Media-track output verification must propagate its exact verification heartbeat.'
+Assert-True ([regex]::Matches($qualityVerificationText, '-PollHandler\s+\$PollHandler\s+-PollMilliseconds\s+\$PollMilliseconds').Count -ge 3) 'Quality probes and the long FFmpeg comparison must share the exact verification heartbeat.'
+Assert-Matches $dynamicHdrOutputText 'Get-DolbyVisionState[\s\S]{0,180}-PollHandler\s+\$PollHandler[\s\S]{0,320}Test-Hdr10PlusPresence[\s\S]{0,180}-PollHandler\s+\$PollHandler' 'Dynamic HDR output verification must keep the canonical verification stage fresh through both probes.'
+Assert-Matches $encodeModuleText 'New-MediaPipelineCurrentStageNativePollHandler[\s\S]{0,300}-Stage\s+''encode_verify''[\s\S]{0,420}Test-DurationMatch[\s\S]{0,220}-PollHandler\s+\$verificationPollHandler' 'Encode verification must create and pass an exact encode_verify heartbeat.'
+Assert-Matches $remuxModuleText 'New-MediaPipelineCurrentStageNativePollHandler[\s\S]{0,300}-Stage\s+''remux_verify''[\s\S]{0,420}Test-DurationMatch[\s\S]{0,220}-PollHandler\s+\$verificationPollHandler' 'Remux verification must create and pass an exact remux_verify heartbeat.'
+Assert-Matches $encodeFallbackText 'Waiting for CPU encode slot[\s\S]{0,800}Acquire-CpuEncodeMutex[\s\S]{0,260}-PollHandler\s+\$cpuMutexPollHandler[\s\S]{0,160}-PollMilliseconds\s+1000' 'CPU fallback mutex wait must keep exact encode_cpu evidence fresh.'
+Assert-Matches $remuxFfmpegAvText 'Waiting for CPU slot \(audio transcode\)[\s\S]{0,800}Acquire-CpuEncodeMutex[\s\S]{0,260}-PollHandler\s+\$remuxAvMutexPollHandler[\s\S]{0,160}-PollMilliseconds\s+1000' 'Remux audio-transcode mutex wait must keep exact remux/audio evidence fresh.'
+Assert-Matches $pipelineEngineText 'Set-ProgressStage\s+-Stage\s+''scanning''[\s\S]{0,700}New-MediaPipelineSourceDiscoveryPollHandler[\s\S]{0,300}-RunId[\s\S]{0,220}-AcceptedQueueFingerprint' 'Backend Queue discovery must create one exact run/fingerprint source-discovery heartbeat after authoring the scanning stage.'
+Assert-Matches $pipelineEngineText 'Get-ProcessedIndexCached[\s\S]{0,180}-PollHandler\s+\$discoveryPollHandler[\s\S]{0,260}Get-MediaQueueDiscoveryPlan[\s\S]{0,220}-PollHandler\s+\$discoveryPollHandler' 'Processed-index and source-discovery phases must share the same exact throttled heartbeat.'
+Assert-Matches $libraryIndexText 'function Build-ProcessedIndex[\s\S]{0,420}\[scriptblock\]\s*\$PollHandler[\s\S]{0,900}Invoke-RecursivePathScan[\s\S]{0,220}-PollHandler\s+\$effectivePollHandler' 'Processed-index recursive scanning must receive the exact source-discovery heartbeat.'
+Assert-True ([regex]::Matches($libraryIndexText, 'Invoke-MediaPipelineElapsedPollHandler\s+-PollHandler\s+\$effectivePollHandler').Count -ge 3) 'Processed-index and auto-profile classification loops must refresh indeterminate source-discovery evidence at time-throttled boundaries.'
+Assert-Matches $queueEntriesText 'function Get-QueuedEntries[\s\S]{0,420}\[scriptblock\]\s*\$PollHandler[\s\S]{0,900}Invoke-MediaPipelineElapsedPollHandler' 'Queue entry classification must invoke its supplied exact source-discovery heartbeat.'
+Assert-Matches $queueEntriesText 'Sort-Object[\s\S]{0,420}Invoke-MediaPipelineElapsedPollHandler' 'Queue sort-key extraction must remain heartbeat-aware for very large accepted source sets.'
+Assert-Matches $phasePlanText 'function New-MediaQueuePhasePlan[\s\S]{0,260}\[scriptblock\]\s*\$PollHandler[\s\S]{0,4200}Invoke-QueueStrategySort[\s\S]{0,360}-PollHandler\s+\$PollHandler' 'Phase-plan construction must retain the discovery heartbeat through strategy sorting.'
+Assert-Matches $strategySortingText 'function Invoke-QueueStrategySort[\s\S]{0,6000}\[scriptblock\]\s*\$PollHandler[\s\S]{0,1000}Invoke-MediaPipelineElapsedPollHandler' 'Queue strategy loops must keep source-discovery evidence fresh without manufacturing percent.'
 
 foreach ($commandStage in @('encode', 'encode-safe-retry', 'encode-cpu-fallback', 'remux-av', 'remux-mkvmerge')) {
     Assert-ContainsText ($encodeContractText + $remuxContractText) $commandStage "Expected repro/progress command stage '$commandStage' to remain present."

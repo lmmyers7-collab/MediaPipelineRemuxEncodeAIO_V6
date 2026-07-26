@@ -4,6 +4,7 @@ import logging
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 
@@ -15,6 +16,9 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.models import ResolvedPaths
 from mediapipeline.core.processes.kill import (
+    RelatedProcessKillReport,
+    _mark_process_tree_cleanup_reconciliation_required,
+    _process_tree_cleanup_reconciliation_required,
     find_related_pipeline_processes,
     kill_process_tree,
     kill_related_pipeline_processes,
@@ -76,6 +80,14 @@ class FakePsutilProc:
 
     def status(self) -> str:
         return "stopped" if not self._running else "running"
+
+
+class StubbornChildPsutilProc(FakePsutilProc):
+    def kill(self) -> None:
+        self.killed = True
+
+    def terminate(self) -> None:
+        return
 
 
 class FakePsutil:
@@ -221,6 +233,102 @@ class ProcessKillHelperTests(unittest.TestCase):
         self.assertTrue(matching.killed)
         self.assertEqual(messages, ["Force-killed related MediaPipeline process tree (PID 100)."])
 
+    def test_kill_report_carries_exact_pipeline_run_identity_without_parsing_message_text(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            resolved = self._resolved(root)
+            matching = FakePsutilProc(
+                pid=100,
+                name="powershell.exe",
+                cmdline=[
+                    "powershell",
+                    "-File",
+                    str(resolved.pipeline_path),
+                    "-RunId",
+                    "run-exact-123",
+                    "-CommandId",
+                    "command-exact-456",
+                ],
+            )
+            FakePsutil.processes = [matching]
+
+            report = kill_related_pipeline_processes(
+                resolved,
+                psutil_module=FakePsutil,
+                logger=logging.getLogger("test_service_process_kill"),
+            )
+
+        self.assertIsInstance(report, RelatedProcessKillReport)
+        self.assertEqual(report, ["Force-killed related MediaPipeline process tree (PID 100)."])
+        self.assertEqual(len(report.termination_evidence), 1)
+        evidence = report.termination_evidence[0]
+        self.assertEqual(evidence.pid, 100)
+        self.assertEqual(evidence.matched_job_kinds, ("pipeline",))
+        self.assertEqual(evidence.run_id, "run-exact-123")
+        self.assertEqual(evidence.command_id, "command-exact-456")
+        self.assertTrue(evidence.exit_verified)
+
+    def test_kill_report_is_blocked_when_root_exits_but_an_exact_captured_child_survives(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            resolved = self._resolved(root)
+            child = StubbornChildPsutilProc(pid=101, name="ffmpeg.exe")
+            matching = FakePsutilProc(
+                pid=100,
+                name="powershell.exe",
+                cmdline=[
+                    "powershell",
+                    "-File",
+                    str(resolved.pipeline_path),
+                    "-RunId",
+                    "run-exact-123",
+                ],
+            )
+            matching.children = lambda recursive=False: [child]  # type: ignore[method-assign]
+            FakePsutil.processes = [matching]
+
+            with self.assertRaisesRegex(RuntimeError, "captured process tree.*still running"):
+                kill_related_pipeline_processes(
+                    resolved,
+                    psutil_module=FakePsutil,
+                    logger=logging.getLogger("test_service_process_kill"),
+                )
+
+        self.assertFalse(matching.is_running())
+        self.assertTrue(child.is_running())
+
+    def test_kill_report_is_blocked_when_descendant_enumeration_is_unverifiable(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            resolved = self._resolved(root)
+            matching = FakePsutilProc(
+                pid=100,
+                name="powershell.exe",
+                cmdline=[
+                    "powershell",
+                    "-File",
+                    str(resolved.pipeline_path),
+                    "-RunId",
+                    "run-exact-123",
+                ],
+            )
+
+            def fail_children(*, recursive: bool = False) -> list[Any]:
+                _ = recursive
+                raise PermissionError("descendant enumeration denied")
+
+            matching.children = fail_children  # type: ignore[method-assign]
+            FakePsutil.processes = [matching]
+
+            with self.assertRaisesRegex(RuntimeError, "descendant enumeration.*could not be verified"):
+                kill_related_pipeline_processes(
+                    resolved,
+                    psutil_module=FakePsutil,
+                    logger=logging.getLogger("test_service_process_kill"),
+                )
+
+        self.assertFalse(matching.is_running())
+
     def test_kill_related_pipeline_processes_can_scope_to_audit_only(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
@@ -289,6 +397,387 @@ class ProcessKillHelperTests(unittest.TestCase):
         self.assertIn("without blocking the control path", message)
         self.assertEqual(updates, [{"proc": proc, "status": "kill_degraded", "return_code": None}])
         self.assertEqual(run.call_args.kwargs["timeout"], 10)
+
+    def test_kill_process_tree_remains_degraded_when_timeout_fallback_exits_root(self) -> None:
+        class FallbackExitPopen(FakePopen):
+            def kill(self) -> None:
+                self.returncode = -9
+
+            def terminate(self) -> None:
+                self.returncode = -15
+
+        proc = FallbackExitPopen(pid=1234, returncode=None)
+        updates: list[dict[str, Any]] = []
+
+        with patch("mediapipeline.core.processes.kill.os.name", "nt"), patch(
+            "mediapipeline.core.processes.kill.subprocess.run",
+            side_effect=subprocess.TimeoutExpired(["taskkill"], 10),
+        ):
+            message = kill_process_tree(
+                proc,
+                "pipeline",
+                psutil_module=None,
+                logger=logging.getLogger("test_service_process_kill"),
+                update_active_job_record=lambda proc, **kwargs: updates.append({"proc": proc, **kwargs}),
+            )
+
+        self.assertIn("taskkill timed out", message)
+        self.assertIn("could not be verified", message)
+        self.assertEqual(updates, [{"proc": proc, "status": "kill_degraded", "return_code": -9}])
+
+    def test_kill_process_tree_marks_degraded_evidence_before_fallback_can_exit_root(self) -> None:
+        proc = FakePopen(pid=1234, returncode=None)
+        updates: list[dict[str, Any]] = []
+        fallback_observations: list[tuple[bool, list[dict[str, Any]]]] = []
+
+        def fallback_after_observing_marker(proc_arg, label: str, *, logger) -> None:
+            _ = (label, logger)
+            fallback_observations.append(
+                (_process_tree_cleanup_reconciliation_required(proc_arg), list(updates))
+            )
+            proc_arg.returncode = -9
+
+        with patch("mediapipeline.core.processes.kill.os.name", "nt"), patch(
+            "mediapipeline.core.processes.kill.subprocess.run",
+            side_effect=subprocess.TimeoutExpired(["taskkill"], 10),
+        ), patch(
+            "mediapipeline.core.processes.kill.wait_for_process_exit",
+            return_value=False,
+        ), patch(
+            "mediapipeline.core.processes.kill.fallback_kill_process_handle",
+            side_effect=fallback_after_observing_marker,
+        ):
+            message = kill_process_tree(
+                proc,
+                "pipeline",
+                psutil_module=None,
+                logger=logging.getLogger("test_service_process_kill"),
+                update_active_job_record=lambda proc, **kwargs: updates.append({"proc": proc, **kwargs}),
+            )
+
+        self.assertIn("taskkill timed out", message)
+        self.assertEqual(
+            fallback_observations,
+            [(True, [])],
+        )
+        self.assertTrue(_process_tree_cleanup_reconciliation_required(proc))
+        self.assertEqual(updates, [{"proc": proc, "status": "kill_degraded", "return_code": -9}])
+
+    def test_kill_process_tree_is_degraded_when_nonzero_taskkill_result_coincides_with_root_exit(self) -> None:
+        proc = FakePopen(pid=1234, returncode=None)
+        updates: list[dict[str, Any]] = []
+
+        def failed_taskkill(*args, **kwargs):
+            _ = (args, kwargs)
+            proc.returncode = -9
+            return subprocess.CompletedProcess(["taskkill"], 1, stdout="", stderr="Access denied")
+
+        with patch("mediapipeline.core.processes.kill.os.name", "nt"), patch(
+            "mediapipeline.core.processes.kill.subprocess.run",
+            side_effect=failed_taskkill,
+        ):
+            message = kill_process_tree(
+                proc,
+                "pipeline",
+                psutil_module=None,
+                logger=logging.getLogger("test_service_process_kill"),
+                update_active_job_record=lambda proc, **kwargs: updates.append({"proc": proc, **kwargs}),
+            )
+
+        self.assertIn("taskkill reported a failure", message)
+        self.assertIn("could not be verified", message)
+        self.assertEqual(updates, [{"proc": proc, "status": "kill_degraded", "return_code": -9}])
+
+    def test_kill_process_tree_reports_success_when_taskkill_zero_exits_root(self) -> None:
+        proc = FakePopen(pid=1234, returncode=None)
+        updates: list[dict[str, Any]] = []
+
+        def successful_taskkill(*args, **kwargs):
+            _ = (args, kwargs)
+            proc.returncode = -9
+            return subprocess.CompletedProcess(["taskkill"], 0, stdout="SUCCESS", stderr="")
+
+        with patch("mediapipeline.core.processes.kill.os.name", "nt"), patch(
+            "mediapipeline.core.processes.kill.subprocess.run",
+            side_effect=successful_taskkill,
+        ):
+            message = kill_process_tree(
+                proc,
+                "pipeline",
+                psutil_module=None,
+                logger=logging.getLogger("test_service_process_kill"),
+                update_active_job_record=lambda proc, **kwargs: updates.append({"proc": proc, **kwargs}),
+            )
+
+        self.assertEqual(message, "Force-killed pipeline process tree (PID 1234).")
+        self.assertEqual(updates, [{"proc": proc, "status": "killed", "return_code": -9}])
+
+    def test_successful_windows_tree_kill_retry_clears_prior_degraded_evidence(self) -> None:
+        proc = FakePopen(pid=1234, returncode=None)
+        updates: list[dict[str, Any]] = []
+        attempts = 0
+
+        def taskkill_result(*args, **kwargs):
+            nonlocal attempts
+            _ = (args, kwargs)
+            attempts += 1
+            if attempts == 1:
+                raise subprocess.TimeoutExpired(["taskkill"], 10)
+            proc.returncode = -9
+            return subprocess.CompletedProcess(["taskkill"], 0, stdout="SUCCESS", stderr="")
+
+        with patch("mediapipeline.core.processes.kill.os.name", "nt"), patch(
+            "mediapipeline.core.processes.kill.subprocess.run",
+            side_effect=taskkill_result,
+        ), patch("mediapipeline.core.processes.kill.fallback_kill_process_handle"):
+            first_message = kill_process_tree(
+                proc,
+                "pipeline",
+                psutil_module=None,
+                logger=logging.getLogger("test_service_process_kill"),
+                update_active_job_record=lambda proc, **kwargs: updates.append({"proc": proc, **kwargs}),
+            )
+            self.assertTrue(_process_tree_cleanup_reconciliation_required(proc))
+
+            second_message = kill_process_tree(
+                proc,
+                "pipeline",
+                psutil_module=None,
+                logger=logging.getLogger("test_service_process_kill"),
+                update_active_job_record=lambda proc, **kwargs: updates.append({"proc": proc, **kwargs}),
+            )
+
+        self.assertIn("taskkill timed out", first_message)
+        self.assertEqual(second_message, "Force-killed pipeline process tree (PID 1234).")
+        self.assertFalse(_process_tree_cleanup_reconciliation_required(proc))
+        self.assertEqual(
+            updates,
+            [
+                {"proc": proc, "status": "kill_degraded", "return_code": None},
+                {"proc": proc, "status": "killed", "return_code": -9},
+            ],
+        )
+
+    def test_successful_non_windows_process_group_kill_clears_prior_degraded_evidence(self) -> None:
+        proc = FakePopen(pid=1234, returncode=None)
+        updates: list[dict[str, Any]] = []
+        _mark_process_tree_cleanup_reconciliation_required(proc)
+
+        def successful_group_kill(process_group_id: int, kill_signal: int) -> None:
+            _ = (process_group_id, kill_signal)
+            if kill_signal == 0:
+                raise ProcessLookupError
+            proc.returncode = -9
+
+        with patch("mediapipeline.core.processes.kill.os.name", "posix"), patch(
+            "mediapipeline.core.processes.kill.os.getpgid",
+            return_value=1234,
+            create=True,
+        ), patch(
+            "mediapipeline.core.processes.kill.os.killpg",
+            side_effect=successful_group_kill,
+            create=True,
+        ), patch(
+            "mediapipeline.core.processes.kill.signal.SIGKILL",
+            9,
+            create=True,
+        ):
+            message = kill_process_tree(
+                proc,
+                "pipeline",
+                psutil_module=None,
+                logger=logging.getLogger("test_service_process_kill"),
+                update_active_job_record=lambda proc, **kwargs: updates.append({"proc": proc, **kwargs}),
+            )
+
+        self.assertEqual(message, "Force-killed pipeline process (PID 1234).")
+        self.assertFalse(_process_tree_cleanup_reconciliation_required(proc))
+        self.assertEqual(updates, [{"proc": proc, "status": "killed", "return_code": -9}])
+
+    def test_non_windows_root_only_fallback_does_not_clear_tree_reconciliation(self) -> None:
+        class FallbackExitPopen(FakePopen):
+            def kill(self) -> None:
+                self.returncode = -9
+
+            def terminate(self) -> None:
+                self.returncode = -15
+
+        proc = FallbackExitPopen(pid=1234, returncode=None)
+        updates: list[dict[str, Any]] = []
+        _mark_process_tree_cleanup_reconciliation_required(proc)
+
+        with patch("mediapipeline.core.processes.kill.os.name", "posix"), patch(
+            "mediapipeline.core.processes.kill.os.getpgid",
+            return_value=1234,
+            create=True,
+        ), patch(
+            "mediapipeline.core.processes.kill.os.killpg",
+            side_effect=ProcessLookupError,
+            create=True,
+        ), patch(
+            "mediapipeline.core.processes.kill.signal.SIGKILL",
+            9,
+            create=True,
+        ):
+            message = kill_process_tree(
+                proc,
+                "pipeline",
+                psutil_module=None,
+                logger=logging.getLogger("test_service_process_kill"),
+                update_active_job_record=lambda proc, **kwargs: updates.append({"proc": proc, **kwargs}),
+            )
+
+        self.assertIn("process group exit could not be verified", message)
+        self.assertTrue(_process_tree_cleanup_reconciliation_required(proc))
+        self.assertEqual(updates, [{"proc": proc, "status": "kill_degraded", "return_code": -9}])
+
+    def test_already_exited_root_does_not_clear_prior_tree_reconciliation(self) -> None:
+        proc = FakePopen(pid=1234, returncode=-9)
+        updates: list[dict[str, Any]] = []
+        _mark_process_tree_cleanup_reconciliation_required(proc)
+
+        message = kill_process_tree(
+            proc,
+            "pipeline",
+            psutil_module=None,
+            logger=logging.getLogger("test_service_process_kill"),
+            update_active_job_record=lambda proc, **kwargs: updates.append({"proc": proc, **kwargs}),
+        )
+
+        self.assertIn("descendant cleanup still requires reconciliation", message)
+        self.assertTrue(_process_tree_cleanup_reconciliation_required(proc))
+        self.assertEqual(updates, [])
+
+    def test_non_windows_group_signal_does_not_prove_descendant_exit_while_group_remains(self) -> None:
+        proc = FakePopen(pid=1234, returncode=None)
+        updates: list[dict[str, Any]] = []
+
+        def group_kill_leaves_group_present(process_group_id: int, kill_signal: int) -> None:
+            _ = process_group_id
+            if kill_signal != 0:
+                proc.returncode = -9
+
+        with patch("mediapipeline.core.processes.kill.os.name", "posix"), patch(
+            "mediapipeline.core.processes.kill.os.getpgid",
+            return_value=1234,
+            create=True,
+        ), patch(
+            "mediapipeline.core.processes.kill.os.killpg",
+            side_effect=group_kill_leaves_group_present,
+            create=True,
+        ), patch(
+            "mediapipeline.core.processes.kill.signal.SIGKILL",
+            9,
+            create=True,
+        ):
+            message = kill_process_tree(
+                proc,
+                "pipeline",
+                psutil_module=None,
+                logger=logging.getLogger("test_service_process_kill"),
+                update_active_job_record=lambda proc, **kwargs: updates.append({"proc": proc, **kwargs}),
+            )
+
+        self.assertIn("process group exit could not be verified", message)
+        self.assertTrue(_process_tree_cleanup_reconciliation_required(proc))
+        self.assertEqual(updates, [{"proc": proc, "status": "kill_degraded", "return_code": -9}])
+
+    def test_unexpected_windows_termination_error_marks_reconciliation_before_raising(self) -> None:
+        proc = FakePopen(pid=1234, returncode=None)
+        updates: list[dict[str, Any]] = []
+
+        with patch("mediapipeline.core.processes.kill.os.name", "nt"), patch(
+            "mediapipeline.core.processes.kill.subprocess.run",
+            side_effect=OSError("taskkill unavailable"),
+        ):
+            with self.assertRaisesRegex(OSError, "taskkill unavailable"):
+                kill_process_tree(
+                    proc,
+                    "pipeline",
+                    psutil_module=None,
+                    logger=logging.getLogger("test_service_process_kill"),
+                    update_active_job_record=lambda proc, **kwargs: updates.append({"proc": proc, **kwargs}),
+                )
+
+        self.assertTrue(_process_tree_cleanup_reconciliation_required(proc))
+        self.assertEqual(updates, [{"proc": proc, "status": "kill_degraded", "return_code": None}])
+
+    def test_unexpected_posix_termination_error_marks_reconciliation_before_raising(self) -> None:
+        proc = FakePopen(pid=1234, returncode=None)
+        updates: list[dict[str, Any]] = []
+
+        with patch("mediapipeline.core.processes.kill.os.name", "posix"), patch(
+            "mediapipeline.core.processes.kill.os.getpgid",
+            side_effect=PermissionError("group access denied"),
+            create=True,
+        ), patch(
+            "mediapipeline.core.processes.kill.os.killpg",
+            create=True,
+        ):
+            with self.assertRaisesRegex(PermissionError, "group access denied"):
+                kill_process_tree(
+                    proc,
+                    "pipeline",
+                    psutil_module=None,
+                    logger=logging.getLogger("test_service_process_kill"),
+                    update_active_job_record=lambda proc, **kwargs: updates.append({"proc": proc, **kwargs}),
+                )
+
+        self.assertTrue(_process_tree_cleanup_reconciliation_required(proc))
+        self.assertEqual(updates, [{"proc": proc, "status": "kill_degraded", "return_code": None}])
+
+    def test_concurrent_cleanup_callers_join_one_exact_process_attempt(self) -> None:
+        proc = FakePopen(pid=1234, returncode=None)
+        entered = threading.Event()
+        release = threading.Event()
+        calls = 0
+        calls_lock = threading.Lock()
+        first_results: list[str] = []
+
+        def taskkill_result(*args, **kwargs):
+            nonlocal calls
+            _ = (args, kwargs)
+            with calls_lock:
+                calls += 1
+            entered.set()
+            self.assertTrue(release.wait(timeout=1.0))
+            proc.returncode = -9
+            return subprocess.CompletedProcess(["taskkill"], 0, stdout="SUCCESS", stderr="")
+
+        def first_cleanup() -> None:
+            first_results.append(
+                kill_process_tree(
+                    proc,
+                    "pipeline",
+                    psutil_module=None,
+                    logger=logging.getLogger("test_service_process_kill"),
+                    update_active_job_record=lambda proc, **kwargs: None,
+                )
+            )
+
+        with patch("mediapipeline.core.processes.kill.os.name", "nt"), patch(
+            "mediapipeline.core.processes.kill.subprocess.run",
+            side_effect=taskkill_result,
+        ):
+            first_thread = threading.Thread(target=first_cleanup)
+            first_thread.start()
+            self.assertTrue(entered.wait(timeout=1.0))
+            timer = threading.Timer(0.05, release.set)
+            timer.start()
+            second_result = kill_process_tree(
+                proc,
+                "pipeline",
+                psutil_module=None,
+                logger=logging.getLogger("test_service_process_kill"),
+                update_active_job_record=lambda proc, **kwargs: None,
+            )
+            first_thread.join(timeout=1.0)
+            timer.join(timeout=1.0)
+
+        self.assertFalse(first_thread.is_alive())
+        self.assertEqual(calls, 1)
+        self.assertEqual(first_results, ["Force-killed pipeline process tree (PID 1234)."])
+        self.assertEqual(second_result, first_results[0])
 
     def test_process_service_wrappers_route_to_extracted_helpers(self) -> None:
         with tempfile.TemporaryDirectory() as td:

@@ -48,6 +48,10 @@ param(
     # the actual run order with no second source of truth.
     [switch]$EmitQueuePlan,
     [string]$QueuePlanOutPath,
+    [switch]$PriorityOnly,
+    [string]$ExpectedQueuePlanFingerprint = "",
+    [string]$CommandId = "",
+    [string]$RunId = "",
 
     # Worker mode: skip queue discovery and encode exactly one file.
     # When non-empty, the pipeline builds a synthetic single-item plan
@@ -62,6 +66,7 @@ param(
     [switch]$WorkerChild,
     [int]$WorkerSlotId = 0,
     [string]$WorkerRunId = "",
+    [string]$WorkerJobId = "",
     [string]$WorkerClaimId = "",
     [string]$WorkerResultPath = "",
     [string]$WorkerHeartbeatPath = "",
@@ -145,6 +150,24 @@ if ($PSVersionTable.PSVersion.Major -lt 7) {
 $ErrorActionPreference = 'Stop'
 $ProgressPreference    = 'SilentlyContinue'
 
+# Priority-only execution is a backend-export scope, not a general CLI filter.
+# Dry-run export may omit the expected fingerprint; live execution must be one
+# queue pass with a backend-provided plan fingerprint and can never be combined
+# with the independent single-file path.
+if ($PriorityOnly) {
+    if (-not [string]::IsNullOrWhiteSpace($SingleFile)) {
+        throw 'PriorityOnly cannot be combined with SingleFile.'
+    }
+    if (-not $EmitQueuePlan) {
+        if (-not $Once) {
+            throw 'PriorityOnly live execution requires Once.'
+        }
+        if ([string]::IsNullOrWhiteSpace($ExpectedQueuePlanFingerprint)) {
+            throw 'PriorityOnly live execution requires ExpectedQueuePlanFingerprint.'
+        }
+    }
+}
+
 function Write-MediaPipelineEarlyWorkerChildFailureResult {
     param(
         [string] $Reason,
@@ -180,6 +203,7 @@ function Write-MediaPipelineEarlyWorkerChildFailureResult {
         WorkerSlotId        = [int]$WorkerSlotId
         WorkerRunId         = [string]$WorkerRunId
         WorkerClaimId       = [string]$WorkerClaimId
+        WorkerJobId         = [string]$WorkerJobId
         StartupExitCode     = [int]$ExitCode
         CompletedAt         = (Get-Date).ToString('o')
     }
@@ -204,6 +228,7 @@ function Write-MediaPipelineEarlyWorkerChildFailureResult {
                 worker_slot_id  = [int]$WorkerSlotId
                 worker_run_id   = [string]$WorkerRunId
                 worker_claim_id = [string]$WorkerClaimId
+                run_monitor_job_id = [string]$WorkerJobId
                 source_path     = [string]$SingleFile
                 stage           = 'startup_failure'
                 status          = [string]$Reason
@@ -526,13 +551,13 @@ if (-not $ValidateOnly -and -not $locklessDiagnostic) {
     Invoke-PeriodicLocalEncodedDirectoryCleanup -Force | Out-Null
 }
 
-# Clear stale operator pause/stop flags from a previous run -- controller runs
+# Clear stale operator control flags from a previous run -- controller runs
 # only. Worker children share these flag paths with the controller, and the
 # lockless diagnostic dump modes may run beside a live pipeline; in
 # both cases deleting here would silently cancel a pause/stop the operator
 # just requested.
 if (-not $ValidateOnly -and -not $WorkerChild -and -not $locklessDiagnostic) {
-    foreach ($flag in @($PauseFlag, $StopFlag)) {
+    foreach ($flag in @($PauseFlag, $StopFlag, $StopAfterCurrentFlag)) {
         if (Test-Path -LiteralPath $flag) { Remove-Item -LiteralPath $flag -Force -ErrorAction SilentlyContinue }
     }
 }
@@ -634,6 +659,29 @@ if ($DumpEncoderCapabilitiesPath) {
         & $Script:ExitCleanup
         exit 1
     }
+}
+if (-not $DrainPendingPushes) {
+    $encodeContextContract = Test-MediaPipelineEncodeContextFactoryContract
+    if (-not [bool]$encodeContextContract.Ok) {
+        $missingEncodeContextProperties = @($encodeContextContract.MissingProperties)
+        $encodeContextContractMessage = "Encode context contract is incomplete; missing properties: $($missingEncodeContextProperties -join ', ')"
+        Write-Log "STARTUP: $encodeContextContractMessage" 'ERROR'
+        if (-not $ValidateOnly -and (Get-Command -Name Write-PipelineEvent -ErrorAction SilentlyContinue)) {
+            try {
+                Write-PipelineEvent -EventType 'pipeline_contract_selfcheck_failed' -Stage 'startup' -Status 'blocked' -Data @{
+                    error_code = 'ENCODE_CONTEXT_CONTRACT_INVALID'
+                    contract = 'encode_context'
+                    missing_properties = $missingEncodeContextProperties
+                } | Out-Null
+            } catch {}
+        }
+        if (-not $ValidateOnly) {
+            Set-ProgressStage -Stage 'blocked' -Status $encodeContextContractMessage -Percent $null -SaveNow
+        }
+        & $Script:ExitCleanup
+        exit 76
+    }
+    Write-Log 'Encode context contract: OK' 'DEBUG'
 }
 if ($ValidateOnly) {
     # -ValidateOnly holds no instance lock, so it must not write the shared
@@ -823,7 +871,9 @@ $enginePlan = New-MediaPipelineEnginePlan `
     -ConfigPath $configPath `
     -PowerShellPath $currentPowerShellPath `
     -ParallelEncodeMode ([string]$script:ParallelEncodeMode) `
-    -MaxParallelEncodes ([int]$script:MaxParallelEncodes)
+    -MaxParallelEncodes ([int]$script:MaxParallelEncodes) `
+    -PriorityOnly:$PriorityOnly `
+    -ExpectedQueuePlanFingerprint $ExpectedQueuePlanFingerprint
 
 # -EmitQueuePlan: do exactly one scan + filter pass, write the snapshot,
 # and exit. Pending-push retry is intentionally skipped to keep the dry

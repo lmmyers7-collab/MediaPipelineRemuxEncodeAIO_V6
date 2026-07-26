@@ -1384,7 +1384,9 @@ class FinalLibraryPromotionServiceTests(unittest.TestCase):
 class FinalLibraryPromotionWebViewSettingsTests(unittest.TestCase):
     def test_settings_uses_library_profiles_for_final_library_promotion_settings(self) -> None:
         static_root = REPO_ROOT / "apps" / "desktop" / "webview" / "static"
-        settings_html = (static_root / "partials" / "page-settings.html").read_text(encoding="utf-8")
+        from tests.webview.static_markup_support import settings_markup
+
+        settings_html = settings_markup(static_root)
         settings_js = (static_root / "assets" / "settingsView.js").read_text(encoding="utf-8")
         settings_libraries_root = static_root / "assets" / "settingsLibraries"
         settings_libraries_js = "\n".join(

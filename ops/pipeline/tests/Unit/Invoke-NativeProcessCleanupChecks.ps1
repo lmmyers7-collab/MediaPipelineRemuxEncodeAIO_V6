@@ -45,6 +45,11 @@ function Write-Log {
     )
 }
 
+function Format-NativeCommandLine {
+    param([string]$FilePath, [array]$ArgumentList)
+    return ((@($FilePath) + @($ArgumentList | ForEach-Object { [string]$_ })) -join ' ')
+}
+
 function Set-ProgressStage {
     param(
         [string]$Stage,
@@ -52,6 +57,11 @@ function Set-ProgressStage {
         $Percent,
         [switch]$SaveNow
     )
+}
+
+function Test-IsUncPath {
+    param([string] $Path)
+    return $false
 }
 
 $script:CapturedPipelineEvents = @()
@@ -98,6 +108,48 @@ function Wait-ProcessExitObserved {
 
 . $nativeModule
 
+$script:FallbackFactoryCalls = [System.Collections.Generic.List[object]]::new()
+$script:FallbackPollState = [pscustomobject]@{
+    Elapsed = [System.Collections.Generic.List[double]]::new()
+}
+$script:LastFallbackPollHandler = $null
+function ConvertTo-MediaPipelineRunMonitorStageId {
+    param([string] $PipelineStage)
+    switch (([string]$PipelineStage).Trim().ToLowerInvariant()) {
+        'probe' { return 'probe' }
+        'encode_verify' { return 'verification' }
+        default { return '' }
+    }
+}
+
+function New-MediaPipelineCurrentStageNativePollHandler {
+    param(
+        [string] $Stage,
+        [string] $Status = '',
+        [string] $Route = '',
+        [double] $MinimumIntervalSeconds = 15,
+        [string] $EvidenceSource = ''
+    )
+    $script:FallbackFactoryCalls.Add([pscustomobject]@{
+        RunId = [string]$script:PipelineRunId
+        JobId = [string]$script:CurrentRunMonitorJobId
+        Stage = $Stage
+        Status = $Status
+        Route = $Route
+        MinimumIntervalSeconds = $MinimumIntervalSeconds
+        EvidenceSource = $EvidenceSource
+    }) | Out-Null
+    $pollState = $script:FallbackPollState
+    $writer = {
+        param($ElapsedSeconds, $Process)
+        $pollState.Elapsed.Add([double]$ElapsedSeconds) | Out-Null
+        return $null
+    }.GetNewClosure()
+    $handler = New-ThrottledNativePollHandler -Handler $writer -MinimumIntervalSeconds $MinimumIntervalSeconds
+    $script:LastFallbackPollHandler = $handler
+    return $handler
+}
+
 $script:StopRequested = $false
 $script:StopFlag = $stopFlag
 $childPid = 0
@@ -108,6 +160,164 @@ New-Item -ItemType Directory -Path $workingDirectoryRoot | Out-Null
 $resolvedWorkingDirectoryRoot = (Resolve-Path -LiteralPath $workingDirectoryRoot).ProviderPath
 
 try {
+    $timeoutResult = Invoke-NativeCommand `
+        -FilePath $childExe `
+        -ArgumentList @('-NoProfile', '-Command', 'Start-Sleep -Seconds 30') `
+        -TimeoutSeconds 1
+    Assert-True ([bool]$timeoutResult.TimedOut) 'Native timeout did not set TimedOut.'
+    Assert-True ([string]$timeoutResult.ErrorCode -eq 'NATIVE_TIMEOUT') "Native timeout error code changed: $($timeoutResult.ErrorCode)."
+    Assert-True ($null -ne $timeoutResult.Stdout -and $null -ne $timeoutResult.Stderr) 'Native timeout result lost its Stdout/Stderr aliases.'
+
+    $externalToolRoot = Join-Path $workingDirectoryRoot 'external-tool-contract'
+    $script:LocalFailureReports = Join-Path $externalToolRoot 'reports'
+    New-Item -ItemType Directory -Path $script:LocalFailureReports -Force | Out-Null
+    $failedTool = Invoke-ExternalToolCommand `
+        -ToolName 'ffmpeg' `
+        -FilePath $childExe `
+        -ArgumentList @('-NoProfile', '-Command', 'exit 7') `
+        -TimeoutSeconds 5 `
+        -Stage 'wrapper-failure' `
+        -SaveReproOnFailure
+    Assert-True ([int]$failedTool.ExitCode -eq 7) "External wrapper failure exit changed: $($failedTool.ExitCode)."
+    Assert-True ([string]$failedTool.ToolName -eq 'ffmpeg') 'External wrapper lost ToolName.'
+    Assert-True ([string]$failedTool.Stage -eq 'wrapper-failure') 'External wrapper lost Stage.'
+    Assert-True ([string]$failedTool.ToolErrorCode -eq 'FFMPEG_FAILED') "External wrapper failure classification changed: $($failedTool.ToolErrorCode)."
+    Assert-True (-not [string]::IsNullOrWhiteSpace([string]$failedTool.CommandLine) -and [string]$failedTool.CommandLine -match 'pwsh\.exe') 'External wrapper lost its command line.'
+    Assert-True ($null -ne $failedTool.DurationSeconds -and [double]$failedTool.DurationSeconds -ge 0) 'External wrapper lost duration evidence.'
+    Assert-True (-not [string]::IsNullOrWhiteSpace([string]$failedTool.ReproPath) -and (Test-Path -LiteralPath $failedTool.ReproPath)) 'External wrapper did not save a repro command.'
+
+    $script:ffprobePath = $childExe
+    $successfulProbe = Invoke-FFprobeCommand -ArgumentList @('-NoProfile', '-Command', 'exit 0') -TimeoutSeconds 5 -Stage 'wrapper-success'
+    Assert-True ([int]$successfulProbe.ExitCode -eq 0 -and [string]$successfulProbe.ToolName -eq 'ffprobe' -and [string]$successfulProbe.ToolErrorCode -eq 'OK') 'FFprobe wrapper success metadata changed.'
+    $timedOutProbe = Invoke-ExternalToolCommand `
+        -ToolName 'ffprobe' `
+        -FilePath $childExe `
+        -ArgumentList @('-NoProfile', '-Command', 'Start-Sleep -Seconds 30') `
+        -TimeoutSeconds 1 `
+        -Stage 'wrapper-timeout'
+    Assert-True ([bool]$timedOutProbe.TimedOut) 'External wrapper timeout did not set TimedOut.'
+    Assert-True ([string]$timedOutProbe.ToolErrorCode -eq 'FFPROBE_TIMEOUT') "External wrapper timeout classification changed: $($timedOutProbe.ToolErrorCode)."
+    Assert-True ((Get-NativeToolDefaultTimeoutSeconds -ToolName 'ffmpeg') -gt 0 -and (Get-NativeToolDefaultTimeoutSeconds -ToolName 'mkvmerge') -gt 0 -and (Get-NativeToolDefaultTimeoutSeconds -ToolName 'python') -gt 0) 'Native tool default timeouts must be explicit nonzero values.'
+
+    $script:ThrottledPollCount = 0
+    $throttledHandler = New-ThrottledNativePollHandler -MinimumIntervalSeconds 5 -Handler {
+        param($ElapsedSeconds, $Process)
+        $script:ThrottledPollCount++
+        return $null
+    }
+    & $throttledHandler 0 $null
+    & $throttledHandler 1 $null
+    & $throttledHandler 5 $null
+    Assert-True ($script:ThrottledPollCount -eq 2) 'Generic native poll handler must invoke immediately and then only at the configured interval.'
+
+    $scanRoot = Join-Path $workingDirectoryRoot 'scan-fixture'
+    New-Item -ItemType Directory -Path $scanRoot -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $scanRoot 'a.mkv') -Value 'a' -Encoding ASCII
+    Set-Content -LiteralPath (Join-Path $scanRoot 'b.mkv') -Value 'b' -Encoding ASCII
+    $script:ScanPollElapsed = [System.Collections.Generic.List[double]]::new()
+    $scanPollHandler = New-ThrottledNativePollHandler -MinimumIntervalSeconds 15 -Handler {
+        param($ElapsedSeconds, $Process)
+        $script:ScanPollElapsed.Add([double]$ElapsedSeconds) | Out-Null
+        return $null
+    }
+    $scanResults = @(Invoke-RecursivePathScan -Path $scanRoot -ItemType File -TimeoutSeconds 10 -Label 'heartbeat scan fixture' -PollHandler $scanPollHandler)
+    Assert-True ($scanResults.Count -eq 2) 'Heartbeat-enabled recursive scan must preserve the exact file result set.'
+    Assert-True ($script:ScanPollElapsed.Count -gt 0) 'Recursive scan must invoke its explicit current-stage callback while the Wait-Job loop is active.'
+    Assert-True ([double]$script:ScanPollElapsed[0] -lt 30.0) 'Recursive scan callback must receive elapsed seconds, not item counts or another manufactured progress value.'
+    & $scanPollHandler 46 $null | Out-Null
+    Assert-True (@($script:ScanPollElapsed | Where-Object { $_ -ge 45 }).Count -eq 1) 'A simulated greater-than-45-second scan must produce a fresh indeterminate heartbeat.'
+
+    $script:SleepPollElapsed = [System.Collections.Generic.List[double]]::new()
+    $sleepPollHandler = New-ThrottledNativePollHandler -MinimumIntervalSeconds 15 -Handler {
+        param($ElapsedSeconds, $Process)
+        $script:SleepPollElapsed.Add([double]$ElapsedSeconds) | Out-Null
+        return $null
+    }
+    Assert-True (Start-StopAwareSleep -Seconds 1 -PollHandler $sleepPollHandler) 'Stop-aware heartbeat sleep fixture should complete normally.'
+    Assert-True ($script:SleepPollElapsed.Count -gt 0) 'Stop-aware waits must invoke their exact current-stage callback.'
+    & $sleepPollHandler 46 $null | Out-Null
+    Assert-True (@($script:SleepPollElapsed | Where-Object { $_ -ge 45 }).Count -eq 1) 'A simulated greater-than-45-second stop-aware wait must produce a fresh indeterminate heartbeat.'
+
+    $script:ForwardedOcrPollCount = 0
+    $forwardedOcrPollResult = Invoke-BdpgsOcrCommand `
+        -FilePath $childExe `
+        -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', 'Start-Sleep -Milliseconds 350') `
+        -TimeoutSeconds 10 `
+        -Stage 'native-ocr-poll-forwarding' `
+        -PollMilliseconds 20 `
+        -PollHandler {
+            param($ElapsedSeconds, $Process)
+            $script:ForwardedOcrPollCount++
+            return $null
+        }
+    Assert-True ([int]$forwardedOcrPollResult.ExitCode -eq 0) 'Fake long-running OCR child should exit cleanly.'
+    Assert-True ($script:ForwardedOcrPollCount -gt 0) 'OCR wrapper must forward PollHandler through Invoke-ExternalToolCommand to Invoke-NativeProcess.'
+
+    $script:PipelineRunId = 'native-fallback-run'
+    $script:CurrentRunMonitorJobId = 'native-fallback-run-item-00000001'
+    $script:currentStage = 'probe'
+    $script:pipelineStatus = 'Backend source probe is active'
+    $script:currentRoute = 'remux'
+    $script:FallbackFactoryCalls.Clear()
+    $script:FallbackPollState.Elapsed.Clear()
+    $fallbackResult = Invoke-ExternalToolCommand `
+        -ToolName 'fallback-probe-test' `
+        -FilePath $childExe `
+        -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', 'Start-Sleep -Milliseconds 350') `
+        -TimeoutSeconds 10 `
+        -Stage 'internal-tool-label-must-not-be-authority' `
+        -PollMilliseconds 20
+    Assert-True ([int]$fallbackResult.ExitCode -eq 0) 'Exact-context fallback child should exit cleanly.'
+    Assert-True ($script:FallbackFactoryCalls.Count -eq 1) 'Missing explicit PollHandler must request one exact current-stage fallback.'
+    Assert-True ($script:FallbackFactoryCalls[0].RunId -eq 'native-fallback-run' -and $script:FallbackFactoryCalls[0].JobId -eq 'native-fallback-run-item-00000001') 'Fallback factory must capture exact run/job identity.'
+    Assert-True ($script:FallbackFactoryCalls[0].Stage -eq 'probe') 'Fallback factory must use backend current stage, never the internal tool Stage label.'
+    Assert-True ($script:FallbackFactoryCalls[0].Status -eq 'Backend source probe is active') 'Fallback factory must preserve backend current status.'
+    Assert-True ([string]::IsNullOrWhiteSpace([string]$script:FallbackFactoryCalls[0].Route)) 'Fallback liveness must not refresh a raw compatibility route; explicit call sites own backend-known route evidence.'
+    Assert-True ($script:FallbackFactoryCalls[0].MinimumIntervalSeconds -eq 15) 'Fallback native heartbeat must be throttled at the shared bounded interval.'
+    Assert-True ($script:FallbackFactoryCalls[0].EvidenceSource -eq 'native_process_fallback_heartbeat') 'Fallback native heartbeat must disclose its supporting evidence source.'
+    Assert-True ($script:FallbackPollState.Elapsed.Count -gt 0) 'Fallback handler must reach the native process poll loop.'
+    & $script:LastFallbackPollHandler 46 $null | Out-Null
+    Assert-True (@($script:FallbackPollState.Elapsed | Where-Object { $_ -ge 45 }).Count -eq 1) 'Fake long-running fallback must refresh after a greater-than-45-second elapsed poll without fabricating progress.'
+
+    $fallbackFactoryCountBeforeMissingContext = $script:FallbackFactoryCalls.Count
+    $fallbackPollCountBeforeMissingContext = $script:FallbackPollState.Elapsed.Count
+    $script:PipelineRunId = ''
+    $missingContextResult = Invoke-ExternalToolCommand `
+        -ToolName 'fallback-missing-context-test' `
+        -FilePath $childExe `
+        -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', 'Start-Sleep -Milliseconds 100') `
+        -TimeoutSeconds 10 `
+        -Stage 'probe' `
+        -PollMilliseconds 20
+    Assert-True ([int]$missingContextResult.ExitCode -eq 0) 'Missing-context child should exit cleanly.'
+    Assert-True ($script:FallbackFactoryCalls.Count -eq $fallbackFactoryCountBeforeMissingContext) 'Missing exact run context must not create a fallback handler.'
+    Assert-True ($script:FallbackPollState.Elapsed.Count -eq $fallbackPollCountBeforeMissingContext) 'Missing exact context must not mutate heartbeat evidence.'
+
+    $script:PipelineRunId = 'native-fallback-run'
+    $script:ExplicitPollCount = 0
+    $fallbackFactoryCountBeforeExplicit = $script:FallbackFactoryCalls.Count
+    $explicitResult = Invoke-ExternalToolCommand `
+        -ToolName 'explicit-poll-precedence-test' `
+        -FilePath $childExe `
+        -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', 'Start-Sleep -Milliseconds 200') `
+        -TimeoutSeconds 10 `
+        -Stage 'different-internal-label' `
+        -PollMilliseconds 20 `
+        -PollHandler {
+            param($ElapsedSeconds, $Process)
+            $script:ExplicitPollCount++
+            return $null
+        }
+    Assert-True ([int]$explicitResult.ExitCode -eq 0) 'Explicit-poll child should exit cleanly.'
+    Assert-True ($script:ExplicitPollCount -gt 0) 'Explicit PollHandler must reach the native process poll loop.'
+    Assert-True ($script:FallbackFactoryCalls.Count -eq $fallbackFactoryCountBeforeExplicit) 'Explicit PollHandler must suppress fallback creation.'
+
+    $script:PipelineRunId = ''
+    $script:CurrentRunMonitorJobId = ''
+    $script:currentStage = ''
+    $script:pipelineStatus = ''
+    $script:currentRoute = ''
+
     $expectedExitResult = Invoke-ExternalToolCommand `
         -ToolName 'expected-exit-test' `
         -FilePath $childExe `

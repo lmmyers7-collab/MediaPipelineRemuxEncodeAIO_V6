@@ -1,0 +1,44 @@
+{
+  "id": "MP-CHANGE-2026-0720-030",
+  "title": "Add inline Queue scan launch recovery",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-07-20",
+  "date_completed": "2026-07-20",
+  "summary": "Add an inline Scan Queue recovery action to scan-recoverable normal Queue launch preflight alerts.",
+  "reason": "The backend correctly requires an accepted Queue dry-run before normal Run Once, but the startup alert only describes the failure and forces the operator to navigate elsewhere to perform the stated recovery.",
+  "affected_areas": [
+    "webview",
+    "queue-launch"
+  ],
+  "behavior_before": "A scan-recoverable normal Queue preflight blocker renders guidance text without an inline action.",
+  "behavior_after": "A scan-recoverable normal Queue preflight blocker offers an accessible inline Scan Queue action that reuses the existing backend Queue scan workflow, exposes submission state, and keeps unrelated blockers action-free.",
+  "files_touched": [
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0720-030.json",
+    "apps/desktop/webview/static/assets/launchView.preflight.js",
+    "apps/desktop/webview/static/assets/queue/scan.js",
+    "tests/webview/test_webview_launch_command_buttons_smoke.py",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launchView.preflight.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/queue/scan.js.md",
+    "docs/generated/summaries/tests/webview/test_webview_launch_command_buttons_smoke.py.md"
+  ],
+  "tests_added": [
+    "Focused launch preflight smoke covers recovery visibility, exact existing Queue scan delegation, pending state, success state, and suppression for unrelated blockers."
+  ],
+  "manual_validation": [
+    "node --check launchView.preflight.js and queue/scan.js - passed",
+    "python -m unittest tests.webview.test_webview_launch_command_buttons_smoke tests.webview.test_webview_frontend_mutation_boundary - 32 passed",
+    "python -m ruff check tests/webview/test_webview_launch_command_buttons_smoke.py - passed",
+    "Test-WebViewCommandEvidenceSmoke.ps1 - passed",
+    "Test-WebViewSettingsLaunchPolicySmoke.ps1 - passed",
+    "Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1 - 2 passed with Chrome; no skips",
+    "targeted refresh_summaries for three touched source/test files - passed",
+    "validate_changes - 1113 packets valid",
+    "git diff --check for task-owned source/test files - passed"
+  ],
+  "rollback_plan": "Remove the startup-alert Queue scan recovery helper and dependency wiring, restore the Queue scan function's prior no-return behavior, remove the focused styling, and revert the focused smoke assertions.",
+  "related_changes": [],
+  "notes": "No Python implementation impact. The action calls the existing plan-only /api/queue/scan workflow; it does not change backend launch policy, media processing, source mutation, or filesystem policy. Representative real-media validation is not required for this WebView-only recovery affordance. The release self-test completed globally red from unrelated current-worktree findings: an unallowlisted package-cycle edge, two rename-test B023 findings, a generated test inventory UNC-path content-policy rejection, and a browser-runner reliability assertion. Its one task-local W605 finding was fixed afterward and the touched test passes targeted Ruff. Global refresh_summaries --check remains red for 5 unrelated tooling/CHANGELOG summaries. Strict worktree coverage remains red for 56 unrelated audit/generated paths; task-owned files are explicitly covered here."
+}

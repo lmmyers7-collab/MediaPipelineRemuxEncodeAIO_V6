@@ -1,4 +1,6 @@
 (function () {
+  let rowOpenActionEventsBound = false;
+
   function rowOpenActionGroup(scope) {
     const groups = {
       completed: {
@@ -43,7 +45,72 @@
     return groups[scope] || null;
   }
 
+  function handleBackendRowOpenAction(event) {
+    const button = event.target?.closest?.('button[data-open-target-row-action="open"]');
+    const container = button?.closest?.("[data-open-target-row-actions]");
+    if (!button || !container || button.disabled) return;
+    const config = rowOpenActionGroup(container.dataset.openTargetRowActions || "");
+    if (!config) return;
+    const target = button.dataset[config.targetDataset] || button.dataset.openTarget || "";
+    if (target) config.onOpen(target);
+  }
+
+  function normalizedAvailableTargets(value) {
+    if (Array.isArray(value)) return new Set(value.filter(Boolean).map(String));
+    if (value && typeof value === "object") {
+      return new Set(
+        Object.entries(value)
+          .filter(([, enabled]) => enabled !== false)
+          .map(([target]) => target)
+      );
+    }
+    return new Set();
+  }
+
+  function rowOpenActionButtons(scope) {
+    return Array.from(document.querySelectorAll("[data-open-target-row-actions]"))
+      .filter((container) => container.dataset.openTargetRowActions === scope)
+      .flatMap((container) => Array.from(container.querySelectorAll('button[data-open-target-row-action="open"]')));
+  }
+
+  function applyBackendRowOpenActionState(button) {
+    const available = button.dataset.openTargetAvailable === "true";
+    const busy = button.dataset.openTargetBusy === "true";
+    button.disabled = busy || !available;
+    button.setAttribute("aria-disabled", String(button.disabled));
+    const baseTitle = button.dataset.openTargetBaseTitle || button.title || "";
+    if (!button.dataset.openTargetBaseTitle) button.dataset.openTargetBaseTitle = baseTitle;
+    button.title = available
+      ? baseTitle
+      : [baseTitle, "Unavailable for the selected backend row."].filter(Boolean).join(" ");
+  }
+
+  function setBackendRowOpenActionAvailability(scope, availableTargets) {
+    const config = rowOpenActionGroup(scope);
+    if (!config) return;
+    const available = normalizedAvailableTargets(availableTargets);
+    rowOpenActionButtons(scope).forEach((button) => {
+      const target = button.dataset[config.targetDataset] || button.dataset.openTarget || "";
+      button.dataset.openTargetAvailable = available.has(target) ? "true" : "false";
+      applyBackendRowOpenActionState(button);
+    });
+  }
+
+  function setBackendRowOpenActionBusy(scope, isBusy) {
+    rowOpenActionButtons(scope).forEach((button) => {
+      button.dataset.openTargetBusy = isBusy ? "true" : "false";
+      applyBackendRowOpenActionState(button);
+    });
+  }
+
+  function bindBackendRowOpenActionEvents() {
+    if (rowOpenActionEventsBound) return;
+    rowOpenActionEventsBound = true;
+    document.addEventListener("click", handleBackendRowOpenAction, { capture: true });
+  }
+
   function initBackendRowOpenActions() {
+    bindBackendRowOpenActionEvents();
     const renderer = window.mediaPipelineDom?.renderOpenTargetActionGroups;
     document.querySelectorAll("[data-open-target-row-actions]").forEach((container) => {
       const config = rowOpenActionGroup(container.dataset.openTargetRowActions || "");
@@ -56,13 +123,15 @@
         groupDataset: "openTargetRowGroup",
         actionDataset: "openTargetRowAction",
         targetDataset: config.targetDataset,
-        onOpen: (target) => config.onOpen(target),
       });
+      setBackendRowOpenActionAvailability(container.dataset.openTargetRowActions || "", []);
     });
   }
 
   window.mediaPipelineAppRowOpenActions = {
     rowOpenActionGroup,
     initBackendRowOpenActions,
+    setBackendRowOpenActionAvailability,
+    setBackendRowOpenActionBusy,
   };
 })();

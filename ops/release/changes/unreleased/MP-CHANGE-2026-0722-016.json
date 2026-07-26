@@ -1,0 +1,66 @@
+{
+  "id": "MP-CHANGE-2026-0722-016",
+  "title": "Rollback failed coordinator-local completion persistence",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-22",
+  "date_completed": "2026-07-22",
+  "summary": "Give coordinator-local terminal completion the same job-scoped rollback boundary as remote completion and persist a merged recoverable claim when registry or rerun-row durability fails.",
+  "reason": "Remediate P1 AUDIT-FIND-W01-021. Local mark_done removed the active job and updated counters before its first durable save, but did not capture or restore rollback state when persistence failed, allowing duplicate work or contradictory restart ownership.",
+  "affected_areas": [
+    "Network CSV rerun local completion ordering",
+    "completion counters and failure ledger rollback",
+    "coordinator-local queue completion",
+    "generated_context",
+    "in-flight registry persistence and restart recovery"
+  ],
+  "behavior_before": "CoordinatorQueueMixin.mark_done called registry.complete before persistence. Ordinary save failure propagated with the target removed in memory; local Network rerun mutated its row before attempting the registry save. Neither path restored the target job, counters, statistics, or failure evidence.",
+  "behavior_after": "Local completion captures a per-job rollback receipt before mutation. Any ordinary save failure restores and persists only that target while preserving concurrent unrelated work. Network rerun completion durably saves the completed registry before row mutation, and either save or row compare-and-set failure restores and persists the claim.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/feature-cards/generated-context.md",
+    "docs/generated/feature-cards/local-api.md",
+    "docs/generated/feature-cards/network-mode.md",
+    "docs/generated/feature-cards/queue-launch.md",
+    "docs/generated/feature-cards/release-validation.md",
+    "docs/generated/feature-cards/webview.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0722-016.json.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/coordinator_queue.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_network_workflow.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0722-016.json",
+    "src/mediapipeline/desktop/network/coordinator_queue.py",
+    "tests/python/desktop/test_network_workflow.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_network_workflow.py: failed local outcome save failure restores the active job, session_failed counter, and failure ledger in memory and after restart.",
+    "tests/python/desktop/test_network_workflow.py: local Network rerun save failure occurs before row mutation, and a row compare-and-set conflict rolls the durably completed registry back to an active restart-recoverable claim.",
+    "tests/python/desktop/test_network_workflow.py: ordinary local success save failure restores the target while preserving an interleaved unrelated completion and new claim, then reloads the merged state from disk."
+  ],
+  "manual_validation": [
+    "Affected workflow, registry, coordinator HTTP, and Network rerun modules - passed: 148 tests.",
+    "All test_network*.py desktop modules - passed: 451 tests.",
+    "Focused Ruff and bundled Python py_compile for changed source/test - passed.",
+    "Full desktop discovery - 2,994 tests: 2,984 passed, 6 failed, 3 errored, 1 skipped. Every non-pass matches the unchanged pre-existing baseline: AUDIT-FIND-W02-004, AUDIT-FIND-W11-030, AUDIT-FIND-W15-001, AUDIT-FIND-W09-013, and unrelated topbar event-ticker assertions.",
+    "Mypy for composed registry.py - passed.",
+    "Post-fix focused state-transaction set - passed: 4 tests.",
+    "Pre-fix focused reproduction - expected red: ordinary local failure performed only one failed save and left the target completed in memory; local Network rerun called row mutation before its failed registry save.",
+    "validate_changes --require-worktree-coverage - passed with 1,131 valid packets before completion",
+    "Targeted refresh_summaries wrote 3 summaries; generate_project_index regenerated 2,466 typed records and the dependency graph; feature-file map and 15 feature cards regenerated.",
+    "Summary integrity, risky-file registry, lifecycle-map, feature-card, and AI-guardrail unit set - passed: 35 tests.",
+    "Risky-file registry and architecture guardrails passed.",
+    "God-file guard completed with 0 errors and 3 warning-only findings across the two touched source/test paths; the reported test-file HEAD delta includes earlier independently packeted worktree batches.",
+    "Final validate_changes --require-worktree-coverage - passed with 1,131 valid packets after completion."
+  ],
+  "rollback_plan": "Revert the local completion receipt/restore helper, rerun persistence ordering, injected-failure tests, generated context, and packet metadata together; retain this packet as incomplete evidence if rollback occurs.",
+  "related_changes": [
+    "AUDIT-FIND-W01-019",
+    "AUDIT-FIND-W01-021",
+    "MP-CHANGE-2026-0722-014"
+  ],
+  "notes": "High-risk network state transaction only. The rollback receipt is target-scoped and refuses changed target/source ownership, so it does not replace unrelated registry collections. Queue removal remains after durable registry save. No media policy, source media, wire schema, frontend, or lifecycle command contract changed. Representative real-media validation is not required.\nRefreshed packet-owned summaries and regenerated typed project, dependency, feature map, and affected feature-card navigation.\nAUDIT-FIND-W01-021 remediated with target-scoped local completion rollback, pre-row registry persistence, and restart-verified merged-state recovery."
+}

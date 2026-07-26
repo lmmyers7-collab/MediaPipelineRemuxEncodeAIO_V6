@@ -77,6 +77,13 @@
     { method: "POST", pattern: /^\/api\/audit(?:\/|$)/, action: "update audit" },
     { method: "POST", pattern: /^\/api\/ui-preferences$/, action: "save UI preferences" },
   ];
+  const DURABLE_COMMAND_ROUTES = new Set(
+    (Array.isArray(bootstrap.durableCommandRoutes) ? bootstrap.durableCommandRoutes : [])
+      .map((route) => routeOnly(route))
+      .filter((route) => route.startsWith(API_ROUTE_PREFIX))
+  );
+  const DURABLE_COMMAND_HEADER = "X-MediaPipeline-Command-ID";
+  const durableCommandStates = new Map();
   const GERUND_BY_VERB = {
     append: "appending",
     apply: "applying",
@@ -372,13 +379,32 @@
     return failure;
   }
 
+  function ambiguousCommandError(error, method, path, options = {}) {
+    const commandId = String(options.commandId || "");
+    const action = requestAction(method, path, options);
+    const endpoint = endpointLabel(method, path);
+    const category = String(error && error.category || "command outcome unknown");
+    const message = `Couldn't ${action.verb}: Outcome is unknown for ${endpoint}. Do not submit a new command. Reconcile backend evidence or retry only with command ID ${commandId}.`;
+    return apiClientError(error && error.name || "ApiClientCommandOutcomeError", message, {
+      action: action.verb,
+      ambiguousOutcome: true,
+      category,
+      code: String(error && error.code || "COMMAND_OUTCOME_UNKNOWN"),
+      commandId,
+      endpoint,
+      route: routeOnly(path),
+      status: Number(error && error.status || 0),
+      retryWithSameCommandId: true,
+    });
+  }
+
   function invalidJsonError(response, path, raw, error, method, options = {}) {
     const action = requestAction(method, path, options);
     const endpoint = endpointLabel(method, path);
     const status = Number(response.status);
     const statusText = Number.isFinite(status) ? `HTTP ${status}` : "HTTP response";
     const message = `Couldn't ${action.verb}: backend returned invalid JSON from ${endpoint} (${statusText}, unexpected error). ${nextStepForCategory("unexpected error")}`;
-    return apiClientError("InvalidApiJsonError", message, {
+    const failure = apiClientError("InvalidApiJsonError", message, {
       action: action.verb,
       category: "unexpected error",
       endpoint,
@@ -386,6 +412,7 @@
       status: response.status,
       parseError: error && error.message ? boundedText(error.message, 200) : "",
     });
+    return options.durableCommand ? ambiguousCommandError(failure, method, path, options) : failure;
   }
 
   function httpError(response, path, data, method, options = {}) {
@@ -396,6 +423,17 @@
     const detail = backendDetail(data);
     const category = categoryForStatus(status, code, detail);
     const nextStep = nextStepForCategory(category);
+    if (
+      options.durableCommand
+      && ["command_outcome_unknown", "command_outcome_indeterminate", "command_evidence_unresolved", "command_in_progress"].includes(code.toLowerCase())
+    ) {
+      return ambiguousCommandError(
+        { name: "ApiClientCommandOutcomeError", category, code, status: response.status },
+        method,
+        path,
+        options
+      );
+    }
     if (category === "authentication/session") {
       return apiClientError(
         "ApiClientHttpError",
@@ -471,13 +509,16 @@
   }
 
   function requestFailure(error, method, path, options, timeoutMs) {
-    if (error && (error.name === "ApiClientHttpError" || error.name === "InvalidApiJsonError")) {
+    if (
+      error
+      && (error.ambiguousOutcome === true || error.name === "ApiClientHttpError" || error.name === "InvalidApiJsonError")
+    ) {
       return error;
     }
     const action = requestAction(method, path, options);
     const endpoint = endpointLabel(method, path);
     if (error && error.name === "ApiClientTimeoutError") {
-      return apiClientError(
+      const failure = apiClientError(
         "ApiClientTimeoutError",
         `Couldn't ${action.verb}: backend timed out after ${durationText(error.timeoutMs || timeoutMs)} for ${endpoint} (timeout). ${nextStepForCategory("timeout")}`,
         {
@@ -489,8 +530,9 @@
           timeoutMs: error.timeoutMs || timeoutMs,
         }
       );
+      return options.durableCommand ? ambiguousCommandError(failure, method, path, options) : failure;
     }
-    return apiClientError(
+    const failure = apiClientError(
       "ApiClientNetworkError",
       `Couldn't connect to backend while ${action.gerund}: no response from ${endpoint} (network unavailable). ${nextStepForCategory("network unavailable")}`,
       {
@@ -501,6 +543,53 @@
         status: 0,
       }
     );
+    return options.durableCommand ? ambiguousCommandError(failure, method, path, options) : failure;
+  }
+
+  function canonicalCommandValue(value) {
+    if (Array.isArray(value)) return value.map(canonicalCommandValue);
+    if (value && typeof value === "object") {
+      const result = {};
+      for (const key of Object.keys(value).sort()) result[key] = canonicalCommandValue(value[key]);
+      return result;
+    }
+    return value;
+  }
+
+  function commandStateKey(path, payload) {
+    return `${routeOnly(path)}\n${JSON.stringify(canonicalCommandValue(payload || {}))}`;
+  }
+
+  function newDurableCommandId() {
+    if (window.crypto && typeof window.crypto.randomUUID === "function") {
+      return window.crypto.randomUUID();
+    }
+    throw apiClientError(
+      "ApiClientCommandIdentityError",
+      "Couldn't create a secure command identity. No command was sent; reload the application before trying again.",
+      { ambiguousOutcome: false, category: "client command identity", status: 0 }
+    );
+  }
+
+  function acquireDurableCommandState(method, path, payload) {
+    if (String(method || "").toUpperCase() !== "POST" || !DURABLE_COMMAND_ROUTES.has(routeOnly(path))) return null;
+    const key = commandStateKey(path, payload);
+    let state = durableCommandStates.get(key);
+    if (!state) {
+      state = { commandId: newDurableCommandId(), inFlight: 0, key, outcomeUnknown: false };
+      durableCommandStates.set(key, state);
+    }
+    state.inFlight += 1;
+    return state;
+  }
+
+  function finishDurableCommandState(state, outcomeUnknown) {
+    if (!state) return;
+    state.inFlight = Math.max(0, Number(state.inFlight || 0) - 1);
+    state.outcomeUnknown = Boolean(outcomeUnknown);
+    if (!state.outcomeUnknown && state.inFlight === 0 && durableCommandStates.get(state.key) === state) {
+      durableCommandStates.delete(state.key);
+    }
   }
 
   async function apiRequest(method, path, payload, options = {}) {
@@ -510,20 +599,32 @@
       options.timeoutMs,
       normalizedMethod === "GET" ? DEFAULT_GET_TIMEOUT_MS : 0
     );
+    const commandState = acquireDurableCommandState(normalizedMethod, requestPath, payload);
+    const requestMetadata = commandState
+      ? { ...options, commandId: commandState.commandId, durableCommand: true }
+      : options;
+    const requestHeaders = normalizedMethod === "GET"
+      ? apiHeaders()
+      : apiHeaders({
+          "Content-Type": "application/json",
+          ...(commandState ? { [DURABLE_COMMAND_HEADER]: commandState.commandId } : {}),
+        });
     const requestOptions = {
       method: normalizedMethod === "GET" ? undefined : normalizedMethod,
-      headers: normalizedMethod === "GET"
-        ? apiHeaders()
-        : apiHeaders({ "Content-Type": "application/json" }),
+      headers: requestHeaders,
       cache: "no-store",
       credentials: "same-origin",
     };
     if (normalizedMethod !== "GET") requestOptions.body = JSON.stringify(payload || {});
     try {
       const response = await fetchWithTimeout(`${apiBase}${requestPath}`, requestOptions, timeoutMs);
-      return await parseResponse(response, requestPath, normalizedMethod, options);
+      const result = await parseResponse(response, requestPath, normalizedMethod, requestMetadata);
+      finishDurableCommandState(commandState, false);
+      return result;
     } catch (error) {
-      throw requestFailure(error, normalizedMethod, requestPath, options, timeoutMs);
+      const failure = requestFailure(error, normalizedMethod, requestPath, requestMetadata, timeoutMs);
+      finishDurableCommandState(commandState, failure && failure.ambiguousOutcome === true);
+      throw failure;
     }
   }
 

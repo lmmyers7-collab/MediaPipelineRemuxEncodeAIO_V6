@@ -1,18 +1,20 @@
 ---
 file: src/mediapipeline/desktop/network/rerun_claims.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-07-10
+last_modified: 2026-07-22
 last_reviewed: 2026-07-05
-sha256: a0ffd27c44acf5a9dfa00046f882520a339dd1dc88f35980d2df912dca7c343d
+sha256: 7888cce2fcf7fa11ea365d179a1156878b7a8c5cc6e3c3c42448da7cc99e07b4
 ---
 # `src/mediapipeline/desktop/network/rerun_claims.py`
 
 **Purpose:** Coordinator-owned claim state for Network CSV rerun rows.
 
-**Classes:** `NetworkRerunClaimLease`
-**Public functions:** `claim_next_network_rerun_row()`, `network_rerun_state_root_for_app()`, `record_late_network_rerun_row_done()`, `rollback_network_rerun_claim()`, `update_network_rerun_row_done()`, `update_network_rerun_row_released()`
-**In-repo imports:** `mediapipeline.core.network.url_policy`, `mediapipeline.core.processes.rerun_results`
+**Public symbols:** `claim_next_network_rerun_row`, `network_rerun_state_root_for_app`, `NetworkRerunClaimLease`, `reconcile_orphaned_network_rerun_destination_policies`, `record_late_network_rerun_row_done`, `request_network_rerun_row_retry`, `rollback_network_rerun_claim`, `update_network_rerun_row_done`, `update_network_rerun_row_released`
+**In-repo imports:** `.protocol`, `.registry`, `mediapipeline.core.kernel.config_key_groups`, `mediapipeline.core.kernel.dto_commands`, `mediapipeline.core.network.url_policy`, `mediapipeline.core.processes.rerun_results`, `mediapipeline.core.processes.source_probe`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/desktop/network/rerun_claims.py`._

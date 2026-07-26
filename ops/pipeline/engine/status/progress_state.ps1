@@ -4,7 +4,7 @@
 # Operator control flags, progress JSON persistence, and round/session counters.
 #
 # Dot-sourced from MediaPipeline.ps1. Reads/writes at call time:
-#   $PauseFlag, $StopFlag, $ProgressFile
+#   $PauseFlag, $StopFlag, $StopAfterCurrentFlag, $ProgressFile
 #   $script:pipelineStatus and current item/stage fields
 #   $script:total*, $script:Round*, $script:Session*
 #
@@ -42,6 +42,9 @@ function Get-ControlFlagInfo {
         Label         = $null
         RequestId     = $null
         CreatedAt     = $null
+        RunId         = $null
+        TargetPid     = $null
+        TargetLaunchId = $null
         RawValid      = $false
     }
 
@@ -59,6 +62,9 @@ function Get-ControlFlagInfo {
             $info.Label = Get-ControlFlagProperty -Payload $payload -Name 'label'
             $info.RequestId = Get-ControlFlagProperty -Payload $payload -Name 'request_id'
             $info.CreatedAt = Get-ControlFlagProperty -Payload $payload -Name 'created_at'
+            $info.RunId = Get-ControlFlagProperty -Payload $payload -Name 'run_id'
+            $info.TargetPid = Get-ControlFlagProperty -Payload $payload -Name 'target_pid'
+            $info.TargetLaunchId = Get-ControlFlagProperty -Payload $payload -Name 'target_launch_id'
             $info.RawValid = $true
         }
     } catch {}
@@ -127,7 +133,7 @@ function Write-ControlFlagEventOnce {
 
 function Register-ControlFlagObservation {
     param(
-        [ValidateSet('pause','stop','rescan')] [string]$Kind,
+        [ValidateSet('pause','stop','stop_after_current','rescan')] [string]$Kind,
         $Info
     )
 
@@ -144,6 +150,11 @@ function Register-ControlFlagObservation {
             $script:LastStopRequestCreatedAt = $Info.CreatedAt
             $script:LastStopRequestObservedAt = $observedAt
         }
+        'stop_after_current' {
+            $script:LastStopAfterCurrentRequestId = $Info.RequestId
+            $script:LastStopAfterCurrentRequestCreatedAt = $Info.CreatedAt
+            $script:LastStopAfterCurrentRequestObservedAt = $observedAt
+        }
         'rescan' {
             $script:LastRescanRequestId = $Info.RequestId
             $script:LastRescanRequestCreatedAt = $Info.CreatedAt
@@ -156,6 +167,7 @@ function New-ControlRequestProgressState {
     param(
         $PauseInfo,
         $StopInfo,
+        $StopAfterCurrentInfo,
         $RescanInfo
     )
 
@@ -176,6 +188,18 @@ function New-ControlRequestProgressState {
             LastObservedCreatedAt = $script:LastStopRequestCreatedAt
             LastObservedAt        = Get-ProgressIsoTimestamp $script:LastStopRequestObservedAt
         }
+        StopAfterCurrent = [ordered]@{
+            Requested             = [bool]($StopAfterCurrentInfo.Exists -or $script:StopAfterCurrentRequested)
+            Acknowledged          = [bool]$script:StopAfterCurrentAcknowledged
+            RequestId             = $StopAfterCurrentInfo.RequestId
+            CreatedAt             = $StopAfterCurrentInfo.CreatedAt
+            RunId                 = $StopAfterCurrentInfo.RunId
+            TargetPid             = $StopAfterCurrentInfo.TargetPid
+            TargetLaunchId        = $StopAfterCurrentInfo.TargetLaunchId
+            LastObservedRequestId = $script:LastStopAfterCurrentRequestId
+            LastObservedCreatedAt = $script:LastStopAfterCurrentRequestCreatedAt
+            LastObservedAt        = Get-ProgressIsoTimestamp $script:LastStopAfterCurrentRequestObservedAt
+        }
         Rescan = [ordered]@{
             Requested             = [bool]$RescanInfo.Exists
             RequestId             = $RescanInfo.RequestId
@@ -185,6 +209,147 @@ function New-ControlRequestProgressState {
             LastObservedAt        = Get-ProgressIsoTimestamp $script:LastRescanRequestObservedAt
         }
     }
+}
+
+function Get-MediaPipelineCurrentControllerLaunchId {
+    param([int] $ProcessId = $PID)
+
+    $activeJobsRoot = ''
+    try { $activeJobsRoot = [string]$script:LocalStateLayout.ActiveJobs } catch {}
+    if ([string]::IsNullOrWhiteSpace($activeJobsRoot) -or -not (Test-Path -LiteralPath $activeJobsRoot -PathType Container)) {
+        return ''
+    }
+    foreach ($recordPath in @(Get-ChildItem -LiteralPath $activeJobsRoot -Filter '*.json' -File -ErrorAction SilentlyContinue)) {
+        try {
+            $record = Get-Content -LiteralPath $recordPath.FullName -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+            if (
+                [string]$record.schema_version -eq 'desktop_active_job.v1' -and
+                [string]$record.job_kind -eq 'pipeline' -and
+                [string]$record.status -in @('launching','active') -and
+                [int]$record.pid -eq $ProcessId
+            ) {
+                return [string]$record.launch_id
+            }
+        } catch {}
+    }
+    return ''
+}
+
+function Test-MediaPipelineStopAfterCurrentCorrelation {
+    param($Info)
+
+    if (-not $Info -or -not $Info.Exists -or -not $Info.RawValid) { return $false }
+    if ([string]$Info.SchemaVersion -ne 'pipeline_control_flag.v1' -or [string]$Info.Action -ne 'stop_after_current') { return $false }
+    if ([string]::IsNullOrWhiteSpace([string]$Info.RequestId)) { return $false }
+
+    $runId = [string]$Info.RunId
+    $targetPid = 0
+    try { $targetPid = [int]$Info.TargetPid } catch { $targetPid = 0 }
+    $targetLaunchId = [string]$Info.TargetLaunchId
+    $currentRunId = [string]$script:PipelineRunId
+    # Every pipeline mode has a process-local PipelineRunId. Only the exact
+    # Backend Queue seed-adoption context proves that this process owns a
+    # durable Run Once monitor and may accept a run-correlated control flag.
+    $runMonitorContext = $null
+    try { $runMonitorContext = $script:BackendQueueRunMonitorSeedContext } catch {}
+    $monitoredRun = $null -ne $runMonitorContext
+    if ($monitoredRun) {
+        $monitorRunId = ''
+        $monitorFingerprint = ''
+        try { $monitorRunId = [string]$runMonitorContext.RunId } catch {}
+        try { $monitorFingerprint = [string]$runMonitorContext.QueuePlanFingerprint } catch {}
+        if (
+            [string]::IsNullOrWhiteSpace($currentRunId) -or
+            [string]::IsNullOrWhiteSpace($monitorRunId) -or
+            [string]::IsNullOrWhiteSpace($monitorFingerprint) -or
+            $monitorRunId -ne $currentRunId -or
+            [string]::IsNullOrWhiteSpace($runId) -or
+            $targetPid -le 0 -or
+            [string]::IsNullOrWhiteSpace($targetLaunchId)
+        ) { return $false }
+        if ($runId -ne $monitorRunId) { return $false }
+    } else {
+        if (-not [string]::IsNullOrWhiteSpace($runId)) { return $false }
+        if ($targetPid -le 0 -or [string]::IsNullOrWhiteSpace($targetLaunchId)) { return $false }
+    }
+    if ($targetPid -ne $PID) { return $false }
+    $currentLaunchId = Get-MediaPipelineCurrentControllerLaunchId -ProcessId $PID
+    if ([string]::IsNullOrWhiteSpace($currentLaunchId) -or $currentLaunchId -ne $targetLaunchId) { return $false }
+    return $true
+}
+
+function Set-MediaPipelineStopAfterCurrentMonitorState {
+    param(
+        [Parameter(Mandatory)] [string] $State,
+        [Parameter(Mandatory)] [string] $StopAfterCurrentState,
+        [string] $RequestedAt = ''
+    )
+
+    if ([string]::IsNullOrWhiteSpace([string]$script:PipelineRunId)) { return }
+    if (-not (Get-Command -Name Set-MediaPipelineRunMonitorRunState -ErrorAction SilentlyContinue)) { return }
+    try {
+        Set-MediaPipelineRunMonitorRunState `
+            -RunId ([string]$script:PipelineRunId) `
+            -State $State `
+            -StopAfterCurrentState $StopAfterCurrentState `
+            -RequestedAt $RequestedAt | Out-Null
+    } catch {
+        Write-Log "Stop After Current monitor update was unavailable: $($_.Exception.Message)" 'DEBUG'
+    }
+}
+
+function Set-MediaPipelinePauseMonitorState {
+    param(
+        [Parameter(Mandatory)]
+        [ValidateSet('running','paused','stopping','blocked')]
+        [string] $State
+    )
+    if ([string]::IsNullOrWhiteSpace([string]$script:PipelineRunId)) { return }
+    if (-not (Get-Command -Name Set-MediaPipelineRunMonitorRunState -ErrorAction SilentlyContinue)) { return }
+    try {
+        Set-MediaPipelineRunMonitorRunState -RunId ([string]$script:PipelineRunId) -State $State | Out-Null
+    } catch {
+        Write-Log "Pause monitor update was unavailable: $($_.Exception.Message)" 'DEBUG'
+    }
+}
+
+function Test-MediaPipelineStopAfterCurrentRequested {
+    if ([bool]$script:StopAfterCurrentRequested) { return $true }
+
+    $info = Get-ControlFlagInfo -Path $StopAfterCurrentFlag
+    if (-not (Test-MediaPipelineStopAfterCurrentCorrelation -Info $info)) { return $false }
+    Register-ControlFlagObservation -Kind stop_after_current -Info $info
+    $script:StopAfterCurrentRequested = $true
+    $script:StopAfterCurrentAcknowledged = $false
+    $script:StopAfterCurrentRequestId = [string]$info.RequestId
+    $script:StopAfterCurrentRequestedAt = [string]$info.CreatedAt
+    Write-Log "STOP AFTER CURRENT request detected for this exact controller/run" 'WARN'
+    Set-MediaPipelineStopAfterCurrentMonitorState -State 'stop_requested' -StopAfterCurrentState 'requested' -RequestedAt ([string]$info.CreatedAt)
+    return $true
+}
+
+function Test-MediaPipelineStopAfterCurrentBoundary {
+    if (-not (Test-MediaPipelineStopAfterCurrentRequested)) { return $false }
+    if ([bool]$script:StopAfterCurrentAcknowledged) { return $true }
+
+    $info = Get-ControlFlagInfo -Path $StopAfterCurrentFlag
+    if (
+        (Test-MediaPipelineStopAfterCurrentCorrelation -Info $info) -and
+        [string]$info.RequestId -eq [string]$script:StopAfterCurrentRequestId
+    ) {
+        try {
+            Remove-Item -LiteralPath $StopAfterCurrentFlag -Force -ErrorAction Stop
+            if (Test-Path -LiteralPath $StopAfterCurrentFlag -ErrorAction SilentlyContinue) {
+                throw 'the marker remained after removal'
+            }
+            $script:StopAfterCurrentAcknowledged = $true
+            Write-Log 'STOP AFTER CURRENT acknowledged at the backend queue dispatch boundary' 'WARN'
+            Set-MediaPipelineStopAfterCurrentMonitorState -State 'stopping' -StopAfterCurrentState 'acknowledged' -RequestedAt ([string]$script:StopAfterCurrentRequestedAt)
+        } catch {
+            Write-Log "STOP AFTER CURRENT boundary was honored, but exact marker acknowledgement failed: $($_.Exception.Message)" 'ERROR'
+        }
+    }
+    return $true
 }
 
 function Check-ControlFlags {
@@ -200,6 +365,7 @@ function Check-ControlFlags {
         Register-ControlFlagObservation -Kind pause -Info $pauseInfo
         Write-Log "PAUSE flag detected — waiting..." "WARN"
         Set-ProgressStage -Stage 'paused' -Status 'Paused' -Percent $null -SaveNow
+        Set-MediaPipelinePauseMonitorState -State paused
         $pauseReviewSeconds = [int]$script:PauseFlagReviewSeconds
         if ($pauseReviewSeconds -le 0) { $pauseReviewSeconds = 1800 }
         $pauseBlockSeconds = [int]$script:PauseFlagBlockSeconds
@@ -216,15 +382,19 @@ function Check-ControlFlags {
                 $script:PipelineStopReason = 'pause_flag_stale_blocked'
                 Write-ControlFlagEventOnce -EventType 'pause_flag_stale_blocked' -Stage 'blocked' -Status 'blocked' -Info $pauseInfo -AgeSeconds $pauseAgeSeconds -ReviewSeconds $pauseReviewSeconds -BlockSeconds $pauseBlockSeconds
                 Set-ProgressStage -Stage 'blocked' -Status 'Pause flag stale blocked' -Percent $null -SaveNow
+                Set-MediaPipelinePauseMonitorState -State blocked
                 break
             }
-            Start-Sleep 5
+            $pausePollMilliseconds = [int]$script:PauseFlagPollMilliseconds
+            if ($pausePollMilliseconds -le 0) { $pausePollMilliseconds = 5000 }
+            Start-Sleep -Milliseconds $pausePollMilliseconds
             $stopInfo = Get-ControlFlagInfo -Path $StopFlag
             if ($stopInfo.Exists) {
                 Register-ControlFlagObservation -Kind stop -Info $stopInfo
                 Write-Log "STOP during pause" "WARN"
                 $script:StopRequested = $true
                 Set-ProgressStage -Stage 'stopped' -Status 'Stopped' -Percent $null -SaveNow
+                Set-MediaPipelinePauseMonitorState -State stopping
                 break
             }
             $pauseInfo = Get-ControlFlagInfo -Path $PauseFlag
@@ -232,6 +402,7 @@ function Check-ControlFlags {
         if (-not $script:StopRequested) {
             Write-Log "Resuming"
             Set-ProgressStage -Stage 'processing' -Status 'Resumed' -Percent $null -SaveNow
+            Set-MediaPipelinePauseMonitorState -State running
         }
     }
 }
@@ -263,6 +434,9 @@ function Reset-ProgressItemContext {
     $script:currentQueueIndex = 0
     $script:currentQueueTotal = 0
     $script:currentRoute = $null
+    $script:CurrentExecutedRoute = $null
+    $script:CurrentExecutedRouteReasonCode = $null
+    $script:CurrentExecutedRouteReason = $null
     $script:currentStagePercent = $null
     $script:currentItemStartedAt = $null
     $script:currentCopyState = $null
@@ -368,6 +542,62 @@ function Set-ProgressStage {
         $script:currentSidecarState = if ($null -eq $SidecarState -or [string]::IsNullOrWhiteSpace([string]$SidecarState)) { $null } else { [string]$SidecarState }
     }
 
+    if ($PSBoundParameters.ContainsKey('Stage') -and
+        -not [string]::IsNullOrWhiteSpace([string]$script:PipelineRunId) -and
+        -not [string]::IsNullOrWhiteSpace([string]$script:CurrentRunMonitorJobId) -and
+        (Get-Command -Name ConvertTo-MediaPipelineRunMonitorStageId -ErrorAction SilentlyContinue)) {
+        $canonicalStage = ConvertTo-MediaPipelineRunMonitorStageId -PipelineStage $Stage
+        if (-not [string]::IsNullOrWhiteSpace($canonicalStage) -and $canonicalStage -ne 'final_evidence') {
+            try {
+                $monitorStageState = 'active'
+                if ($canonicalStage -eq 'copy_to_scratch' -and $PSBoundParameters.ContainsKey('CopyState')) {
+                    $copyEvidenceState = ([string]$CopyState).Trim().ToLowerInvariant()
+                    $monitorStageState = switch ($copyEvidenceState) {
+                        { $_ -in @('complete','completed') } { 'completed' }
+                        { $_ -in @('reused','skipped') } { 'skipped' }
+                        { $_ -in @('failed','error') } { 'failed' }
+                        default { 'active' }
+                    }
+                } elseif ($canonicalStage -eq 'publish' -and $PSBoundParameters.ContainsKey('PushState')) {
+                    $pushEvidenceState = ([string]$PushState).Trim().ToLowerInvariant()
+                    $monitorStageState = switch ($pushEvidenceState) {
+                        { $_ -in @('complete','published','parked') } { 'completed' }
+                        { $_ -in @('failed','error') } { 'failed' }
+                        default { 'active' }
+                    }
+                } elseif ($canonicalStage -eq 'sidecar_writing' -and $PSBoundParameters.ContainsKey('SidecarState')) {
+                    $sidecarEvidenceState = ([string]$SidecarState).Trim().ToLowerInvariant()
+                    $monitorStageState = switch ($sidecarEvidenceState) {
+                        { $_ -in @('complete','completed','written') } { 'completed' }
+                        { $_ -in @('skipped','not_applicable') } { $(if ($_ -eq 'not_applicable') { 'not_applicable' } else { 'skipped' }) }
+                        { $_ -in @('failed','error','review') } { $(if ($_ -eq 'review') { 'review' } else { 'failed' }) }
+                        default { 'active' }
+                    }
+                }
+                $stageParams = @{
+                    RunId = [string]$script:PipelineRunId
+                    JobId = [string]$script:CurrentRunMonitorJobId
+                    StageId = $canonicalStage
+                    State = $monitorStageState
+                    Detail = [string]$script:pipelineStatus
+                    EvidenceSource = 'progress_state'
+                }
+                if ($null -ne $script:currentStagePercent -and "" + $script:currentStagePercent -ne '' -and
+                    $monitorStageState -in @('active','completed')) {
+                    $stageParams['Numerator'] = [double]$script:currentStagePercent
+                    $stageParams['Denominator'] = 100.0
+                    $stageParams['NumericOnly'] = -not [bool]$SaveNow
+                } elseif ($monitorStageState -eq 'active') {
+                    $stageParams['Indeterminate'] = $true
+                }
+                Set-MediaPipelineRunMonitorStage @stageParams | Out-Null
+            } catch {
+                $script:RunMonitorPersistenceHealthy = $false
+                Write-Log "Run Monitor stage update failed for ${canonicalStage}: $($_.Exception.Message)" 'WARN'
+            }
+        }
+    }
+
     if (Get-Command -Name Write-MediaPipelineWorkerChildHeartbeat -ErrorAction SilentlyContinue) {
         try {
             Write-MediaPipelineWorkerChildHeartbeat -Stage $script:currentStage -Status $script:pipelineStatus | Out-Null
@@ -377,6 +607,130 @@ function Set-ProgressStage {
     if ($SaveNow) {
         Save-Progress $script:pipelineStatus | Out-Null
     }
+}
+
+function Test-MediaPipelineCurrentStageNativePollIdentity {
+    param(
+        [string] $RunId,
+        [string] $JobId,
+        [string] $Stage
+    )
+
+    if ([string]::IsNullOrWhiteSpace($RunId) -or
+        [string]::IsNullOrWhiteSpace($JobId) -or
+        [string]::IsNullOrWhiteSpace($Stage) -or
+        -not (Get-Command -Name ConvertTo-MediaPipelineRunMonitorStageId -ErrorAction SilentlyContinue)) {
+        return $false
+    }
+    $capturedCanonicalStage = ConvertTo-MediaPipelineRunMonitorStageId -PipelineStage $Stage
+    $currentCanonicalStage = ConvertTo-MediaPipelineRunMonitorStageId -PipelineStage ([string]$script:currentStage)
+    if ([string]::IsNullOrWhiteSpace($capturedCanonicalStage) -or
+        [string]::IsNullOrWhiteSpace($currentCanonicalStage)) {
+        return $false
+    }
+
+    return [bool](
+        [string]::Equals([string]$script:PipelineRunId, [string]$RunId, [System.StringComparison]::Ordinal) -and
+        [string]::Equals([string]$script:CurrentRunMonitorJobId, [string]$JobId, [System.StringComparison]::Ordinal) -and
+        [string]::Equals([string]$currentCanonicalStage, [string]$capturedCanonicalStage, [System.StringComparison]::Ordinal)
+    )
+}
+
+function New-MediaPipelineCurrentStageNativePollHandler {
+    <#
+    .SYNOPSIS
+    Creates a throttled native-process heartbeat for one exact run/job/stage.
+
+    .DESCRIPTION
+    Native tools can remain healthy without advancing a percentage for longer
+    than the Run Monitor freshness window. This callback refreshes backend
+    stage/worker evidence while preserving the last truthful percentage; when
+    no valid percentage exists, Set-ProgressStage keeps the stage indeterminate.
+    Optional audio refresh touches only already-active exact track IDs in the
+    correlated Run Monitor item.
+    #>
+    param(
+        [Parameter(Mandatory)] [string] $Stage,
+        [string] $Status = '',
+        [string] $Route = '',
+        [double] $MinimumIntervalSeconds = 15,
+        [switch] $RefreshActiveAudioTracks,
+        [string] $EvidenceSource = 'native_process_heartbeat'
+    )
+
+    $runId = [string]$script:PipelineRunId
+    $jobId = [string]$script:CurrentRunMonitorJobId
+    $stageText = [string]$Stage
+    $statusText = [string]$Status
+    $routeText = [string]$Route
+    $evidenceSourceText = if ([string]::IsNullOrWhiteSpace($EvidenceSource)) { 'native_process_heartbeat' } else { [string]$EvidenceSource }
+    $refreshAudio = [bool]$RefreshActiveAudioTracks
+    $pipelineRunVariable = Get-Variable -Name PipelineRunId -Scope Script -ErrorAction SilentlyContinue
+    $currentJobVariable = Get-Variable -Name CurrentRunMonitorJobId -Scope Script -ErrorAction SilentlyContinue
+    $currentStageVariable = Get-Variable -Name currentStage -Scope Script -ErrorAction SilentlyContinue
+    $convertStageCommand = Get-Command -Name ConvertTo-MediaPipelineRunMonitorStageId -ErrorAction SilentlyContinue
+    $setProgressCommand = Get-Command -Name Set-ProgressStage -ErrorAction SilentlyContinue
+    $updateActiveTracksCommand = if ($refreshAudio) {
+        Get-Command -Name Update-MediaPipelineRunMonitorActiveTrackHeartbeat -ErrorAction SilentlyContinue
+    } else { $null }
+    $capturedCanonicalStage = if ($convertStageCommand) {
+        [string](& $convertStageCommand -PipelineStage $stageText)
+    } else { '' }
+
+    # Fail closed unless the callback is being created for the exact active
+    # run/job/canonical stage. This also makes the factory safe for the native
+    # wrapper's no-handler fallback: an uncorrelated tool never gains current
+    # stage authority merely because it is recent.
+    if ($null -eq $pipelineRunVariable -or $null -eq $currentJobVariable -or $null -eq $currentStageVariable -or
+        $null -eq $convertStageCommand -or $null -eq $setProgressCommand -or
+        [string]::IsNullOrWhiteSpace($capturedCanonicalStage) -or
+        -not [string]::Equals([string]$pipelineRunVariable.Value, $runId, [System.StringComparison]::Ordinal) -or
+        -not [string]::Equals([string]$currentJobVariable.Value, $jobId, [System.StringComparison]::Ordinal) -or
+        -not [string]::Equals(
+            [string](& $convertStageCommand -PipelineStage ([string]$currentStageVariable.Value)),
+            $capturedCanonicalStage,
+            [System.StringComparison]::Ordinal
+        )) {
+        return $null
+    }
+
+    $heartbeatWriter = {
+        param($ElapsedSeconds, $Process)
+
+        # A callback created for one synchronous operation must never migrate
+        # to a later file if surrounding state changes during teardown.
+        $currentCanonicalStage = ''
+        try {
+            $currentCanonicalStage = [string](& $convertStageCommand -PipelineStage ([string]$currentStageVariable.Value))
+        } catch { return $null }
+        if (-not [string]::Equals([string]$pipelineRunVariable.Value, $runId, [System.StringComparison]::Ordinal) -or
+            -not [string]::Equals([string]$currentJobVariable.Value, $jobId, [System.StringComparison]::Ordinal) -or
+            -not [string]::Equals($currentCanonicalStage, $capturedCanonicalStage, [System.StringComparison]::Ordinal)) {
+            return $null
+        }
+
+        $stageArgs = @{ Stage = $stageText; SaveNow = $true }
+        if (-not [string]::IsNullOrWhiteSpace($statusText)) { $stageArgs['Status'] = $statusText }
+        if (-not [string]::IsNullOrWhiteSpace($routeText)) { $stageArgs['Route'] = $routeText }
+        & $setProgressCommand @stageArgs
+
+        if ($refreshAudio -and $updateActiveTracksCommand -and
+            -not [string]::IsNullOrWhiteSpace($runId) -and
+            -not [string]::IsNullOrWhiteSpace($jobId)) {
+            & $updateActiveTracksCommand `
+                -Kind audio `
+                -RunId $runId `
+                -JobId $jobId `
+                -EvidenceSource $evidenceSourceText `
+                -EvidenceProvenance worker_heartbeat | Out-Null
+        }
+        return $null
+    }.GetNewClosure()
+
+    if (Get-Command -Name New-ThrottledNativePollHandler -ErrorAction SilentlyContinue) {
+        return New-ThrottledNativePollHandler -Handler $heartbeatWriter -MinimumIntervalSeconds $MinimumIntervalSeconds
+    }
+    return $heartbeatWriter
 }
 
 function Set-ProgressAudioTrack {
@@ -408,6 +762,8 @@ function Set-ProgressAudioTrack {
     } elseif ($safeTotal -gt 0) {
         $percentValue = [math]::Round(($safeIndex / $safeTotal) * 100.0, 1)
     }
+    $effectiveStage = if ([string]::IsNullOrWhiteSpace($Stage)) { 'audio_policy' } else { $Stage.Trim().ToLowerInvariant() }
+    $isPolicyDecision = ($effectiveStage -eq 'audio_policy' -and -not $Completed -and -not $Failed)
 
     $script:currentAudioProgress = [ordered]@{
         schema_version  = 'pipeline_audio_progress.v1'
@@ -431,6 +787,110 @@ function Set-ProgressAudioTrack {
         source_file     = $script:currentFilePath
     }
 
+    $hasRunMonitorCorrelation = (
+        -not [string]::IsNullOrWhiteSpace([string]$script:PipelineRunId) -and
+        -not [string]::IsNullOrWhiteSpace([string]$script:CurrentRunMonitorJobId)
+    )
+    if ($StreamIndex -lt 0 -and $Completed -and $effectiveStage -eq 'audio_policy' -and
+        $hasRunMonitorCorrelation -and
+        (Get-Command -Name Complete-MediaPipelineRunMonitorAudioPolicy -ErrorAction SilentlyContinue)) {
+        try {
+            Complete-MediaPipelineRunMonitorAudioPolicy `
+                -RunId ([string]$script:PipelineRunId) `
+                -JobId ([string]$script:CurrentRunMonitorJobId) `
+                -Detail ([string]$script:currentAudioProgress.status) | Out-Null
+        } catch {
+            $script:RunMonitorPersistenceHealthy = $false
+            Write-Log "Run Monitor aggregate audio-policy completion failed: $($_.Exception.Message)" 'WARN'
+        }
+    }
+
+    if ($StreamIndex -ge 0 -and $hasRunMonitorCorrelation -and
+        (Get-Command -Name Set-MediaPipelineRunMonitorTrackProgress -ErrorAction SilentlyContinue)) {
+        try {
+            $trackState = $(
+                if ($Failed) { 'review' }
+                elseif ($AudioAction -eq 'drop') { 'dropped' }
+                elseif ($Completed -and $AudioAction -in @('omit','omit_all')) { 'not_applicable' }
+                elseif ($Completed) { 'completed' }
+                elseif ($isPolicyDecision) { 'awaiting_evidence' }
+                else { 'active' }
+            )
+            $trackParams = @{
+                Kind = 'audio'
+                RunId = [string]$script:PipelineRunId
+                JobId = [string]$script:CurrentRunMonitorJobId
+                StreamIndex = [int]$StreamIndex
+                CurrentAction = if ($isPolicyDecision -and $AudioAction -ne 'drop') { '' } elseif ([string]::IsNullOrWhiteSpace($AudioAction)) { 'evaluate' } else { $AudioAction }
+                State = $trackState
+                Result = if ($AudioAction -eq 'drop') { 'dropped' } elseif ($isPolicyDecision) { '' } else { $Detail }
+            }
+            if ($effectiveStage -eq 'audio_policy') {
+                $trackParams['EvidenceSource'] = 'audio_policy'
+                $trackParams['EvidenceProvenance'] = 'backend_confirmed'
+            }
+            if ($trackState -eq 'active' -and $PSBoundParameters.ContainsKey('Percent') -and $null -ne $percentValue) {
+                $trackParams['Numerator'] = [double]$percentValue
+                $trackParams['Denominator'] = 100.0
+                $trackParams['NumericOnly'] = -not [bool]$SaveNow
+            } elseif ($trackState -eq 'active') {
+                $trackParams['Indeterminate'] = $true
+            }
+            $audioMonitorPayload = Set-MediaPipelineRunMonitorTrackProgress @trackParams
+            if ($audioMonitorPayload -and
+                (Get-Command -Name Set-MediaPipelineCurrentRunMonitorStage -ErrorAction SilentlyContinue)) {
+                $itemMatches = @($audioMonitorPayload.items | Where-Object {
+                    [string]$_.job_id -eq [string]$script:CurrentRunMonitorJobId
+                })
+                if ($itemMatches.Count -eq 1 -and $itemMatches[0].audio) {
+                    $audioCollection = $itemMatches[0].audio
+                    $audioTracks = @($audioCollection.tracks | Where-Object { $null -ne $_ })
+                    $exactTrackMatches = @($audioTracks | Where-Object {
+                        $null -ne $_.stream_index -and [int]$_.stream_index -eq [int]$StreamIndex
+                    })
+                    $audioStageState = ''
+                    if ($exactTrackMatches.Count -eq 1) {
+                        if ([string]$audioCollection.state -eq 'review') { $audioStageState = 'review' }
+                        elseif ([string]$audioCollection.state -eq 'failed') { $audioStageState = 'failed' }
+                        elseif ([string]$audioCollection.state -eq 'active') { $audioStageState = 'active' }
+                        elseif ([string]$audioCollection.state -eq 'not_applicable') { $audioStageState = 'not_applicable' }
+                        else {
+                            $terminalStates = @('not_applicable','completed','failed','review','skipped','dropped')
+                            $nonTerminalTracks = @($audioTracks | Where-Object { [string]$_.state -notin $terminalStates })
+                            if ([bool]$audioCollection.policy_final -and
+                                $audioTracks.Count -gt 0 -and
+                                $nonTerminalTracks.Count -eq 0) {
+                                $audioStageState = 'completed'
+                            }
+                            if ([string]::IsNullOrWhiteSpace($audioStageState) -and $isPolicyDecision) {
+                                $audioStageState = 'active'
+                            }
+                        }
+                    }
+                    if (-not [string]::IsNullOrWhiteSpace($audioStageState)) {
+                        $audioStageParams = @{
+                            StageId = 'audio'
+                            State = $audioStageState
+                            Detail = [string]$script:currentAudioProgress.status
+                            EvidenceSource = 'audio_policy'
+                        }
+                        if ($audioStageState -eq 'active' -and -not $isPolicyDecision -and $null -ne $percentValue) {
+                            $audioStageParams['Numerator'] = [double]$percentValue
+                            $audioStageParams['Denominator'] = 100.0
+                            $audioStageParams['NumericOnly'] = -not [bool]$SaveNow
+                        } elseif ($audioStageState -eq 'active') {
+                            $audioStageParams['Indeterminate'] = $true
+                        }
+                        Set-MediaPipelineCurrentRunMonitorStage @audioStageParams | Out-Null
+                    }
+                }
+            }
+        } catch {
+            $script:RunMonitorPersistenceHealthy = $false
+            Write-Log "Run Monitor audio-track update failed for stream ${StreamIndex}: $($_.Exception.Message)" 'WARN'
+        }
+    }
+
     if ($SaveNow) {
         Save-Progress $script:pipelineStatus | Out-Null
     }
@@ -439,6 +899,7 @@ function Set-ProgressAudioTrack {
 function Set-ProgressSubtitleTrack {
     param(
         [string]$Kind,
+        [string]$TrackId = '',
         [int]$StreamIndex = -1,
         [string]$Stage,
         [string]$Status,
@@ -447,6 +908,14 @@ function Set-ProgressSubtitleTrack {
         [array]$Steps = @(),
         [string]$Detail = "",
         [object]$CueCount = $null,
+        [object]$WorkNumerator = $null,
+        [object]$WorkDenominator = $null,
+        [string]$ProgressUnit = '',
+        [string]$OutputCodec = '',
+        [string]$OutputLocation = '',
+        [string]$OutputPath = '',
+        [string]$ParkedPath = '',
+        [string]$IntendedFinalPath = '',
         [switch]$Completed,
         [switch]$Failed,
         [switch]$SaveNow
@@ -454,8 +923,36 @@ function Set-ProgressSubtitleTrack {
 
     $safeTotal = [math]::Max(0, [int]$StepTotal)
     $safeIndex = if ($safeTotal -gt 0) { [math]::Max(0, [math]::Min($safeTotal, [int]$StepIndex)) } else { 0 }
-    $percent = if ($safeTotal -gt 0) { [math]::Round(($safeIndex / $safeTotal) * 100.0, 1) } else { $null }
+    $validWorkProgress = $false
+    $workNumeratorValue = $null
+    $workDenominatorValue = $null
+    try {
+        if ($null -ne $WorkNumerator -and $null -ne $WorkDenominator -and
+            [double]$WorkDenominator -gt 0 -and [double]$WorkNumerator -ge 0 -and
+            [double]$WorkNumerator -le [double]$WorkDenominator) {
+            $validWorkProgress = $true
+            $workNumeratorValue = [double]$WorkNumerator
+            $workDenominatorValue = [double]$WorkDenominator
+        }
+    } catch {}
+    $percent = if ($validWorkProgress) { [math]::Round(($workNumeratorValue / $workDenominatorValue) * 100.0, 1) } else { $null }
     $stepNames = @($Steps | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { [string]$_ })
+    $stepName = if ($safeIndex -gt 0 -and $safeIndex -le $stepNames.Count) {
+        [string]$stepNames[$safeIndex - 1]
+    } elseif (-not [string]::IsNullOrWhiteSpace($Stage)) {
+        [string]$Stage
+    } else { '' }
+    $normalizedProgressUnit = ([string]$ProgressUnit).Trim().ToLowerInvariant()
+    if ($normalizedProgressUnit -notin @('','items','pages','cues','frames','seconds','bytes','percent','unknown')) {
+        $normalizedProgressUnit = 'unknown'
+    }
+    $cueCountValue = $null
+    if ($null -ne $CueCount -and "${CueCount}" -ne '') {
+        $parsedCueCount = 0
+        if ([int]::TryParse([string]$CueCount, [ref]$parsedCueCount) -and $parsedCueCount -ge 0) {
+            $cueCountValue = $parsedCueCount
+        }
+    }
     $completedSteps = @()
     if ($safeIndex -gt 0 -and $stepNames.Count -gt 0) {
         $completedSteps = @($stepNames | Select-Object -First $safeIndex)
@@ -463,6 +960,7 @@ function Set-ProgressSubtitleTrack {
 
     $script:currentSubtitleProgress = [ordered]@{
         schema_version  = 'pipeline_subtitle_progress.v1'
+        track_id        = $TrackId
         kind            = if ([string]::IsNullOrWhiteSpace($Kind)) { 'subtitle' } else { $Kind }
         stream_index    = [int]$StreamIndex
         stage           = if ([string]::IsNullOrWhiteSpace($Stage)) { 'unknown' } else { $Stage }
@@ -473,11 +971,124 @@ function Set-ProgressSubtitleTrack {
         completed_steps = @($completedSteps)
         percent         = $percent
         detail          = $Detail
-        cue_count       = $CueCount
+        cue_count       = $cueCountValue
+        work_numerator  = $workNumeratorValue
+        work_denominator = $workDenominatorValue
+        progress_unit   = $normalizedProgressUnit
+        output_codec    = $OutputCodec
+        output_location = $OutputLocation
+        output_path     = $OutputPath
+        parked_path     = $ParkedPath
+        intended_final_path = $IntendedFinalPath
         updated_at      = Get-Date -Format 'o'
         completed       = [bool]$Completed
         failed          = [bool]$Failed
         source_file     = $script:currentFilePath
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace([string]$script:PipelineRunId) -and
+        -not [string]::IsNullOrWhiteSpace([string]$script:CurrentRunMonitorJobId) -and
+        (Get-Command -Name Set-MediaPipelineRunMonitorTrackProgress -ErrorAction SilentlyContinue)) {
+        try {
+            $normalizedKind = ([string]$Kind).Trim().ToLowerInvariant()
+            $normalizedStage = ([string]$Stage).Trim().ToLowerInvariant()
+            $currentAction = switch ($normalizedStage) {
+                'extract' { 'extract' }
+                'validate' { 'validate' }
+                'sidecar_write' { 'write_sidecar' }
+                { $_ -in @('convert','convert_ocr','ocr') } {
+                    switch -Regex ($normalizedKind) {
+                        '^ass$' { 'convert_ass_to_srt'; break }
+                        '^tx3g$' { 'convert_tx3g_to_srt'; break }
+                        '^bdpgs(_ocr)?$' { 'ocr_bdpgs_to_srt'; break }
+                        '^vobsub(_ocr)?$' { 'ocr_vobsub_to_srt'; break }
+                        default { 'convert_subtitle' }
+                    }
+                }
+                default { if ([string]::IsNullOrWhiteSpace($normalizedKind)) { 'working' } else { $normalizedKind } }
+            }
+            $trackParams = @{
+                Kind = 'subtitles'
+                RunId = [string]$script:PipelineRunId
+                JobId = [string]$script:CurrentRunMonitorJobId
+                StreamIndex = [int]$StreamIndex
+                CurrentAction = $currentAction
+                State = $(if ($Failed) { 'failed' } elseif ($Completed) { 'completed' } else { 'active' })
+                Result = $Detail
+                StepIndex = $safeIndex
+                StepTotal = $safeTotal
+                StepName = $stepName
+                ProgressUnit = $normalizedProgressUnit
+                CueCount = $cueCountValue
+            }
+            if (-not [string]::IsNullOrWhiteSpace($TrackId)) { $trackParams['TrackId'] = $TrackId }
+            if (-not [string]::IsNullOrWhiteSpace($OutputCodec)) { $trackParams['OutputCodec'] = $OutputCodec }
+            if (-not [string]::IsNullOrWhiteSpace($OutputLocation)) { $trackParams['OutputLocation'] = $OutputLocation }
+            if (-not [string]::IsNullOrWhiteSpace($OutputPath)) { $trackParams['OutputPath'] = $OutputPath }
+            if (-not [string]::IsNullOrWhiteSpace($ParkedPath)) { $trackParams['ParkedPath'] = $ParkedPath }
+            if (-not [string]::IsNullOrWhiteSpace($IntendedFinalPath)) { $trackParams['IntendedFinalPath'] = $IntendedFinalPath }
+            if ($validWorkProgress) {
+                $trackParams['Numerator'] = $workNumeratorValue
+                $trackParams['Denominator'] = $workDenominatorValue
+                $trackParams['NumericOnly'] = -not [bool]$SaveNow
+            } else {
+                $trackParams['Indeterminate'] = -not [bool]($Completed -or $Failed)
+            }
+            $monitorPayload = Set-MediaPipelineRunMonitorTrackProgress @trackParams
+
+            # The canonical subtitle stage follows only exact, backend-owned
+            # track state. The final-policy marker proves that the complete
+            # track set was seeded before an all-terminal collection can close
+            # the stage; route names and step numbers are never stage evidence.
+            if ($monitorPayload -and
+                (Get-Command -Name Set-MediaPipelineCurrentRunMonitorStage -ErrorAction SilentlyContinue)) {
+                $itemMatches = @($monitorPayload.items | Where-Object {
+                    [string]$_.job_id -eq [string]$script:CurrentRunMonitorJobId
+                })
+                if ($itemMatches.Count -eq 1 -and $itemMatches[0].subtitles) {
+                    $subtitleCollection = $itemMatches[0].subtitles
+                    $subtitleTracks = @($subtitleCollection.tracks | Where-Object { $null -ne $_ })
+                    $stageState = ''
+                    $stageReasonCode = ''
+                    $stageIndeterminate = $false
+
+                    if ([string]$subtitleCollection.state -eq 'unknown') {
+                        $stageState = 'unknown'
+                        $stageReasonCode = 'subtitle_track_correlation_unknown'
+                    } elseif (@($subtitleTracks | Where-Object { [string]$_.state -eq 'review' }).Count -gt 0) {
+                        $stageState = 'review'
+                        $stageReasonCode = 'subtitle_track_review'
+                    } elseif (@($subtitleTracks | Where-Object { [string]$_.state -eq 'failed' }).Count -gt 0) {
+                        $stageState = 'failed'
+                        $stageReasonCode = 'subtitle_track_failed'
+                    } elseif (@($subtitleTracks | Where-Object { [string]$_.state -eq 'active' }).Count -gt 0) {
+                        $stageState = 'active'
+                        $stageIndeterminate = $true
+                    } else {
+                        $terminalStates = @('not_applicable','completed','failed','review','skipped','dropped')
+                        $nonTerminalTracks = @($subtitleTracks | Where-Object { [string]$_.state -notin $terminalStates })
+                        if ([bool]$subtitleCollection.policy_final -and
+                            $subtitleTracks.Count -gt 0 -and
+                            $nonTerminalTracks.Count -eq 0) {
+                            $stageState = 'completed'
+                        }
+                    }
+
+                    if (-not [string]::IsNullOrWhiteSpace($stageState)) {
+                        Set-MediaPipelineCurrentRunMonitorStage `
+                            -StageId 'subtitles' `
+                            -State $stageState `
+                            -Detail ([string]$script:currentSubtitleProgress.status) `
+                            -ReasonCode $stageReasonCode `
+                            -EvidenceSource 'subtitle_progress' `
+                            -Indeterminate:$stageIndeterminate | Out-Null
+                    }
+                }
+            }
+        } catch {
+            $script:RunMonitorPersistenceHealthy = $false
+            Write-Log "Run Monitor subtitle-track update failed for stream ${StreamIndex}: $($_.Exception.Message)" 'WARN'
+        }
     }
 
     if ($SaveNow) {
@@ -674,6 +1285,35 @@ function Set-ProgressCopyTelemetry {
         $script:currentStagePercent = Convert-CopyPercentToStagePercent -Percent $copyPercent
     }
 
+    if (-not [string]::IsNullOrWhiteSpace([string]$script:PipelineRunId) -and
+        -not [string]::IsNullOrWhiteSpace([string]$script:CurrentRunMonitorJobId) -and
+        (Get-Command -Name ConvertTo-MediaPipelineRunMonitorStageId -ErrorAction SilentlyContinue)) {
+        $canonicalStage = ConvertTo-MediaPipelineRunMonitorStageId -PipelineStage ([string]$script:currentStage)
+        if ($canonicalStage -in @('copy_to_scratch','publish')) {
+            try {
+                $stageParams = @{
+                    RunId = [string]$script:PipelineRunId
+                    JobId = [string]$script:CurrentRunMonitorJobId
+                    StageId = $canonicalStage
+                    State = 'active'
+                    Detail = if ($null -ne $total -and [long]$total -gt 0) { 'Copying with backend byte totals.' } else { 'Copying; backend total is unavailable.' }
+                    EvidenceSource = 'copy_telemetry'
+                    NumericOnly = -not [bool]$SaveNow
+                }
+                if ($null -ne $bytes -and $null -ne $total -and [long]$total -gt 0 -and [long]$bytes -ge 0 -and [long]$bytes -le [long]$total) {
+                    $stageParams['Numerator'] = [long]$bytes
+                    $stageParams['Denominator'] = [long]$total
+                } else {
+                    $stageParams['Indeterminate'] = $true
+                }
+                Set-MediaPipelineRunMonitorStage @stageParams | Out-Null
+            } catch {
+                $script:RunMonitorPersistenceHealthy = $false
+                Write-Log "Run Monitor copy telemetry failed: $($_.Exception.Message)" 'WARN'
+            }
+        }
+    }
+
     if ($SaveNow) {
         Save-Progress $script:pipelineStatus | Out-Null
     }
@@ -806,11 +1446,16 @@ function Save-Progress {
         }
         $pauseInfo = Get-ControlFlagInfo -Path $PauseFlag
         $stopInfo = Get-ControlFlagInfo -Path $StopFlag
+        $stopAfterCurrentInfo = Get-ControlFlagInfo -Path $StopAfterCurrentFlag
         $rescanInfo = Get-ControlFlagInfo -Path $RescanFlag
         $tmp = Join-Path $progressDir ([System.IO.Path]::GetFileName($ProgressFile) + '.' + [System.IO.Path]::GetRandomFileName() + '.tmp')
         $backup = Join-Path $progressDir ([System.IO.Path]::GetFileName($ProgressFile) + '.' + [System.IO.Path]::GetRandomFileName() + '.bak')
         $json = [ordered]@{
             ProgressVersion       = $script:ProgressVersion
+            WorkerRunId           = if ($WorkerChild) { [string]$WorkerRunId } else { '' }
+            WorkerClaimId         = if ($WorkerChild) { [string]$WorkerClaimId } else { '' }
+            RunMonitorJobId       = if ($WorkerChild) { [string]$WorkerJobId } else { '' }
+            EvidenceUpdatedAt     = (Get-Date).ToUniversalTime().ToString('o')
             LastUpdate            = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
             SessionStartedAt      = Get-ProgressIsoTimestamp $script:SessionStartedAt
             CurrentFile           = $script:currentFile
@@ -848,7 +1493,8 @@ function Save-Progress {
             PendingDrainProgress  = $script:currentPendingDrainProgress
             PauseRequested        = [bool]$pauseInfo.Exists
             StopRequested         = [bool]($script:StopRequested -or $stopInfo.Exists)
-            ControlRequests       = New-ControlRequestProgressState -PauseInfo $pauseInfo -StopInfo $stopInfo -RescanInfo $rescanInfo
+            StopAfterCurrentRequested = [bool]($script:StopAfterCurrentRequested -or $stopAfterCurrentInfo.Exists)
+            ControlRequests       = New-ControlRequestProgressState -PauseInfo $pauseInfo -StopInfo $stopInfo -StopAfterCurrentInfo $stopAfterCurrentInfo -RescanInfo $rescanInfo
             Status                = $Status
             TotalProcessed        = $script:totalProcessed
             Encoded               = $script:totalEncoded
@@ -886,6 +1532,15 @@ function Save-Progress {
         Move-ProgressFileIntoPlace -TempPath $tmp -DestinationPath $ProgressFile -BackupPath $backup
         $script:ProgressWriteFailures = 0
         $script:ProgressPersistenceHealthy = $true
+        # A successful exact progress write is also child liveness evidence.
+        # Refresh the separately watched heartbeat after the atomic save so
+        # long copy/track/native stages do not trip the worker watchdog while
+        # their correlated ProgressFile continues to advance.
+        if (Get-Command -Name Write-MediaPipelineWorkerChildHeartbeat -ErrorAction SilentlyContinue) {
+            try {
+                Write-MediaPipelineWorkerChildHeartbeat -Stage $script:currentStage -Status $script:pipelineStatus | Out-Null
+            } catch {}
+        }
         return $true
     } catch {
         $script:ProgressWriteFailures++
@@ -986,6 +1641,9 @@ $script:currentQueuePhase = $null
 $script:currentQueueIndex = 0
 $script:currentQueueTotal = 0
 $script:currentRoute = $null
+$script:CurrentExecutedRoute = $null
+$script:CurrentExecutedRouteReasonCode = $null
+$script:CurrentExecutedRouteReason = $null
 $script:currentStage = 'initializing'
 $script:currentStagePercent = $null
 $script:currentItemStartedAt = $null
@@ -995,12 +1653,19 @@ $script:currentPushState = $null
 $script:currentSidecarState = $null
 $script:pipelineStatus  = "Initializing"
 $script:StopRequested   = $false
+$script:StopAfterCurrentRequested = $false
+$script:StopAfterCurrentAcknowledged = $false
+$script:StopAfterCurrentRequestId = ''
+$script:StopAfterCurrentRequestedAt = ''
 $script:LastPauseRequestId = $null
 $script:LastPauseRequestCreatedAt = $null
 $script:LastPauseRequestObservedAt = $null
 $script:LastStopRequestId = $null
 $script:LastStopRequestCreatedAt = $null
 $script:LastStopRequestObservedAt = $null
+$script:LastStopAfterCurrentRequestId = $null
+$script:LastStopAfterCurrentRequestCreatedAt = $null
+$script:LastStopAfterCurrentRequestObservedAt = $null
 $script:LastRescanRequestId = $null
 $script:LastRescanRequestCreatedAt = $null
 $script:LastRescanRequestObservedAt = $null

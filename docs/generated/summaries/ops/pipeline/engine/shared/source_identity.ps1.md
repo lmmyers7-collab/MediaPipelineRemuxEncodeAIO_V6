@@ -1,5 +1,8 @@
 ---
 file: ops/pipeline/engine/shared/source_identity.ps1
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: PowerShell
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: shared
@@ -9,8 +12,8 @@ sha256: 312d5911bddae154a1b972feb83588a3f75a1a5662615cb8c2c9fd188d8fc914
 ---
 # `ops/pipeline/engine/shared/source_identity.ps1`
 
-**Purpose:** (no .SYNOPSIS block)
+**Purpose:** PowerShell implementation for source identity; exposes Get-SafeLocalName, Get-SourceIdentityKey, Get-SourceIdentityKeyV2.
 
-**Functions:** `Get-SafeLocalName`, `Get-SourceIdentityKey`, `Get-SourceIdentityKeyV2`, `Get-SourceSampleHash`, `Test-LegacySourceIdentityV2Algorithm`
+**Public symbols:** `Get-SafeLocalName`, `Get-SourceIdentityKey`, `Get-SourceIdentityKeyV2`, `Get-SourceSampleHash`, `Test-LegacySourceIdentityV2Algorithm`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/pipeline/engine/shared/source_identity.ps1`._

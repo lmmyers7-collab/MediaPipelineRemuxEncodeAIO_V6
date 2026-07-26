@@ -20,6 +20,7 @@ from mediapipeline.core.processes.active_jobs import active_job_pid_is_alive
 
 LIFECYCLE_LEASE_SCHEMA_VERSION = "desktop_lifecycle_lease.v1"
 LIFECYCLE_INDETERMINATE_SCHEMA_VERSION = "desktop_lifecycle_indeterminate.v1"
+LIFECYCLE_RECONCILIATION_PENDING_FILENAME = "LifecycleReconciliationPending.json"
 
 
 class LifecycleLeaseError(RuntimeError):
@@ -116,11 +117,13 @@ class LifecycleLeaseStore:
     """Local-file lifecycle authority. Ambiguous existing leases always block."""
 
     def __init__(self, state_root: Path, *, pid_alive: Callable[[int], bool | None] = _pid_liveness) -> None:
-        self.root = Path(state_root) / "Lifecycle"
+        self.state_root = Path(state_root)
+        self.root = self.state_root / "Lifecycle"
         self.lock_path = self.root / "active.lock"
         self.record_path = self.root / "active-lease.json"
         self.recovery_path = self.root / "recovery-pending.json"
         self.indeterminate_path = self.root / "indeterminate-command-evidence.json"
+        self.reconciliation_pending_path = self.state_root / LIFECYCLE_RECONCILIATION_PENDING_FILENAME
         self._pid_alive = pid_alive
 
     def _read_current(self) -> dict[str, Any] | None:
@@ -165,6 +168,10 @@ class LifecycleLeaseStore:
 
     def acquire(self, *, scope: str, command_id: str, resource_claims: list[str] | None = None) -> LifecycleLease:
         self.root.mkdir(parents=True, exist_ok=True)
+        if self.reconciliation_pending_path.exists():
+            raise LifecycleLeaseError(
+                "A lifecycle evidence reconciliation transaction is incomplete; backend recovery is required before new work."
+            )
         if self.indeterminate_path.exists():
             raise LifecycleLeaseError("A critical command outcome could not be durably journaled; backend reconciliation is required before new work.")
         recovery = self._read_recovery()
@@ -176,6 +183,11 @@ class LifecycleLeaseStore:
             raise LifecycleLeaseError(self._existing_lease_block_message()) from exc
         else:
             os.close(fd)
+        if self.reconciliation_pending_path.exists():
+            self.lock_path.unlink(missing_ok=True)
+            raise LifecycleLeaseError(
+                "A lifecycle evidence reconciliation transaction started while the launch reservation was being acquired."
+            )
         payload = {
             "schema_version": LIFECYCLE_LEASE_SCHEMA_VERSION,
             "lease_id": uuid.uuid4().hex,
@@ -221,8 +233,27 @@ class LifecycleLeaseStore:
                 )
 
     def status(self) -> dict[str, Any]:
+        if self.reconciliation_pending_path.exists():
+            return {
+                "status": "indeterminate",
+                "reason": "A lifecycle evidence reconciliation transaction is incomplete.",
+            }
         if self.indeterminate_path.exists():
             return {"status": "indeterminate", "reason": "A critical command outcome could not be durably journaled."}
+        if self.lock_path.exists():
+            try:
+                current = self._read_current()
+            except LifecycleLeaseError as exc:
+                return {"status": "unknown", "reason": str(exc)}
+            if current is None:
+                return {"status": "unknown", "reason": "Lifecycle lock exists without a lease record."}
+            pid = int(current.get("child_pid") or current.get("owner_pid") or 0)
+            alive = self._pid_alive(pid)
+            if alive is True:
+                return {"status": "active", "lease": current}
+            if alive is False:
+                return {"status": "stale", "lease": current, "reason": "Lease owner is conclusively absent; recovery reconciliation is required."}
+            return {"status": "unknown", "lease": current, "reason": "Lifecycle lease owner could not be verified."}
         try:
             recovery = self._read_recovery()
         except LifecycleLeaseError as exc:
@@ -233,21 +264,7 @@ class LifecycleLeaseStore:
                 "lease": recovery,
                 "reason": "An automatic lifecycle recovery attempt is pending completion or reconciliation.",
             }
-        if not self.lock_path.exists():
-            return {"status": "idle"}
-        try:
-            current = self._read_current()
-        except LifecycleLeaseError as exc:
-            return {"status": "unknown", "reason": str(exc)}
-        if current is None:
-            return {"status": "unknown", "reason": "Lifecycle lock exists without a lease record."}
-        pid = int(current.get("child_pid") or current.get("owner_pid") or 0)
-        alive = self._pid_alive(pid)
-        if alive is True:
-            return {"status": "active", "lease": current}
-        if alive is False:
-            return {"status": "stale", "lease": current, "reason": "Lease owner is conclusively absent; recovery reconciliation is required."}
-        return {"status": "unknown", "lease": current, "reason": "Lifecycle lease owner could not be verified."}
+        return {"status": "idle"}
 
     def begin_one_recovery_attempt(self) -> dict[str, Any]:
         """Consume one conclusively stale lease before its replacement starts."""
@@ -277,6 +294,32 @@ class LifecycleLeaseStore:
             **recovery,
         }
 
+    def retire_stale_without_replay(self, *, reason: str) -> dict[str, Any]:
+        """Preserve a dead lease as terminal history without replaying media work."""
+        posture = self.status()
+        if str(posture.get("status") or "") != "stale":
+            raise LifecycleLeaseError("Only a conclusively stale lifecycle lease can be retired without replay.")
+        current_value = posture.get("lease")
+        current: dict[str, Any] = dict(current_value) if isinstance(current_value, dict) else {}
+        lease_id = str(current.get("lease_id") or "")
+        if not lease_id:
+            raise LifecycleLeaseError("Stale lifecycle lease identity could not be verified.")
+        pid = int(current.get("child_pid") or current.get("owner_pid") or 0)
+        if self._pid_alive(pid) is not False:
+            raise LifecycleLeaseError("Stale lifecycle lease owner is no longer conclusively absent.")
+        terminal = {
+            **current,
+            "status": "interrupted",
+            "released_utc": _utc_now(),
+            "recovery_replayed": False,
+            "recovery_disposition": "retired_without_replay",
+            "recovery_disposition_reason": str(reason or "Interrupted work was not replayed."),
+        }
+        _atomic_write_json(self.root / f"{lease_id}.terminal.json", terminal)
+        self.record_path.unlink(missing_ok=True)
+        self.lock_path.unlink(missing_ok=True)
+        return terminal
+
     def mark_indeterminate(self, *, command_id: str, route: str, reason: str) -> None:
         _atomic_write_json(
             self.indeterminate_path,
@@ -291,4 +334,11 @@ class LifecycleLeaseStore:
         )
 
 
-__all__ = ["LIFECYCLE_LEASE_SCHEMA_VERSION", "LifecycleLease", "LifecycleLeaseError", "LifecycleLeaseStore"]
+__all__ = [
+    "LIFECYCLE_INDETERMINATE_SCHEMA_VERSION",
+    "LIFECYCLE_LEASE_SCHEMA_VERSION",
+    "LIFECYCLE_RECONCILIATION_PENDING_FILENAME",
+    "LifecycleLease",
+    "LifecycleLeaseError",
+    "LifecycleLeaseStore",
+]

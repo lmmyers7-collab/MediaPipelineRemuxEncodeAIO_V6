@@ -5,6 +5,7 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')
 . (Join-Path $repoRoot 'ops\pipeline\engine\paths\output_path_planning.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\shared\path_helpers.ps1')
+. (Join-Path $repoRoot 'ops\pipeline\engine\shared\native.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\queue\queue_plan.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\naming\naming.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\queue\file_overrides.ps1')
@@ -19,12 +20,12 @@ function Write-Log {
 }
 
 function Invoke-RecursivePathScan {
-    param([string] $Path, [string] $ItemType = 'File', [int] $TimeoutSeconds = 0, [string] $Label = '')
+    param([string] $Path, [string] $ItemType = 'File', [int] $TimeoutSeconds = 0, [string] $Label = '', [scriptblock] $PollHandler)
     return @(Get-ChildItem -LiteralPath $Path -File -Recurse | ForEach-Object { $_.FullName })
 }
 
 function Start-StopAwareSleep {
-    param([int] $Seconds)
+    param([int] $Seconds, [scriptblock] $PollHandler)
     return $true
 }
 

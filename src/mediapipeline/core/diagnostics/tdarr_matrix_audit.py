@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import subprocess
 import sys
+import tempfile
 import time
 from datetime import datetime, UTC
 from pathlib import Path
@@ -184,6 +186,34 @@ def tdarr_matrix_incomplete_full_run(*args, **kwargs):
         **kwargs,
     )
 
+
+def _write_tdarr_background_process_metadata(path: Path, payload: dict[str, Any]) -> None:
+    """Atomically persist and read-verify lifecycle identity in the target directory."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    tmp_path = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
+            json.dump(payload, handle, indent=2, sort_keys=True, allow_nan=False)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp_path, path)
+        if os.name != "nt":
+            directory_fd = os.open(path.parent, os.O_RDONLY)
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
+        persisted = json.loads(path.read_text(encoding="utf-8"))
+        if persisted != payload:
+            raise OSError(f"lifecycle metadata verification failed for {path}")
+    except Exception:
+        with contextlib.suppress(OSError):
+            tmp_path.unlink(missing_ok=True)
+        raise
+
+
 class TdarrMatrixAuditServiceMixin:
     def tdarr_matrix_background_close_evidence(self, workspace_root: Path) -> dict[str, Any]:
         """Expose background-process close evidence through the diagnostics service boundary."""
@@ -329,6 +359,59 @@ class TdarrMatrixAuditServiceMixin:
         log_root.mkdir(parents=True, exist_ok=True)
         stdout_path = log_root / f"{run_id}.stdout.log"
         stderr_path = log_root / f"{run_id}.stderr.log"
+        metadata_path = _tdarr_matrix_background_process_metadata_path(runs_root, run_id)
+        run_root = runs_root / run_id
+        audit_dir = run_root / "manifests" / "audit"
+
+        def failure_result(
+            error: BaseException,
+            *,
+            pid: int = 0,
+            partial_start: bool = False,
+            cleanup_evidence: str = "",
+        ) -> dict[str, Any]:
+            error_text = " ".join(str(error).split()) or type(error).__name__
+            cleanup_text = f" Cleanup: {cleanup_evidence}" if cleanup_evidence else ""
+            return {
+                "success": False,
+                "timed_out": False,
+                "background_started": False,
+                "partial_start": partial_start,
+                "reconciliation_required": partial_start,
+                "returncode": -1,
+                "pid": pid,
+                "run_id": run_id,
+                "command": command_line,
+                "stdout": f"Background stdout: {stdout_path}",
+                "stderr": (
+                    f"Tdarr Matrix background lifecycle persistence failed: {error_text}."
+                    f"{cleanup_text} Background stderr: {stderr_path}"
+                ),
+                "elapsed_seconds": time.monotonic() - started,
+                "library_root": str(library_root),
+                "run_root": str(run_root),
+                "report_path": str(audit_dir / "tdarr_matrix_audit_report.json"),
+                "process_metadata_path": str(metadata_path),
+                "selected_count": _int_value(preset.get("sample_count_hint")),
+                "finding_count": 0,
+                **preset,
+            }
+
+        reservation = {
+            "schema_version": "tdarr_matrix_background_process.v1",
+            "lifecycle_status": "launch_reserved",
+            "run_id": run_id,
+            "pid": 0,
+            "process_start_time": "",
+            "started_at": datetime.now(UTC).isoformat(),
+            "stdout_path": str(stdout_path),
+            "stderr_path": str(stderr_path),
+        }
+        try:
+            _write_tdarr_background_process_metadata(metadata_path, reservation)
+        except Exception as exc:
+            return failure_result(exc)
+
         stdout_handle = stdout_path.open("ab")
         stderr_handle = stderr_path.open("ab")
         kwargs: dict[str, Any] = {
@@ -348,15 +431,18 @@ class TdarrMatrixAuditServiceMixin:
             kwargs.setdefault("start_new_session", True)
         try:
             proc = subprocess.Popen(args, **kwargs)
+        except Exception:
+            with contextlib.suppress(OSError):
+                metadata_path.unlink(missing_ok=True)
+            raise
         finally:
             stdout_handle.close()
             stderr_handle.close()
-        run_root = runs_root / run_id
-        audit_dir = run_root / "manifests" / "audit"
         pid = int(getattr(proc, "pid", 0) or 0)
         process_start_time = _tdarr_matrix_process_start_time_text(pid, psutil_module=psutil)
         process_metadata = {
             "schema_version": "tdarr_matrix_background_process.v1",
+            "lifecycle_status": "active",
             "run_id": run_id,
             "pid": pid,
             "process_start_time": process_start_time,
@@ -365,12 +451,25 @@ class TdarrMatrixAuditServiceMixin:
             "stderr_path": str(stderr_path),
         }
         try:
-            _tdarr_matrix_background_process_metadata_path(runs_root, run_id).write_text(
-                json.dumps(process_metadata, indent=2, sort_keys=True) + "\n",
-                encoding="utf-8",
+            _write_tdarr_background_process_metadata(metadata_path, process_metadata)
+        except Exception as exc:
+            cleanup_evidence = ""
+            try:
+                kill_tree = getattr(self, "kill_process_tree", None)
+                if callable(kill_tree):
+                    cleanup_evidence = str(kill_tree(proc, "Tdarr Matrix background audit"))
+                else:
+                    proc.terminate()
+                    proc.wait(timeout=10)
+                    cleanup_evidence = f"Terminated exact child PID {pid}."
+            except Exception as cleanup_exc:
+                cleanup_evidence = f"Exact-child cleanup could not be verified: {cleanup_exc}"
+            return failure_result(
+                exc,
+                pid=pid,
+                partial_start=True,
+                cleanup_evidence=cleanup_evidence,
             )
-        except OSError:
-            pass
         return {
             "success": True,
             "timed_out": False,

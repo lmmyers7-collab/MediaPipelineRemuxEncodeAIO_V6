@@ -1,0 +1,72 @@
+{
+  "id": "MP-CHANGE-2026-0723-041",
+  "title": "Add a close-gated native updater lifecycle",
+  "version_target": "2026.06.04.001",
+  "status": "in_progress",
+  "type": "feature",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": null,
+  "summary": "Implement an explicit native updater state machine that separates signed update discovery/download from operator-confirmed, backend-close-gated installation.",
+  "reason": "Remediate AUDIT-FIND-W09-007: the updater plug-in is registered and signed artifacts are published, but installed clients have no executable check, prompt, download, safe shutdown, install, restart, or recovery flow.",
+  "affected_areas": [
+    "change-control",
+    "documentation",
+    "release-updates",
+    "tauri-lifecycle",
+    "tests"
+  ],
+  "behavior_before": "The shell registered the updater plug-in without any consumer path, while active documentation claimed prompted close-gated updates.",
+  "behavior_after": "Productized shells check the signed channel on startup, separate verified download from explicit install confirmation, fail closed on fresh close-readiness or safe-only shutdown failure, retain bounded native recovery evidence, and reconcile installer handoff against the exact version observed on the next launch. The packet remains in progress pending signed clean-account acceptance.",
+  "files_touched": [
+    "apps/desktop/tauri/src-tauri/src/dialogs.rs",
+    "apps/desktop/tauri/src-tauri/src/lib.rs",
+    "apps/desktop/tauri/src-tauri/src/updater_controller.rs",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/architecture/MODULE_MAP.md",
+    "docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md",
+    "docs/change_control/CHANGELOG.md",
+    "docs/change_control/CHANGE_INDEX.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/dialogs.rs.md",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/lib.rs.md",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/updater_controller.rs.md",
+    "docs/generated/summaries/docs/architecture/MODULE_MAP.md.md",
+    "docs/generated/summaries/docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md.md",
+    "docs/generated/summaries/docs/change_control/CHANGELOG.md.md",
+    "docs/generated/summaries/docs/change_control/CHANGE_INDEX.md.md",
+    "docs/generated/summaries/docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md.md",
+    "docs/generated/summaries/docs/inventories/STATE_FILE_SCHEMA_REFERENCE.md.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-041.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_tauri_shell_scaffold.py.md",
+    "docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md",
+    "docs/inventories/STATE_FILE_SCHEMA_REFERENCE.md",
+    "docs/operator/PRIVATE_BETA_INSTALL_UPDATE_RUNBOOK.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-041.json",
+    "tests/python/desktop/test_tauri_shell_scaffold.py"
+  ],
+  "tests_added": [
+    "apps/desktop/tauri/src-tauri/src/updater_controller.rs",
+    "tests/python/desktop/test_tauri_shell_scaffold.py"
+  ],
+  "manual_validation": [
+    "Tauri prerequisites passed; 26 PG-1 close-readiness scaffold tests passed; 74 Rust tests passed; 100 Tauri scaffold tests passed",
+    "build.ps1 -Zip -Verify -IncludeTests copied 18,472 files; package policy, environment, Tauri prerequisites, tool integration, and end-to-end gates passed; aggregate exit 1 only established package-context generated/status/Office/dependency/Ruff/WebView baselines",
+    "candidate manifest comparison: 17 packet-owned packaged paths matched source and manifest SHA-256, including updater controller, its generated summary, and Tauri scaffold test; 3 status/change-evidence paths were policy-omitted; 5 generated change/index paths changed only after post-build packet finalization",
+    "cargo check --all-targets; cargo test updater_controller - 6 passed",
+    "cargo fmt passed; Ruff passed; Clippy passed with only exact pre-existing while-let-loop/io-other-error warnings allowed",
+    "focused Tauri scaffold selection - 3 passed",
+    "full release self-test: updater-specific release-content policy failure corrected; focused package policy then passed; remaining failures are established global freshness, dependency, Ruff, WebView, and status baselines",
+    "generated-context guard selection: 37 tests plus 61 subtests passed; lifecycle map, project index, feature map, risky registry, architecture, naming, and test inventory passed",
+    "strict validate_changes --require-worktree-coverage passed with 1,183 valid packets"
+  ],
+  "rollback_plan": "Revert the native updater controller, native dialogs, lifecycle evidence, focused tests, documentation, generated outputs, and packet metadata together; retain signed artifact generation and the existing manual-install fallback.",
+  "related_changes": [
+    "AUDIT-FIND-W09-001",
+    "AUDIT-FIND-W09-007",
+    "MP-CHANGE-2026-0723-039"
+  ],
+  "notes": "High-risk binary-update and close-readiness boundary. Representative real-media validation is required only for an acceptance test that crosses active-work shutdown; local unit/static tests must not start media work, install an update, sign artifacts, mutate GitHub, or touch source media. Immutable audit evidence remains read-only.\nPython impact is test-only: one static Tauri scaffold assertion was added; no Python runtime behavior changed.\nSigned local updater server, clean-account install/restart/rollback, and active-work acceptance remain external Rung 5 prerequisites; packet intentionally remains in_progress.\nThe verified 18,472-file temporary candidate remains at C:\\Users\\lmmye\\AppData\\Local\\Temp\\mediapipeline-native-updater-041-candidate because the command execution policy rejected the explicit recursive cleanup after its mediapipeline_release_manifest.v1 manifest and exact temp-root path were verified; no ZIP was emitted."
+}

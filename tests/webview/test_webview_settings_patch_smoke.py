@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import logging
+import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from mediapipeline.tools.paths import find_repo_root
 
@@ -31,11 +34,15 @@ class WebViewSettingsPatchEvidenceSmoke(unittest.TestCase):
         self.assertEqual(summary["after"], {"CompatibilityEncodeGrowthPercent": 16, "MaxEncodeGrowthPercent": 6})
         self.assertTrue(summary["preview"]["ok"])
         self.assertFalse(summary["preview"]["writes_config"])
+        self.assertTrue(summary["preview"]["artifacts_unchanged"])
+        self.assertGreaterEqual(summary["preview"]["artifact_count"], 6)
         self.assertEqual(summary["preview"]["review_entries_schema_version"], "desktop_settings_patch_review_entries.v1")
         self.assertTrue(summary["preview"]["review_confirmation_preview_id"])
         self.assertIn("MaxEncodeGrowthPercent", summary["preview"]["changed_keys"])
         self.assertFalse(summary["denied_save"]["ok"])
         self.assertIn("confirm_save must be true.", summary["denied_save"]["warnings"])
+        self.assertEqual(summary["missing_confirmation"]["status"], 400)
+        self.assertIn("confirm_save: Field required", summary["missing_confirmation"]["error"])
         self.assertTrue(summary["confirmed_save"]["ok"])
         self.assertTrue(summary["confirmed_save"]["writes_config"])
         self.assertTrue(summary["confirmed_save"]["reloaded"])
@@ -46,6 +53,31 @@ class WebViewSettingsPatchEvidenceSmoke(unittest.TestCase):
         self.assertIn("Temporary config only", summary["boundary"])
         self.assertIn("MaxEncodeGrowthPercent", config_text)
         self.assertIn("6", config_text)
+
+    def test_productized_smoke_isolates_runtime_and_logger_before_service_startup(self) -> None:
+        desktop_logger = logging.getLogger("mediapipeline.desktop")
+        handlers_before = tuple(desktop_logger.handlers)
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            real_localappdata = root / "real-localappdata"
+            work_root = root / "work"
+            with patch.dict(
+                os.environ,
+                {
+                    "LOCALAPPDATA": str(real_localappdata),
+                    "MEDIAPIPELINE_PRODUCTIZED_APP": "1",
+                },
+            ):
+                os.environ.pop("MEDIAPIPELINE_APPDATA_ROOT", None)
+                summary = run_smoke(app_root=APP_ROOT, work_root=work_root)
+
+            self.assertFalse(real_localappdata.exists())
+            self.assertEqual(tuple(desktop_logger.handlers), handlers_before)
+            self.assertEqual(Path(summary["pipeline_path"]), PIPELINE_PATH.resolve())
+            for field in ("runtime_paths", "logger_paths"):
+                paths = [Path(value).resolve() for value in summary[field]]
+                self.assertTrue(paths, field)
+                self.assertTrue(all(path.is_relative_to(work_root.resolve()) for path in paths), field)
 
 
 if __name__ == "__main__":

@@ -13,7 +13,13 @@ function New-PipelinePublishResult {
         [string] $SourcePath = '',
         [long] $SourceSizeBytes = 0,
         [string] $Reason = '',
-        [bool] $ParkedForOutputSpace = $false
+        [bool] $ParkedForOutputSpace = $false,
+        [string] $PublishedPath = '',
+        [string] $ParkedPath = '',
+        [string] $IntendedFinalPath = '',
+        [string] $ManifestPath = '',
+        [array] $SidecarPaths = @(),
+        [string] $PublishTransactionId = ''
     )
 
     return [pscustomobject]@{
@@ -28,6 +34,12 @@ function New-PipelinePublishResult {
         SourceSizeBytes      = [long]$SourceSizeBytes
         Reason               = [string]$Reason
         ParkedForOutputSpace = [bool]$ParkedForOutputSpace
+        PublishedPath        = [string]$PublishedPath
+        ParkedPath           = [string]$ParkedPath
+        IntendedFinalPath    = [string]$IntendedFinalPath
+        ManifestPath         = [string]$ManifestPath
+        SidecarPaths         = @($SidecarPaths | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { [string]$_ })
+        PublishTransactionId = [string]$PublishTransactionId
     }
 }
 
@@ -52,6 +64,8 @@ function New-ExistingOutputPublishResult {
         -PublishState 'published' `
         -PublishMode 'existing-output' `
         -OutputPath $OutputPath `
+        -PublishedPath $OutputPath `
+        -IntendedFinalPath $OutputPath `
         -OutputSizeBytes $outputSize `
         -SourcePath $sourcePath `
         -SourceSizeBytes $sourceSize `

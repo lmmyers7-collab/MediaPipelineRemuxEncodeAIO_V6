@@ -39,6 +39,108 @@ from mediapipeline.core.config.preset_policy import (
 from mediapipeline.contracts.config import Config
 from mediapipeline.contracts.decision_policy import EffectiveDecisionPolicy
 
+
+PRESET_V2_LEGACY_APPLY_FIELD_MAP: dict[str, str] = {
+    "processingStrategy": "RoutingProfile",
+    "routing.enforcementMode": "RouteThresholdMode",
+    "routing.resolutionAwareBitrate.bucket1080pUpperHeightTolerancePct": (
+        "Route1080pUpperHeightTolerancePercent"
+    ),
+    "routing.resolutionAwareBitrate.bucket1080pMaxBitrateMbps": "Route1080pMaxVideoBitrateMbps",
+    "routing.resolutionAwareBitrate.bucket1440pLowerHeightTolerancePct": (
+        "Route1440pLowerHeightTolerancePercent"
+    ),
+    "routing.resolutionAwareBitrate.bucket1440pUpperHeightTolerancePct": (
+        "Route1440pUpperHeightTolerancePercent"
+    ),
+    "routing.resolutionAwareBitrate.bucket1440pMaxBitrateMbps": "Route1440pMaxVideoBitrateMbps",
+    "routing.resolutionAwareBitrate.bucket4kLowerHeightTolerancePct": "Route4KLowerHeightTolerancePercent",
+    "routing.resolutionAwareBitrate.bucket4kMaxBitrateMbps": "Route4KMaxVideoBitrateMbps",
+    "routing.directCopyVideoCodecAllowlist": "RemuxSafeVideoCodecs",
+    "video.codec": "VideoCodec",
+    "video.encoderSpeedPreset": "VideoPreset",
+    "video.qualityTarget": "VideoQuality",
+    "video.encoderQualityPreset": "EncodeTuningPreset",
+    "video.targetSelection": "EncodeLadder",
+    "container.format": "OutputContainer",
+    "guards.size.mode": "SizeGuardMode",
+    "guards.size.compatibilityEncodeGrowthTolerancePct": "CompatibilityEncodeGrowthPercent",
+    "guards.size.qualityEncodeGrowthTolerancePct": "MaxEncodeGrowthPercent",
+    "guards.size.movieRoute1080pSizeLimitGb": "MovieRoute1080pTargetSizeGB",
+    "guards.size.movieRoute1440pSizeLimitGb": "MovieRoute1440pTargetSizeGB",
+    "guards.size.movieRoute4kSizeLimitGb": "MovieRoute4KTargetSizeGB",
+    "guards.size.tvRoute1080pSizeLimitGb": "TVRoute1080pTargetSizeGB",
+    "guards.size.tvRoute1440pSizeLimitGb": "TVRoute1440pTargetSizeGB",
+    "guards.size.tvRoute4kSizeLimitGb": "TVRoute4KTargetSizeGB",
+    "advanced.extraVideoFlags": "ExtraVideoFlags",
+}
+
+_PRESET_V2_LEGACY_APPLY_METADATA_PATHS = frozenset(
+    {
+        "version",
+        "name",
+        "impactLevel",
+        "presetCategory",
+        "compatibilityTarget",
+    }
+)
+
+
+def _preset_policy_leaves(value: Any, *, prefix: str = "") -> dict[str, Any]:
+    if isinstance(value, Mapping) and value:
+        leaves: dict[str, Any] = {}
+        for key, child in value.items():
+            path = f"{prefix}.{key}" if prefix else str(key)
+            leaves.update(_preset_policy_leaves(child, prefix=path))
+        return leaves
+    return {prefix: value}
+
+
+def preset_v2_legacy_apply_unsupported_differences(
+    value: PresetV2 | Mapping[str, Any],
+    current_config: Config | Mapping[str, Any] | None,
+) -> list[dict[str, Any]]:
+    """Return desired policy leaves the legacy apply adapter cannot make effective."""
+
+    preset = value if isinstance(value, PresetV2) else PresetV2.model_validate(value)
+    if isinstance(current_config, Config):
+        current_mapping = current_config.model_dump(mode="python")
+    elif isinstance(current_config, Mapping):
+        current_mapping = dict(current_config)
+    else:
+        current_mapping = {}
+
+    current = preset_v2_from_legacy_config(current_mapping, name=preset.name)
+    projected_mapping = {**current_mapping, **legacy_config_patch_from_preset_v2(preset)}
+    effective_after_apply = preset_v2_from_legacy_config(projected_mapping, name=preset.name)
+    desired_leaves = _preset_policy_leaves(preset.model_dump(mode="json", by_alias=True))
+    current_leaves = _preset_policy_leaves(current.model_dump(mode="json", by_alias=True))
+    projected_leaves = _preset_policy_leaves(effective_after_apply.model_dump(mode="json", by_alias=True))
+    supported_paths = set(PRESET_V2_LEGACY_APPLY_FIELD_MAP) | set(_PRESET_V2_LEGACY_APPLY_METADATA_PATHS)
+    missing = object()
+    differences: list[dict[str, Any]] = []
+    for path in sorted(set(desired_leaves) | set(projected_leaves)):
+        if path in supported_paths:
+            continue
+        desired = desired_leaves.get(path, missing)
+        projected = projected_leaves.get(path, missing)
+        if desired == projected:
+            continue
+        current_value = current_leaves.get(path, missing)
+        differences.append(
+            {
+                "path": path,
+                "desired": None if desired is missing else desired,
+                "current": None if current_value is missing else current_value,
+                "effective_after_apply": None if projected is missing else projected,
+                "desired_present": desired is not missing,
+                "current_present": current_value is not missing,
+                "effective_after_apply_present": projected is not missing,
+            }
+        )
+    return differences
+
+
 def legacy_config_patch_from_preset_v2(
     value: PresetV2 | Mapping[str, Any],
     *,
@@ -316,10 +418,12 @@ __all__ = [
     "LABEL_ONLY_RENAME_POLICIES",
     "LEGACY_COMPATIBILITY_KEY_STATUSES",
     "MIGRATION_STATUS_VALUES",
+    "PRESET_V2_LEGACY_APPLY_FIELD_MAP",
     "PERSISTED_KEY_MIGRATION_STATUS",
     "MigrationStatus",
     "effective_decision_policy_from_legacy_or_preset",
     "effective_decision_policy_from_preset_v2",
     "legacy_config_patch_from_preset_v2",
+    "preset_v2_legacy_apply_unsupported_differences",
     "preset_v2_from_legacy_config",
 ]

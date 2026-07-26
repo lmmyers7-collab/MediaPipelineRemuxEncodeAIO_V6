@@ -259,6 +259,10 @@ class RenameWorkbenchJsTests(unittest.TestCase):
         self.assertIn("submitRenameBadCaseDialog", self.js)
         self.assertIn('apiPost("/api/rename/filter-cases", request)', self.js)
         self.assertIn("confirm_append: true", self.js)
+        self.assertIn("const casePayload = { ...(payload?.case_payload || {}) };", self.js)
+        self.assertIn('casePayload.status = payload?.comparison?.ok ? "active" : "pending";', self.js)
+        self.assertIn('casePayload.notes = renameWorkbenchValue("notes");', self.js)
+        self.assertIn("submitRenameBadCasePayload(casePayload)", self.js)
 
     def test_undo_last_apply_button_posts_backend_command(self) -> None:
         self.assertIn("undoLastRenameApply", self.js)

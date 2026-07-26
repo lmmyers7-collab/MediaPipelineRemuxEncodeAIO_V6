@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, UTC
+from collections.abc import Mapping
+import os
 from pathlib import Path
 from typing import Any
 
@@ -10,10 +11,12 @@ from mediapipeline.core.config.settings_policy import settings_encoder_capabilit
 from mediapipeline.core.kernel.dto_commands import CommandResult
 from mediapipeline.core.kernel.runtime.subprocess_runner import run_capture
 from mediapipeline.core.kernel.dto_base import JsonMap, json_safe
+from mediapipeline.core.kernel.contracts import ContractError, QueuePlanSnapshot
 from mediapipeline.core.paths.contracts import ResolvedPaths
-
+from mediapipeline.core.paths.queue_input_fingerprint import queue_input_consistency, queue_input_fingerprint
 from mediapipeline.core.config.identity import config_identity_block_reasons
 from mediapipeline.core.processes.audit_policy import AUDIT_LIBRARY_ROOT_ERROR, resolve_audit_library_root
+from mediapipeline.core.processes.file_io import read_json_file
 from mediapipeline.core.processes.pipeline_policy import (
     PIPELINE_EXTRA_ARGS_ERROR,
     PIPELINE_NETWORK_MODE_BLOCK_ERROR,
@@ -55,9 +58,6 @@ LAUNCH_PREFLIGHT_TARGETS = frozenset({"pipeline", "audit", "rerun"})
 LAUNCH_PREFLIGHT_PATH_HEALTH_TIMEOUT_SECONDS = LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS
 ENCODER_CAPABILITY_REFRESH_MAX_AGE_SECONDS = 7 * 24 * 60 * 60
 ENCODER_CAPABILITY_REFRESH_TIMEOUT_SECONDS = 60.0
-
-
-
 from mediapipeline.core.processes import preflight_support as _preflight_support
 from mediapipeline.core.processes.preflight_support import *  # noqa: F403
 
@@ -198,8 +198,18 @@ class ProcessFacadeMixin:
             "Start route will re-check the lock at submission time.",
         )
 
-    def _active_work_preflight_check(self, resolved: ResolvedPaths, action: str) -> dict[str, Any]:
-        block_message = self._active_work_block_message(resolved, action)
+    def _active_work_preflight_check(
+        self,
+        resolved: ResolvedPaths,
+        action: str,
+        *,
+        ignore_queue_source_scan: bool = False,
+    ) -> dict[str, Any]:
+        block_message = self._active_work_block_message(
+            resolved,
+            action,
+            ignore_queue_source_scan=ignore_queue_source_scan,
+        )
         if block_message:
             return _preflight_check(
                 "active_work",
@@ -215,6 +225,368 @@ class ProcessFacadeMixin:
             "No active-work block is currently reported.",
             "Start route will re-check active work at submission time.",
         )
+
+    def _normal_queue_scope_preflight_check(
+        self,
+        resolved: ResolvedPaths,
+        *,
+        retain_accepted_rows: bool = False,
+    ) -> dict[str, Any]:
+        # Run Once accepts the backend-owned dry-run membership as one immutable
+        # workload.  Public Queue filters, pagination, selection, and render
+        # limits never participate in this check.
+        return self._normal_queue_scope_snapshot_preview_check(
+            resolved,
+            retain_accepted_rows=retain_accepted_rows,
+        )
+
+    def _priority_export_scope_preflight_check(
+        self,
+        resolved: ResolvedPaths,
+        export_id: str,
+    ) -> dict[str, Any]:
+        if resolved.state_root is None:
+            return _preflight_check(
+                "priority_export_scope",
+                "Priority export scope",
+                "blocked",
+                "Priority Export requires LocalBase/State to be configured.",
+                "Configure LocalBase, then create a new priority export from Queue.",
+                detail=["priority_export_state_root_missing"],
+            )
+        priority_export_validator = getattr(
+            self.service,
+            "validate_priority_queue_export_for_launch",
+            None,
+        )
+        if not callable(priority_export_validator):
+            return _preflight_check(
+                "priority_export_scope",
+                "Priority export scope",
+                "blocked",
+                "Priority Export launch validation is unavailable.",
+                "Restart the desktop backend before creating a new priority export.",
+                detail=["priority_export_validation_unavailable"],
+            )
+        validation = priority_export_validator(resolved, export_id=export_id)
+        if str(validation.get("status") or "").casefold() != "ready":
+            return _preflight_check(
+                "priority_export_scope",
+                "Priority export scope",
+                "blocked",
+                str(validation.get("message") or "Priority export is not ready."),
+                "Create a new priority export from Queue.",
+                detail=[str(validation.get("reason_code") or "priority_export_blocked")],
+            )
+        current_inputs = queue_input_fingerprint(resolved)
+        if (
+            current_inputs.get("status") != "current"
+            or str(current_inputs.get("fingerprint") or "")
+            != str(validation.get("queue_input_fingerprint") or "")
+        ):
+            return _preflight_check(
+                "priority_export_scope",
+                "Priority export scope",
+                "blocked",
+                "Queue inputs changed after this priority export was created.",
+                "Create a new priority export from Queue.",
+                detail=["priority_export_input_stale"],
+            )
+        return _preflight_check(
+            "priority_export_scope",
+            "Priority export scope",
+            "ready",
+            f"Priority export contains {int(validation.get('count') or 0)} runnable effective-High row(s).",
+            "Run Once will rebuild priority-only scope and stop before media dispatch if its fingerprint changed.",
+            detail=[
+                f"export_id={validation.get('export_id') or ''}",
+                f"queue_plan_fingerprint={validation.get('queue_plan_fingerprint') or ''}",
+            ],
+        )
+
+    def _normal_queue_scope_snapshot_preview_check(
+        self,
+        resolved: ResolvedPaths,
+        *,
+        retain_accepted_rows: bool = False,
+    ) -> dict[str, Any]:
+        """Validate the backend Queue plan accepted by standard Run Once."""
+        raw_freshness = (resolved.config_data or {}).get("QueueLaunchSnapshotFreshnessSeconds")
+        freshness_normalizer = getattr(
+            self.service,
+            "normalize_queue_snapshot_freshness_seconds",
+            None,
+        )
+        freshness_seconds = freshness_normalizer(raw_freshness) if callable(freshness_normalizer) else 60
+        preview_age_detail: list[Any] = []
+
+        snapshot_path = resolved.queue_snapshot_path
+        if snapshot_path is None or not snapshot_path.is_file():
+            return _preflight_check(
+                "normal_queue_scope",
+                "Normal queue scope",
+                "blocked",
+                "No normal queue snapshot is available.",
+                "Refresh the Main Queue before Run Once; missing evidence does not prove the queue is empty.",
+                detail=["queue_snapshot_missing"],
+            )
+        try:
+            snapshot = read_json_file(snapshot_path, retries=1)
+        except Exception as exc:
+            return _preflight_check(
+                "normal_queue_scope",
+                "Normal queue scope",
+                "blocked",
+                f"Normal queue snapshot is unreadable: {snapshot_path} ({type(exc).__name__}).",
+                "Refresh the Main Queue before Run Once.",
+                detail=["queue_snapshot_unreadable", f"read_error={type(exc).__name__}"],
+            )
+        if not isinstance(snapshot, Mapping):
+            return _preflight_check(
+                "normal_queue_scope",
+                "Normal queue scope",
+                "blocked",
+                f"Normal queue snapshot is unreadable: {snapshot_path}",
+                "Refresh the Main Queue before Run Once.",
+                detail=["queue_snapshot_unreadable"],
+            )
+        try:
+            snapshot_contract = QueuePlanSnapshot.from_mapping(snapshot)
+        except ContractError:
+            return _preflight_check(
+                "normal_queue_scope",
+                "Normal queue scope",
+                "blocked",
+                f"Normal queue snapshot failed contract validation: {snapshot_path}",
+                "Refresh the Main Queue before Run Once.",
+                detail=["queue_snapshot_invalid"],
+            )
+        def path_key(value: object) -> str:
+            text = str(value or "").strip()
+            return os.path.normcase(os.path.normpath(text)) if text else ""
+
+        expected = {
+            "config_path": path_key(resolved.config_path),
+            "source_movies": path_key(resolved.source_movies),
+            "source_tv": path_key(resolved.source_tv),
+        }
+        actual = {
+            "config_path": path_key(snapshot_contract.config_path),
+            "source_movies": path_key(snapshot_contract.source_movies),
+            "source_tv": path_key(snapshot_contract.source_tv),
+        }
+        mismatches = [key for key in expected if actual[key] != expected[key]]
+        if mismatches:
+            return _preflight_check(
+                "normal_queue_scope",
+                "Normal queue scope",
+                "blocked",
+                f"Queue snapshot does not match the active scope: {', '.join(mismatches)}.",
+                "Refresh the Main Queue for the active config and source roots.",
+                detail=[
+                    "queue_snapshot_scope_mismatch",
+                    *preview_age_detail,
+                    *[
+                        f"{key}: snapshot={actual[key] or '(empty)'}; active={expected[key] or '(empty)'}"
+                        for key in mismatches
+                    ],
+                ],
+            )
+        if snapshot_contract.queue_snapshot_origin != "dry_run":
+            return _preflight_check(
+                "normal_queue_scope",
+                "Normal queue scope",
+                "blocked",
+                f"Latest Queue snapshot origin is {snapshot_contract.queue_snapshot_origin or 'unknown'}, not a backend dry-run.",
+                "Run Queue scan before launching.",
+                detail=["queue_snapshot_origin_not_dry_run", *preview_age_detail],
+            )
+        wall_now_provider = getattr(self.service, "queue_snapshot_freshness_wall_now", None)
+        monotonic_provider = getattr(self.service, "queue_snapshot_freshness_monotonic_now", None)
+        anchor_provider = getattr(self.service, "queue_snapshot_freshness_anchor", None)
+        # The validated dry-run snapshot is launch authority. Transient scan
+        # status and request identity are deliberately excluded from this
+        # advisory age calculation so a newer inventory scan cannot invalidate
+        # an otherwise current executable plan.
+        scan_status: Mapping[str, Any] = {}
+        freshness_evaluator = getattr(
+            self.service,
+            "evaluate_queue_snapshot_freshness_for_launch",
+            None,
+        )
+        if not callable(freshness_evaluator):
+            return _preflight_check(
+                "normal_queue_scope",
+                "Normal queue scope",
+                "blocked",
+                "Queue snapshot freshness validation is unavailable.",
+                "Restart the desktop backend, then refresh the Main Queue before Run Once.",
+                detail=["queue_snapshot_freshness_validation_unavailable"],
+            )
+        freshness = freshness_evaluator(
+            snapshot_path,
+            snapshot,
+            scan_status,
+            freshness_seconds=freshness_seconds,
+            **({"wall_now": wall_now_provider()} if callable(wall_now_provider) else {}),
+            **({"monotonic_now": monotonic_provider()} if callable(monotonic_provider) else {}),
+            anchor=anchor_provider() if callable(anchor_provider) else None,
+        )
+        preview_age_detail = [
+            "preview_age_policy=advisory",
+            "launch_revalidation=runtime_queue_rebuild_and_fingerprint",
+            *[
+                str(item)
+                for item in freshness.detail
+                if not str(item).startswith("preview_age_policy=")
+                and str(item) != freshness.reason_code
+            ],
+        ]
+        if not freshness.fresh:
+            if freshness.reason_code.endswith("_stale"):
+                preview_age_detail.append("preview_age=older_than_preference")
+            elif "future" in freshness.reason_code or "clock" in freshness.reason_code:
+                preview_age_detail.append("preview_age=clock_skewed")
+            else:
+                preview_age_detail.append("preview_age=unavailable")
+        consistency = queue_input_consistency(resolved, snapshot)
+        if consistency["status"] != "current":
+            changed_inputs = [str(item) for item in consistency.get("changed_inputs") or []]
+            changed_text = ", ".join(changed_inputs) if changed_inputs else "unavailable input evidence"
+            return _preflight_check(
+                "normal_queue_scope",
+                "Normal queue scope",
+                "blocked",
+                f"Queue snapshot input fingerprint is {consistency['status']}: {changed_text}.",
+                "Run Queue scan again after changing config/library profiles, priority or hold state, manual order/strategy, or file overrides.",
+                detail=[
+                    "queue_snapshot_inputs_not_current",
+                    *[f"queue_input_mismatch:{name}" for name in changed_inputs],
+                    consistency,
+                ],
+            )
+        pending_health = snapshot_contract.pending_publish_index_health
+        if str(pending_health.get("status") or "ready").casefold() == "blocked":
+            return _preflight_check(
+                "normal_queue_scope",
+                "Normal queue scope",
+                "blocked",
+                "Pending-publish index health is blocked; Queue safety cannot be established.",
+                "Repair the pending-publish evidence, then run Queue scan again.",
+                detail=["pending_publish_index_blocked", dict(pending_health)],
+            )
+        pending_backpressure = snapshot_contract.pending_publish_backpressure
+        if pending_backpressure.get("blocked") is True:
+            return _preflight_check(
+                "normal_queue_scope",
+                "Normal queue scope",
+                "blocked",
+                f"Pending-publish backpressure blocks new Queue work: {pending_backpressure.get('block_reason') or 'threshold reached'}.",
+                "Drain or repair Pending Publish, then run Queue scan again.",
+                detail=["pending_publish_backpressure_blocked", dict(pending_backpressure)],
+            )
+        if not snapshot_contract.queue_plan_fingerprint:
+            return _preflight_check(
+                "normal_queue_scope",
+                "Normal queue scope",
+                "blocked",
+                "Queue dry-run snapshot is missing its execution plan fingerprint.",
+                "Run Queue scan with the current backend before launching.",
+                detail=["queue_plan_fingerprint_missing"],
+            )
+        runnable_count = max(0, snapshot_contract.runnable_count)
+        accepted_count = len(snapshot_contract.accepted_run_rows)
+        if runnable_count > 0 and accepted_count != runnable_count:
+            missing = accepted_count == 0
+            return _preflight_check(
+                "normal_queue_scope",
+                "Normal queue scope",
+                "blocked",
+                (
+                    "Queue dry-run snapshot has no accepted Run Once membership."
+                    if missing
+                    else f"Queue dry-run accepted membership count {accepted_count} does not match runnable_count {runnable_count}."
+                ),
+                "Refresh the Main Queue with the current backend before launching Run Once.",
+                detail=[
+                    "queue_snapshot_accepted_rows_missing" if missing else "queue_snapshot_accepted_rows_invalid",
+                    *preview_age_detail,
+                    f"snapshot_path={snapshot_path}",
+                ],
+            )
+        unverified_name_rows = [
+            row.run_queue_index
+            for row in snapshot_contract.accepted_run_rows
+            if not row.has_verified_planned_display_name
+        ]
+        if unverified_name_rows:
+            return _preflight_check(
+                "normal_queue_scope",
+                "Normal queue scope",
+                "blocked",
+                "Queue dry-run accepted membership lacks verified production naming-plan evidence.",
+                "Refresh the Main Queue with the current backend before launching Run Once.",
+                detail=[
+                    "queue_snapshot_planned_display_name_evidence_missing",
+                    f"positions={','.join(str(position) for position in unverified_name_rows[:20])}",
+                    *preview_age_detail,
+                    f"snapshot_path={snapshot_path}",
+                ],
+            )
+        if runnable_count > 0 and not snapshot_contract.accepted_run_rows_fingerprint:
+            return _preflight_check(
+                "normal_queue_scope",
+                "Normal queue scope",
+                "blocked",
+                "Queue dry-run accepted membership lacks a content fingerprint.",
+                "Refresh the Main Queue with the current backend before launching Run Once.",
+                detail=[
+                    "queue_snapshot_accepted_fingerprint_missing",
+                    *preview_age_detail,
+                    f"snapshot_path={snapshot_path}",
+                ],
+            )
+        if runnable_count > 0 and not snapshot_contract.accepted_run_rows_fingerprint_is_valid:
+            return _preflight_check(
+                "normal_queue_scope",
+                "Normal queue scope",
+                "blocked",
+                "Queue dry-run accepted membership does not match its content fingerprint.",
+                "Refresh the Main Queue; altered membership or naming evidence cannot launch.",
+                detail=[
+                    "queue_snapshot_accepted_fingerprint_mismatch",
+                    *preview_age_detail,
+                    f"snapshot_path={snapshot_path}",
+                ],
+            )
+        if runnable_count == 0:
+            return _preflight_check(
+                "normal_queue_scope",
+                "Normal queue scope",
+                "blocked",
+                "Validated backend queue plan has zero runnable rows.",
+                "Refresh the Main Queue or choose a specific Single File; Run Once has no work to start.",
+                detail=["no_runnable_work", *preview_age_detail, f"snapshot_path={snapshot_path}"],
+            )
+        ready_check = _preflight_check(
+            "normal_queue_scope",
+            "Normal queue scope",
+            "ready",
+            f"Validated backend queue plan has {runnable_count} runnable row(s); preview age is advisory.",
+            "Run Once will rebuild backend-owned queue scope and stop before media dispatch if the active plan fingerprint changed.",
+            detail=[
+                *preview_age_detail,
+                f"snapshot_path={snapshot_path}",
+                f"queue_plan_fingerprint={snapshot_contract.queue_plan_fingerprint}",
+            ],
+        )
+        ready_check["queue_plan_fingerprint"] = snapshot_contract.queue_plan_fingerprint
+        ready_check["queue_preview_request_id"] = snapshot_contract.queue_preview_request_id
+        if retain_accepted_rows:
+            # Internal launch-only handoff. Public preflight keeps the uncapped
+            # workload in the backend snapshot and never serializes it into UI.
+            ready_check["_accepted_run_rows"] = tuple(snapshot_contract.accepted_run_rows)
+        return ready_check
 
     def _config_identity_preflight_check(self, resolved: ResolvedPaths) -> dict[str, Any]:
         identity = dict(getattr(resolved, "config_identity", {}) or {})
@@ -392,6 +764,38 @@ class ProcessFacadeMixin:
             ),
             single_file_check,
         ]
+        queue_scope_allowed = normalized["queue_scope"] in {"backend_queue", "priority_export"}
+        priority_scope_combination_valid = (
+            normalized["queue_scope"] != "priority_export"
+            or (
+                mode == "once"
+                and not normalized["single_file"]
+                and bool(normalized["priority_export_id"])
+            )
+        )
+        backend_scope_combination_valid = not (
+            normalized["queue_scope"] == "backend_queue"
+            and bool(normalized["priority_export_id"])
+        )
+        queue_scope_valid = queue_scope_allowed and priority_scope_combination_valid and backend_scope_combination_valid
+        checks.append(
+            _preflight_check(
+                "queue_scope",
+                "Queue launch scope",
+                "ready" if queue_scope_valid else "blocked",
+                f"queue_scope={normalized['queue_scope'] or '(empty)'}",
+                "Use Backend Queue, or use Priority Export with Run Once, no Single File, and a backend export ID.",
+                detail=[] if queue_scope_valid else [
+                    "Priority Export is Run Once only and cannot be combined with Single File.",
+                    "priority_export_id is required only for Priority Export scope.",
+                ],
+            )
+        )
+        if mode == "once" and not normalized["single_file"] and queue_scope_valid:
+            if normalized["queue_scope"] == "priority_export":
+                checks.append(self._priority_export_scope_preflight_check(resolved, normalized["priority_export_id"]))
+            else:
+                checks.append(self._normal_queue_scope_preflight_check(resolved))
         if is_supported_pipeline_start_mode(mode):
             schedule_gate = self._resolve_pipeline_start_schedule_gate(mode, request)
             normalized["actual_mode"] = str(schedule_gate.get("mode") or mode)
@@ -442,7 +846,16 @@ class ProcessFacadeMixin:
         )
         checks.extend(
             [
-                self._active_work_preflight_check(resolved, "Pipeline preflight"),
+                self._active_work_preflight_check(
+                    resolved,
+                    "Pipeline preflight",
+                    ignore_queue_source_scan=(
+                        str(normalized.get("actual_mode") or mode).casefold() == "once"
+                        and not bool(normalized["single_file"])
+                        and normalized["queue_scope"] == "backend_queue"
+                        and queue_scope_valid
+                    ),
+                ),
                 _preflight_check(
                     "service_start",
                     "Pipeline service",

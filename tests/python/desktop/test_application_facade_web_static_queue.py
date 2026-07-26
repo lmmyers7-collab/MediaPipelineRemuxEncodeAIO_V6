@@ -254,6 +254,7 @@ class ApplicationFacadeWebStaticQueueTests(unittest.TestCase):
                 'const RERUN_NETWORK_PREVIEW_ROUTE = "/api/rerun/network-preview"',
                 'const RERUN_NETWORK_START_DRY_RUN_ROUTE = "/api/rerun/network/start-dry-run"',
                 'const RERUN_NETWORK_START_ROUTE = "/api/rerun/network/start"',
+                'const RERUN_NETWORK_RETRY_ROUTE = "/api/rerun/network/retry"',
                 'const RERUN_START_ROUTE = "/api/rerun/start"',
                 'const RERUN_RESULTS_ROUTE = "/api/rerun/results?limit=24"',
                 'const RERUN_CONTROL_ROUTE = "/api/rerun/control"',
@@ -273,6 +274,9 @@ class ApplicationFacadeWebStaticQueueTests(unittest.TestCase):
                 'requireApiPost(RERUN_CONTROL_ROUTE)("/api/rerun/control", { action: "stop_after_current", confirm_stop: true })',
                 'requireApiPost(RERUN_CONTROL_ROUTE)("/api/rerun/control", { action: "pause", confirm_pause: true })',
                 'requireApiPost(RERUN_CONTINUE_ROUTE)("/api/rerun/continue", request)',
+                "const RERUN_BACKEND_ACTION_ROUTES = new Set([RERUN_CONTINUE_ROUTE, RERUN_NETWORK_RETRY_ROUTE])",
+                "function postBackendRerunAction",
+                "function requestBackendRerunAction",
                 'requireApiPost(RERUN_OPEN_ROUTE)("/api/rerun/open", request)',
                 'requireApiPost(DIAGNOSTICS_OPEN_ROUTE)("/api/diagnostics/open", { target })',
                 'requireApiPost(RERUN_PROMOTE_DRY_RUN_ROUTE)("/api/rerun/promote-dry-run", { row_key: rowKey })',
@@ -328,6 +332,36 @@ class ApplicationFacadeWebStaticQueueTests(unittest.TestCase):
         self.assertNotIn("<th scope=\"col\">Evidence</th>", rerun_state_table)
         self.assertLess(bundle.html.index('class="rerun-state-panel"'), bundle.html.index('class="rerun-history-panel"'))
 
+    def test_queue_scope_simplification_contract_is_static_pinned(self) -> None:
+        bundle = self.bundle
+
+        _assert_contains_all(
+            self,
+            bundle.queue_view_js,
+            (
+                "function queueBlockerEvidence",
+                "row?.blocking_reason",
+                "row?.blocked_reason",
+                "row?.error",
+                'status.includes("failed")',
+                "current_local",
+                "current_network",
+                "Current CSV rerun batch",
+                "Recent bounded history",
+                "history_window",
+                "live worker unverified",
+                "Snapshot age advisory",
+                "showing ${visibleCount} of ${reviewRows.length} flagged",
+            ),
+        )
+        self.assertIn("payload?.network_manifests", bundle.queue_view_rerun_js)
+        self.assertIn("Snapshot age is not a row blocker", bundle.queue_view_js)
+        self.assertNotIn("row?.reason_code", bundle.queue_view_summary_js)
+        self.assertIn("No new CSV selected", bundle.launch_view_js)
+        self.assertNotIn(
+            'request: { manifest_key: String(actionOrManifestKey || "").trim(), confirm_continue: true }',
+            bundle.launch_view_js,
+        )
     def test_queue_panel_order_is_static_pinned(self) -> None:
         queue_page_html = _queue_page_html(self.bundle.html)
         queue_panel_order = [
@@ -407,7 +441,7 @@ class ApplicationFacadeWebStaticQueueTests(unittest.TestCase):
                 "Produced:",
                 "Snapshot file age",
                 "Produced age",
-                "Snapshot stale",
+                "Snapshot age advisory",
                 "function queueSnapshotIsStale",
                 "Source roots:",
             ),
@@ -556,8 +590,8 @@ class ApplicationFacadeWebStaticQueueTests(unittest.TestCase):
                 "unsafe_if_ignored",
                 "recommended_diagnostics_targets",
                 "Review flags:",
-                "Route decision:",
-                "Route evidence:",
+                "Preview authority:",
+                "Queue input consistency:",
                 "route_evidence_lines",
                 "operator_guidance",
             ),

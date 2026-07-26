@@ -16,9 +16,11 @@ from mediapipeline.desktop.network.coordinator import CoordinatorDispatcher, _Co
 
 
 class NetworkCoordinatorStartupTests(unittest.TestCase):
-    def test_coordinator_http_request_threads_are_not_daemonized(self) -> None:
-        self.assertFalse(_CoordServer.daemon_threads)
-        self.assertTrue(getattr(_CoordServer, "block_on_close", True))
+    def test_coordinator_http_request_threads_use_explicit_bounded_cleanup(self) -> None:
+        self.assertTrue(_CoordServer.daemon_threads)
+        self.assertFalse(_CoordServer.block_on_close)
+        self.assertGreater(_CoordServer.MAX_CONCURRENT_HANDLERS, 0)
+        self.assertGreater(_CoordServer.AUTHENTICATED_CLEANUP_TIMEOUT_SECONDS, 0)
 
     def test_coordinator_bind_address_default_and_validation(self) -> None:
         dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)

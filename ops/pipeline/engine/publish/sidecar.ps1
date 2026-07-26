@@ -181,6 +181,7 @@ function Write-Sidecar {
         created_at       = $createdAt
         encoded_at       = $createdAt
         job_id           = if ($script:CurrentJobId) { [string]$script:CurrentJobId } else { '' }
+        run_monitor_job_id = if ($script:CurrentRunMonitorJobId) { [string]$script:CurrentRunMonitorJobId } else { '' }
         correlation_id   = if ($script:PipelineRunId) { [string]$script:PipelineRunId } else { '' }
         route            = $Route
         output_file      = Split-Path $OutputPath -Leaf
@@ -248,7 +249,7 @@ function Write-Sidecar {
             # remains the source of truth. The manifest is a read-optimized
             # local cache for the desktop UI.
             if (-not $SkipCompletedManifest) {
-                Add-CompletedJobsManifestEntry -OutputPath $OutputPath -Payload $payload
+                [void](Add-CompletedJobsManifestEntry -OutputPath $OutputPath -Payload $payload)
             }
             return $true
         } catch {
@@ -262,9 +263,48 @@ function Write-Sidecar {
     return $false
 }
 
-# Append one JSON line to the local completed-jobs manifest. Best-effort:
-# any failure is logged and swallowed because the outsource-side sidecar is
-# the source of truth and manifest-write failure must not abort the pipeline.
+# Return true when the exact completion transaction is already present. This
+# closes the ambiguous-response window where an append succeeded but the
+# process died before pending cleanup and a retry would otherwise duplicate it.
+function Test-CompletedJobsManifestEntryExists {
+    param(
+        [Parameter(Mandatory)] [string] $OutputPath,
+        [Parameter(Mandatory)] $Payload
+    )
+
+    if ([string]::IsNullOrWhiteSpace([string]$CompletedJobsManifest) -or -not (Test-Path -LiteralPath $CompletedJobsManifest -PathType Leaf -ErrorAction SilentlyContinue)) {
+        return $false
+    }
+    $transactionId = ''
+    $outputHash = ''
+    try {
+        if ($Payload -is [System.Collections.IDictionary]) {
+            if ($Payload.Contains('publish_transaction_id')) { $transactionId = [string]$Payload['publish_transaction_id'] }
+            if ($Payload.Contains('output_sha256')) { $outputHash = [string]$Payload['output_sha256'] }
+        } else {
+            if ($Payload.PSObject.Properties['publish_transaction_id']) { $transactionId = [string]$Payload.publish_transaction_id }
+            if ($Payload.PSObject.Properties['output_sha256']) { $outputHash = [string]$Payload.output_sha256 }
+        }
+    } catch {}
+
+    foreach ($line in @(Get-Content -LiteralPath $CompletedJobsManifest -ErrorAction SilentlyContinue)) {
+        if ([string]::IsNullOrWhiteSpace($line)) { continue }
+        try {
+            $entry = $line | ConvertFrom-Json -ErrorAction Stop
+            if (-not ([string]$entry.output_path).Equals($OutputPath, [System.StringComparison]::OrdinalIgnoreCase)) { continue }
+            if (-not [string]::IsNullOrWhiteSpace($transactionId)) {
+                if ([string]$entry.publish_transaction_id -eq $transactionId) { return $true }
+                continue
+            }
+            if (-not [string]::IsNullOrWhiteSpace($outputHash) -and [string]$entry.output_sha256 -eq $outputHash) { return $true }
+        } catch {}
+    }
+    return $false
+}
+
+# Append one JSON line to the local completed-jobs manifest. Immediate publish
+# callers may continue treating this as best-effort, but pending drain consumes
+# the boolean result as a hard cleanup gate.
 # Use the cross-process JSONL mutex because local worker slots can mirror
 # completed sidecars concurrently under the same run.
 function Add-CompletedJobsManifestEntry {
@@ -276,6 +316,9 @@ function Add-CompletedJobsManifestEntry {
         if (-not (Test-Path -LiteralPath $LocalCompleted)) {
             New-Item -ItemType Directory -Path $LocalCompleted -Force | Out-Null
         }
+        if (Test-CompletedJobsManifestEntryExists -OutputPath $OutputPath -Payload $Payload) {
+            return $true
+        }
         # Clone the sidecar payload and add fields the UI needs to show the
         # entry without ever opening a remote file: absolute output path and
         # a logged-at timestamp (distinct from encoded_at, which may be an
@@ -285,6 +328,7 @@ function Add-CompletedJobsManifestEntry {
         if (-not $entry.Contains('schema_version')) { $entry['schema_version'] = 'completed_job.v1' }
         if (-not $entry.Contains('output_path')) { $entry['output_path'] = $OutputPath }
         if (-not $entry.Contains('job_id')) { $entry['job_id'] = if ($script:CurrentJobId) { [string]$script:CurrentJobId } else { '' } }
+        if (-not $entry.Contains('run_monitor_job_id')) { $entry['run_monitor_job_id'] = if ($script:CurrentRunMonitorJobId) { [string]$script:CurrentRunMonitorJobId } else { '' } }
         if (-not $entry.Contains('correlation_id')) { $entry['correlation_id'] = if ($script:PipelineRunId) { [string]$script:PipelineRunId } else { '' } }
         $loggedAt = (Get-Date -Format 'o')
         $entry['logged_at'] = $loggedAt
@@ -303,7 +347,9 @@ function Add-CompletedJobsManifestEntry {
                     reason        = 'jsonl_append_failed'
                 } | Out-Null
             }
+            return $false
         }
+        return $true
     } catch {
         Write-Log "Completed-jobs manifest append failed for $OutputPath : $_" "WARN"
         if (Get-Command -Name Write-PipelineEvent -ErrorAction SilentlyContinue) {
@@ -313,6 +359,7 @@ function Add-CompletedJobsManifestEntry {
                 reason        = [string]$_
             } | Out-Null
         }
+        return $false
     }
 }
 
@@ -329,8 +376,7 @@ function Add-CompletedJobsManifestEntryFromSidecar {
         foreach ($prop in @($json.PSObject.Properties)) {
             $payload[$prop.Name] = $prop.Value
         }
-        Add-CompletedJobsManifestEntry -OutputPath $OutputPath -Payload $payload
-        return $true
+        return [bool](Add-CompletedJobsManifestEntry -OutputPath $OutputPath -Payload $payload)
     } catch {
         Write-Log "Completed-jobs manifest append from sidecar failed for $OutputPath : $_" "WARN"
         return $false

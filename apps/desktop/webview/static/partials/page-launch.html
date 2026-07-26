@@ -15,7 +15,7 @@
               <strong id="launch-live-run-status" data-state="unknown">Checking</strong>
             </div>
             <div id="launch-live-run-strip" class="live-run-strip" aria-live="polite" aria-label="Launch live run summary">
-              <span class="live-run-chip" data-status="unknown" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="live" aria-label="Open Telemetry for live state" title="Open Telemetry">
+              <span class="live-run-chip" data-status="unknown" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="home" data-quick-link-focus="#current-work-heading" aria-label="Open Current Work run state" title="Open Current Work">
                 <span class="live-run-chip-label">State</span>
                 <strong class="live-run-chip-value">Waiting for backend snapshot</strong>
               </span>
@@ -114,8 +114,13 @@
                 <span class="pipeline-controller-field-label">Scope</span>
                 <div class="pipeline-scope-segmented" role="group" aria-label="Pipeline launch scope">
                   <button type="button" class="pipeline-scope-button is-active" data-pipeline-scope-preset="queue" aria-pressed="true">Backend Queue</button>
+                  <button type="button" class="pipeline-scope-button" data-pipeline-scope-preset="priority_export" aria-pressed="false">Priority Export</button>
                   <button type="button" class="pipeline-scope-button" data-pipeline-scope-preset="single_file" aria-pressed="false">Single File</button>
                 </div>
+              </div>
+              <div class="pipeline-single-file-group" data-pipeline-priority-export-container hidden aria-hidden="true">
+                <input id="pipeline-priority-export-id" type="hidden" value="">
+                <p id="pipeline-priority-export-status" class="note">Select Priority Export to load the latest backend-owned export and its item count.</p>
               </div>
               <div class="pipeline-single-file-group" data-pipeline-single-file-container hidden aria-hidden="true">
                 <div class="pipeline-single-file-row">

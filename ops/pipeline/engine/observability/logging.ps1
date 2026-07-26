@@ -407,6 +407,7 @@ function Write-StartupEnvironmentSummary {
     Write-Log "  events       : $PipelineEventLogFile"
     Write-Log "  pause flag   : $PauseFlag"
     Write-Log "  stop flag    : $StopFlag"
+    Write-Log "  graceful stop: $StopAfterCurrentFlag"
     Write-Log "  pending push : $LocalPendingPush"
     Write-Log "  failed files : $LocalFailed"
     Write-Log "  fail markers : $LocalFailureMarkers"

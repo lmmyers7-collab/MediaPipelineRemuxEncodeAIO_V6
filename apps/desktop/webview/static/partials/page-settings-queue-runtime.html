@@ -1,0 +1,143 @@
+        <!-- TAB: ADVANCED / SYSTEM -->
+        <div class="settings-tab-pane" data-settings-tab="queue-runtime">
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Distributed Mode Settings</h2>
+            <strong>Moved</strong>
+          </div>
+          <div class="action-row action-row-left">
+            <button type="button" class="secondary-button" data-cross-page-target="network">Open Workers</button>
+          </div>
+          <p class="note">Standalone, coordinator, worker URL, poll interval, path map, and worker override settings now live on the Workers tab next to runtime worker state. The same backend Save Settings pipeline still owns validation and persistence.</p>
+        </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Queue Settings <span class="impact-chip" data-impact="medium" title="Queue — batch size, concurrency, priority ordering, and backoff limits">Medium Impact</span></h2>
+            <strong id="settings-queue-builder-status">No queue changes built</strong>
+          </div>
+          <div class="form-grid launch-form-grid">
+            <label>
+              Priority markers
+              <input id="settings-queue-priority-markers" type="text" autocomplete="off" placeholder="!, [NOW]">
+            </label>
+            <label>
+              Processed index refresh s
+              <input id="settings-queue-processed-index-refresh" type="number" min="0" step="1">
+            </label>
+            <label>
+              Minimum pipeline version
+              <input id="settings-queue-min-pipeline-version" type="text" autocomplete="off" placeholder="Current version by default">
+            </label>
+            <label class="check-row launch-check-row">
+              <input id="settings-queue-reprocess-all" type="checkbox"> Force one reprocess pass
+            </label>
+          </div>
+          <div class="action-row action-row-left">
+            <button type="button" id="settings-queue-apply-button" class="secondary-button">Update Queue Changes</button>
+            <button type="button" id="settings-queue-reset-button" class="secondary-button">Reset From Current</button>
+          </div>
+          <pre id="settings-queue-guidance" class="prose-block">No queue guidance loaded.</pre>
+          <p class="note">This prepares queue priority and reprocess policy only. Backend Save remains the source of truth before any run considers completed outputs.</p>
+        </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Runtime Settings <span class="impact-chip" data-impact="medium" title="Runtime / diagnostics — log level, snapshot interval, event retention, and health-check cadence">Medium Impact</span></h2>
+            <strong id="settings-runtime-builder-status">No runtime changes built</strong>
+          </div>
+          <div class="form-grid launch-form-grid">
+            <label class="check-row launch-check-row">
+              <input id="settings-runtime-debug-mode" type="checkbox"> Verbose debug logging
+            </label>
+            <label>
+              Console log level
+              <select id="settings-runtime-console-log">
+                <option value="">Default</option>
+                <option value="ERROR">ERROR</option>
+                <option value="WARN">WARN</option>
+                <option value="INFO">INFO</option>
+                <option value="DEBUG">DEBUG</option>
+              </select>
+            </label>
+            <label>
+              File log level
+              <select id="settings-runtime-file-log">
+                <option value="">Default</option>
+                <option value="ERROR">ERROR</option>
+                <option value="WARN">WARN</option>
+                <option value="INFO">INFO</option>
+                <option value="DEBUG">DEBUG</option>
+              </select>
+            </label>
+            <label>
+              Log retention days
+              <input id="settings-runtime-log-retention" type="number" min="0" step="1">
+            </label>
+            <label>
+              Interrupted tool log retention days
+              <input id="settings-runtime-interrupted-tool-log-retention" type="number" min="1" max="365" step="1">
+            </label>
+            <label>
+              Failure artifact warning GB
+              <input id="settings-runtime-failure-artifact-threshold" type="number" min="0" step="1">
+            </label>
+            <label>
+              Failure artifact retention days
+              <input id="settings-runtime-failure-artifact-retention" type="number" min="0" step="1">
+            </label>
+            <label>
+              Failure artifact cleanup target GB
+              <input id="settings-runtime-failure-artifact-cleanup-target" type="number" min="0" step="1">
+            </label>
+            <label>
+              FFmpeg encode timeout s
+              <input id="settings-runtime-ffmpeg-encode-timeout" type="number" min="1" step="1">
+            </label>
+            <label>
+              FFmpeg remux timeout s
+              <input id="settings-runtime-ffmpeg-remux-timeout" type="number" min="1" step="1">
+            </label>
+            <label>
+              CPU encode timeout s
+              <input id="settings-runtime-cpu-encode-timeout" type="number" min="1" step="1">
+            </label>
+            <label>
+              MKV remux timeout s
+              <input id="settings-runtime-mkvmerge-timeout" type="number" min="1" step="1">
+            </label>
+            <label>
+              Copy timeout s
+              <input id="settings-runtime-robocopy-timeout" type="number" min="1" step="1">
+            </label>
+            <label>
+              Source scan interval s
+              <input id="settings-runtime-source-scan-interval" type="number" min="1" step="1">
+            </label>
+            <label>
+              Source scan timeout s
+              <input id="settings-runtime-source-scan-timeout" type="number" min="1" step="1">
+            </label>
+            <label>
+              Index scan timeout s
+              <input id="settings-runtime-index-scan-timeout" type="number" min="1" step="1">
+            </label>
+            <label>
+              Cleanup scan timeout s
+              <input id="settings-runtime-cleanup-scan-timeout" type="number" min="1" step="1">
+            </label>
+            <label>
+              Transient retry limit
+              <input id="settings-runtime-transient-retry-limit" type="number" min="0" step="1">
+            </label>
+            <label class="check-row launch-check-row">
+              <input id="settings-runtime-allow-system-tools" type="checkbox"> Allow PATH tool fallback
+            </label>
+          </div>
+          <div class="action-row action-row-left">
+            <button type="button" id="settings-runtime-apply-button" class="secondary-button">Update Runtime Changes</button>
+            <button type="button" id="settings-runtime-reset-button" class="secondary-button">Reset From Current</button>
+          </div>
+          <pre id="settings-runtime-guidance" class="prose-block">No runtime guidance loaded.</pre>
+          <p class="note">This prepares timeout, scan, retry, logging, and tool-fallback settings only. Backend Save remains the source of truth.</p>
+        </section>
+        </div>
+

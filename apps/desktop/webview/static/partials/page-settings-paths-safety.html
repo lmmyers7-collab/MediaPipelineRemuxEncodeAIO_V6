@@ -1,0 +1,125 @@
+        <!-- TAB: VERIFICATION / PUBLISH CONTINUED -->
+        <div class="settings-tab-pane" data-settings-tab="paths-safety">
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>File Safety Settings <span class="impact-chip" data-impact="high" title="Paths / file safety — verify source, output, and scratch roots before running unattended jobs">High Impact</span></h2>
+            <strong id="settings-file-safety-builder-status">No file-safety changes built</strong>
+          </div>
+          <div class="form-grid launch-form-grid">
+            <label>
+              <span class="path-picker-label-row">
+                <span class="path-picker-label-text">Movies source</span>
+                <button type="button" id="settings-file-safety-source-movies-picker-badge" class="path-picker-badge" data-path-picker-target="settings.file_safety.SourceMovies" data-path-picker-input="settings-file-safety-source-movies" data-path-picker-mode="folder" data-path-picker-status="settings-file-safety-builder-status" title="Open a backend-owned Windows folder picker for Movies source.">Browse</button>
+              </span>
+              <span class="settings-path-control">
+                <input id="settings-file-safety-source-movies" type="text" autocomplete="off" spellcheck="false">
+                <button type="button" id="settings-file-safety-source-movies-browse" class="tertiary-button settings-path-browse-button" data-settings-path-key="SourceMovies" data-settings-path-input="settings-file-safety-source-movies">Browse</button>
+              </span>
+            </label>
+            <label>
+              <span class="path-picker-label-row">
+                <span class="path-picker-label-text">TV source</span>
+                <button type="button" id="settings-file-safety-source-tv-picker-badge" class="path-picker-badge" data-path-picker-target="settings.file_safety.SourceTV" data-path-picker-input="settings-file-safety-source-tv" data-path-picker-mode="folder" data-path-picker-status="settings-file-safety-builder-status" title="Open a backend-owned Windows folder picker for TV source.">Browse</button>
+              </span>
+              <span class="settings-path-control">
+                <input id="settings-file-safety-source-tv" type="text" autocomplete="off" spellcheck="false">
+                <button type="button" id="settings-file-safety-source-tv-browse" class="tertiary-button settings-path-browse-button" data-settings-path-key="SourceTV" data-settings-path-input="settings-file-safety-source-tv">Browse</button>
+              </span>
+            </label>
+            <label>
+              <span class="path-picker-label-row">
+                <span class="path-picker-label-text">Final output</span>
+                <button type="button" id="settings-file-safety-outsource-picker-badge" class="path-picker-badge" data-path-picker-target="settings.file_safety.Outsource" data-path-picker-input="settings-file-safety-outsource" data-path-picker-mode="folder" data-path-picker-status="settings-file-safety-builder-status" title="Open a backend-owned Windows folder picker for final output.">Browse</button>
+              </span>
+              <span class="settings-path-control">
+                <input id="settings-file-safety-outsource" type="text" autocomplete="off" spellcheck="false">
+                <button type="button" id="settings-file-safety-outsource-browse" class="tertiary-button settings-path-browse-button" data-settings-path-key="Outsource" data-settings-path-input="settings-file-safety-outsource">Browse</button>
+              </span>
+            </label>
+            <label>
+              <span class="path-picker-label-row">
+                <span class="path-picker-label-text">Scratch / LocalBase</span>
+                <button type="button" id="settings-file-safety-local-base-picker-badge" class="path-picker-badge" data-path-picker-target="settings.file_safety.LocalBase" data-path-picker-input="settings-file-safety-local-base" data-path-picker-mode="folder" data-path-picker-status="settings-file-safety-builder-status" title="Open a backend-owned Windows folder picker for Scratch / LocalBase.">Browse</button>
+              </span>
+              <span class="settings-path-control">
+                <input id="settings-file-safety-local-base" type="text" autocomplete="off" spellcheck="false">
+                <button type="button" id="settings-file-safety-local-base-browse" class="tertiary-button settings-path-browse-button" data-settings-path-key="LocalBase" data-settings-path-input="settings-file-safety-local-base">Browse</button>
+              </span>
+            </label>
+            <label>
+              Scratch reserve GB
+              <input id="settings-file-safety-min-free" type="number" min="0" step="1">
+            </label>
+            <label>
+              Output reserve GB
+              <input id="settings-file-safety-outsource-min-free" type="number" min="0" step="1">
+            </label>
+            <label>
+              File stability wait s
+              <input id="settings-file-safety-stability-wait" type="number" min="0" step="1">
+            </label>
+            <label>
+              Watch debounce s
+              <input id="settings-file-safety-watch-debounce" type="number" min="5" step="1">
+            </label>
+            <label>
+              Cleanup age h
+              <input id="settings-file-safety-cleanup-age" type="number" min="0" step="1">
+            </label>
+            <label>
+              Disk estimate multiplier
+              <input id="settings-file-safety-output-size-multiplier" type="number" min="0.1" max="2" step="0.05">
+            </label>
+          </div>
+          <label class="full-field">
+            Valid media extensions
+            <input id="settings-file-safety-valid-extensions" type="text" autocomplete="off" spellcheck="false" placeholder=".mkv, .mp4, .m2ts">
+          </label>
+          <label class="full-field">
+            <span class="path-picker-label-row">
+              <span class="path-picker-label-text">Watch folder roots</span>
+              <button type="button" id="settings-file-safety-watch-roots-picker-badge" class="path-picker-badge" data-path-picker-target="settings.file_safety.WatchFolderRoots" data-path-picker-input="settings-file-safety-watch-roots" data-path-picker-mode="folder" data-path-picker-write="append-list" data-path-picker-status="settings-file-safety-builder-status" title="Open a backend-owned Windows folder picker and append the folder to the watch roots list.">Browse</button>
+            </span>
+            <input id="settings-file-safety-watch-roots" type="text" autocomplete="off" spellcheck="false" placeholder="Leave empty to derive from Library Profiles">
+          </label>
+          <label class="full-field">
+            Watch action
+            <select id="settings-file-safety-watch-action">
+              <option value="enqueue_only">Enqueue only</option>
+              <option value="enqueue_and_launch">Enqueue and launch</option>
+            </select>
+          </label>
+          <label class="full-field">
+            Robocopy flags
+            <input id="settings-file-safety-robocopy-flags" type="text" autocomplete="off" spellcheck="false" placeholder="/J, /R:3, /W:15, /MT:2, /NP, /NDL, /NFL">
+          </label>
+          <div class="option-grid option-grid-compact">
+            <label class="check-row"><input id="settings-file-safety-enable-watch" type="checkbox"> Enable watch folders</label>
+            <label class="check-row"><input id="settings-file-safety-watch-respect-schedule" type="checkbox"> Respect schedule window</label>
+            <label class="check-row"><input id="settings-file-safety-deferred-publish" type="checkbox"> Deferred publish</label>
+            <label class="check-row"><input id="settings-file-safety-skip-stability" type="checkbox"> Skip stability check</label>
+            <label class="check-row"><input id="settings-file-safety-enable-integrity" type="checkbox"> Enable integrity check</label>
+            <label class="check-row"><input id="settings-file-safety-cleanup-remote" type="checkbox"> Clean remote staging</label>
+          </div>
+          <div class="action-row action-row-left">
+            <button type="button" id="settings-file-safety-apply-button" class="secondary-button">Update File Safety Changes</button>
+            <button type="button" id="settings-file-safety-reset-button" class="secondary-button">Reset From Current</button>
+          </div>
+          <pre id="settings-file-safety-guidance" class="prose-block">No file-safety guidance loaded.</pre>
+          <p class="note">This only prepares path, scratch, publish, and safety keys for Save Settings. Backend Save remains the source of truth.</p>
+        </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>TV Library Folders <span class="impact-chip" data-impact="high" title="TV episode identity and Plex-style output folder layout">High Impact</span></h2>
+            <strong id="settings-tv-library-folder-status">No TV library evidence loaded</strong>
+          </div>
+          <div class="settings-tv-library-panel">
+            <div class="option-grid option-grid-compact settings-tv-library-controls">
+              <label class="check-row launch-check-row"><input id="settings-file-safety-aggressive-episode" type="checkbox"> Aggressive episode parsing</label>
+              <label class="check-row launch-check-row"><input id="settings-file-safety-create-tv-subfolder" type="checkbox"> Create TV library folders</label>
+            </div>
+            <pre id="settings-tv-library-folder-evidence" class="prose-block settings-tv-library-evidence">No TV library folder evidence loaded.</pre>
+          </div>
+          <p class="note">This panel prepares only the existing TV parsing and folder-layout keys. Backend Save remains authoritative before future TV outputs use them.</p>
+        </section>
+        </div>

@@ -1,0 +1,56 @@
+{
+  "id": "MP-CHANGE-2026-0723-009",
+  "title": "Verify MSVC prerequisite provenance",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": "2026-07-23",
+  "summary": "Make the Tauri prerequisite gate prove the Visual Studio C++ workload, developer environment, x64 linker layout, and Microsoft binary metadata.",
+  "reason": "Remediate P2 AUDIT-FIND-W09-011. The prereq script previously accepted the first PATH command named link and could label Git/MSYS link.exe as the MSVC linker.",
+  "affected_areas": [
+    "Tauri prerequisite diagnostics",
+    "Visual Studio Build Tools discovery",
+    "clean-machine validation evidence"
+  ],
+  "behavior_before": "Any PATH command named link satisfied RequireBuildTools before Visual Studio-specific discovery ran; VsDevCmd and Microsoft binary provenance were not part of the prereq result.",
+  "behavior_after": "The prereq gate ignores PATH link commands, queries vswhere for the VC x86/x64 component, requires VsDevCmd.bat, restricts link.exe to Hostx64/x64 below that installation, and validates Microsoft version metadata before RequireBuildTools can pass.",
+  "files_touched": [
+    "apps/desktop/tauri/Test-TauriShell-Prereqs.ps1",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/apps/desktop/tauri/Test-TauriShell-Prereqs.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-009.json.md",
+    "docs/generated/summaries/ops/scripts/dev/tauri-prerequisite-tools.ps1.md",
+    "docs/generated/summaries/tests/python/desktop/test_tauri_prerequisite_tools.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-009.json",
+    "ops/scripts/dev/tauri-prerequisite-tools.ps1",
+    "tests/python/desktop/test_tauri_prerequisite_tools.py"
+  ],
+  "tests_added": [
+    "Fixture probe accepts a vswhere-discovered VC workload only when VsDevCmd, Hostx64/x64 link.exe, and Microsoft linker metadata all agree.",
+    "Fixture probes fail closed for non-Microsoft metadata and a missing VsDevCmd.",
+    "A hostile PATH link.cmd with no Visual Studio workload cannot satisfy RequireBuildTools."
+  ],
+  "manual_validation": [
+    "PowerShell parser checks passed for the prerequisite helper and prereq entrypoint.",
+    "Real-machine CheckOnly RequireBuildTools passed against Visual Studio 2022 Build Tools, VsDevCmd.bat, Hostx64/x64 link.exe, and Microsoft linker version 14.44.35226.0.",
+    "Adversarial prerequisite fixture suite passed: 4 tests covering valid provenance, hostile PATH, missing VsDevCmd, and non-Microsoft metadata.",
+    "Full Tauri scaffold plus prerequisite fixture suite passed: 100 tests.",
+    "Canonical Test-TauriShell-Build.ps1 passed JavaScript syntax, npm cargo check, and all 62 Rust library tests.",
+    "Project index/dependency graph and feature file map checks passed.",
+    "Summary-integrity, feature-card, and risky-registry tooling passed: 30 tests and 70 subtests.",
+    "Risky-file registry and architecture guardrails passed; god-file guard reported the unchanged baseline of 0 errors and 51 warnings.",
+    "Global summary freshness reported only the same six pre-existing stale files outside this packet.",
+    "git diff --check passed.",
+    "validate_changes --require-worktree-coverage passed with 1,151 valid packets before completion."
+  ],
+  "rollback_plan": "Revert the prerequisite helper, prereq integration, fixture tests, generated summaries/maps, and this packet together. Do not restore PATH-first link discovery without equivalent Visual Studio workload and binary provenance validation.",
+  "related_changes": [
+    "AUDIT-FIND-W09-011"
+  ],
+  "notes": "This is a non-mutating developer/release diagnostic change. It does not launch Tauri, the backend, the media pipeline, or any media tool, and representative real-media validation is not required."
+}

@@ -9,6 +9,7 @@ if (-not (Get-Command -Name Write-SubtitleTrackProgress -ErrorAction SilentlyCon
     function Write-SubtitleTrackProgress {
         param(
             [string]$Kind,
+            [string]$TrackId = '',
             [int]$StreamIndex = -1,
             [string]$Stage,
             [string]$Status,
@@ -17,6 +18,9 @@ if (-not (Get-Command -Name Write-SubtitleTrackProgress -ErrorAction SilentlyCon
             [array]$Steps = @(),
             [string]$Detail = "",
             [object]$CueCount = $null,
+            [string]$OutputCodec = '',
+            [string]$OutputLocation = '',
+            [string]$OutputPath = '',
             [switch]$Completed,
             [switch]$Failed
         )
@@ -57,6 +61,7 @@ function New-Tx3gFailureRecord {
     $operation = if ($ErrorCode -match 'PUBLISH') { 'subtitle-tx3g-publish' } else { 'subtitle-tx3g-extract' }
     $category = if ($ErrorCode -match 'PUBLISH') { 'publish' } else { 'subtitle_conversion' }
     return New-StandardFailureRecord -Stage $operation -Operation $operation -Category $category -Reason $Reason -ErrorCode $ErrorCode -Tool 'ffmpeg' -ReproPath $ReproPath -Retryable $true -AdditionalProperties @{
+        track_id        = if ($Entry -and $Entry.ContainsKey('TrackId')) { [string]$Entry.TrackId } else { '' }
         StreamIndex     = $streamIndex
         stream_index    = $streamIndex
         SubtitleOrdinal = if ($Entry -and $Entry.ContainsKey('SubtitleOrdinal')) { $Entry.SubtitleOrdinal } else { $null }
@@ -78,7 +83,8 @@ function Convert-Tx3gToSrt {
         [Parameter(Mandatory)] [int]$StreamIndex,
         [hashtable]$StreamInfo = @{},
         [Parameter(Mandatory)] [string]$DestinationPath,
-        [string]$Context = ""
+        [string]$Context = "",
+        [string]$TrackId = ''
     )
 
     if (-not (Get-Command -Name Write-SubtitleTrackProgress -ErrorAction SilentlyContinue)) {
@@ -100,6 +106,8 @@ function Convert-Tx3gToSrt {
     }
 
     $tempSrt = New-SrtAtomicTempPath -DestinationPath $DestinationPath
+    $previousSubtitleEvidenceTrackId = if (Get-Variable -Name CurrentSubtitleEvidenceTrackId -Scope Script -ErrorAction SilentlyContinue) { [string]$script:CurrentSubtitleEvidenceTrackId } else { '' }
+    $script:CurrentSubtitleEvidenceTrackId = $TrackId
     $subtitleProgressSteps = @('extract','convert','validate','sidecar_write')
     $ffArgs = @(
         "-v", "error",
@@ -116,7 +124,20 @@ function Convert-Tx3gToSrt {
         Write-SubtitleTrackProgress -Kind 'tx3g' -StreamIndex $StreamIndex -Stage 'extract' -Status 'Extracting TX3G subtitle' -StepIndex 1 -StepTotal 4 -Steps $subtitleProgressSteps -Detail ([System.IO.Path]::GetFileName($SourceFile))
         $timeoutSeconds = Get-SubtitleOperationTimeoutSeconds -ScriptVariableName 'SubtitleExtractTimeoutSeconds' -DefaultSeconds 180
         Write-SubtitleTrackProgress -Kind 'tx3g' -StreamIndex $StreamIndex -Stage 'convert' -Status 'Converting TX3G subtitle to SRT' -StepIndex 2 -StepTotal 4 -Steps $subtitleProgressSteps -Detail ([System.IO.Path]::GetFileName($DestinationPath))
-        $result = Invoke-FFmpegCommand -ArgumentList $ffArgs -TimeoutSeconds $timeoutSeconds -Stage 'subtitle-tx3g-extract' -SaveReproOnFailure
+        $tx3gHeartbeat = if (Get-Command -Name New-SubtitleTrackHeartbeatHandler -ErrorAction SilentlyContinue) {
+            New-SubtitleTrackHeartbeatHandler -Kind 'tx3g' -TrackId $TrackId -StreamIndex $StreamIndex -Stage 'convert' -Status 'Converting TX3G subtitle to SRT' -StepIndex 2 -StepTotal 4 -Steps $subtitleProgressSteps -Detail ([System.IO.Path]::GetFileName($DestinationPath))
+        } else { $null }
+        $ffmpegCommandArgs = @{
+            ArgumentList = $ffArgs
+            TimeoutSeconds = $timeoutSeconds
+            Stage = 'subtitle-tx3g-extract'
+            SaveReproOnFailure = $true
+        }
+        if ($tx3gHeartbeat) {
+            $ffmpegCommandArgs['PollHandler'] = $tx3gHeartbeat
+            $ffmpegCommandArgs['PollMilliseconds'] = 250
+        }
+        $result = Invoke-FFmpegCommand @ffmpegCommandArgs
         if ($result.ExitCode -ne 0) {
             $summary = if (Get-Command -Name Get-ErrorTextSummary -ErrorAction SilentlyContinue) {
                 Get-ErrorTextSummary -ErrorText $result.Error
@@ -176,6 +197,7 @@ function Convert-Tx3gToSrt {
             Failure   = (New-Tx3gFailureRecord -Entry $StreamInfo -Reason $message -ErrorCode $code -ErrorText $message)
         }
     } finally {
+        $script:CurrentSubtitleEvidenceTrackId = $previousSubtitleEvidenceTrackId
         if ($tempSrt -and (Test-Path -LiteralPath $tempSrt -ErrorAction SilentlyContinue)) {
             Remove-Item -LiteralPath $tempSrt -Force -ErrorAction SilentlyContinue
         }
@@ -347,9 +369,13 @@ function New-Tx3gSrtRecord {
     $conversionKind = Get-Tx3gSrtSidecarConversionKind -Entry $Entry -Track $Track
 
     return [pscustomobject]@{
+        track_id           = Get-Tx3gSidecarTextValue -Object $Track -Name 'TrackId' -Default (Get-Tx3gSidecarTextValue -Object $Entry -Name 'TrackId' -Default '')
         path               = $Path
         file_name          = if ($Path) { Split-Path -Leaf $Path } else { '' }
         status             = $Status
+        output_codec       = 'subrip'
+        output_location    = 'external_sidecar'
+        output_path        = $Path
         cue_count          = $CueCount
         preserved_existing = $PreservedExisting
         source_stream_index = if ($Entry.Stream) { [int]$Entry.Stream.index } else { -1 }
@@ -382,6 +408,9 @@ function ConvertTo-Tx3gEmbeddedSrtTrackRecords {
         if (-not $entry) { continue }
 
         $records.Add([pscustomobject]@{
+            track_id                   = Get-Tx3gSidecarTextValue -Object $track -Name 'TrackId' -Default (Get-Tx3gSidecarTextValue -Object $entry -Name 'TrackId' -Default '')
+            output_codec               = 'subrip'
+            output_location            = 'embedded'
             source_stream_index     = if ($entry.Stream) { [int]$entry.Stream.index } else { -1 }
             subtitle_ordinal        = if ($entry.ContainsKey('SubtitleOrdinal')) { $entry.SubtitleOrdinal } else { $null }
             language                = if ($entry.ContainsKey('Lang')) { $entry.Lang } else { 'und' }
@@ -501,27 +530,30 @@ function Publish-Tx3gSrtSidecars {
     foreach ($track in @($Tx3gTracks)) {
         if (-not $track) { continue }
         $entry = if ($track.StreamInfo) { $track.StreamInfo } else { $track }
+        $trackId = Get-Tx3gSidecarTextValue -Object $track -Name 'TrackId' -Default (Get-Tx3gSidecarTextValue -Object $entry -Name 'TrackId' -Default '')
+        $progressKind = Get-Tx3gSrtSidecarSourceSubtitleKind -Entry $entry -Track $track
         $resolved = Resolve-Tx3gSrtDestination -MediaOutputPath $MediaOutputPath -Entry $entry -Track $track -UsedPaths $used
         if ($resolved.Status -eq 'existing') {
             Write-Log "${Context}TX3G->SRT: preserving existing sidecar $(Split-Path -Leaf $resolved.Path)" "DEBUG"
+            Write-SubtitleTrackProgress -Kind $progressKind -TrackId $trackId -StreamIndex $(if ($entry.Stream -and $null -ne $entry.Stream.index) { [int]$entry.Stream.index } else { -1 }) -Stage 'sidecar_write' -Status 'Preserving existing SRT sidecar' -StepIndex 4 -StepTotal 4 -Detail (Split-Path -Leaf $resolved.Path) -CueCount $resolved.CueCount -OutputCodec 'subrip' -OutputLocation 'external_sidecar' -OutputPath $resolved.Path -Completed
             $records.Add((New-Tx3gSrtRecord -Entry $entry -Track $track -Path $resolved.Path -Status 'existing' -CueCount $resolved.CueCount -PreservedExisting:$true))
             continue
         }
 
         $sourceSrt = if ($track.SrtPath) { [string]$track.SrtPath } else { "" }
         $streamIndex = if ($entry.Stream -and $null -ne $entry.Stream.index) { [int]$entry.Stream.index } else { -1 }
-        Write-SubtitleTrackProgress -Kind 'tx3g' -StreamIndex $streamIndex -Stage 'sidecar_write' -Status 'Writing TX3G SRT sidecar' -StepIndex 4 -StepTotal 4 -Detail (Split-Path -Leaf $resolved.Path)
+        Write-SubtitleTrackProgress -Kind $progressKind -TrackId $trackId -StreamIndex $streamIndex -Stage 'sidecar_write' -Status 'Writing SRT sidecar' -StepIndex 4 -StepTotal 4 -Detail (Split-Path -Leaf $resolved.Path)
         $copy = Copy-SrtAtomic -SourcePath $sourceSrt -DestinationPath $resolved.Path
         if (-not $copy.Ok) {
             $failure = New-Tx3gFailureRecord -Entry $entry -Reason $copy.Reason -ErrorCode $copy.ErrorCode
             $failures.Add($failure)
-            Write-SubtitleTrackProgress -Kind 'tx3g' -StreamIndex $streamIndex -Stage 'sidecar_write' -Status 'TX3G SRT sidecar write failed' -StepIndex 4 -StepTotal 4 -Detail $copy.Reason -Failed
+            Write-SubtitleTrackProgress -Kind $progressKind -TrackId $trackId -StreamIndex $streamIndex -Stage 'sidecar_write' -Status 'SRT sidecar write failed' -StepIndex 4 -StepTotal 4 -Detail $copy.Reason -Failed
             Write-Log "${Context}TX3G->SRT: sidecar publish failed for stream $($failure.StreamIndex): $($copy.Reason)" "WARN"
             continue
         }
 
         Write-Log "${Context}TX3G->SRT: sidecar written $(Split-Path -Leaf $resolved.Path)"
-        Write-SubtitleTrackProgress -Kind 'tx3g' -StreamIndex $streamIndex -Stage 'sidecar_write' -Status 'TX3G SRT sidecar written' -StepIndex 4 -StepTotal 4 -Detail (Split-Path -Leaf $resolved.Path) -CueCount $copy.CueCount -Completed
+        Write-SubtitleTrackProgress -Kind $progressKind -TrackId $trackId -StreamIndex $streamIndex -Stage 'sidecar_write' -Status 'SRT sidecar written' -StepIndex 4 -StepTotal 4 -Detail (Split-Path -Leaf $resolved.Path) -CueCount $copy.CueCount -OutputCodec 'subrip' -OutputLocation 'external_sidecar' -OutputPath $resolved.Path -Completed
         $records.Add((New-Tx3gSrtRecord -Entry $entry -Track $track -Path $resolved.Path -Status 'written' -CueCount $copy.CueCount))
     }
 

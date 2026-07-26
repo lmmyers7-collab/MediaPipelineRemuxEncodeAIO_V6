@@ -8,15 +8,15 @@
     const pushState = String(progress?.PushState || "").trim().toLowerCase();
     const sidecarState = String(progress?.SidecarState || "").trim().toLowerCase();
     if (!Number.isFinite(percent) || percent < 95 || percent >= 100) return false;
-    if (["encode", "encode_cpu", "encode_verify", "remux_av", "remux_verify"].includes(stage)) return true;
+    if (["encode", "encode_cpu", "remux_av"].includes(stage)) return true;
     return Boolean(pushState || sidecarState);
   }
 
   function activeWorkFinalizingLine(progress) {
     if (!progressLooksFinalizing(progress)) return "";
     const stage = String(progress?.CurrentStage || "").trim().toLowerCase();
-    if (stage.includes("encode")) return "Stage note: encoding is near completion; backend may still be verifying output, writing sidecars, publishing, or parking.";
-    if (stage.includes("remux")) return "Stage note: remux is near completion; backend may still be verifying output, writing sidecars, publishing, or parking.";
+    if (["encode", "encode_cpu"].includes(stage)) return "Stage note: encoding is near completion; backend may still be verifying output, writing sidecars, publishing, or parking.";
+    if (stage === "remux_av") return "Stage note: remux is near completion; backend may still be verifying output, writing sidecars, publishing, or parking.";
     return "Stage note: progress is near completion; wait for backend completion, parked-publish, or close-readiness evidence.";
   }
 
@@ -42,11 +42,11 @@
     const currentWork = snapshot?.current_work && typeof snapshot.current_work === "object" ? snapshot.current_work : {};
     const activeWorkSummary = String(currentWork.summary_label || currentWork.latest_evidence_label || currentWork.current_stage_label || "").trim();
     const csvRerun = csvRerunActivityEvidence({ snapshot, diagnostics, closeReadiness, stdoutTail });
-    if (activity.includes("stale progress")) return { label: "Stale/review", state: "warning" };
+    if (activity.includes("stale progress") && closeReadiness?.safe_to_close === true) return { label: "Idle", state: "ok" };
     if (activeWorkSummary && !activeWorkSummary.toLowerCase().includes("csv") && !timelineLooksIdleWaiting(activeWorkSummary)) {
       return { label: "Active work", state: "running" };
     }
-    if (csvRerun.hasEvidence) return { label: "CSV rerun active", state: "running" };
+    if (csvRerun.isActive) return { label: "CSV rerun active", state: "running" };
     if (closeReadiness?.safe_to_close === false || ["processing", "running", "active", "publishing"].includes(state)) {
       return { label: "Active work", state: "running" };
     }
@@ -124,7 +124,9 @@
     const ffmpegPayload = progressFfmpegPayload(snapshot, diagnostics);
     const csvRerun = csvRerunActivityEvidence({ snapshot, diagnostics, stdoutTail });
     const state = snapshot?.pipeline_state || closeReadiness?.state || progress.Status || "unknown";
-    const stage = currentWork.current_stage_label || currentWork.phase_label || progress.CurrentStage || progress.Status || "No active work";
+    const rawStage = currentWork.current_stage_label || currentWork.phase_label || progress.CurrentStage || progress.Status || "No active work";
+    const normalizedStage = String(rawStage || "").trim().toLowerCase();
+    const stage = ["encode_verify", "remux_verify"].includes(normalizedStage) ? "Verification" : rawStage;
     const percent = currentWork.percent_label || (progress.CurrentStagePercent !== undefined && progress.CurrentStagePercent !== null && progress.CurrentStagePercent !== "" ? `${formatProgressValue(progress.CurrentStagePercent)}%` : "");
     const file = currentWork.item_label || progress.CurrentFileDisplay || progress.CurrentFile || progress.InputFile || "";
     const route = currentWork.route_label || progress.CurrentRoute || progress.Route || "";
@@ -154,7 +156,7 @@
       liveRunItem("Reliability", reliabilityStatus === "ok" ? "Ready" : reliabilityStatus === "blocked" ? "Blocked" : reliabilityStatus === "warning" ? "Review" : "Unknown", reliabilitySummary || "Long-run reliability counters are backend-owned and read-only.", reliabilityStatus),
       liveRunItem("Close", closeReadiness ? (closeReadiness.safe_to_close ? "Safe" : "Not safe") : "Unknown", closeReadiness?.reason || "Close-readiness is backend-owned.", closeReadiness?.safe_to_close ? "ok" : closeReadiness?.safe_to_close === false ? "blocked" : "unknown"),
     ];
-    if (csvRerun.hasEvidence) {
+    if (csvRerun.isActive) {
       items.unshift(
         liveRunItem("CSV rows", csvRerun.plannedRows || "CSV rerun active", "From the bounded last stdout log.", csvRerun.plannedRows ? "ok" : "running"),
         liveRunItem(
@@ -183,15 +185,15 @@
   ];
 
   const liveRunQuickLinks = {
-    stage: { page: "live", label: "Open Telemetry for live run stage" },
-    file: { page: "live", label: "Open Telemetry for live run file" },
-    eta: { page: "live", label: "Open Telemetry for live run ETA" },
-    "last update": { page: "live", label: "Open Telemetry for last update" },
-    state: { page: "live", label: "Open Telemetry for live state" },
-    route: { page: "queue", label: "Open Queue route evidence" },
+    stage: { page: "home", focus: "#run-monitor-detail", label: "Open Current Work stage evidence" },
+    file: { page: "home", focus: "#run-monitor-detail", label: "Open Current Work file evidence" },
+    eta: { page: "home", focus: "#run-monitor-detail", label: "Open Current Work progress evidence" },
+    "last update": { page: "home", focus: "#current-work-heading", label: "Open Current Work freshness evidence" },
+    state: { page: "home", focus: "#current-work-heading", label: "Open Current Work run state" },
+    route: { page: "home", focus: "#run-monitor-detail", label: "Open Current Work executed-route evidence" },
     queue: { page: "queue", label: "Open Queue" },
     ffmpeg: { page: "diagnostics", diagTab: "logs", label: "Open Diagnostics logs" },
-    worker: { page: "network", label: "Open Network workers" },
+    worker: { page: "home", focus: "#run-monitor-workers", label: "Open Current Work active workers" },
     reliability: { page: "diagnostics", diagTab: "triage", label: "Open Diagnostics reliability evidence" },
     close: { page: "diagnostics", diagTab: "readiness", label: "Open Diagnostics readiness" },
   };
@@ -216,6 +218,7 @@
       node.setAttribute("tabindex", "0");
       node.dataset.uiQuickLink = "";
       node.dataset.quickLinkPage = quickLink.page;
+      if (quickLink.focus) node.dataset.quickLinkFocus = quickLink.focus;
       if (quickLink.diagTab) node.dataset.quickLinkDiagTab = quickLink.diagTab;
       const ariaLabel = `${quickLink.label}: ${item.label} ${item.value}`.trim();
       node.setAttribute("aria-label", ariaLabel);
@@ -351,7 +354,7 @@
       : active
         ? "Monitor Run Progress and wait for close-readiness to report safe before closing."
         : "No active work is reported; refresh before starting a long unattended operation.";
-    const csvLines = csvRerun.hasEvidence ? [
+    const csvLines = csvRerun.isActive ? [
       `CSV rerun: ${csvRerun.plannedRows || "active"}.`,
       `Importing: ${csvRerun.currentImport || "no active copy line in stdout tail"}.`,
       `Last imported: ${csvRerun.lastImported || "none in stdout tail"}.`,
@@ -423,7 +426,9 @@
     const state = snapshot?.pipeline_state || closeReadiness?.state || "unknown";
     const csvRerun = csvRerunActivityEvidence({ snapshot, diagnostics, stdoutTail });
     const stateActive = ["processing", "running", "active", "publishing"].includes(String(state || "").toLowerCase());
-    const active = activeJobs.length > 0 || closeReadiness?.safe_to_close === false || stateActive || csvRerun.hasEvidence || Boolean(currentWork.summary_label || currentWork.latest_evidence_label);
+    const currentWorkSummary = String(currentWork.summary_label || currentWork.latest_evidence_label || "").trim();
+    const currentWorkActive = Boolean(currentWorkSummary) && !timelineLooksIdleWaiting(currentWorkSummary);
+    const active = activeJobs.length > 0 || closeReadiness?.safe_to_close === false || stateActive || csvRerun.isActive || currentWorkActive;
     setProgressPanelStatus("home-active-work-status", active ? "Active work" : closeReadiness?.safe_to_close === true ? "Idle" : "Checking", active ? "running" : closeReadiness?.safe_to_close === true ? "ok" : "loading");
     const lines = [
       currentWork.summary_label ? `Now: ${currentWork.summary_label}` : "",
@@ -440,7 +445,7 @@
       progressWorkerSummaryLine(snapshot, diagnostics),
       progressEtaSummaryLine(snapshot, diagnostics),
       longRunReliabilitySummary(snapshot) ? `Long-run reliability: ${longRunReliabilitySummary(snapshot)}` : "",
-      csvRerun.hasEvidence ? `CSV rerun: ${csvRerun.plannedRows || "active"}` : "",
+      csvRerun.isActive ? `CSV rerun: ${csvRerun.plannedRows || "active"}` : "",
       csvRerun.currentImport ? `Importing: ${csvRerun.currentImport}` : "",
       csvRerun.lastImported ? `Last imported: ${csvRerun.lastImported}` : "",
       csvRerun.processing ? `Processing: ${csvRerun.processing}` : "",

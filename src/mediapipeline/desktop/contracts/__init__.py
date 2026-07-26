@@ -10,6 +10,7 @@ globals().update({_k: getattr(_moved, _k) for _k in dir(_moved) if not _k.starts
 del _moved
 
 __all__ = [
+    "ACCEPTED_RUN_ROWS_FINGERPRINT_SCHEMA",
     "ACTIVE_JOB_SCHEMA_VERSION",
     "ACTIVE_JOB_STATUSES",
     "ActiveJobRecord",
@@ -26,4 +27,5 @@ __all__ = [
     "QueuePlanExcludedRow",
     "QueuePlanRow",
     "QueuePlanSnapshot",
+    "accepted_run_rows_fingerprint",
 ]

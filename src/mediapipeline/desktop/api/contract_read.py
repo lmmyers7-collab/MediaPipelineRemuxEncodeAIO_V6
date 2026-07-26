@@ -32,6 +32,15 @@ LOCAL_API_STATUS_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
     },
     {
         "method": "GET",
+        "path": "/api/run-monitor",
+        "auth_required": True,
+        "effect": "none",
+        "query_keys": ["run_id"],
+        "response_schema": "desktop_run_monitor.v1",
+        "purpose": "Backend-correlated Run Once accepted-workload monitor and terminal evidence projection.",
+    },
+    {
+        "method": "GET",
         "path": "/api/telemetry",
         "auth_required": True,
         "effect": "none",
@@ -145,7 +154,7 @@ LOCAL_API_STATUS_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         ],
         "allowed_targets": ["pipeline", "audit", "rerun"],
         "response_schema": "desktop_launch_preflight.v1",
-        "purpose": "Read backend-authored launch preflight checks for pipeline, audit, or CSV rerun. Pipeline preflight refreshes the backend-owned encoder capability diagnostic JSON only when refresh_encoder_capability_report=true; it does not reserve locks, launch work, write control flags, mutate config, or touch media files.",
+        "purpose": "Read backend-authored launch preflight checks for pipeline, audit, or CSV rerun. Blank Run Once pipeline scope requires a completed, matching backend dry-run plan; missing, invalid, mismatched, scanning, input-consistency, membership, and pending-safety failures block, as does a validated plan with zero runnable rows. Snapshot age, file mtime, clock skew, and timestamp-format evidence are advisory because runtime rebuilds and fingerprint-verifies the queue before media dispatch. Pipeline preflight refreshes the backend-owned encoder capability diagnostic JSON only when refresh_encoder_capability_report=true; it does not reserve locks, launch work, write control flags, mutate config, or touch media files.",
     },
     {
         "method": "GET",
@@ -165,7 +174,7 @@ LOCAL_API_INVENTORY_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "auth_required": True,
         "effect": "none",
         "response_schema": "desktop_queue_preview.v1",
-        "purpose": "Read the latest backend-owned queue snapshot plus latest queue scan status/source-inventory evidence without spawning a dry run.",
+        "purpose": "Read the latest backend-owned normal queue snapshot plus queue scan/source-inventory evidence without spawning a dry run. Dedicated local and Network CSV rerun rows are intentionally excluded and remain available from /api/rerun/results.",
     },
     {
         "method": "GET",
@@ -174,6 +183,14 @@ LOCAL_API_INVENTORY_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "effect": "none",
         "response_schema": "queue_priority_manifest.v1",
         "purpose": "Read the non-destructive queue priority manifest from backend state without changing queue order or media files.",
+    },
+    {
+        "method": "GET",
+        "path": "/api/queue/priority-export",
+        "auth_required": True,
+        "effect": "none",
+        "response_schema": "priority_queue_export.v1",
+        "purpose": "Read the latest backend-owned priority queue export status without exposing accepted membership or launching work.",
     },
     {
         "method": "GET",
@@ -304,7 +321,7 @@ LOCAL_API_INVENTORY_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "effect": "none",
         "query_keys": ["limit"],
         "response_schema": "desktop_rerun_results.v1",
-        "purpose": "Read backend-derived CSV rerun manifests, row status counts, stop-after-current evidence, continuation eligibility, review outputs, and import/scoped CSV candidates without accepting arbitrary paths, publishing, moving, deleting, launching work, or touching media files.",
+        "purpose": "Read bounded recent local and Network CSV rerun history with discovered/loaded counts and scan warnings, plus backend-selected current_local/current_network batches. Local current activity requires exact live-process correlation; Network current activity requires an exact fresh persisted coordinator claim. Includes row rule decisions, recovery actions, review outputs, and import/scoped CSV candidates without accepting arbitrary paths, publishing, moving, deleting, launching work, or touching media files.",
     },
     {
         "method": "GET",

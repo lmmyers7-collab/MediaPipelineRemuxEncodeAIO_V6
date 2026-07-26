@@ -29,6 +29,10 @@ class EmptyCommandPayload(ApiCommandPayload):
     pass
 
 
+class StrictEmptyCommandPayload(StrictApiCommandPayload):
+    pass
+
+
 class OpenLocationCommandPayload(ApiCommandPayload):
     path: Any = None
     target: Any = None
@@ -179,7 +183,7 @@ class SettingsSavePatchCommandPayload(StrictApiCommandPayload):
     remove_keys: Any = None
     library_profile_resets: Any = None
     review_confirmation: Any = None
-    confirm_save: StrictBool | None = None
+    confirm_save: StrictBool
 
 
 class SettingsImportPsd1PreviewCommandPayload(StrictApiCommandPayload):
@@ -325,16 +329,29 @@ class RenameUndoCommandPayload(StrictApiCommandPayload):
 
 
 class RenameFilterCaseCommandPayload(StrictApiCommandPayload):
-    case_id: Any = None
-    source_folder: Any = None
-    source_file: Any = None
-    expected_name: Any = None
-    expected_show: Any = None
-    expected_clean_folder: Any = None
-    expected_season: Any = None
-    season_number: Any = None
-    status: Any = None
-    notes: Any = None
+    case_id: StrictStr | None = None
+    kind: Literal["tv_auto", "movie_auto"] | None = None
+    source_folder: StrictStr | None = None
+    source_file: StrictStr | None = None
+    expected_name: StrictStr | None = None
+    expected_show: StrictStr | None = None
+    expected_clean_folder: StrictStr | None = None
+    expected_season: StrictInt | None = None
+    expected_episode: StrictInt | None = None
+    expected_episode_end: StrictInt | None = None
+    expected_episode_title: StrictStr | None = None
+    expected_movie_title: StrictStr | None = None
+    expected_year: StrictStr | None = None
+    season_number: StrictInt | None = None
+    template_preset: StrictStr | None = None
+    status: Literal["active", "pending"] | None = None
+    notes: StrictStr | None = None
+    movie_filter_options: dict[StrictStr, StrictBool] | None = None
+    movie_filter_terms: dict[StrictStr, list[StrictStr]] | None = None
+    remove_terms: list[StrictStr] | None = None
+    tv_filter_options: dict[StrictStr, StrictBool] | None = None
+    tv_filter_terms: dict[StrictStr, list[StrictStr]] | None = None
+    tv_remove_terms: list[StrictStr] | None = None
     confirm_append: StrictBool | None = None
 
 
@@ -412,6 +429,28 @@ class RerunNetworkStartCommandPayload(RerunNetworkStartDryRunCommandPayload):
         return self
 
 
+class RerunNetworkRetryCommandPayload(StrictApiCommandPayload):
+    batch_id: StrictStr = Field(min_length=1, max_length=200)
+    row_key: StrictStr = Field(min_length=1, max_length=300)
+    request_id: StrictStr = Field(min_length=1, max_length=200)
+    reason: StrictStr = Field(min_length=1, max_length=500)
+    confirm_retry: StrictBool
+
+    @field_validator("batch_id", "row_key", "request_id", "reason")
+    @classmethod
+    def require_nonblank_text(cls, value: str) -> str:
+        text = value.strip()
+        if not text:
+            raise ValueError("value must not be blank")
+        return text
+
+    @model_validator(mode="after")
+    def require_retry_confirmation(self) -> RerunNetworkRetryCommandPayload:
+        if self.confirm_retry is not True:
+            raise ValueError("confirm_retry must be true")
+        return self
+
+
 class RerunControlCommandPayload(StrictApiCommandPayload):
     action: Literal["stop_after_current", "pause"] | None = None
     confirm_stop: StrictBool | None = None
@@ -429,13 +468,20 @@ class RerunControlCommandPayload(StrictApiCommandPayload):
 
 
 class RerunContinueCommandPayload(StrictApiCommandPayload):
-    manifest_key: Any = None
+    manifest_key: StrictStr = Field(min_length=1, max_length=200)
+    request_id: StrictStr = Field(min_length=1, max_length=200)
     confirm_continue: StrictBool | None = None
+
+    @field_validator("manifest_key", "request_id")
+    @classmethod
+    def require_nonblank_text(cls, value: str) -> str:
+        text = value.strip()
+        if not text:
+            raise ValueError("value must not be blank")
+        return text
 
     @model_validator(mode="after")
     def require_continue_confirmation(self) -> RerunContinueCommandPayload:
-        if self.manifest_key is None or (isinstance(self.manifest_key, str) and not self.manifest_key.strip()):
-            raise ValueError("manifest_key is required")
         if self.confirm_continue is not True:
             raise ValueError("confirm_continue must be true")
         return self
@@ -571,11 +617,20 @@ class AuditStartCommandPayload(StrictApiCommandPayload):
 class PipelineControlCommandPayload(StrictApiCommandPayload):
     action: Any = None
     confirm_force_stop: StrictBool | None = None
+    expected_run_id: StrictStr | None = Field(
+        default=None,
+        min_length=1,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+    )
 
     @model_validator(mode="after")
     def require_force_stop_confirmation(self) -> PipelineControlCommandPayload:
-        if str(self.action or "").strip().casefold() == "kill" and self.confirm_force_stop is not True:
+        action = str(self.action or "").strip().casefold()
+        if action == "kill" and self.confirm_force_stop is not True:
             raise ValueError("confirm_force_stop must be true for action=kill")
+        if self.expected_run_id is not None and action != "stop":
+            raise ValueError("expected_run_id is allowed only for action=stop")
         return self
 
 
@@ -591,6 +646,28 @@ class PipelineStartCommandPayload(StrictApiCommandPayload):
     show_console: StrictBool | None = None
     single_file: StrictStr | None = None
     schedule_override: Literal["", "run_once", "ignore"] | None = None
+    queue_scope: Literal["backend_queue", "priority_export"] | None = None
+    priority_export_id: StrictStr | None = Field(
+        default=None,
+        min_length=1,
+        max_length=128,
+        pattern=r"^priority-export-[A-Za-z0-9._-]{1,96}$",
+    )
+
+    @model_validator(mode="after")
+    def validate_queue_scope(self) -> PipelineStartCommandPayload:
+        scope = self.queue_scope or "backend_queue"
+        export_id = str(self.priority_export_id or "").strip()
+        if scope == "priority_export":
+            if not export_id:
+                raise ValueError("priority_export_id is required for queue_scope=priority_export")
+            if self.mode != "once":
+                raise ValueError("queue_scope=priority_export is allowed only for mode=once")
+            if str(self.single_file or "").strip():
+                raise ValueError("single_file cannot be combined with queue_scope=priority_export")
+        elif export_id:
+            raise ValueError("priority_export_id is allowed only for queue_scope=priority_export")
+        return self
 
 
 class AuditStopCommandPayload(StrictApiCommandPayload):
@@ -623,6 +700,26 @@ class AuditSourcesScanCommandPayload(StrictApiCommandPayload):
 class BackendShutdownCommandPayload(StrictApiCommandPayload):
     reason: Any = None
     force_active_work_shutdown: StrictBool | None = None
+
+
+class LifecycleReconciliationDryRunCommandPayload(StrictApiCommandPayload):
+    reason: Any = None
+
+
+class LifecycleReconciliationApplyCommandPayload(StrictApiCommandPayload):
+    confirm_apply: StrictBool | None = None
+    dry_run_fingerprint: Any = None
+    reason: Any = None
+
+    @model_validator(mode="after")
+    def require_confirmation_fields(self) -> LifecycleReconciliationApplyCommandPayload:
+        if self.confirm_apply is not True:
+            raise ValueError("confirm_apply must be true")
+        if self.dry_run_fingerprint is None or (
+            isinstance(self.dry_run_fingerprint, str) and not self.dry_run_fingerprint.strip()
+        ):
+            raise ValueError("dry_run_fingerprint is required")
+        return self
 
 
 class UiPreferencesCommandPayload(StrictApiCommandPayload):
@@ -803,6 +900,7 @@ COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/queue/scan": QueueScanCommandPayload,
     "/api/queue/open": OpenLocationCommandPayload,
     "/api/queue/priority": QueuePriorityCommandPayload,
+    "/api/queue/priority-export": StrictEmptyCommandPayload,
     "/api/queue/strategy": QueueStrategyCommandPayload,
     "/api/queue/file-overrides": QueueFileOverridesCommandPayload,
     "/api/queue/file-overrides/route-preview": QueueFileOverridesRoutePreviewCommandPayload,
@@ -893,12 +991,15 @@ COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/rerun/network-preview": RerunPreviewCommandPayload,
     "/api/rerun/network/start-dry-run": RerunNetworkStartDryRunCommandPayload,
     "/api/rerun/network/start": RerunNetworkStartCommandPayload,
+    "/api/rerun/network/retry": RerunNetworkRetryCommandPayload,
     "/api/rerun/start": RerunStartCommandPayload,
     "/api/rerun/control": RerunControlCommandPayload,
     "/api/rerun/continue": RerunContinueCommandPayload,
     "/api/rerun/open": RerunOpenCommandPayload,
     "/api/rerun/promote-dry-run": RerunPromoteDryRunCommandPayload,
     "/api/rerun/promote": RerunPromoteCommandPayload,
+    "/api/backend/lifecycle/reconcile-dry-run": LifecycleReconciliationDryRunCommandPayload,
+    "/api/backend/lifecycle/reconcile": LifecycleReconciliationApplyCommandPayload,
     "/api/backend/shutdown": BackendShutdownCommandPayload,
     "/api/ui-preferences": UiPreferencesCommandPayload,
     "/api/final-library-promotion/promote-queue": FinalLibraryPromoteQueueCommandPayload,

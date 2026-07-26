@@ -1,5 +1,8 @@
 ---
 file: apps/desktop/webview/static/assets/progress/activeWork.js
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: JavaScript
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
@@ -9,6 +12,9 @@ sha256: 4d481cec10fed6a3553280d28266cfde4148fe7f9736d7e908a4d436c743e620
 ---
 # `apps/desktop/webview/static/assets/progress/activeWork.js`
 
-**Purpose:** (unparsed)
+**Purpose:** JavaScript implementation for active work; exposes activeWorkControlLine, activeWorkProgressLine, activeWorkQueueLine.
+
+**Public symbols:** `activeWorkControlLine`, `activeWorkProgressLine`, `activeWorkQueueLine`, `activeWorkRouteLine`, `createProgressActiveWorkModule`
+**In-repo imports:** `window.__progressActiveWorkModule`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/progress/activeWork.js`._

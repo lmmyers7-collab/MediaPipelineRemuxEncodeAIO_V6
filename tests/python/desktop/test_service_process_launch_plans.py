@@ -81,6 +81,7 @@ class ProcessLaunchPlanTests(unittest.TestCase):
                 sleep_seconds=0,
                 extra_args="-NoDeleteSource -Example value",
                 single_file=str(root / "Movie.mkv"),
+                run_id="run-once-contract-123",
             )
 
         self.assertEqual(plan.job_kind, "pipeline")
@@ -92,6 +93,8 @@ class ProcessLaunchPlanTests(unittest.TestCase):
         self.assertEqual(plan.args[plan.args.index("-SleepSeconds") + 1], "1")
         self.assertEqual(plan.metadata["sleep_seconds"], 1)
         self.assertEqual(plan.metadata["extra_args"], "-NoDeleteSource -Example value")
+        self.assertEqual(plan.args[plan.args.index("-RunId") + 1], "run-once-contract-123")
+        self.assertEqual(plan.metadata["run_id"], "run-once-contract-123")
 
     def test_pipeline_plan_reports_invalid_extra_args_before_launch(self) -> None:
         with tempfile.TemporaryDirectory() as td:

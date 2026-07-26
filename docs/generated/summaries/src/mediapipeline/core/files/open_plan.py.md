@@ -1,5 +1,8 @@
 ---
 file: src/mediapipeline/core/files/open_plan.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: files
@@ -9,9 +12,9 @@ sha256: 9baca16af860b2620e4ddda66ab2f3786bbaa8ca650a122a28500a2f9cba4a43
 ---
 # `src/mediapipeline/core/files/open_plan.py`
 
-**Purpose:** (no module docstring)
+**Purpose:** Python implementation for open plan; exposes build_vlc_launch_args, explorer_select_args, vlc_candidate_paths.
 
-**Public functions:** `build_vlc_launch_args()`, `explorer_select_args()`, `vlc_candidate_paths()`, `vlc_creation_flags()`, `vlc_needs_short_path()`
+**Public symbols:** `build_vlc_launch_args`, `explorer_select_args`, `vlc_candidate_paths`, `vlc_creation_flags`, `vlc_needs_short_path`
 **In-repo imports:** `mediapipeline.core.files.constants`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/files/open_plan.py`._

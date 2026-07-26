@@ -18,6 +18,7 @@ from mediapipeline.core.processes.guard_policy import (
     pipeline_progress_indicates_active_work,
 )
 from mediapipeline.core.processes.lifecycle_lease import LifecycleLeaseError, LifecycleLeaseStore
+from mediapipeline.core.processes.spawn_runner import _consume_launch_cleanup_reconciliation_required
 
 if TYPE_CHECKING:
     from mediapipeline.core.status.contracts import Snapshot
@@ -73,7 +74,12 @@ class ProcessGuardFacadeMixin:
         if isinstance(lock, dict):
             memory_lock = lock.get("memory_lock")
             lease = lock.get("lease")
-            if lock.get("transferred") is not True and lease is not None:
+            reconciliation_required = (
+                lease is not None and _consume_launch_cleanup_reconciliation_required(lease)
+            )
+            if reconciliation_required:
+                lock["transferred"] = True
+            if lock.get("transferred") is not True and lease is not None and not reconciliation_required:
                 try:
                     lease.release(outcome="launch_failed")
                 except Exception as exc:
@@ -136,26 +142,35 @@ class ProcessGuardFacadeMixin:
             )
         )
 
-    def _active_work_block_message(self, resolved: ResolvedPaths, action: str) -> str:
-        recovery_reader = getattr(self, "get_recovery_status", None)
-        if callable(recovery_reader):
-            recovery = recovery_reader()
-            recovery_status = str(recovery.get("status") or "idle").casefold()
-            if recovery_status in {"reconciling", "recovering", "blocked"}:
-                return f"{action} blocked because backend recovery is {recovery_status}: {recovery.get('operator_action_required') or 'reconciliation is required.'}"
-        if resolved.state_root is not None:
-            lifecycle = LifecycleLeaseStore(resolved.state_root).status()
-            lifecycle_status = str(lifecycle.get("status") or "unknown")
-            lease_value = lifecycle.get("lease")
-            lease: dict[str, Any] = dict(lease_value) if isinstance(lease_value, dict) else {}
-            own_pending_reservation = (
-                lifecycle_status == "active"
-                and str(lease.get("scope") or "") == action
-                and int(lease.get("owner_pid") or 0) == os.getpid()
-                and int(lease.get("child_pid") or 0) <= 0
-            )
-            if lifecycle_status != "idle" and not own_pending_reservation:
-                return f"{action} blocked because backend lifecycle state is {lifecycle_status}: {lifecycle.get('reason') or 'reconciliation is required.'}"
+    def _active_work_block_message(
+        self,
+        resolved: ResolvedPaths,
+        action: str,
+        *,
+        ignore_lifecycle_recovery_evidence: bool = False,
+        ignore_queue_source_scan: bool = False,
+        preempt_queue_source_scan: bool = False,
+    ) -> str:
+        if not ignore_lifecycle_recovery_evidence:
+            recovery_reader = getattr(self, "get_recovery_status", None)
+            if callable(recovery_reader):
+                recovery = recovery_reader()
+                recovery_status = str(recovery.get("status") or "idle").casefold()
+                if recovery_status in {"reconciling", "recovering", "blocked"}:
+                    return f"{action} blocked because backend recovery is {recovery_status}: {recovery.get('operator_action_required') or 'reconciliation is required.'}"
+            if resolved.state_root is not None:
+                lifecycle = LifecycleLeaseStore(resolved.state_root).status()
+                lifecycle_status = str(lifecycle.get("status") or "unknown")
+                lease_value = lifecycle.get("lease")
+                lease: dict[str, Any] = dict(lease_value) if isinstance(lease_value, dict) else {}
+                own_pending_reservation = (
+                    lifecycle_status == "active"
+                    and str(lease.get("scope") or "") == action
+                    and int(lease.get("owner_pid") or 0) == os.getpid()
+                    and int(lease.get("child_pid") or 0) <= 0
+                )
+                if lifecycle_status != "idle" and not own_pending_reservation:
+                    return f"{action} blocked because backend lifecycle state is {lifecycle_status}: {lifecycle.get('reason') or 'reconciliation is required.'}"
         self._cleanup_stale_launch_guards(resolved, action)
         blocking_job_kinds = self._blocking_job_kinds_for_action(action)
         related_method = getattr(self.service, "find_related_pipeline_processes", None)
@@ -180,9 +195,44 @@ class ProcessGuardFacadeMixin:
         promotion_block = self._final_library_promotion_block_message(action)
         if promotion_block:
             return promotion_block
-        queue_scan_block = self._queue_source_scan_block_message(action)
+        if ignore_queue_source_scan and preempt_queue_source_scan:
+            # Defer the mutating preemption request until every other active-work
+            # guard has passed, so a launch rejected for another reason does not
+            # unnecessarily cancel scan curation.
+            queue_scan_block = ""
+        elif ignore_queue_source_scan:
+            coordination = getattr(
+                self.service,
+                "normal_run_once_queue_scan_block_message",
+                None,
+            )
+            if callable(coordination):
+                try:
+                    queue_scan_block = str(
+                        coordination(
+                            action,
+                            preempt=preempt_queue_source_scan,
+                        )
+                        or ""
+                    )
+                except Exception as exc:
+                    self._log_close_guard_exception(
+                        "Queue source scan Run Once coordination failed",
+                        exc,
+                    )
+                    queue_scan_block = (
+                        f"{action} blocked because queue source scan state "
+                        f"could not be coordinated safely: {exc}"
+                    )
+            else:
+                queue_scan_block = self._queue_source_scan_block_message(action)
+        else:
+            queue_scan_block = self._queue_source_scan_block_message(action)
         if queue_scan_block:
             return queue_scan_block
+        local_rerun_block = self._local_csv_rerun_enrollment_block_message(resolved, action)
+        if local_rerun_block:
+            return local_rerun_block
         network_rerun_block = self._network_csv_rerun_batch_block_message(resolved, action)
         if network_rerun_block:
             return network_rerun_block
@@ -198,6 +248,27 @@ class ProcessGuardFacadeMixin:
             audit_block = self._audit_progress_block_message(resolved, action)
             if audit_block:
                 return audit_block
+        if ignore_queue_source_scan and preempt_queue_source_scan:
+            coordination = getattr(
+                self.service,
+                "normal_run_once_queue_scan_block_message",
+                None,
+            )
+            if not callable(coordination):
+                return self._queue_source_scan_block_message(action)
+            try:
+                queue_scan_block = str(coordination(action, preempt=True) or "")
+            except Exception as exc:
+                self._log_close_guard_exception(
+                    "Queue source scan Run Once coordination failed",
+                    exc,
+                )
+                return (
+                    f"{action} blocked because queue source scan state "
+                    f"could not be coordinated safely: {exc}"
+                )
+            if queue_scan_block:
+                return queue_scan_block
         return ""
 
     def _tdarr_matrix_background_block_message(self, resolved: ResolvedPaths, action: str) -> str:
@@ -290,10 +361,108 @@ class ProcessGuardFacadeMixin:
             status = str(payload.get("status") or "").strip().casefold()
             if status not in active_statuses:
                 continue
+            if (
+                str(action or "").strip().casefold().startswith("shell close")
+                and self._network_csv_rerun_waiting_close_safe(payload)
+            ):
+                state_getter = getattr(self, "_network_lifecycle_state_for", None)
+                if callable(state_getter):
+                    try:
+                        coordinator_state = dict(state_getter("coordinator") or {})
+                    except Exception as exc:
+                        self._log_close_guard_exception(
+                            "Network coordinator close-readiness verification failed",
+                            exc,
+                        )
+                    else:
+                        if str(coordinator_state.get("status") or "").casefold() == "stopped":
+                            continue
             batch_id = str(payload.get("batch_id") or path.stem)
             claim_text = "claims disabled" if payload.get("claim_provider_enabled") is False else "claims may be active"
             return f"{action} blocked because network CSV rerun batch {batch_id} is {status} ({claim_text})."
         return ""
+
+    def _local_csv_rerun_enrollment_block_message(
+        self,
+        resolved: ResolvedPaths,
+        action: str,
+    ) -> str:
+        state_root = resolved.state_root
+        if state_root is None and resolved.local_base is not None:
+            state_root = resolved.local_base / "State"
+        if state_root is None:
+            return ""
+        root = state_root / "Rerun" / "Local"
+        if not root.exists():
+            return ""
+        try:
+            paths = sorted(root.glob("*.json"))
+        except OSError as exc:
+            self._log_close_guard_exception("Local CSV rerun close-readiness verification failed", exc)
+            return f"{action} blocked because local CSV rerun enrollment state could not be verified: {exc}"
+        for path in paths:
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8-sig"))
+            except Exception as exc:
+                self._log_close_guard_exception("Local CSV rerun enrollment read failed", exc)
+                return f"{action} blocked because local CSV rerun enrollment could not be verified: {path}"
+            if not isinstance(payload, dict):
+                continue
+            status = str(
+                payload.get("lifecycle_state") or payload.get("status") or ""
+            ).strip().casefold()
+            if status != "spawn_transition_ambiguous":
+                continue
+            batch_id = str(payload.get("batch_id") or path.stem)
+            pid = int(payload.get("pid") or 0)
+            pid_text = f" PID {pid}" if pid > 0 else ""
+            return (
+                f"{action} blocked because local CSV rerun batch {batch_id}{pid_text} child exit "
+                "is unverified; reconcile its ActiveJobs and enrollment evidence before closing."
+            )
+        return ""
+
+    @staticmethod
+    def _network_csv_rerun_waiting_close_safe(payload: dict[str, Any]) -> bool:
+        rows = payload.get("rows")
+        if not isinstance(rows, list) or not rows:
+            return False
+        waiting_statuses = {"retry_scheduled", "waiting", "waiting_for_source"}
+        terminal_statuses = {
+            "complete",
+            "completed",
+            "destination_policy_applied",
+            "destination_policy_failed",
+            "failed",
+            "pending_publish",
+            "published_non_overlap",
+            "published_replace_final",
+            "retry_exhausted",
+            "review_required",
+            "review_workspace",
+            "skipped",
+            "worker_failed_pending_reduction",
+            "worker_review_pending_reduction",
+        }
+        for row in rows:
+            if not isinstance(row, dict):
+                return False
+            status = str(row.get("status") or "").strip().casefold()
+            active_claim = row.get("active_claim")
+            if isinstance(active_claim, dict) and active_claim:
+                return False
+            if status == "destination_policy_applying":
+                return False
+            if status in waiting_statuses:
+                if status == "retry_scheduled" and not str(
+                    row.get("next_retry_at_utc") or row.get("next_retry_at") or ""
+                ).strip():
+                    return False
+                continue
+            if status in terminal_statuses:
+                continue
+            return False
+        return True
 
     def _progress_block_message(self, resolved: ResolvedPaths, action: str) -> str:
         read_progress = getattr(self.service, "read_progress", None)

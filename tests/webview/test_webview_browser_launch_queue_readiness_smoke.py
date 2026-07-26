@@ -6,6 +6,7 @@ import sys
 import tempfile
 import textwrap
 import unittest
+from datetime import UTC, datetime
 from pathlib import Path
 
 from mediapipeline.tools.paths import find_repo_root
@@ -15,6 +16,8 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
 from mediapipeline.desktop.models import Snapshot
+from mediapipeline.core.paths.queue_input_fingerprint import queue_input_fingerprint
+from mediapipeline.core.kernel.contracts import accepted_run_rows_fingerprint
 
 try:  # unittest discovery can import tests as top-level modules or package modules.
     from .test_application_facade import DummyWorkflowFacadeService
@@ -77,6 +80,68 @@ def _write_launch_command_history(path: Path) -> None:
     )
 
 
+def _install_authoritative_queue_preview(
+    resolved: object,
+    service: object,
+    *,
+    planned_display_name: str,
+) -> None:
+    request_id = "browser-pipeline-start-preview"
+    snapshot_path = Path(resolved.queue_snapshot_path)  # type: ignore[attr-defined]
+    snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
+    fingerprint = queue_input_fingerprint(resolved)  # type: ignore[arg-type]
+    runnable_rows = [
+        row
+        for row in snapshot.get("rows", [])
+        if isinstance(row, dict) and row.get("source_path") and not row.get("blocked_reason")
+    ]
+    accepted_run_rows = [
+        {
+            "source_identity": f"browser-pipeline-start-source-{index}",
+            "source_identity_algorithm": "browser_fixture.v1",
+            "source_path": str(row["source_path"]),
+            "display_name": planned_display_name,
+            "planned_display_name": planned_display_name,
+            "planned_display_name_source": "plex_destination_plan.v1",
+            "parent_context": str(Path(str(row["source_path"])).parent),
+            "run_queue_index": index,
+            "run_queue_total": len(runnable_rows),
+            "route": str(row.get("route") or ""),
+            "route_reason_code": str(row.get("route_reason_code") or ""),
+            "route_reason": str(row.get("route_reason") or ""),
+        }
+        for index, row in enumerate(runnable_rows, start=1)
+    ]
+    snapshot.update(
+        {
+            "produced_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+            "queue_snapshot_origin": "dry_run",
+            "desktop_queue_preview_request_id": request_id,
+            "queue_input_fingerprint": fingerprint["fingerprint"],
+            "queue_input_components": fingerprint["components"],
+            "queue_plan_fingerprint": "browser-pipeline-start-plan",
+            "accepted_run_rows_fingerprint_schema": "accepted_run_rows_fingerprint.v1",
+            "accepted_run_rows_fingerprint": accepted_run_rows_fingerprint(accepted_run_rows),
+            "desktop_queue_snapshot_fallback_used": False,
+            "desktop_queue_snapshot_fallback_reason": "",
+            "pending_publish_index_health": {"status": "ready"},
+            "pending_publish_backpressure": {"blocked": False},
+            "accepted_run_rows": accepted_run_rows,
+        }
+    )
+    snapshot_path.write_text(
+        json.dumps(snapshot, ensure_ascii=False, sort_keys=True),
+        encoding="utf-8",
+    )
+    service.read_queue_scan_status = lambda _resolved: {  # type: ignore[attr-defined]
+        "schema_version": "desktop_queue_scan_status.v1",
+        "status": "completed",
+        "phase": "complete",
+        "mode": "full",
+        "queue_preview_request_id": request_id,
+    }
+
+
 def _write_launch_sample_validation_log(path: Path, *, source: Path, output: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
@@ -124,9 +189,11 @@ def _write_launch_sample_validation_log(path: Path, *, source: Path, output: Pat
 def _browser_launch_queue_readiness_runner_source() -> str:
     return browser_cdp_runner_prelude() + textwrap.dedent(
         r"""
-        function launchQueueReadinessScript() {
+        function launchQueueReadinessScript(sampleSourcePath) {
+          const sampleSourcePathLiteral = JSON.stringify(sampleSourcePath);
           return `
           (async () => {
+            const sampleSourcePath = ${sampleSourcePathLiteral};
             const posts = [];
             const originalApiPost = window.mediaPipelineApi.apiPost;
             window.mediaPipelineApi.apiPost = async (path, body, options) => {
@@ -336,7 +403,7 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             requireLaunchTab("pipeline");
             clickLaunchTab("pipeline");
             setInput("pipeline-start-mode", "continuous");
-            setInput("pipeline-start-single-file", "E:\\\\Videos\\\\Scratch\\\\Encoded\\\\TV\\\\Sample Pilot.mkv");
+            setInput("pipeline-start-single-file", sampleSourcePath);
             setInput("pipeline-start-schedule-override", "");
             const originalRefreshAll = window.refreshAll;
             await window.refreshAllNow({ page: "home" });
@@ -382,7 +449,7 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             window.showPage("launch");
             clickLaunchTab("pipeline");
             const singleFileRequest = window.mediaPipelineLaunchView.collectPipelineStartRequest();
-            if (singleFileRequest.single_file !== "E:\\\\Videos\\\\Scratch\\\\Encoded\\\\TV\\\\Sample Pilot.mkv") {
+            if (singleFileRequest.single_file !== sampleSourcePath) {
               throw new Error("Launch single-file request was not collected correctly: " + JSON.stringify(singleFileRequest));
             }
             if (!text("pipeline-launch-preflight").includes("Single-file launch: WebView submits the path only")) {
@@ -887,11 +954,12 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             requireText("rerun-open-active-jobs-button", ["Open Active Jobs"]);
             requireText("rerun-show-command-history-button", ["Show Rerun Commands"]);
             await waitFor(
-              () => text("rerun-history-summary").includes("CSV rerun queue-state"),
-              "CSV rerun backend-owned queue-state summary",
+              () => text("rerun-history-summary").includes("Recent bounded history is backend-owned"),
+              "CSV rerun backend-owned current/history summary",
             );
             requireText("rerun-history-summary", [
-              "CSV rerun queue-state is backend-owned",
+              "Recent bounded history is backend-owned",
+              "Current CSV rerun batch count",
               "/api/rerun/results",
               "not normal /api/pipeline/start queue rows",
             ]);
@@ -1093,7 +1161,49 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             }
             window.mediaPipelineQueueView.renderRerunResults({
               manifests: [],
+              network_manifests: [],
+              history_window: {
+                requested_limit: 24,
+                local: { loaded_count: 24, discovered_candidate_count: 101, truncated: true },
+                network: { loaded_count: 1, discovered_candidate_count: 1, truncated: false },
+                scan_warning_count: 1,
+              },
               queue_state: {
+                current_local: {
+                  queue_source: "csv_rerun",
+                  manifest_key: "browser-smoke-rerun",
+                  batch_id: "browser-smoke-rerun",
+                  selection_reason: "newest_nonterminal",
+                  activity_state: "review",
+                  row_count: 1,
+                  available_actions: [],
+                  rows: [
+                    {
+                      row_key: "browser-smoke-rerun-row",
+                      manifest_key: "browser-smoke-rerun",
+                      queue_status: "failed",
+                      queue_status_label: "Failed",
+                      original_source_path: "Paprika(2006).mkv",
+                      output_path: "Paprika(2006).rerun.mkv",
+                      final_output_path: "\\\\SERVER\\Videos\\Paprika (2006)\\Paprika (2006).mkv",
+                      audit_issue_code_list: ["audio-default-policy-mismatch", "vobsub-subtitles-ocr-candidate"],
+                      rerun_rule_label: "Subtitle Remediation Rule",
+                      rerun_rule_reason: "Issue evidence is subtitle-focused; rerun uses backend subtitle policy.",
+                      blocking_reason: "destination policy failed: pending publish destination is already queued",
+                    },
+                  ],
+                },
+                current_network: {
+                  queue_source: "network_csv_rerun",
+                  manifest_key: "browser-smoke-network-rerun",
+                  batch_id: "browser-smoke-network-rerun",
+                  selection_reason: "newest_nonterminal",
+                  activity_state: "open_unverified",
+                  runtime_activity: { status: "unverified", evidence_source: "coordinator_inflight" },
+                  row_count: 0,
+                  available_actions: [],
+                  rows: [],
+                },
                 rows: [
                   {
                     row_key: "browser-smoke-rerun-row",
@@ -1115,6 +1225,13 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             const subtitleChip = document.querySelector('.rerun-issue-chip[data-issue-family="subtitle"]');
             if (!audioChip || !subtitleChip) throw new Error("CSV rerun issue chips did not render expected families");
             requireText("rerun-state-rows", ["Failed", "A", "default policy", "S", "ocr candidate"]);
+            requireText("rerun-history-summary", [
+              "Local recent history: loaded 24 of 101",
+              "older records are outside this response window",
+              "Network recent history: loaded 1 of 1",
+              "History scan warnings: 1",
+            ]);
+            requireText("rerun-queue-detail", ["network_csv_rerun", "open; live worker unverified"]);
             const compactStateText = text("rerun-state-rows");
             if (compactStateText.includes("Rule detail") || compactStateText.includes("Rule reason") || compactStateText.includes("destination policy failed")) {
               throw new Error("CSV rerun details leaked into compact state rows");
@@ -1334,19 +1451,19 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             const deadline = Date.now() + 20000;
             while (Date.now() < deadline) {
               const ready = await client.send("Runtime.evaluate", {
-                expression: `Boolean(document.getElementById("pipeline-compact-gate-strip") && document.getElementById("launch-backend-preflight-summary") && document.getElementById("launch-scope-reconciliation-summary") && document.getElementById("launch-start-decision-summary") && document.getElementById("launch-real-media-proof-summary") && document.getElementById("launch-sample-execution-summary") && document.getElementById("launch-pilot-readiness-summary") && document.getElementById("queue-launch-decision-summary") && document.getElementById("schedule-guidance") && document.getElementById("close-readiness") && typeof window.mediaPipelineLaunchView.activateLaunchTab === "function" && typeof window.mediaPipelineLaunchView.renderAllLaunchPreflights === "function" && typeof window.mediaPipelineLaunchView.renderLaunchCompactGate === "function" && typeof window.mediaPipelineLaunchView.renderLaunchScopeReconciliation === "function" && typeof window.mediaPipelineLaunchView.renderLaunchStartDecisionSummary === "function" && typeof window.mediaPipelineLaunchView.renderLaunchRealMediaProofHandoff === "function" && typeof window.mediaPipelineLaunchView.renderLaunchSampleExecutionChecklist === "function" && typeof window.mediaPipelineLaunchView.renderLaunchPilotRunReadiness === "function" && typeof window.queueLaunchDecisionRows === "function" && typeof window.mediaPipelineCommandHistory?.commandHistoryOwnerPage === "function")`,
+                expression: `Boolean(document.readyState === "complete" && typeof window.refreshAllNow === "function" && document.getElementById("pipeline-compact-gate-strip") && document.getElementById("launch-backend-preflight-summary") && document.getElementById("launch-scope-reconciliation-summary") && document.getElementById("launch-start-decision-summary") && document.getElementById("launch-real-media-proof-summary") && document.getElementById("launch-sample-execution-summary") && document.getElementById("launch-pilot-readiness-summary") && document.getElementById("queue-launch-decision-summary") && document.getElementById("schedule-guidance") && document.getElementById("close-readiness") && typeof window.mediaPipelineLaunchView.activateLaunchTab === "function" && typeof window.mediaPipelineLaunchView.renderAllLaunchPreflights === "function" && typeof window.mediaPipelineLaunchView.renderLaunchCompactGate === "function" && typeof window.mediaPipelineLaunchView.renderLaunchScopeReconciliation === "function" && typeof window.mediaPipelineLaunchView.renderLaunchStartDecisionSummary === "function" && typeof window.mediaPipelineLaunchView.renderLaunchRealMediaProofHandoff === "function" && typeof window.mediaPipelineLaunchView.renderLaunchSampleExecutionChecklist === "function" && typeof window.mediaPipelineLaunchView.renderLaunchPilotRunReadiness === "function" && typeof window.queueLaunchDecisionRows === "function" && typeof window.mediaPipelineCommandHistory?.commandHistoryOwnerPage === "function")`,
                 returnByValue: true,
               });
               if (ready.result?.value === true) break;
               await sleep(150);
             }
             const ready = await client.send("Runtime.evaluate", {
-              expression: `Boolean(document.getElementById("pipeline-compact-gate-strip") && document.getElementById("launch-backend-preflight-summary") && document.getElementById("launch-scope-reconciliation-summary") && document.getElementById("launch-start-decision-summary") && document.getElementById("launch-real-media-proof-summary") && document.getElementById("launch-sample-execution-summary") && document.getElementById("launch-pilot-readiness-summary") && document.getElementById("queue-launch-decision-summary") && document.getElementById("schedule-guidance") && document.getElementById("close-readiness") && typeof window.mediaPipelineLaunchView.activateLaunchTab === "function" && typeof window.mediaPipelineLaunchView.renderAllLaunchPreflights === "function" && typeof window.mediaPipelineLaunchView.renderLaunchCompactGate === "function" && typeof window.mediaPipelineLaunchView.renderLaunchScopeReconciliation === "function" && typeof window.mediaPipelineLaunchView.renderLaunchStartDecisionSummary === "function" && typeof window.mediaPipelineLaunchView.renderLaunchRealMediaProofHandoff === "function" && typeof window.mediaPipelineLaunchView.renderLaunchSampleExecutionChecklist === "function" && typeof window.mediaPipelineLaunchView.renderLaunchPilotRunReadiness === "function" && typeof window.queueLaunchDecisionRows === "function" && typeof window.mediaPipelineCommandHistory?.commandHistoryOwnerPage === "function")`,
+              expression: `Boolean(document.readyState === "complete" && typeof window.refreshAllNow === "function" && document.getElementById("pipeline-compact-gate-strip") && document.getElementById("launch-backend-preflight-summary") && document.getElementById("launch-scope-reconciliation-summary") && document.getElementById("launch-start-decision-summary") && document.getElementById("launch-real-media-proof-summary") && document.getElementById("launch-sample-execution-summary") && document.getElementById("launch-pilot-readiness-summary") && document.getElementById("queue-launch-decision-summary") && document.getElementById("schedule-guidance") && document.getElementById("close-readiness") && typeof window.mediaPipelineLaunchView.activateLaunchTab === "function" && typeof window.mediaPipelineLaunchView.renderAllLaunchPreflights === "function" && typeof window.mediaPipelineLaunchView.renderLaunchCompactGate === "function" && typeof window.mediaPipelineLaunchView.renderLaunchScopeReconciliation === "function" && typeof window.mediaPipelineLaunchView.renderLaunchStartDecisionSummary === "function" && typeof window.mediaPipelineLaunchView.renderLaunchRealMediaProofHandoff === "function" && typeof window.mediaPipelineLaunchView.renderLaunchSampleExecutionChecklist === "function" && typeof window.mediaPipelineLaunchView.renderLaunchPilotRunReadiness === "function" && typeof window.queueLaunchDecisionRows === "function" && typeof window.mediaPipelineCommandHistory?.commandHistoryOwnerPage === "function")`,
               returnByValue: true,
             });
             if (ready.result?.value !== true) throw new Error("Launch/Queue readiness WebView globals or DOM nodes did not become ready.");
             const result = await client.send("Runtime.evaluate", {
-              expression: launchQueueReadinessScript(),
+              expression: launchQueueReadinessScript(payload.sampleSourcePath),
               awaitPromise: true,
               returnByValue: true,
             });
@@ -1374,7 +1491,9 @@ def _browser_launch_queue_readiness_runner_source() -> str:
     )
 
 
-def _run_browser_launch_queue_readiness_smoke(*, browser_path: str, url: str) -> dict[str, object]:
+def _run_browser_launch_queue_readiness_smoke(
+    *, browser_path: str, url: str, sample_source_path: Path
+) -> dict[str, object]:
     node = shutil.which("node")
     if not node:
         raise unittest.SkipTest("Node.js is required for the browser-backed WebView Launch/Queue readiness smoke.")
@@ -1388,6 +1507,7 @@ def _run_browser_launch_queue_readiness_smoke(*, browser_path: str, url: str) ->
                 {
                     "browserPath": browser_path,
                     "port": port,
+                    "sampleSourcePath": str(sample_source_path),
                     "tmpRoot": str(tmp),
                     "url": url,
                 },
@@ -1523,7 +1643,7 @@ def _browser_pipeline_start_click_runner_source() -> str:
             await client.send("Runtime.enable");
             await client.send("Log.enable");
             await client.send("Page.enable");
-            const readyExpression = `Boolean(document.getElementById("pipeline-start-button")?.dataset.pipelineStartBound === "true" && typeof window.mediaPipelineApi?.apiPost === "function" && typeof window.showPage === "function" && typeof window.mediaPipelineLaunchView?.activateLaunchTab === "function" && typeof window.mediaPipelineLaunchView?.refreshLaunchBackendPreflight === "function" && typeof window.mediaPipelineLaunchView?.updateLaunchCommandButtonStates === "function")`;
+            const readyExpression = `Boolean(document.readyState === "complete" && document.getElementById("pipeline-start-button")?.dataset.pipelineStartBound === "true" && typeof window.mediaPipelineApi?.apiPost === "function" && typeof window.showPage === "function" && typeof window.mediaPipelineLaunchView?.activateLaunchTab === "function" && typeof window.mediaPipelineLaunchView?.refreshLaunchBackendPreflight === "function" && typeof window.mediaPipelineLaunchView?.updateLaunchCommandButtonStates === "function")`;
             const deadline = Date.now() + 20000;
             while (Date.now() < deadline) {
               const ready = await client.send("Runtime.evaluate", {
@@ -1631,7 +1751,11 @@ class WebViewBrowserLaunchQueueReadinessSmoke(unittest.TestCase):
             }
             try:
                 server.start()
-                result = _run_browser_launch_queue_readiness_smoke(browser_path=browser_path, url=server.url)
+                result = _run_browser_launch_queue_readiness_smoke(
+                    browser_path=browser_path,
+                    url=server.url,
+                    sample_source_path=source,
+                )
             finally:
                 server.stop()
 
@@ -1650,7 +1774,7 @@ class WebViewBrowserLaunchQueueReadinessSmoke(unittest.TestCase):
             self.assertIs(scan_posts[0]["body"]["force"], True)
             self.assertEqual(
                 browser_result["singleFileRequest"]["single_file"],
-                r"E:\Videos\Scratch\Encoded\TV\Sample Pilot.mkv",
+                str(source),
             )
             self.assertIn(
                 "Single-file launch: WebView submits the path only",
@@ -1698,8 +1822,13 @@ class WebViewBrowserLaunchQueueReadinessSmoke(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             resolved, source, output = _write_fixture_state(root)
+            resolved.state_root = root / "State"
             resolved.pending_push_path = root / "EmptyPendingServerPush"
             resolved.pending_push_path.mkdir(parents=True, exist_ok=True)
+            resolved.source_movies = root / "Movies"
+            resolved.source_movies.mkdir(parents=True, exist_ok=True)
+            resolved.source_tv = root / "TV"
+            resolved.outsource = root / "Outsource"
             resolved.config_data = {**(resolved.config_data or {}), "NetworkRole": "standalone"}
             command_journal_path = root / "RunLogs" / "local_api_command_history.json"
             media_snapshot = capture_media_no_mutation_snapshot(root)
@@ -1716,6 +1845,11 @@ class WebViewBrowserLaunchQueueReadinessSmoke(unittest.TestCase):
                 latest_audit_csv=None,
                 latest_priority_csv=None,
                 pipeline_events=[],
+            )
+            _install_authoritative_queue_preview(
+                resolved,
+                service,
+                planned_display_name=output.name,
             )
             facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
             server = LocalApiServer(

@@ -63,13 +63,126 @@ function Get-MediaPipelineQueuePlanRunnableEntries {
 }
 
 function Get-MediaPipelineWorkerProgressSnapshot {
-    param([Parameter(Mandatory)] $SlotLayout)
+    param(
+        [Parameter(Mandatory)] $SlotLayout,
+        [Parameter(Mandatory)] $Claim
+    )
 
     try {
         $payload = Read-MediaPipelineJsonFile -Path $SlotLayout.ProgressFile
-        if ($payload) { return $payload }
+        if (-not $payload) { return $null }
+        if (-not $payload.PSObject.Properties['WorkerRunId'] -or [string]$payload.WorkerRunId -ne [string]$Claim.owner_run_id) { return $null }
+        if (-not $payload.PSObject.Properties['WorkerClaimId'] -or [string]$payload.WorkerClaimId -ne [string]$Claim.claim_id) { return $null }
+        $expectedJobId = if ($Claim.PSObject.Properties['run_monitor_job_id']) { [string]$Claim.run_monitor_job_id } else { '' }
+        if (-not [string]::IsNullOrWhiteSpace($expectedJobId) -and
+            (-not $payload.PSObject.Properties['RunMonitorJobId'] -or [string]$payload.RunMonitorJobId -ne $expectedJobId)) { return $null }
+        return $payload
     } catch {}
     return $null
+}
+
+function Get-MediaPipelineWorkerHeartbeatSnapshot {
+    param(
+        [Parameter(Mandatory)] $SlotLayout,
+        [Parameter(Mandatory)] $Claim
+    )
+
+    try {
+        $payload = Read-MediaPipelineJsonFile -Path $SlotLayout.HeartbeatFile
+        if (-not $payload) { return $null }
+        if (-not $payload.PSObject.Properties['worker_run_id'] -or [string]$payload.worker_run_id -ne [string]$Claim.owner_run_id) { return $null }
+        if (-not $payload.PSObject.Properties['worker_claim_id'] -or [string]$payload.worker_claim_id -ne [string]$Claim.claim_id) { return $null }
+        $expectedJobId = if ($Claim.PSObject.Properties['run_monitor_job_id']) { [string]$Claim.run_monitor_job_id } else { '' }
+        if (-not [string]::IsNullOrWhiteSpace($expectedJobId) -and
+            (-not $payload.PSObject.Properties['run_monitor_job_id'] -or [string]$payload.run_monitor_job_id -ne $expectedJobId)) { return $null }
+        return $payload
+    } catch {}
+    return $null
+}
+
+function ConvertTo-MediaPipelineWorkerEvidenceTimestamp {
+    param($Value)
+
+    if ($Value -is [datetimeoffset]) { return $Value.UtcDateTime.ToString('o') }
+    if ($Value -is [datetime]) { return $Value.ToUniversalTime().ToString('o') }
+    $text = [string]$Value
+    try { return ([datetimeoffset]::Parse($text)).UtcDateTime.ToString('o') } catch { return $text }
+}
+
+function ConvertTo-MediaPipelineWorkerPercentOrNull {
+    param([AllowNull()] $Value)
+
+    if ($null -eq $Value) { return $null }
+    $text = [string]$Value
+    if ([string]::IsNullOrWhiteSpace($text)) { return $null }
+
+    $candidate = 0.0
+    try {
+        if ($Value -is [string]) {
+            $parsed = [double]::TryParse(
+                $text,
+                [System.Globalization.NumberStyles]::Float,
+                [System.Globalization.CultureInfo]::InvariantCulture,
+                [ref]$candidate
+            )
+            if (-not $parsed) { return $null }
+        } else {
+            $candidate = [double]$Value
+        }
+    } catch {
+        return $null
+    }
+
+    if ([double]::IsNaN($candidate) -or
+        [double]::IsInfinity($candidate) -or
+        $candidate -lt 0.0 -or
+        $candidate -gt 100.0) {
+        return $null
+    }
+    return $candidate
+}
+
+function Select-MediaPipelineFreshestWorkerEvidence {
+    param(
+        $Progress = $null,
+        $Heartbeat = $null
+    )
+
+    $candidates = [System.Collections.Generic.List[object]]::new()
+    if ($progress -and $progress.PSObject.Properties['EvidenceUpdatedAt'] -and
+        -not [string]::IsNullOrWhiteSpace([string]$progress.EvidenceUpdatedAt)) {
+        $normalized = ConvertTo-MediaPipelineWorkerEvidenceTimestamp $progress.EvidenceUpdatedAt
+        $parsed = $null
+        try { $parsed = ([datetimeoffset]::Parse([string]$normalized)).UtcDateTime } catch {}
+        $candidates.Add([pscustomobject]@{
+            Source = 'progress_state'
+            Provenance = 'backend_confirmed'
+            Payload = $progress
+            UpdatedAt = $normalized
+            ParsedAt = $parsed
+        }) | Out-Null
+    }
+    if ($heartbeat -and $heartbeat.PSObject.Properties['updated_at'] -and
+        -not [string]::IsNullOrWhiteSpace([string]$heartbeat.updated_at)) {
+        $normalized = ConvertTo-MediaPipelineWorkerEvidenceTimestamp $heartbeat.updated_at
+        $parsed = $null
+        try { $parsed = ([datetimeoffset]::Parse([string]$normalized)).UtcDateTime } catch {}
+        $candidates.Add([pscustomobject]@{
+            Source = 'worker_heartbeat'
+            Provenance = 'worker_heartbeat'
+            Payload = $heartbeat
+            UpdatedAt = $normalized
+            ParsedAt = $parsed
+        }) | Out-Null
+    }
+    if ($candidates.Count -le 0) { return $null }
+
+    # Both artifacts are exact run/claim/job matches before they reach this
+    # selector. Keep timestamp and provenance paired by choosing one complete
+    # claim, rather than combining a stale heartbeat time with fresh progress.
+    return @($candidates | Sort-Object `
+        @{ Expression = { if ($null -ne $_.ParsedAt) { 1 } else { 0 } }; Descending = $true }, `
+        @{ Expression = { $_.ParsedAt }; Descending = $true } | Select-Object -First 1)[0]
 }
 
 function Write-MediaPipelineLocalWorkerActiveJobs {
@@ -81,25 +194,62 @@ function Write-MediaPipelineLocalWorkerActiveJobs {
     )
 
     $jobs = [System.Collections.Generic.List[object]]::new()
+    $monitorWorkers = [System.Collections.Generic.List[object]]::new()
     foreach ($job in @($ActiveJobs)) {
         $slot = $job.SlotLayout
         $claim = $job.Claim
-        $progress = if ($slot) { Get-MediaPipelineWorkerProgressSnapshot -SlotLayout $slot } else { $null }
-        $stage = if ($progress -and $progress.PSObject.Properties['CurrentStage']) { [string]$progress.CurrentStage } else { [string]$job.Status }
-        $status = if ($progress -and $progress.PSObject.Properties['Status']) { [string]$progress.Status } else { [string]$job.Status }
+        $progress = if ($slot) { Get-MediaPipelineWorkerProgressSnapshot -SlotLayout $slot -Claim $claim } else { $null }
+        $heartbeat = if ($slot) { Get-MediaPipelineWorkerHeartbeatSnapshot -SlotLayout $slot -Claim $claim } else { $null }
+        $selectedEvidence = Select-MediaPipelineFreshestWorkerEvidence -Progress $progress -Heartbeat $heartbeat
+        $hasCorrelatedWorkerEvidence = [bool]($null -ne $selectedEvidence)
+        $selectedPayload = if ($selectedEvidence) { $selectedEvidence.Payload } else { $null }
+        $stage = if ($selectedEvidence -and [string]$selectedEvidence.Source -eq 'progress_state' -and $selectedPayload.PSObject.Properties['CurrentStage']) {
+            [string]$selectedPayload.CurrentStage
+        } elseif ($selectedEvidence -and [string]$selectedEvidence.Source -eq 'worker_heartbeat' -and $selectedPayload.PSObject.Properties['stage']) {
+            [string]$selectedPayload.stage
+        } else { 'accepted' }
+        $status = if ($selectedEvidence -and [string]$selectedEvidence.Source -eq 'progress_state' -and $selectedPayload.PSObject.Properties['Status']) {
+            [string]$selectedPayload.Status
+        } elseif ($selectedEvidence -and [string]$selectedEvidence.Source -eq 'worker_heartbeat' -and $selectedPayload.PSObject.Properties['status']) {
+            [string]$selectedPayload.status
+        } else { [string]$job.Status }
         $route = if ($progress -and $progress.PSObject.Properties['CurrentRoute']) { [string]$progress.CurrentRoute } else { '' }
-        $percent = if ($progress -and $progress.PSObject.Properties['CurrentStagePercent']) { $progress.CurrentStagePercent } else { $null }
+        $percent = $null
+        $percentPayload = if ($selectedEvidence -and [string]$selectedEvidence.Source -eq 'worker_heartbeat') { $heartbeat } else { $progress }
+        $percentProperty = if ($selectedEvidence -and [string]$selectedEvidence.Source -eq 'worker_heartbeat') { 'current_stage_percent' } else { 'CurrentStagePercent' }
+        if ($percentPayload -and $percentPayload.PSObject.Properties[$percentProperty]) {
+            $percent = ConvertTo-MediaPipelineWorkerPercentOrNull -Value $percentPayload.$percentProperty
+        }
         $libraryId = if ($progress -and $progress.PSObject.Properties['CurrentLibraryId']) { [string]$progress.CurrentLibraryId } else { '' }
         $libraryName = if ($progress -and $progress.PSObject.Properties['CurrentLibraryName']) { [string]$progress.CurrentLibraryName } else { '' }
         $libraryDesignation = if ($progress -and $progress.PSObject.Properties['CurrentLibraryDesignation']) { [string]$progress.CurrentLibraryDesignation } else { '' }
         $librarySourceRoot = if ($progress -and $progress.PSObject.Properties['CurrentLibrarySourceRoot']) { [string]$progress.CurrentLibrarySourceRoot } else { '' }
         $libraryOutputRoot = if ($progress -and $progress.PSObject.Properties['CurrentLibraryOutputRoot']) { [string]$progress.CurrentLibraryOutputRoot } else { '' }
         $fileName = if ($claim -and $claim.PSObject.Properties['source_name']) { [string]$claim.source_name } else { [System.IO.Path]::GetFileName([string]$claim.source_path) }
+        $evidenceUpdatedAt = if ($selectedEvidence) {
+            [string]$selectedEvidence.UpdatedAt
+        } elseif ($claim.PSObject.Properties['started_at'] -and -not [string]::IsNullOrWhiteSpace([string]$claim.started_at)) {
+            ConvertTo-MediaPipelineWorkerEvidenceTimestamp $claim.started_at
+        } elseif ($claim.PSObject.Properties['claimed_at'] -and -not [string]::IsNullOrWhiteSpace([string]$claim.claimed_at)) {
+            ConvertTo-MediaPipelineWorkerEvidenceTimestamp $claim.claimed_at
+        } elseif ($job.PSObject.Properties['StartedAt'] -and $job.StartedAt) {
+            ([datetime]$job.StartedAt).ToUniversalTime().ToString('o')
+        } else {
+            Get-MediaPipelineLocalWorkerTimestamp
+        }
+        $canonicalStage = if (Get-Command -Name ConvertTo-MediaPipelineRunMonitorStageId -ErrorAction SilentlyContinue) {
+            ConvertTo-MediaPipelineRunMonitorStageId -PipelineStage $stage
+        } else { '' }
+        if ([string]::IsNullOrWhiteSpace($canonicalStage)) { $canonicalStage = 'accepted' }
+        $runMonitorJobId = if ($claim.PSObject.Properties['run_monitor_job_id']) { [string]$claim.run_monitor_job_id } else { '' }
+        $ownerRunId = if ($claim.PSObject.Properties['owner_run_id']) { [string]$claim.owner_run_id } else { '' }
         [void]$jobs.Add([ordered]@{
             schema_version       = 'local_worker_active_job.v1'
             slot                 = [int]$slot.SlotId
             slot_number          = [int]$slot.SlotId
             claim_id             = [string]$claim.claim_id
+            owner_run_id         = $ownerRunId
+            run_monitor_job_id   = $runMonitorJobId
             worker_pid           = if ($job.Process) { [int]$job.Process.Id } else { $null }
             source_path          = [string]$claim.source_path
             file_name            = $fileName
@@ -125,8 +275,32 @@ function Write-MediaPipelineLocalWorkerActiveJobs {
             log_path             = [string]$slot.LogFile
             stdout_log           = [string]$slot.StdoutLog
             stderr_log           = [string]$slot.StderrLog
-            updated_at           = Get-MediaPipelineLocalWorkerTimestamp
+            evidence_current     = [bool]($null -ne $heartbeat -or $null -ne $progress)
+            updated_at           = $evidenceUpdatedAt
         })
+        if (-not [string]::IsNullOrWhiteSpace($runMonitorJobId) -and
+            -not [string]::IsNullOrWhiteSpace([string]$script:PipelineRunId) -and
+            [string]::Equals($ownerRunId, [string]$script:PipelineRunId, [System.StringComparison]::Ordinal)) {
+            $monitorWorker = [ordered]@{
+                worker_id = "local-slot-$([int]$slot.SlotId)"
+                job_id = $runMonitorJobId
+                state = if ($hasCorrelatedWorkerEvidence) { 'active' } else { 'starting' }
+                stage_id = $canonicalStage
+                # CurrentRoute is a legacy compatibility value and may be only
+                # a generic planned family (for example, "encode"). Exact
+                # executed-route authority is resolved from the correlated Run
+                # Monitor item by Set-MediaPipelineRunMonitorWorkers.
+                route = ''
+                updated_at = $evidenceUpdatedAt
+                evidence_source = if ($hasCorrelatedWorkerEvidence) { [string]$selectedEvidence.Source } else { 'worker_claim' }
+                evidence_provenance = if ($hasCorrelatedWorkerEvidence) { [string]$selectedEvidence.Provenance } else { 'backend_confirmed' }
+            }
+            if ($null -ne $percent) {
+                $monitorWorker['numerator'] = $percent
+                $monitorWorker['denominator'] = 100.0
+            }
+            $monitorWorkers.Add($monitorWorker) | Out-Null
+        }
     }
 
     $payload = [ordered]@{
@@ -136,6 +310,20 @@ function Write-MediaPipelineLocalWorkerActiveJobs {
         jobs           = @($jobs)
     }
     Write-MediaPipelineJsonAtomic -Path $ActiveJobsPath -InputObject $payload -Depth 8 | Out-Null
+
+    if (-not [string]::IsNullOrWhiteSpace([string]$script:PipelineRunId) -and
+        (Get-Command -Name Set-MediaPipelineRunMonitorWorkers -ErrorAction SilentlyContinue) -and
+        (Get-Command -Name Get-MediaPipelineRunMonitorPath -ErrorAction SilentlyContinue)) {
+        try {
+            $monitorPath = Get-MediaPipelineRunMonitorPath -RunId ([string]$script:PipelineRunId)
+            if (Test-Path -LiteralPath $monitorPath -PathType Leaf) {
+                Set-MediaPipelineRunMonitorWorkers -RunId ([string]$script:PipelineRunId) -Workers @($monitorWorkers.ToArray()) | Out-Null
+            }
+        } catch {
+            $script:RunMonitorPersistenceHealthy = $false
+            Write-Log "Run Monitor worker projection update failed: $($_.Exception.Message)" 'WARN'
+        }
+    }
 
     if ($WriteCompatibilityProgress) {
         $first = if ($jobs.Count -gt 0) { $jobs[0] } else { $null }

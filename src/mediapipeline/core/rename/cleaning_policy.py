@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from typing import Any
 from collections.abc import Callable, Mapping
 
@@ -29,6 +31,7 @@ RENAME_MOVIE_FILTER_PUBLIC_REQUEST_KEYS = {
     "tv_filter_terms",
 }
 RENAME_MOVIE_FILTER_POLICY_SOURCE_KEY = "_rename_movie_filter_policy_source"
+RENAME_CLEANING_POLICY_SCHEMA_VERSION = "rename_cleaning_policy.v1"
 
 
 def dict_bool(value: object) -> dict[str, bool]:
@@ -111,6 +114,68 @@ def _normalize_remove_terms(raw_remove_terms: object) -> list[str]:
     return normalized_remove_terms
 
 
+def _policy_section_value(policy: Mapping[str, Any], section: str, key: str, legacy_key: str) -> object | None:
+    section_value = policy.get(section)
+    if isinstance(section_value, Mapping) and key in section_value:
+        return section_value.get(key)
+    return policy.get(legacy_key)
+
+
+def _canonical_policy_payload(policy: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    raw_policy: Mapping[str, Any] = policy or {}
+    raw_movie_options = _policy_section_value(raw_policy, "movie", "options", "movie_filter_options")
+    raw_movie_terms = _policy_section_value(raw_policy, "movie", "terms", "movie_filter_terms")
+    raw_movie_remove_terms = _policy_section_value(raw_policy, "movie", "remove_terms", "remove_terms")
+    raw_tv_options = _policy_section_value(raw_policy, "tv", "options", "tv_filter_options")
+    raw_tv_terms = _policy_section_value(raw_policy, "tv", "terms", "tv_filter_terms")
+    raw_tv_remove_terms = _policy_section_value(raw_policy, "tv", "remove_terms", "tv_remove_terms")
+
+    movie_terms = rename_movie_filter_default_terms()
+    movie_terms.update(normalize_movie_filter_terms(dict_terms(raw_movie_terms)))
+    tv_terms = rename_tv_filter_default_terms()
+    tv_terms.update(normalize_tv_filter_terms(dict_terms(raw_tv_terms)))
+    return {
+        "schema_version": RENAME_CLEANING_POLICY_SCHEMA_VERSION,
+        "movie": {
+            "options": normalize_movie_filter_options(dict_bool(raw_movie_options)),
+            "terms": movie_terms,
+            "remove_terms": _normalize_remove_terms(raw_movie_remove_terms),
+        },
+        "tv": {
+            "options": normalize_tv_filter_options(dict_bool(raw_tv_options)),
+            "terms": tv_terms,
+            "remove_terms": _normalize_remove_terms(
+                raw_tv_remove_terms if raw_tv_remove_terms not in (None, "", False) else raw_movie_remove_terms
+            ),
+        },
+    }
+
+
+def rename_cleaning_policy_fingerprint(policy: Mapping[str, Any] | None = None) -> str:
+    canonical = _canonical_policy_payload(policy)
+    encoded = json.dumps(canonical, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def normalize_rename_cleaning_policy(policy: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    canonical = _canonical_policy_payload(policy)
+    movie = dict(canonical["movie"])
+    tv = dict(canonical["tv"])
+    normalized = {
+        **canonical,
+        "policy_fingerprint": rename_cleaning_policy_fingerprint(canonical),
+        # Compatibility aliases remain internal until every existing caller has
+        # migrated to the versioned movie/TV sections.
+        "movie_filter_options": dict(movie["options"]),
+        "movie_filter_terms": {str(key): list(values) for key, values in dict(movie["terms"]).items()},
+        "remove_terms": list(movie["remove_terms"]),
+        "tv_filter_options": dict(tv["options"]),
+        "tv_filter_terms": {str(key): list(values) for key, values in dict(tv["terms"]).items()},
+        "tv_remove_terms": list(tv["remove_terms"]),
+    }
+    return normalized
+
+
 def rename_cleaning_policy_from_config(config: Mapping[str, Any] | object | None = None) -> dict[str, Any]:
     raw_options = _config_mapping_value(config, KEY_RENAME_MOVIE_FILTER_OPTIONS)
     raw_terms = _config_mapping_value(config, KEY_RENAME_MOVIE_FILTER_TERMS)
@@ -119,20 +184,39 @@ def rename_cleaning_policy_from_config(config: Mapping[str, Any] | object | None
     raw_tv_terms = _config_mapping_value(config, KEY_RENAME_TV_FILTER_TERMS)
     raw_tv_remove_terms = _config_mapping_value(config, KEY_RENAME_TV_REMOVE_TERMS)
 
-    terms = rename_movie_filter_default_terms()
-    terms.update(normalize_movie_filter_terms(dict_terms(raw_terms)))
-    tv_terms = rename_tv_filter_default_terms()
-    tv_terms.update(normalize_tv_filter_terms(dict_terms(raw_tv_terms)))
-    remove_terms = _normalize_remove_terms(raw_remove_terms)
-    tv_remove_terms = _normalize_remove_terms(raw_tv_remove_terms if raw_tv_remove_terms not in (None, "", False) else raw_remove_terms)
-    return {
+    return normalize_rename_cleaning_policy({
         "movie_filter_options": normalize_movie_filter_options(dict_bool(raw_options)),
-        "movie_filter_terms": terms,
-        "remove_terms": remove_terms,
+        "movie_filter_terms": dict_terms(raw_terms),
+        "remove_terms": raw_remove_terms,
         "tv_filter_options": normalize_tv_filter_options(dict_bool(raw_tv_options)),
-        "tv_filter_terms": tv_terms,
-        "tv_remove_terms": tv_remove_terms,
-    }
+        "tv_filter_terms": dict_terms(raw_tv_terms),
+        "tv_remove_terms": raw_tv_remove_terms if raw_tv_remove_terms not in (None, "", False) else raw_remove_terms,
+    })
+
+
+def rename_cleaning_policy_from_request(
+    request: Mapping[str, Any],
+    parse_remove_terms: Callable[[str], list[str]] | None = None,
+) -> dict[str, Any]:
+    movie_remove_terms = remove_terms_from_request(request, parse_remove_terms)
+    tv_remove_terms = remove_terms_from_request(
+        request,
+        parse_remove_terms,
+        key="tv_remove_terms",
+        text_key="tv_remove_terms_text",
+        fallback_key="remove_terms",
+        fallback_text_key="remove_terms_text",
+    )
+    return normalize_rename_cleaning_policy(
+        {
+            "movie_filter_options": request.get("movie_filter_options"),
+            "movie_filter_terms": request.get("movie_filter_terms"),
+            "remove_terms": movie_remove_terms,
+            "tv_filter_options": request.get("tv_filter_options"),
+            "tv_filter_terms": request.get("tv_filter_terms"),
+            "tv_remove_terms": tv_remove_terms,
+        }
+    )
 
 
 def rename_cleaning_policy_from_resolved(resolved: object | None) -> dict[str, Any]:
@@ -147,21 +231,22 @@ def rename_request_with_cleaning_policy(
     source: str,
     strip_existing: bool = False,
 ) -> dict[str, Any]:
+    normalized_policy = normalize_rename_cleaning_policy(policy)
     enriched = dict(request)
     if strip_existing:
         for key in RENAME_MOVIE_FILTER_PUBLIC_REQUEST_KEYS:
             enriched.pop(key, None)
-    enriched["remove_terms"] = list(policy.get("remove_terms") or [])
-    enriched["movie_filter_options"] = dict(policy.get("movie_filter_options") or {})
+    enriched["remove_terms"] = list(normalized_policy.get("remove_terms") or [])
+    enriched["movie_filter_options"] = dict(normalized_policy.get("movie_filter_options") or {})
     enriched["movie_filter_terms"] = {
         str(key): [str(item) for item in values or [] if str(item or "").strip()]
-        for key, values in dict(policy.get("movie_filter_terms") or {}).items()
+        for key, values in dict(normalized_policy.get("movie_filter_terms") or {}).items()
     }
-    enriched["tv_remove_terms"] = list(policy.get("tv_remove_terms") or [])
-    enriched["tv_filter_options"] = dict(policy.get("tv_filter_options") or {})
+    enriched["tv_remove_terms"] = list(normalized_policy.get("tv_remove_terms") or [])
+    enriched["tv_filter_options"] = dict(normalized_policy.get("tv_filter_options") or {})
     enriched["tv_filter_terms"] = {
         str(key): [str(item) for item in values or [] if str(item or "").strip()]
-        for key, values in dict(policy.get("tv_filter_terms") or {}).items()
+        for key, values in dict(normalized_policy.get("tv_filter_terms") or {}).items()
     }
     enriched[RENAME_MOVIE_FILTER_POLICY_SOURCE_KEY] = source
     return enriched
@@ -196,11 +281,15 @@ def remove_terms_from_request(
 __all__ = [
     "RENAME_MOVIE_FILTER_PUBLIC_REQUEST_KEYS",
     "RENAME_MOVIE_FILTER_POLICY_SOURCE_KEY",
+    "RENAME_CLEANING_POLICY_SCHEMA_VERSION",
     "dict_bool",
     "dict_str",
     "dict_terms",
     "rename_cleaning_policy_from_config",
+    "rename_cleaning_policy_from_request",
     "rename_cleaning_policy_from_resolved",
+    "rename_cleaning_policy_fingerprint",
+    "normalize_rename_cleaning_policy",
     "rename_request_with_cleaning_policy",
     "rename_request_uses_staged_cleaning_policy",
     "remove_terms_from_request",

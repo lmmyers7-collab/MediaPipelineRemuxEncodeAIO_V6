@@ -131,6 +131,7 @@ foreach ($entry in @(
     @{ Label = 'ops/scripts/smoke WebView schedule smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-WebViewScheduleSmoke.ps1'); Type = 'Leaf' },
     @{ Label = 'ops/scripts/smoke WebView browser schedule smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-WebViewBrowserScheduleSmoke.ps1'); Type = 'Leaf' },
     @{ Label = 'ops/scripts/smoke WebView browser backend lifecycle smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-WebViewBrowserLifecycleSmoke.ps1'); Type = 'Leaf' },
+    @{ Label = 'ops/scripts/smoke WebView browser lifecycle reconciliation smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-WebViewBrowserLifecycleReconciliationSmoke.ps1'); Type = 'Leaf' },
     @{ Label = 'ops/scripts/smoke local API lifecycle contract smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-LocalApiLifecycleContractSmoke.ps1'); Type = 'Leaf' },
     @{ Label = 'ops/scripts/smoke local API Maintenance dry-run contract smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-LocalApiMaintenanceDryRunContractSmoke.ps1'); Type = 'Leaf' },
     @{ Label = 'ops/scripts/smoke local API repair/reconcile dry-run contract smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-LocalApiRepairReconcileDryRunContractSmoke.ps1'); Type = 'Leaf' },
@@ -143,10 +144,12 @@ foreach ($entry in @(
     @{ Label = 'ops/scripts/smoke WebView browser rename smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-WebViewBrowserRenameSmoke.ps1'); Type = 'Leaf' },
     @{ Label = 'ops/scripts/smoke WebView browser network smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-WebViewBrowserNetworkSmoke.ps1'); Type = 'Leaf' },
     @{ Label = 'ops/scripts/smoke WebView browser queue file-overrides smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-WebViewBrowserQueueFileOverridesSmoke.ps1'); Type = 'Leaf' },
+    @{ Label = 'ops/scripts/smoke WebView browser Queue/Launch/Completed smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-WebViewBrowserQueueLaunchCompletedSmoke.ps1'); Type = 'Leaf' },
     @{ Label = 'ops/scripts/smoke WebView browser telemetry smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-WebViewBrowserTelemetrySmoke.ps1'); Type = 'Leaf' },
     @{ Label = 'ops/scripts/smoke WebView browser Maintenance/Reports smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-WebViewBrowserMaintenanceReportsSmoke.ps1'); Type = 'Leaf' },
     @{ Label = 'ops/scripts/smoke WebView browser Maintenance change-ledger smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-WebViewBrowserMaintenanceChangeLedgerSmoke.ps1'); Type = 'Leaf' },
     @{ Label = 'ops/scripts/smoke WebView browser Sample Validation smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-WebViewBrowserSampleValidationSmoke.ps1'); Type = 'Leaf' },
+    @{ Label = 'ops/scripts/smoke WebView browser safe operator commands smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-WebViewBrowserSafeOperatorCommandsSmoke.ps1'); Type = 'Leaf' },
     @{ Label = 'ops/scripts/smoke WebView browser Home live-state smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-WebViewBrowserHomeLiveStateSmoke.ps1'); Type = 'Leaf' },
     @{ Label = 'ops/scripts/smoke WebView browser Launch/Queue readiness smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1'); Type = 'Leaf' },
     @{ Label = 'ops/scripts/smoke WebView browser layout manager smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-WebViewBrowserLayoutManagerSmoke.ps1'); Type = 'Leaf' },
@@ -154,6 +157,7 @@ foreach ($entry in @(
     @{ Label = 'ops/scripts/smoke WebView browser visual-clutter screenshots'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-WebViewBrowserVisualClutterScreenshots.ps1'); Type = 'Leaf' },
     @{ Label = 'ops/scripts/smoke WebView rename readiness smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-WebViewRenameReadinessSmoke.ps1'); Type = 'Leaf' },
     @{ Label = 'ops/scripts/smoke WebView browser settings/launch smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-WebViewBrowserSettingsLaunchSmoke.ps1'); Type = 'Leaf' },
+    @{ Label = 'ops/scripts/smoke WebView browser Settings field-matrix smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-WebViewBrowserSettingsFieldMatrixSmoke.ps1'); Type = 'Leaf' },
     @{ Label = 'ops/scripts/smoke WebView browser LibraryProfiles save smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-WebViewBrowserLibraryProfilesSaveSmoke.ps1'); Type = 'Leaf' },
     @{ Label = 'ops/scripts/smoke WebView settings launch policy smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-WebViewSettingsLaunchPolicySmoke.ps1'); Type = 'Leaf' },
     @{ Label = 'ops/scripts/smoke WebView settings live-config smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-WebViewSettingsLaunchLiveConfigSmoke.ps1'); Type = 'Leaf' },
@@ -449,6 +453,7 @@ foreach ($suite in @(
 )) {
     Invoke-PythonUnittestDiscovery -Label $suite.Label -RelativePath $suite.Path -Required:([bool]$RequireTests)
 }
+Invoke-PythonPytestStyleTests -Required:([bool]$RequireTests)
 
 Write-Section 'Generated and Tooling Guards'
 # Some audit checks compare generated artifacts against the FULL source tree, and the Python lint gate

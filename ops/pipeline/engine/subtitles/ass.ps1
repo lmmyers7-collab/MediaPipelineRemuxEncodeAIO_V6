@@ -34,6 +34,7 @@ function New-AssFailureRecord {
 
     $streamIndex = if ($Entry -and $Entry.Stream) { [int]$Entry.Stream.index } else { -1 }
     return New-StandardFailureRecord -Stage 'subtitle-ass-convert' -Operation 'subtitle-ass-convert' -Category 'subtitle_conversion' -Reason $Reason -ErrorCode $ErrorCode -Tool 'python' -ReproPath $ReproPath -Retryable $true -AdditionalProperties @{
+        track_id        = if ($Entry -and $Entry.ContainsKey('TrackId')) { [string]$Entry.TrackId } else { '' }
         StreamIndex     = $streamIndex
         stream_index    = $streamIndex
         SubtitleOrdinal = if ($Entry -and $Entry.ContainsKey('SubtitleOrdinal')) { $Entry.SubtitleOrdinal } else { $null }
@@ -53,7 +54,8 @@ function Convert-AssToSrt {
     param(
         [string]$SourceFile,
         [int]$StreamIndex,
-        [hashtable]$StreamInfo = @{}
+        [hashtable]$StreamInfo = @{},
+        [string]$TrackId = ''
     )
 
     if (-not (Get-Command -Name Write-SubtitleTrackProgress -ErrorAction SilentlyContinue)) {
@@ -76,6 +78,8 @@ function Convert-AssToSrt {
 
     $finalSrt = Join-Path $script:processingDir "sub_final_$([System.IO.Path]::GetRandomFileName()).srt"
     $helperSrt = New-SrtAtomicTempPath -DestinationPath $finalSrt
+    $previousSubtitleEvidenceTrackId = if (Get-Variable -Name CurrentSubtitleEvidenceTrackId -Scope Script -ErrorAction SilentlyContinue) { [string]$script:CurrentSubtitleEvidenceTrackId } else { '' }
+    $script:CurrentSubtitleEvidenceTrackId = $TrackId
 
     try {
         Write-Log "SUB CONVERT: stream $StreamIndex from $([System.IO.Path]::GetFileName($SourceFile))" "DEBUG"
@@ -118,7 +122,20 @@ function Convert-AssToSrt {
             $formattingArg
         )
         Write-SubtitleTrackProgress -Kind 'ass' -StreamIndex $StreamIndex -Stage 'convert' -Status 'Converting ASS subtitle to SRT' -StepIndex 2 -StepTotal 4 -Steps $subtitleProgressSteps -Detail ([System.IO.Path]::GetFileName($SourceFile))
-        $result = Invoke-PythonToolCommand -ArgumentList $helperArgs -TimeoutSeconds $timeoutSeconds -Stage 'subtitle-ass-convert' -SaveReproOnFailure
+        $assHeartbeat = if (Get-Command -Name New-SubtitleTrackHeartbeatHandler -ErrorAction SilentlyContinue) {
+            New-SubtitleTrackHeartbeatHandler -Kind 'ass' -TrackId $TrackId -StreamIndex $StreamIndex -Stage 'convert' -Status 'Converting ASS subtitle to SRT' -StepIndex 2 -StepTotal 4 -Steps $subtitleProgressSteps -Detail ([System.IO.Path]::GetFileName($SourceFile))
+        } else { $null }
+        $pythonCommandArgs = @{
+            ArgumentList = $helperArgs
+            TimeoutSeconds = $timeoutSeconds
+            Stage = 'subtitle-ass-convert'
+            SaveReproOnFailure = $true
+        }
+        if ($assHeartbeat) {
+            $pythonCommandArgs['PollHandler'] = $assHeartbeat
+            $pythonCommandArgs['PollMilliseconds'] = 250
+        }
+        $result = Invoke-PythonToolCommand @pythonCommandArgs
 
         $subtitleDiagLines = @()
         if ($result.Error) {
@@ -230,6 +247,7 @@ function Convert-AssToSrt {
             Failure  = (New-AssFailureRecord -Entry $StreamInfo -Reason $reason -ErrorCode 'SUBTITLE_ASS_CONVERT_EXCEPTION' -ErrorText $reason)
         }
     } finally {
+        $script:CurrentSubtitleEvidenceTrackId = $previousSubtitleEvidenceTrackId
         if ($helperSrt -and (Test-Path -LiteralPath $helperSrt)) {
             Remove-Item -LiteralPath $helperSrt -Force -ErrorAction SilentlyContinue
         }

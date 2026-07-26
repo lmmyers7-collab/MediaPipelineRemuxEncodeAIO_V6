@@ -38,6 +38,10 @@ def start_pipeline_for_service(
     extra_argv: list[str] | tuple[str, ...] | None = None,
     show_console: bool = False,
     single_file: str | None = None,
+    priority_only: bool = False,
+    expected_queue_plan_fingerprint: str = "",
+    command_id: str = "",
+    run_id: str = "",
 ) -> subprocess.Popen[Any]:
     plan = build_pipeline_launch_plan(
         resolved,
@@ -47,6 +51,10 @@ def start_pipeline_for_service(
         extra_args=extra_args,
         extra_argv=extra_argv,
         single_file=single_file,
+        priority_only=priority_only,
+        expected_queue_plan_fingerprint=expected_queue_plan_fingerprint,
+        command_id=command_id,
+        run_id=run_id,
     )
     return service._spawn(
         plan.args,
@@ -104,6 +112,11 @@ def start_rerun_csv_for_service(
     confirm_delete_original: bool = False,
     show_console: bool,
     plan_only: bool = False,
+    command_id: str = "",
+    launch_id: str = "",
+    batch_id: str = "",
+    enrollment_path: Path | None = None,
+    manifest_path: Path | None = None,
 ) -> subprocess.Popen[Any]:
     plan = build_rerun_csv_launch_plan(
         resolved,
@@ -122,6 +135,11 @@ def start_rerun_csv_for_service(
         confirm_source_overwrite=confirm_source_overwrite,
         confirm_original_policy=confirm_original_policy,
         confirm_delete_original=confirm_delete_original,
+        command_id=command_id,
+        launch_id=launch_id,
+        batch_id=batch_id,
+        enrollment_path=enrollment_path,
+        manifest_path=manifest_path,
     )
     return service._spawn(
         plan.args,

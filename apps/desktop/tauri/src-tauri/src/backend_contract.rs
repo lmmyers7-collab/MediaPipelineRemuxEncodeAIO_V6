@@ -14,6 +14,10 @@ mod types;
 pub(crate) use formatting::{format_list_preview, format_route_sample};
 pub(crate) use health::validate_backend_health;
 pub(crate) use route_contract::validate_backend_contract;
+#[cfg(test)]
+pub(crate) use route_contract::validate_lifecycle_reconciliation_route;
+#[cfg(test)]
+pub(crate) use routes::REQUIRED_LIFECYCLE_RECONCILIATION_ROUTES;
 #[allow(unused_imports)]
 pub(crate) use types::BackendRoute;
 

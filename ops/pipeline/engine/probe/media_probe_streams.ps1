@@ -66,7 +66,11 @@ function Test-SourceVideoStreamAttachedPicture {
 }
 
 function Get-SourceVideoStreamInventory {
-    param([string]$FilePath)
+    param(
+        [string]$FilePath,
+        [scriptblock] $PollHandler = $null,
+        [int] $PollMilliseconds = 100
+    )
 
     $empty = {
         param(
@@ -89,7 +93,7 @@ function Get-SourceVideoStreamInventory {
         "-v","error","-select_streams","v",
         "-show_entries","stream=index,codec_name,width,height,pix_fmt,color_primaries,color_transfer,color_space,disposition:stream_tags=filename,mimetype",
         "-of","json","--",$FilePath
-    ) -TimeoutSeconds 30 -Stage 'source-video-stream-inventory'
+    ) -TimeoutSeconds 30 -Stage 'source-video-stream-inventory' -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds
     if ([int]$r.ExitCode -ne 0 -or [bool]$r.TimedOut -or [bool]$r.Stopped) {
         $reason = if (-not [string]::IsNullOrWhiteSpace([string]$r.Error)) { [string]$r.Error } else { "ffprobe exited with code $([int]$r.ExitCode)" }
         return & $empty $false 'SOURCE_VIDEO_STREAM_PROBE_FAILED' $reason
@@ -307,12 +311,14 @@ function Test-OutputVideoStreamPreservation {
         [Parameter(Mandatory)] [string] $OutputPath,
         [string] $Route = '',
         $SourceInventory = $null,
-        [string] $ExpectedVideoCodec = ''
+        [string] $ExpectedVideoCodec = '',
+        [scriptblock] $PollHandler = $null,
+        [int] $PollMilliseconds = 100
     )
 
     $sourceInventoryForCompare = $SourceInventory
     if (-not $sourceInventoryForCompare -or -not $sourceInventoryForCompare.PSObject.Properties['Ok'] -or -not [bool]$sourceInventoryForCompare.Ok) {
-        $sourceInventoryForCompare = Get-SourceVideoStreamInventory -FilePath $SourcePath
+        $sourceInventoryForCompare = Get-SourceVideoStreamInventory -FilePath $SourcePath -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds
     }
     if (-not [bool]$sourceInventoryForCompare.Ok) {
         return [pscustomobject][ordered]@{
@@ -326,7 +332,7 @@ function Test-OutputVideoStreamPreservation {
         }
     }
 
-    $outputInventory = Get-SourceVideoStreamInventory -FilePath $OutputPath
+    $outputInventory = Get-SourceVideoStreamInventory -FilePath $OutputPath -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds
     if (-not [bool]$outputInventory.Ok) {
         return [pscustomobject][ordered]@{
             Allowed         = $false
@@ -442,11 +448,13 @@ function Test-Hdr10OutputMetadataPreservation {
         [Parameter(Mandatory)] [string] $SourcePath,
         [Parameter(Mandatory)] [string] $OutputPath,
         $SourceInventory = $null,
-        $OutputInventory = $null
+        $OutputInventory = $null,
+        [scriptblock] $PollHandler = $null,
+        [int] $PollMilliseconds = 100
     )
 
-    $source = if ($SourceInventory) { $SourceInventory } else { Get-SourceVideoStreamInventory -FilePath $SourcePath }
-    $output = if ($OutputInventory) { $OutputInventory } else { Get-SourceVideoStreamInventory -FilePath $OutputPath }
+    $source = if ($SourceInventory) { $SourceInventory } else { Get-SourceVideoStreamInventory -FilePath $SourcePath -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds }
+    $output = if ($OutputInventory) { $OutputInventory } else { Get-SourceVideoStreamInventory -FilePath $OutputPath -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds }
     $base = [ordered]@{
         Allowed = $false; Applicable = $false; ErrorCode = ''; Reason = ''
         SourceHdr10 = $null; OutputHdr10 = $null; Mismatches = @(); schema_version = 'hdr10_output_verification.v1'
@@ -486,8 +494,8 @@ function Test-Hdr10OutputMetadataPreservation {
             }
         }
     }
-    $sourceHdr10 = Get-SourceHdr10MasteringMetadata -FilePath $SourcePath
-    $outputHdr10 = Get-SourceHdr10MasteringMetadata -FilePath $OutputPath
+    $sourceHdr10 = Get-SourceHdr10MasteringMetadata -FilePath $SourcePath -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds
+    $outputHdr10 = Get-SourceHdr10MasteringMetadata -FilePath $OutputPath -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds
     $base.SourceHdr10 = $sourceHdr10
     $base.OutputHdr10 = $outputHdr10
     $sourceMetadataReason = ([string]$sourceHdr10.Reason).Trim()

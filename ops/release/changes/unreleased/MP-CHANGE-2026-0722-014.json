@@ -1,0 +1,61 @@
+{
+  "id": "MP-CHANGE-2026-0722-014",
+  "title": "Scope network registry rollback to one job",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-22",
+  "date_completed": "2026-07-22",
+  "summary": "Replace whole-registry rollback with a per-job compare-and-set receipt that merges only the failed transition's state and inverse deltas.",
+  "reason": "Remediate P1 AUDIT-FIND-W01-019. A failed done/release persistence or rerun-row compare-and-set could restore every registry collection, erasing unrelated concurrent claims and resurrecting completed jobs.",
+  "affected_areas": [
+    "network coordinator done/release handling",
+    "in-flight registry rollback",
+    "network CSV rerun compare-and-set recovery",
+    "registry crash-recovery evidence"
+  ],
+  "behavior_before": "Done/release handlers deep-copied the entire registry before mutation and assigned every collection and counter back on rollback, regardless of mutations committed by other request or reaper threads.",
+  "behavior_after": "Rollback captures one job, its source/worker/failure keys, and transition deltas. Restore uses source-owner compare-and-set, reinserts only that job, inverses only its counters and throughput, and preserves unrelated jobs, completions, worker evidence, late reports, and quarantines before persisting the merged state.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0722-014.json.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/coordinator_http_handlers.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/registry_recovery.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_network_coordinator_http.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_network_inflight_registry.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0722-014.json",
+    "src/mediapipeline/desktop/network/coordinator_http_handlers.py",
+    "src/mediapipeline/desktop/network/registry_recovery.py",
+    "tests/python/desktop/test_network_coordinator_http.py",
+    "tests/python/desktop/test_network_inflight_registry.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_network_inflight_registry.py: target-only rollback preserves an unrelated completion, claim, worker statistics, late report, and quarantine; failed target completion preserves a later same-worker success; source-owner conflict refuses rollback without replacement.",
+    "tests/python/desktop/test_network_coordinator_http.py: barrier-driven Network CSV rerun done CAS failure interleaves an unrelated completion and new claim, then verifies both merged in-memory state and crash-recovered persisted state."
+  ],
+  "manual_validation": [
+    "Pre-fix focused reproduction - expected red: 2 tests ran with 1 failure and 1 error; the HTTP rollback resurrected the unrelated completed job and deleted the concurrent claim, while the scoped receipt API did not exist.",
+    "Post-fix original focused set - passed: 2 tests.",
+    "Full registry plus coordinator HTTP modules - passed: 47 tests.",
+    "All test_network*.py desktop modules - passed: 445 tests.",
+    "Focused Ruff for changed Python source/tests - passed.",
+    "Mypy through the composed registry.py class - passed. Direct split-mixin mypy invocation is not a valid standalone target because mixin-owned attributes are supplied by InFlightRegistry.",
+    "Bundled Python py_compile for changed source/tests - passed.",
+    "Targeted refresh_summaries wrote 5 summaries; generate_project_index regenerated 2,464 typed records and the dependency graph; feature-file map and 15 feature cards regenerated.",
+    "Summary integrity, risky-file registry, lifecycle-map, feature-card, and AI-guardrail unit set - passed: 35 tests.",
+    "Full desktop discovery - 2,988 tests: 2,978 passed, 6 failed, 3 errored, 1 skipped. Every non-pass is unchanged pre-existing evidence: AUDIT-FIND-W02-004, AUDIT-FIND-W11-030, AUDIT-FIND-W15-001, AUDIT-FIND-W09-013, and unrelated existing topbar event-ticker assertions.",
+    "validate_changes --require-worktree-coverage - passed with 1,129 valid packets before completion.",
+    "Focused git diff --check - passed; Git emitted line-ending conversion warnings only."
+  ],
+  "rollback_plan": "Revert scoped rollback receipts, handler transition metadata, concurrency/CAS tests, generated context, and packet metadata together; retain this packet as incomplete evidence if rollback occurs.",
+  "related_changes": [
+    "AUDIT-FIND-W01-019",
+    "AUDIT-FIND-W01-017",
+    "MP-CHANGE-2026-0722-001"
+  ],
+  "notes": "Finding disposition: AUDIT-FIND-W01-019 is remediated and independently validated against current source, pre-fix red evidence, deterministic barrier-driven HTTP interleaving, direct target/source CAS conflict, same-worker completion merging, crash-recovered persisted state, the full network suite, and full desktop baseline classification. Python impact: coordinator registry rollback and HTTP done/release recovery only; request payloads, media policy, and source files are unchanged. Rollback refuses a changed target/source identity, subtracts only the failed completion's numeric contributions, conditionally restores target-owned failure evidence, and removes at most the first post-snapshot late report so later same-job evidence survives. Representative real-media validation is not required."
+}

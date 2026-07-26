@@ -1,0 +1,1471 @@
+{
+  "$defs": {
+    "AcceptedQueueIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "queue_plan_fingerprint.v1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "fingerprint": {
+          "minLength": 1,
+          "title": "Fingerprint",
+          "type": "string"
+        },
+        "accepted_count": {
+          "minimum": 0,
+          "title": "Accepted Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema_version",
+        "fingerprint",
+        "accepted_count"
+      ],
+      "title": "AcceptedQueueIdentity",
+      "type": "object"
+    },
+    "AudioEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "enum": [
+            "awaiting_evidence",
+            "not_applicable",
+            "active",
+            "completed",
+            "failed",
+            "review",
+            "unknown"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "policy_final": {
+          "default": false,
+          "title": "Policy Final",
+          "type": "boolean"
+        },
+        "tracks": {
+          "items": {
+            "$ref": "#/$defs/AudioTrackEvidence"
+          },
+          "title": "Tracks",
+          "type": "array"
+        },
+        "evidence": {
+          "$ref": "#/$defs/EvidenceRecord"
+        }
+      },
+      "required": [
+        "state",
+        "evidence"
+      ],
+      "title": "AudioEvidence",
+      "type": "object"
+    },
+    "AudioTrackEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "track_id": {
+          "minLength": 1,
+          "title": "Track Id",
+          "type": "string"
+        },
+        "stream_index": {
+          "minimum": 0,
+          "title": "Stream Index",
+          "type": "integer"
+        },
+        "language": {
+          "default": "",
+          "title": "Language",
+          "type": "string"
+        },
+        "source_codec": {
+          "default": "",
+          "title": "Source Codec",
+          "type": "string"
+        },
+        "source_channels": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Source Channels",
+          "type": "integer"
+        },
+        "source_layout": {
+          "default": "",
+          "title": "Source Layout",
+          "type": "string"
+        },
+        "planned_action": {
+          "default": "",
+          "title": "Planned Action",
+          "type": "string"
+        },
+        "current_action": {
+          "default": "",
+          "title": "Current Action",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "awaiting_evidence",
+            "not_applicable",
+            "active",
+            "completed",
+            "failed",
+            "review",
+            "skipped",
+            "dropped",
+            "unknown"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "started_at": {
+          "default": "",
+          "title": "Started At",
+          "type": "string"
+        },
+        "updated_at": {
+          "default": "",
+          "title": "Updated At",
+          "type": "string"
+        },
+        "completed_at": {
+          "default": "",
+          "title": "Completed At",
+          "type": "string"
+        },
+        "output_codec": {
+          "default": "",
+          "title": "Output Codec",
+          "type": "string"
+        },
+        "output_channels": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Output Channels",
+          "type": "integer"
+        },
+        "output_layout": {
+          "default": "",
+          "title": "Output Layout",
+          "type": "string"
+        },
+        "is_default": {
+          "default": false,
+          "title": "Is Default",
+          "type": "boolean"
+        },
+        "reason_code": {
+          "default": "",
+          "title": "Reason Code",
+          "type": "string"
+        },
+        "reason": {
+          "default": "",
+          "title": "Reason",
+          "type": "string"
+        },
+        "progress": {
+          "$ref": "#/$defs/ProgressEvidence"
+        },
+        "result": {
+          "default": "",
+          "title": "Result",
+          "type": "string"
+        },
+        "evidence": {
+          "$ref": "#/$defs/EvidenceRecord"
+        }
+      },
+      "required": [
+        "track_id",
+        "stream_index",
+        "state",
+        "evidence"
+      ],
+      "title": "AudioTrackEvidence",
+      "type": "object"
+    },
+    "CurrentWorkerEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "worker_id": {
+          "minLength": 1,
+          "title": "Worker Id",
+          "type": "string"
+        },
+        "run_id": {
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        },
+        "job_id": {
+          "minLength": 1,
+          "title": "Job Id",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "starting",
+            "active",
+            "paused",
+            "stopping",
+            "unknown"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "stage_id": {
+          "enum": [
+            "accepted",
+            "source_discovery",
+            "copy_to_scratch",
+            "probe",
+            "route_decision",
+            "audio",
+            "subtitles",
+            "transcode",
+            "mux",
+            "verification",
+            "sidecar_writing",
+            "publish",
+            "final_evidence"
+          ],
+          "title": "Stage Id",
+          "type": "string"
+        },
+        "route": {
+          "default": "",
+          "title": "Route",
+          "type": "string"
+        },
+        "progress": {
+          "$ref": "#/$defs/ProgressEvidence"
+        },
+        "updated_at": {
+          "minLength": 1,
+          "title": "Updated At",
+          "type": "string"
+        },
+        "evidence": {
+          "$ref": "#/$defs/EvidenceRecord"
+        }
+      },
+      "required": [
+        "worker_id",
+        "run_id",
+        "job_id",
+        "state",
+        "stage_id",
+        "updated_at",
+        "evidence"
+      ],
+      "title": "CurrentWorkerEvidence",
+      "type": "object"
+    },
+    "EvidenceRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "provenance": {
+          "enum": [
+            "backend_confirmed",
+            "queue_plan",
+            "engine_event",
+            "worker_heartbeat",
+            "terminal",
+            "inferred",
+            "unknown"
+          ],
+          "title": "Provenance",
+          "type": "string"
+        },
+        "recorded_at": {
+          "minLength": 1,
+          "title": "Recorded At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "provenance",
+        "recorded_at"
+      ],
+      "title": "EvidenceRecord",
+      "type": "object"
+    },
+    "FailureEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "enum": [
+            "none",
+            "recoverable",
+            "fatal",
+            "review",
+            "blocked",
+            "force_stopped",
+            "unknown"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "reason_code": {
+          "default": "",
+          "title": "Reason Code",
+          "type": "string"
+        },
+        "reason": {
+          "default": "",
+          "title": "Reason",
+          "type": "string"
+        },
+        "retryable": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retryable"
+        },
+        "reference": {
+          "default": "",
+          "title": "Reference",
+          "type": "string"
+        },
+        "evidence": {
+          "$ref": "#/$defs/EvidenceRecord"
+        }
+      },
+      "required": [
+        "state",
+        "evidence"
+      ],
+      "title": "FailureEvidence",
+      "type": "object"
+    },
+    "OutputEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "enum": [
+            "awaiting_evidence",
+            "not_applicable",
+            "active",
+            "verified",
+            "published",
+            "parked",
+            "failed",
+            "review",
+            "unknown"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "scratch_path": {
+          "default": "",
+          "title": "Scratch Path",
+          "type": "string"
+        },
+        "working_output_path": {
+          "default": "",
+          "title": "Working Output Path",
+          "type": "string"
+        },
+        "published_path": {
+          "default": "",
+          "title": "Published Path",
+          "type": "string"
+        },
+        "parked_path": {
+          "default": "",
+          "title": "Parked Path",
+          "type": "string"
+        },
+        "intended_final_path": {
+          "default": "",
+          "title": "Intended Final Path",
+          "type": "string"
+        },
+        "size_bytes": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Size Bytes"
+        },
+        "verification_state": {
+          "enum": [
+            "not_started",
+            "active",
+            "completed",
+            "not_applicable",
+            "failed",
+            "blocked",
+            "review",
+            "unknown"
+          ],
+          "title": "Verification State",
+          "type": "string"
+        },
+        "sidecars": {
+          "items": {
+            "$ref": "#/$defs/SidecarEvidence"
+          },
+          "title": "Sidecars",
+          "type": "array"
+        },
+        "evidence": {
+          "$ref": "#/$defs/EvidenceRecord"
+        }
+      },
+      "required": [
+        "state",
+        "verification_state",
+        "evidence"
+      ],
+      "title": "OutputEvidence",
+      "type": "object"
+    },
+    "ProgressEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "default": "none",
+          "enum": [
+            "none",
+            "indeterminate",
+            "determinate"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "numerator": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Numerator"
+        },
+        "denominator": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Denominator"
+        }
+      },
+      "title": "ProgressEvidence",
+      "type": "object"
+    },
+    "RecoveryEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "owner": {
+          "default": "pipeline",
+          "title": "Owner",
+          "type": "string"
+        },
+        "next_action": {
+          "default": "",
+          "title": "Next Action",
+          "type": "string"
+        },
+        "retryable": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retryable"
+        },
+        "evidence": {
+          "$ref": "#/$defs/EvidenceRecord"
+        }
+      },
+      "required": [
+        "evidence"
+      ],
+      "title": "RecoveryEvidence",
+      "type": "object"
+    },
+    "RouteEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "enum": [
+            "available",
+            "awaiting_evidence",
+            "not_applicable",
+            "unknown"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "route": {
+          "default": "",
+          "title": "Route",
+          "type": "string"
+        },
+        "reason": {
+          "default": "",
+          "title": "Reason",
+          "type": "string"
+        },
+        "reason_code": {
+          "default": "",
+          "title": "Reason Code",
+          "type": "string"
+        },
+        "evidence": {
+          "$ref": "#/$defs/EvidenceRecord"
+        }
+      },
+      "required": [
+        "state",
+        "evidence"
+      ],
+      "title": "RouteEvidence",
+      "type": "object"
+    },
+    "RouteEvidenceSet": {
+      "additionalProperties": false,
+      "properties": {
+        "planned": {
+          "$ref": "#/$defs/RouteEvidence"
+        },
+        "executed": {
+          "$ref": "#/$defs/RouteEvidence"
+        },
+        "final": {
+          "$ref": "#/$defs/RouteEvidence"
+        }
+      },
+      "required": [
+        "planned",
+        "executed",
+        "final"
+      ],
+      "title": "RouteEvidenceSet",
+      "type": "object"
+    },
+    "RunMonitorItem": {
+      "additionalProperties": false,
+      "properties": {
+        "job_id": {
+          "minLength": 1,
+          "title": "Job Id",
+          "type": "string"
+        },
+        "source_identity": {
+          "$ref": "#/$defs/SourceIdentity"
+        },
+        "source_path": {
+          "minLength": 1,
+          "title": "Source Path",
+          "type": "string"
+        },
+        "display_name": {
+          "minLength": 1,
+          "title": "Display Name",
+          "type": "string"
+        },
+        "display_name_evidence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EvidenceRecord"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "parent_context": {
+          "default": "",
+          "title": "Parent Context",
+          "type": "string"
+        },
+        "position": {
+          "exclusiveMinimum": 0,
+          "title": "Position",
+          "type": "integer"
+        },
+        "total": {
+          "exclusiveMinimum": 0,
+          "title": "Total",
+          "type": "integer"
+        },
+        "lifecycle_state": {
+          "enum": [
+            "accepted",
+            "queued",
+            "active",
+            "completed",
+            "failed",
+            "skipped",
+            "blocked",
+            "review",
+            "parked",
+            "stopped",
+            "unknown"
+          ],
+          "title": "Lifecycle State",
+          "type": "string"
+        },
+        "lifecycle_evidence": {
+          "$ref": "#/$defs/EvidenceRecord"
+        },
+        "updated_at": {
+          "minLength": 1,
+          "title": "Updated At",
+          "type": "string"
+        },
+        "routes": {
+          "$ref": "#/$defs/RouteEvidenceSet"
+        },
+        "stages": {
+          "items": {
+            "$ref": "#/$defs/StageEvidence"
+          },
+          "title": "Stages",
+          "type": "array"
+        },
+        "audio": {
+          "$ref": "#/$defs/AudioEvidence"
+        },
+        "subtitles": {
+          "$ref": "#/$defs/SubtitleEvidence"
+        },
+        "output": {
+          "$ref": "#/$defs/OutputEvidence"
+        },
+        "terminal_references": {
+          "items": {
+            "$ref": "#/$defs/TerminalReference"
+          },
+          "title": "Terminal References",
+          "type": "array"
+        },
+        "failure": {
+          "$ref": "#/$defs/FailureEvidence"
+        },
+        "recovery": {
+          "$ref": "#/$defs/RecoveryEvidence"
+        }
+      },
+      "required": [
+        "job_id",
+        "source_identity",
+        "source_path",
+        "display_name",
+        "position",
+        "total",
+        "lifecycle_state",
+        "lifecycle_evidence",
+        "updated_at",
+        "routes",
+        "stages",
+        "audio",
+        "subtitles",
+        "output",
+        "failure",
+        "recovery"
+      ],
+      "title": "RunMonitorItem",
+      "type": "object"
+    },
+    "RunOutcomeEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "enum": [
+            "pending",
+            "completed",
+            "failed",
+            "blocked",
+            "review",
+            "stopped",
+            "force_stopped",
+            "unknown"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "reason_code": {
+          "default": "",
+          "title": "Reason Code",
+          "type": "string"
+        },
+        "reason": {
+          "default": "",
+          "title": "Reason",
+          "type": "string"
+        },
+        "retryable": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retryable"
+        },
+        "owner": {
+          "default": "pipeline",
+          "title": "Owner",
+          "type": "string"
+        },
+        "next_action": {
+          "default": "",
+          "title": "Next Action",
+          "type": "string"
+        },
+        "evidence": {
+          "$ref": "#/$defs/EvidenceRecord"
+        }
+      },
+      "required": [
+        "state",
+        "evidence"
+      ],
+      "title": "RunOutcomeEvidence",
+      "type": "object"
+    },
+    "RunScopedCounts": {
+      "additionalProperties": false,
+      "properties": {
+        "accepted": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Accepted",
+          "type": "integer"
+        },
+        "queued": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Queued",
+          "type": "integer"
+        },
+        "active": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Active",
+          "type": "integer"
+        },
+        "completed": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Completed",
+          "type": "integer"
+        },
+        "failed": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Failed",
+          "type": "integer"
+        },
+        "skipped": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Skipped",
+          "type": "integer"
+        },
+        "blocked": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Blocked",
+          "type": "integer"
+        },
+        "review": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Review",
+          "type": "integer"
+        },
+        "parked": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Parked",
+          "type": "integer"
+        },
+        "stopped": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Stopped",
+          "type": "integer"
+        }
+      },
+      "title": "RunScopedCounts",
+      "type": "object"
+    },
+    "RunSummaryEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        },
+        "command_id": {
+          "minLength": 1,
+          "title": "Command Id",
+          "type": "string"
+        },
+        "mode": {
+          "const": "once",
+          "title": "Mode",
+          "type": "string"
+        },
+        "scope": {
+          "const": "backend_queue",
+          "title": "Scope",
+          "type": "string"
+        },
+        "accepted_queue": {
+          "$ref": "#/$defs/AcceptedQueueIdentity"
+        },
+        "lifecycle_state": {
+          "enum": [
+            "starting",
+            "scanning",
+            "running",
+            "paused",
+            "stop_requested",
+            "stopping",
+            "completed",
+            "failed",
+            "blocked",
+            "review",
+            "stopped",
+            "force_stopped",
+            "unknown"
+          ],
+          "title": "Lifecycle State",
+          "type": "string"
+        },
+        "started_at": {
+          "minLength": 1,
+          "title": "Started At",
+          "type": "string"
+        },
+        "updated_at": {
+          "minLength": 1,
+          "title": "Updated At",
+          "type": "string"
+        },
+        "ended_at": {
+          "default": "",
+          "title": "Ended At",
+          "type": "string"
+        },
+        "stop_after_current": {
+          "$ref": "#/$defs/StopAfterCurrentEvidence"
+        },
+        "outcome": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RunOutcomeEvidence"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "counts": {
+          "$ref": "#/$defs/RunScopedCounts"
+        },
+        "evidence": {
+          "$ref": "#/$defs/EvidenceRecord"
+        }
+      },
+      "required": [
+        "run_id",
+        "command_id",
+        "mode",
+        "scope",
+        "accepted_queue",
+        "lifecycle_state",
+        "started_at",
+        "updated_at",
+        "stop_after_current",
+        "counts",
+        "evidence"
+      ],
+      "title": "RunSummaryEvidence",
+      "type": "object"
+    },
+    "SidecarEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "minLength": 1,
+          "title": "Kind",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "written",
+            "parked",
+            "failed",
+            "review",
+            "skipped",
+            "unknown"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "path": {
+          "default": "",
+          "title": "Path",
+          "type": "string"
+        },
+        "reason": {
+          "default": "",
+          "title": "Reason",
+          "type": "string"
+        },
+        "evidence": {
+          "$ref": "#/$defs/EvidenceRecord"
+        }
+      },
+      "required": [
+        "kind",
+        "state",
+        "evidence"
+      ],
+      "title": "SidecarEvidence",
+      "type": "object"
+    },
+    "SourceIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "minLength": 1,
+          "title": "Value",
+          "type": "string"
+        },
+        "algorithm": {
+          "minLength": 1,
+          "title": "Algorithm",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "algorithm"
+      ],
+      "title": "SourceIdentity",
+      "type": "object"
+    },
+    "StageEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "stage_id": {
+          "enum": [
+            "accepted",
+            "source_discovery",
+            "copy_to_scratch",
+            "probe",
+            "route_decision",
+            "audio",
+            "subtitles",
+            "transcode",
+            "mux",
+            "verification",
+            "sidecar_writing",
+            "publish",
+            "final_evidence"
+          ],
+          "title": "Stage Id",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "not_started",
+            "active",
+            "completed",
+            "skipped",
+            "not_applicable",
+            "unknown",
+            "blocked",
+            "review",
+            "failed"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "started_at": {
+          "default": "",
+          "title": "Started At",
+          "type": "string"
+        },
+        "updated_at": {
+          "default": "",
+          "title": "Updated At",
+          "type": "string"
+        },
+        "completed_at": {
+          "default": "",
+          "title": "Completed At",
+          "type": "string"
+        },
+        "detail": {
+          "default": "",
+          "title": "Detail",
+          "type": "string"
+        },
+        "reason_code": {
+          "default": "",
+          "title": "Reason Code",
+          "type": "string"
+        },
+        "progress": {
+          "$ref": "#/$defs/ProgressEvidence"
+        },
+        "evidence": {
+          "$ref": "#/$defs/EvidenceRecord"
+        }
+      },
+      "required": [
+        "stage_id",
+        "state",
+        "evidence"
+      ],
+      "title": "StageEvidence",
+      "type": "object"
+    },
+    "StopAfterCurrentEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "enum": [
+            "not_requested",
+            "requested",
+            "acknowledged",
+            "stopping",
+            "completed",
+            "unavailable"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "requested_at": {
+          "default": "",
+          "title": "Requested At",
+          "type": "string"
+        },
+        "evidence": {
+          "$ref": "#/$defs/EvidenceRecord"
+        }
+      },
+      "required": [
+        "state",
+        "evidence"
+      ],
+      "title": "StopAfterCurrentEvidence",
+      "type": "object"
+    },
+    "SubtitleEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "enum": [
+            "awaiting_evidence",
+            "not_applicable",
+            "active",
+            "completed",
+            "failed",
+            "review",
+            "unknown"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "policy_final": {
+          "default": false,
+          "title": "Policy Final",
+          "type": "boolean"
+        },
+        "tracks": {
+          "items": {
+            "$ref": "#/$defs/SubtitleTrackEvidence"
+          },
+          "title": "Tracks",
+          "type": "array"
+        },
+        "evidence": {
+          "$ref": "#/$defs/EvidenceRecord"
+        }
+      },
+      "required": [
+        "state",
+        "evidence"
+      ],
+      "title": "SubtitleEvidence",
+      "type": "object"
+    },
+    "SubtitleTrackEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "track_id": {
+          "minLength": 1,
+          "title": "Track Id",
+          "type": "string"
+        },
+        "stream_index": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Stream Index"
+        },
+        "source_ordinal": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Ordinal"
+        },
+        "language": {
+          "default": "",
+          "title": "Language",
+          "type": "string"
+        },
+        "source_codec": {
+          "default": "",
+          "title": "Source Codec",
+          "type": "string"
+        },
+        "source_type": {
+          "default": "unknown",
+          "enum": [
+            "text",
+            "image",
+            "unknown"
+          ],
+          "title": "Source Type",
+          "type": "string"
+        },
+        "source_kind": {
+          "default": "unknown",
+          "enum": [
+            "embedded",
+            "sidecar",
+            "unknown"
+          ],
+          "title": "Source Kind",
+          "type": "string"
+        },
+        "preserve": {
+          "default": true,
+          "title": "Preserve",
+          "type": "boolean"
+        },
+        "extract": {
+          "default": false,
+          "title": "Extract",
+          "type": "boolean"
+        },
+        "convert": {
+          "default": false,
+          "title": "Convert",
+          "type": "boolean"
+        },
+        "ocr": {
+          "default": false,
+          "title": "Ocr",
+          "type": "boolean"
+        },
+        "write_embedded": {
+          "default": false,
+          "title": "Write Embedded",
+          "type": "boolean"
+        },
+        "write_sidecar": {
+          "default": false,
+          "title": "Write Sidecar",
+          "type": "boolean"
+        },
+        "planned_action": {
+          "default": "",
+          "title": "Planned Action",
+          "type": "string"
+        },
+        "current_action": {
+          "default": "",
+          "title": "Current Action",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "awaiting_evidence",
+            "not_applicable",
+            "active",
+            "completed",
+            "failed",
+            "review",
+            "skipped",
+            "dropped",
+            "unknown"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "started_at": {
+          "default": "",
+          "title": "Started At",
+          "type": "string"
+        },
+        "updated_at": {
+          "default": "",
+          "title": "Updated At",
+          "type": "string"
+        },
+        "completed_at": {
+          "default": "",
+          "title": "Completed At",
+          "type": "string"
+        },
+        "output_codec": {
+          "default": "",
+          "title": "Output Codec",
+          "type": "string"
+        },
+        "output_location": {
+          "default": "unknown",
+          "enum": [
+            "embedded",
+            "external_sidecar",
+            "burned_into_video",
+            "dropped",
+            "not_applicable",
+            "unknown"
+          ],
+          "title": "Output Location",
+          "type": "string"
+        },
+        "output_path": {
+          "default": "",
+          "title": "Output Path",
+          "type": "string"
+        },
+        "parked_path": {
+          "default": "",
+          "title": "Parked Path",
+          "type": "string"
+        },
+        "intended_final_path": {
+          "default": "",
+          "title": "Intended Final Path",
+          "type": "string"
+        },
+        "reason_code": {
+          "default": "",
+          "title": "Reason Code",
+          "type": "string"
+        },
+        "reason": {
+          "default": "",
+          "title": "Reason",
+          "type": "string"
+        },
+        "step_index": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Step Index",
+          "type": "integer"
+        },
+        "step_total": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Step Total",
+          "type": "integer"
+        },
+        "step_name": {
+          "default": "",
+          "title": "Step Name",
+          "type": "string"
+        },
+        "progress_unit": {
+          "default": "",
+          "enum": [
+            "",
+            "items",
+            "pages",
+            "cues",
+            "frames",
+            "seconds",
+            "bytes",
+            "percent",
+            "unknown"
+          ],
+          "title": "Progress Unit",
+          "type": "string"
+        },
+        "cue_count": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cue Count"
+        },
+        "progress": {
+          "$ref": "#/$defs/ProgressEvidence"
+        },
+        "result": {
+          "default": "",
+          "title": "Result",
+          "type": "string"
+        },
+        "evidence": {
+          "$ref": "#/$defs/EvidenceRecord"
+        }
+      },
+      "required": [
+        "track_id",
+        "state",
+        "evidence"
+      ],
+      "title": "SubtitleTrackEvidence",
+      "type": "object"
+    },
+    "TerminalReference": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "completed",
+            "pending_publish",
+            "failure",
+            "review",
+            "report",
+            "manifest",
+            "sidecar"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "reference": {
+          "minLength": 1,
+          "title": "Reference",
+          "type": "string"
+        },
+        "path": {
+          "default": "",
+          "title": "Path",
+          "type": "string"
+        },
+        "evidence": {
+          "$ref": "#/$defs/EvidenceRecord"
+        }
+      },
+      "required": [
+        "kind",
+        "reference",
+        "evidence"
+      ],
+      "title": "TerminalReference",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "pipeline_run_monitor.v1",
+      "default": "pipeline_run_monitor.v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "write_sequence": {
+      "exclusiveMinimum": 0,
+      "title": "Write Sequence",
+      "type": "integer"
+    },
+    "run": {
+      "$ref": "#/$defs/RunSummaryEvidence"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/$defs/RunMonitorItem"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "current_workers": {
+      "items": {
+        "$ref": "#/$defs/CurrentWorkerEvidence"
+      },
+      "title": "Current Workers",
+      "type": "array"
+    }
+  },
+  "required": [
+    "write_sequence",
+    "run",
+    "items"
+  ],
+  "title": "MediaPipeline Run Once Monitor",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.mediapipeline/ops/pipeline/config/schemas/media_pipeline_run_monitor.schema.json",
+  "x-run-monitor-schema-version": "pipeline_run_monitor.v1"
+}

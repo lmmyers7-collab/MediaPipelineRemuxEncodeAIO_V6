@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import os
-import time
 from pathlib import Path
 
 
@@ -75,52 +73,3 @@ def get_source_priority_info(
         current = current.parent
 
     return (len(reasons) > 0, reasons, priority_rank)
-
-
-def format_priority_leaf_name(marker: str, leaf: str, markers: list[str]) -> str:
-    cleaned = remove_priority_markers_from_name(leaf, markers)
-    if not cleaned:
-        return leaf
-    return f"{marker} {cleaned}"
-
-
-def priority_marker_destination(target_path: Path, markers: list[str], marker: str, remove_only: bool = False) -> Path:
-    leaf = target_path.name
-    if target_path.is_file():
-        new_stem = (
-            remove_priority_markers_from_name(target_path.stem, markers)
-            if remove_only
-            else format_priority_leaf_name(marker, target_path.stem, markers)
-        )
-        new_name = f"{new_stem}{target_path.suffix}"
-    else:
-        new_name = (
-            remove_priority_markers_from_name(leaf, markers)
-            if remove_only
-            else format_priority_leaf_name(marker, leaf, markers)
-        )
-    return target_path.with_name(new_name)
-
-
-def touch_priority_target(target_path: Path) -> None:
-    timestamp = time.time()
-    try:
-        os.utime(target_path, (timestamp, timestamp))
-    except OSError:
-        return
-
-
-def apply_priority_marker(target_path: Path, markers: list[str], marker: str, remove_only: bool = False) -> Path:
-    if not target_path.exists():
-        raise FileNotFoundError(f"Target does not exist: {target_path}")
-
-    destination = priority_marker_destination(target_path, markers, marker, remove_only=remove_only)
-    if destination.name == target_path.name:
-        return target_path
-    if destination.exists():
-        raise FileExistsError(f"Cannot rename because the destination already exists: {destination}")
-
-    renamed = target_path.rename(destination)
-    if not remove_only:
-        touch_priority_target(renamed)
-    return renamed

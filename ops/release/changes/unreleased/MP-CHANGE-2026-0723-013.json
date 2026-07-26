@@ -1,0 +1,55 @@
+{
+  "id": "MP-CHANGE-2026-0723-013",
+  "title": "Require exact method matches in WebView command audit",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": "2026-07-23",
+  "summary": "Require exact HTTP method and normalized-path matching for WebView command contracts and method-specific ownership where one path exposes distinct read and write owners.",
+  "reason": "Remediate P2 AUDIT-FIND-W10-CHM-001. The canonical Node prework audit currently falls back from an exact method/path miss to any contract sharing the path, allowing a wrong-method frontend call to inherit the other method's effect and pass as documented.",
+  "affected_areas": [
+    "WebView command-boundary audit",
+    "WebView prework validation",
+    "generated command-boundary evidence"
+  ],
+  "behavior_before": "A POST usage could match a GET-only contract, or a GET usage could match a POST-only contract, because path-only lookup was accepted after an exact tuple miss.",
+  "behavior_after": "Only the exact HTTP method and normalized path can supply contract metadata; same-path alternate methods are diagnostic suggestions and the usage remains an undocumented-route violation. The shared priority-export path separately permits its documented Launch GET owner and Queue POST owner.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/WEBVIEW_COMMAND_BOUNDARY_AUDIT.json",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-013.json.md",
+    "docs/generated/summaries/ops/scripts/dev/check-webview-command-boundary.mjs.md",
+    "docs/generated/summaries/tests/webview/test_webview_command_boundary_audit.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-013.json",
+    "ops/scripts/dev/check-webview-command-boundary.mjs",
+    "tests/webview/test_webview_command_boundary_audit.py"
+  ],
+  "tests_added": [
+    "A Node-backed Python regression fixture covers GET-only/POST-requested, POST-only/GET-requested, and exact-method matches, including proof that mismatches never inherit contract effects and that priority-export ownership is method-specific."
+  ],
+  "manual_validation": [
+    "AUDIT-FIND-W10-CHM-001 reproduced against current bytes: POST /api/example inherited a GET-only contract through the path-only fallback, producing contract_found=true and the GET effect.",
+    "node --check ops/scripts/dev/check-webview-command-boundary.mjs - passed.",
+    "Bundled pytest tests/webview/test_webview_command_boundary_audit.py - passed (6 tests), including GET-only/POST and POST-only/GET mismatch fixtures, exact-match control, no inherited mismatch effect, production matcher wiring, and method-specific priority-export ownership.",
+    "Bundled pytest tests/python/tooling/test_webview_tooling_checks.py plus tests/webview/test_webview_command_boundary_audit.py - passed (21 tests).",
+    "npm run webview:commands regenerated docs/generated/WEBVIEW_COMMAND_BOUNDARY_AUDIT.json; npm run webview:commands:check passed with zero violations and current evidence.",
+    "ops/scripts/smoke/Test-WebViewCommandEvidenceSmoke.ps1 - passed (1 test, 0 skipped); temporary backend/WebView fixture only, with no media or operator-state mutation.",
+    "npm run webview:check, webview:map:check, webview:slices:check, webview:dom-gaps:check, and webview:script-order:smoke passed; script-order loaded 287 assets and verified required globals.",
+    "npm run webview:prework:check remains unavailable as an aggregate pass because unrelated pre-existing ESLint budget drift stops it at 1,389 versus 1,387 warnings; direct later checks also found unrelated stale WEBVIEW_PUBLIC_CONTRACT_BASELINE.json, WEBVIEW_ROUTE_OWNERSHIP_GUARD.json, and WEBVIEW_TOUCHPOINT_LEDGER.json. These baselines were not ratcheted or absorbed into this packet.",
+    "Generated-context tooling passed (30 tests / 70 subtests); architecture guardrails passed (90 candidates); risky-file registry passed; god-file guard remained at the accepted 0 errors / 51 warnings baseline.",
+    "Targeted summaries were refreshed for the packet, audit script, and regression test; project index, dependency graph, and feature map regenerated from 2,496 typed records.",
+    "Summary freshness retained only five unrelated pre-existing stale summaries after the final packet-summary refresh.",
+    "Final project-index and feature-map check modes passed; validate_changes --require-worktree-coverage passed; git diff --check passed with line-ending warnings only."
+  ],
+  "rollback_plan": "Revert the exact matcher, import-safe main guard, regression fixture, generated summaries/maps, and this packet together. Do not restore path-only contract success.",
+  "related_changes": [
+    "AUDIT-FIND-W10-CHM-001",
+    "AUDIT-FIND-W12-006"
+  ],
+  "notes": "Protected invariant: the command-boundary gate must classify frontend calls against the backend's exact method/path contract before assigning effects or high-risk status. Required validation: focused audit tests, webview:commands:check, webview:prework:check, command-evidence smoke, generated-context checks, and strict packet coverage. No backend routes, command journal semantics, media policy, or filesystem mutation changes; representative real-media validation is not required."
+}

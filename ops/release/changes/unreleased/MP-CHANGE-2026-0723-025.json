@@ -1,0 +1,68 @@
+{
+  "id": "MP-CHANGE-2026-0723-025",
+  "title": "Bind Tauri harness cleanup to exact process ownership",
+  "version_target": "2026.06.04.001",
+  "status": "in_progress",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-23",
+  "date_completed": null,
+  "summary": "Replace temporal/global process discovery in Tauri validation harnesses with exact launcher-descendant identity and creation-time revalidation before cleanup.",
+  "reason": "Remediate P1 AUDIT-FIND-W09-009. Four active Tauri harnesses can currently observe and force-stop an unrelated Local API or shell that starts after their global baseline snapshot.",
+  "affected_areas": [
+    "Tauri validation harnesses",
+    "backend process lifecycle",
+    "process cleanup safety",
+    "test infrastructure"
+  ],
+  "behavior_before": "Harnesses treat every matching shell/backend PID absent from a global baseline as owned, select the first backend for evidence, and force-stop the entire delta during cleanup without parent or creation-time proof.",
+  "behavior_after": "Harnesses discover only processes in the exact launcher process tree, retain PID plus creation-time identity, require one owned shell/backend where appropriate, and revalidate identity before any fallback tree termination. Ambiguous or unrelated processes are never cleanup targets.",
+  "files_touched": [
+    "apps/desktop/tauri/README.md",
+    "apps/desktop/tauri/Test-TauriShell-Launch.ps1",
+    "apps/desktop/tauri/Test-TauriShell-PG1ActiveClose.ps1",
+    "apps/desktop/tauri/Test-TauriShell-PG2WebViewLaunch.ps1",
+    "apps/desktop/tauri/Test-TauriShell-WebViewUiAutomationProbe.ps1",
+    "docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md",
+    "docs/change_control/CHANGE_INDEX.md",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/apps/desktop/tauri/Test-TauriShell-Launch.ps1.md",
+    "docs/generated/summaries/apps/desktop/tauri/Test-TauriShell-PG1ActiveClose.ps1.md",
+    "docs/generated/summaries/apps/desktop/tauri/Test-TauriShell-PG2WebViewLaunch.ps1.md",
+    "docs/generated/summaries/apps/desktop/tauri/Test-TauriShell-WebViewUiAutomationProbe.ps1.md",
+    "docs/generated/summaries/docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-TauriHarnessProcessOwnershipChecks.ps1.md",
+    "docs/generated/summaries/ops/scripts/smoke/tauri_harness_process_ownership.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0723-025.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_tauri_shell_scaffold.py.md",
+    "ops/pipeline/tests/Unit/Invoke-TauriHarnessProcessOwnershipChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0723-025.json",
+    "ops/scripts/smoke/tauri_harness_process_ownership.ps1",
+    "tests/python/desktop/test_tauri_shell_scaffold.py"
+  ],
+  "tests_added": [
+    "Concurrent disposable process trees prove descendant classification excludes an unrelated tree.",
+    "Creation-time mismatch proves PID reuse cannot authorize termination.",
+    "Static harness contracts reject baseline/delta backend ownership and raw PID cleanup."
+  ],
+  "manual_validation": [
+    "PowerShell parser validation passed for the shared helper and all four changed harnesses.",
+    "Disposable concurrent-tree adversarial wrapper passed ownership isolation, PID/creation-time mismatch refusal, exact child cleanup, and unrelated-tree survival.",
+    "Tauri shell scaffold plus PG-1 adversarial scaffold passed 125 tests; targeted Ruff passed.",
+    "Canonical Test-TauriShell-Launch.ps1 dev launch/close smoke passed with one exact launcher-owned shell and backend and no media launch.",
+    "A concurrent unrelated Python process matching the historical local_api_main selector started after the harness launcher checkpoint, survived successful harness cleanup, and was then stopped by its separately captured exact fixture identity.",
+    "Test-TauriShell-Build.ps1 -SkipLinkCheck passed Node syntax, cargo check, and 68 Rust lifecycle/library tests.",
+    "Targeted summary freshness plus project-index/dependency-graph and feature-map check modes passed.",
+    "Canonical risky-file registry validation and targeted git diff --check passed (line-ending warnings only).",
+    "Strict worktree coverage passed with 1167 valid change packets."
+  ],
+  "rollback_plan": "Revert the shared helper, four harness integrations, tests, lifecycle documentation, generated outputs, and this packet together. Do not restore global baseline-delta cleanup without a replacement exact-ownership mechanism.",
+  "related_changes": [
+    "AUDIT-FIND-W09-009",
+    "AUDIT-FIND-W09-002"
+  ],
+  "notes": "No media-policy or source-file behavior changes. A second genuine Local API cannot be used as a normal success-path fixture because the backend-instance lease correctly makes the Tauri-owned backend fail closed; the live selector-spoof test covers the historical concurrent matching-process hazard without violating that invariant. The audit's representative PG-1/PG-2 active-work/real-media validation remains an external gate, so this packet stays in progress until that evidence exists."
+}

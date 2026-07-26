@@ -245,7 +245,7 @@
     }
 
     function selectCompletedSizeEvidenceRow(item) {
-      const scrollSnapshot = captureCompletedReviewSelectionScroll();
+      const scrollSnapshot = captureSelectionScroll();
       state.selectedCompletedSizeEvidenceKey = item?.key || "";
       if (item?.completedRow?.row_key) {
         state.selectedCompletedRowKey = item.completedRow.row_key;
@@ -258,11 +258,11 @@
         renderCompletedFinalTrust(state.lastCompletedPayload, state.lastCompletedRows, state.lastCompletedPendingProofRows, state.lastCompletedPendingPayload);
         renderCompletedPilotEvidencePacket(state.lastCompletedPayload, state.lastCompletedRows, state.lastCompletedPendingProofRows, state.lastCompletedPendingPayload);
         renderCompletedRows();
-        restoreCompletedReviewSelectionScroll(scrollSnapshot);
+        restoreSelectionScroll(scrollSnapshot);
         return;
       }
       renderCompletedSizeEvidence(state.lastCompletedPayload, state.lastCompletedRows, state.lastCompletedPendingProofRows);
-      restoreCompletedReviewSelectionScroll(scrollSnapshot);
+      restoreSelectionScroll(scrollSnapshot);
     }
 
     function renderCompletedSizeEvidence(completed, rows, proofRows = state.lastCompletedPendingProofRows) {

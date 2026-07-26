@@ -190,9 +190,11 @@ def current_work_phase_label(progress: dict[str, Any]) -> str:
     status = _progress_text(progress, "Status").casefold()
     if stage in {"copy_to_scratch", "copy"}:
         return "Copying to scratch"
-    if stage in {"remux_prepare", "remux_mux", "remux_verify", "remux_av", "remux-mkvmerge", "remux"}:
+    if stage in {"encode_verify", "remux_verify"}:
+        return "Verification"
+    if stage in {"remux_prepare", "remux_mux", "remux_av", "remux-mkvmerge", "remux"}:
         return "Remuxing"
-    if stage in {"encode_prepare", "encode", "encode_cpu", "encode_verify"}:
+    if stage in {"encode_prepare", "encode", "encode_cpu"}:
         return "Encoding"
     if stage == "push":
         return "Publishing output"
@@ -209,11 +211,9 @@ def current_work_phase_label(progress: dict[str, Any]) -> str:
     if stage in {"idle", "sleeping"}:
         return "Idle"
     if status in {"processing", "running", "active"}:
-        route = _progress_text(progress, "CurrentRoute", "Route").casefold()
-        if route.startswith("remux"):
-            return "Remuxing"
-        if route.startswith("encode"):
-            return "Encoding"
+        # Route evidence describes the selected policy, not the stage that is
+        # currently executing. Without an explicit backend stage, retain only
+        # the generic working claim.
         return "Processing"
     return _display_word(stage or status) or "No active work"
 

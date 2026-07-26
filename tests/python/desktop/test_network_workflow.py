@@ -5,6 +5,7 @@ import sys
 import tempfile
 import threading
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from mediapipeline.tools.paths import find_repo_root
@@ -14,10 +15,12 @@ from unittest.mock import patch
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.network.cluster_log import format_cluster_log_line
+from mediapipeline.desktop.network import get_dispatcher
 from mediapipeline.desktop.network.coordinator import CoordinatorDispatcher, _CoordHandler
 from mediapipeline.desktop.network.coordinator_policy import compute_retry_after_seconds
 from mediapipeline.desktop.network.protocol import ClaimResponse, DoneRequest, LogEntryRequest
 from mediapipeline.desktop.network.registry import InFlightRegistry
+from mediapipeline.desktop.network.standalone import StandaloneDispatcher
 from mediapipeline.desktop.network.poll_policy import resolve_worker_wait_seconds
 from mediapipeline.desktop.network.worker import WorkerDispatcher
 
@@ -222,6 +225,252 @@ class WorkflowEnhancementTests(unittest.TestCase):
         self.assertTrue(events, "mark_done must emit a cluster_log event for local encodes")
         self.assertEqual(events[0]["event"], "job_completed_pending_publish")
         self.assertIn("pending/parked", events[0]["message"])
+
+    def test_local_completion_save_failure_restores_target_and_preserves_concurrent_state(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            state_path = Path(td) / "coordinator_inflight.json"
+            registry = InFlightRegistry()
+            for job_id, worker_id, source_path in (
+                ("job-target", "coord-pc", r"C:\Media\target.mkv"),
+                ("job-other", "worker-other", r"C:\Media\other.mkv"),
+            ):
+                self.assertTrue(
+                    registry.claim(
+                        job_id=job_id,
+                        worker_id=worker_id,
+                        worker_name=worker_id,
+                        source_path=source_path,
+                        encode_config={},
+                    )
+                )
+            registry.save(state_path)
+            original_save = registry.save
+            save_calls = 0
+
+            def fail_first_save(path: Path) -> None:
+                nonlocal save_calls
+                save_calls += 1
+                if save_calls == 1:
+                    self.assertIsNotNone(
+                        registry.complete("job-other", "worker-other", success=True)
+                    )
+                    self.assertTrue(
+                        registry.claim(
+                            job_id="job-new",
+                            worker_id="worker-new",
+                            worker_name="worker-new",
+                            source_path=r"C:\Media\new.mkv",
+                            encode_config={},
+                        )
+                    )
+                    raise OSError("injected local completion save failure")
+                original_save(path)
+
+            registry.save = fail_first_save  # type: ignore[method-assign]
+            scheduled: list[object] = []
+            events: list[dict[str, object]] = []
+            dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+            dispatcher._registry = registry
+            dispatcher._app = SimpleNamespace(
+                root=SimpleNamespace(after=lambda _delay, callback: scheduled.append(callback)),
+                queue_records=[SimpleNamespace(source_path=r"C:\Media\target.mkv")],
+            )
+            dispatcher._config = lambda: {}  # type: ignore[assignment]
+            dispatcher._inflight_state_path = lambda: state_path  # type: ignore[assignment]
+            dispatcher._remove_from_queue = lambda _source_path: None  # type: ignore[assignment]
+            dispatcher.log_cluster_event = lambda **kwargs: events.append(kwargs)  # type: ignore[assignment]
+            job = SimpleNamespace(
+                job_id="job-target",
+                worker_id="coord-pc",
+                record=SimpleNamespace(source_path=r"C:\Media\target.mkv"),
+            )
+
+            with self.assertRaisesRegex(RuntimeError, "registry save failed after done report"):
+                CoordinatorDispatcher.mark_done(dispatcher, job, success=True)
+
+            self.assertEqual(scheduled, [])
+            self.assertEqual(save_calls, 2)
+            with registry._lock:
+                self.assertEqual(set(registry._jobs), {"job-target", "job-new"})
+                self.assertEqual(registry.session_completed, 1)
+
+            restored = InFlightRegistry()
+            self.assertTrue(restored.load(state_path))
+            with restored._lock:
+                self.assertEqual(set(restored._jobs), {"job-target", "job-new"})
+                self.assertEqual(restored.session_completed, 1)
+
+    def test_local_network_rerun_save_failure_restores_claim_before_row_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            state_path = Path(td) / "coordinator_inflight.json"
+            registry = InFlightRegistry()
+            self.assertTrue(
+                registry.claim(
+                    job_id="job-rerun",
+                    worker_id="coord-pc",
+                    worker_name="coordinator",
+                    source_path=r"C:\Media\rerun.mkv",
+                    encode_config={},
+                    job_kind="csv_rerun_row",
+                    claim_metadata={
+                        "job_kind": "csv_rerun_row",
+                        "rerun_batch_id": "batch-1",
+                        "rerun_row_key": "row-1",
+                    },
+                )
+            )
+            registry.save(state_path)
+            original_save = registry.save
+            save_calls = 0
+
+            def fail_first_save(path: Path) -> None:
+                nonlocal save_calls
+                save_calls += 1
+                if save_calls == 1:
+                    raise OSError("injected local rerun save failure")
+                original_save(path)
+
+            registry.save = fail_first_save  # type: ignore[method-assign]
+            dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+            dispatcher._registry = registry
+            dispatcher._app = SimpleNamespace()
+            dispatcher._inflight_state_path = lambda: state_path  # type: ignore[assignment]
+            dispatcher.log_cluster_event = lambda **_kwargs: None  # type: ignore[assignment]
+            job = SimpleNamespace(
+                job_id="job-rerun",
+                worker_id="coord-pc",
+                record=SimpleNamespace(source_path=r"C:\Media\rerun.mkv"),
+            )
+
+            with patch(
+                "mediapipeline.desktop.network.coordinator_queue.update_network_rerun_row_done"
+            ) as update_row:
+                with self.assertRaisesRegex(
+                    RuntimeError,
+                    "registry save failed after local Network CSV rerun done",
+                ):
+                    CoordinatorDispatcher.mark_done(dispatcher, job, success=True)
+
+            update_row.assert_not_called()
+            self.assertEqual(save_calls, 2)
+            with registry._lock:
+                self.assertEqual(set(registry._jobs), {"job-rerun"})
+            restored = InFlightRegistry()
+            self.assertTrue(restored.load(state_path))
+            with restored._lock:
+                self.assertEqual(set(restored._jobs), {"job-rerun"})
+
+    def test_local_failed_completion_save_failure_restores_failure_ledger(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            state_path = Path(td) / "coordinator_inflight.json"
+            registry = InFlightRegistry()
+            self.assertTrue(
+                registry.claim(
+                    job_id="job-failed",
+                    worker_id="coord-pc",
+                    worker_name="coordinator",
+                    source_path=r"C:\Media\failed.mkv",
+                    encode_config={},
+                )
+            )
+            registry.save(state_path)
+            original_save = registry.save
+            save_calls = 0
+
+            def fail_first_save(path: Path) -> None:
+                nonlocal save_calls
+                save_calls += 1
+                if save_calls == 1:
+                    raise OSError("injected failed-outcome save failure")
+                original_save(path)
+
+            registry.save = fail_first_save  # type: ignore[method-assign]
+            dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+            dispatcher._registry = registry
+            dispatcher._app = SimpleNamespace(root=SimpleNamespace(after=lambda *_args: None))
+            dispatcher._config = lambda: {}  # type: ignore[assignment]
+            dispatcher._inflight_state_path = lambda: state_path  # type: ignore[assignment]
+            dispatcher._remove_from_queue = lambda _source_path: None  # type: ignore[assignment]
+            dispatcher.log_cluster_event = lambda **_kwargs: None  # type: ignore[assignment]
+            job = SimpleNamespace(
+                job_id="job-failed",
+                worker_id="coord-pc",
+                record=SimpleNamespace(source_path=r"C:\Media\failed.mkv"),
+            )
+
+            with self.assertRaisesRegex(RuntimeError, "registry save failed after done report"):
+                CoordinatorDispatcher.mark_done(
+                    dispatcher,
+                    job,
+                    success=False,
+                    error="synthetic encode failure",
+                    reason_code="ENCODE_ERROR",
+                )
+
+            with registry._lock:
+                self.assertEqual(set(registry._jobs), {"job-failed"})
+                self.assertEqual(registry.session_failed, 0)
+                self.assertEqual(registry._failure_ledger, {})
+            restored = InFlightRegistry()
+            self.assertTrue(restored.load(state_path))
+            with restored._lock:
+                self.assertEqual(set(restored._jobs), {"job-failed"})
+                self.assertEqual(restored.session_failed, 0)
+                self.assertEqual(restored._failure_ledger, {})
+
+    def test_local_network_rerun_row_conflict_restores_durable_claim(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            state_path = Path(td) / "coordinator_inflight.json"
+            registry = InFlightRegistry()
+            self.assertTrue(
+                registry.claim(
+                    job_id="job-rerun-conflict",
+                    worker_id="coord-pc",
+                    worker_name="coordinator",
+                    source_path=r"C:\Media\rerun-conflict.mkv",
+                    encode_config={},
+                    job_kind="csv_rerun_row",
+                    claim_metadata={"job_kind": "csv_rerun_row"},
+                )
+            )
+            registry.save(state_path)
+            save_calls = 0
+            original_save = registry.save
+
+            def count_save(path: Path) -> None:
+                nonlocal save_calls
+                save_calls += 1
+                original_save(path)
+
+            registry.save = count_save  # type: ignore[method-assign]
+            dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+            dispatcher._registry = registry
+            dispatcher._app = SimpleNamespace()
+            dispatcher._inflight_state_path = lambda: state_path  # type: ignore[assignment]
+            dispatcher.log_cluster_event = lambda **_kwargs: None  # type: ignore[assignment]
+            job = SimpleNamespace(
+                job_id="job-rerun-conflict",
+                worker_id="coord-pc",
+                record=SimpleNamespace(source_path=r"C:\Media\rerun-conflict.mkv"),
+            )
+
+            with patch(
+                "mediapipeline.desktop.network.coordinator_queue.update_network_rerun_row_done",
+                return_value=False,
+            ):
+                with self.assertRaisesRegex(
+                    RuntimeError,
+                    "Network rerun row completion compare-and-set was rejected",
+                ):
+                    CoordinatorDispatcher.mark_done(dispatcher, job, success=True)
+
+            self.assertEqual(save_calls, 2)
+            with registry._lock:
+                self.assertEqual(set(registry._jobs), {"job-rerun-conflict"})
+            restored = InFlightRegistry()
+            self.assertTrue(restored.load(state_path))
+            with restored._lock:
+                self.assertEqual(set(restored._jobs), {"job-rerun-conflict"})
 
     def test_http_done_failure_reason_propagates_to_registry_and_cluster_log(self) -> None:
         with tempfile.TemporaryDirectory() as td:
@@ -650,6 +899,9 @@ class WorkflowEnhancementTests(unittest.TestCase):
             def reclaim_stale(self, _timeout: float) -> list:
                 return []
 
+            def reclaimed_source_quarantine_snapshot(self) -> list[dict]:
+                return []
+
             def save(self, _path: Path) -> None:
                 raise RuntimeError("save denied")
 
@@ -693,6 +945,9 @@ class WorkflowEnhancementTests(unittest.TestCase):
                         source_path=r"C:\Media\stale.mkv",
                     )
                 ]
+
+            def reclaimed_source_quarantine_snapshot(self) -> list[dict]:
+                return []
 
             def save(self, path: Path) -> None:
                 self.saved.append(path)
@@ -1808,6 +2063,70 @@ class WorkflowEnhancementTests(unittest.TestCase):
         line = CoordinatorDispatcher._format_cluster_log_line(dispatcher, entry)
         # Coordinator-emitted entries shouldn't trail with a redundant tag.
         self.assertNotIn("worker_ts=", line)
+
+
+def _standalone_app_with_records(*sources: str) -> SimpleNamespace:
+    return SimpleNamespace(
+        resolved=SimpleNamespace(config_data={"NetworkRole": "standalone"}),
+        queue_records=[SimpleNamespace(source_path=source) for source in sources],
+        _machine_id="standalone-test",
+    )
+
+
+class StandaloneDispatcherTests(unittest.TestCase):
+    def test_claim_release_and_done_own_each_record_exactly_once(self) -> None:
+        app = _standalone_app_with_records("A.mkv", "B.mkv")
+        dispatcher = StandaloneDispatcher(app)
+
+        first = dispatcher.claim_next()
+        self.assertIsNotNone(first)
+        self.assertEqual([record.source_path for record in app.queue_records], ["B.mkv"])
+
+        dispatcher.release(first)  # type: ignore[arg-type]
+        dispatcher.release(first)  # type: ignore[arg-type]
+        self.assertEqual([record.source_path for record in app.queue_records], ["A.mkv", "B.mkv"])
+
+        claimed_again = dispatcher.claim_next()
+        self.assertIsNotNone(claimed_again)
+        dispatcher.mark_done(claimed_again, success=True)  # type: ignore[arg-type]
+        dispatcher.release(claimed_again)  # type: ignore[arg-type]
+        self.assertEqual([record.source_path for record in app.queue_records], ["B.mkv"])
+
+    def test_concurrent_factory_dispatchers_claim_unique_records(self) -> None:
+        app = _standalone_app_with_records("A.mkv", "B.mkv")
+        dispatchers = [get_dispatcher(app) for _ in range(8)]
+        barrier = threading.Barrier(len(dispatchers))
+
+        def claim(dispatcher: object) -> object:
+            barrier.wait()
+            return dispatcher.claim_next()  # type: ignore[attr-defined]
+
+        with ThreadPoolExecutor(max_workers=len(dispatchers)) as executor:
+            claims = list(executor.map(claim, dispatchers))
+
+        jobs = [job for job in claims if job is not None]
+        self.assertEqual(len(jobs), 2)
+        self.assertEqual(len({job.job_id for job in jobs}), 2)
+        self.assertEqual({job.record.source_path for job in jobs}, {"A.mkv", "B.mkv"})
+        self.assertEqual(app.queue_records, [])
+
+    def test_factory_instances_share_reservations_for_release_and_completion(self) -> None:
+        app = _standalone_app_with_records("A.mkv")
+        claimant = get_dispatcher(app)
+        reconciler = get_dispatcher(app)
+
+        first = claimant.claim_next()
+        self.assertIsInstance(claimant, StandaloneDispatcher)
+        self.assertIsInstance(reconciler, StandaloneDispatcher)
+        self.assertIsNotNone(first)
+
+        reconciler.release(first)  # type: ignore[arg-type]
+        restored = claimant.claim_next()
+        self.assertIsNotNone(restored)
+        reconciler.mark_done(restored, success=True)  # type: ignore[arg-type]
+        claimant.release(restored)  # type: ignore[arg-type]
+
+        self.assertEqual(app.queue_records, [])
 
 
 if __name__ == '__main__':

@@ -88,7 +88,27 @@
 
 
     function queueBlockedRows(rows) {
-      return (Array.isArray(rows) ? rows : []).filter((row) => row?.blocked_reason || row?.blocked_reason_code);
+      return (Array.isArray(rows) ? rows : []).filter((row) => queueBlockerEvidence(row).blocked);
+    }
+
+
+    function queueBlockerEvidence(row) {
+      const status = String(row?.status || row?.queue_status || row?.operator_status || "").trim().toLowerCase();
+      const code = String(row?.blocked_reason_code || row?.failure_code || "").trim();
+      const explicitReason = String(
+        row?.blocking_reason
+        || row?.blocked_reason
+        || row?.error
+        || row?.last_error
+        || ""
+      ).trim();
+      const failedStatus = status.includes("failed") || status.includes("blocked") || status.includes("error");
+      const blocked = Boolean(code || explicitReason || row?.blocked === true || failedStatus);
+      return {
+        blocked,
+        code: code || (failedStatus ? status.replace(/\s+/g, "_") : ""),
+        reason: explicitReason || (blocked ? "Backend reported blocked or failed work without a specific reason." : ""),
+      };
     }
 
 
@@ -157,8 +177,13 @@
       display.phase_counts = queueCountRowsBy(rows, "phase");
       display.media_type_counts = queueCountRowsBy(rows, "media_type");
       display.source_root_counts = queueCountRowsBy(rows, "source_root");
-      display.blocked_reason_code_counts = queueCountRowsBy(blockedRows, "blocked_reason_code");
-      display.blocked_reason_counts = queueCountRowsBy(blockedRows, "blocked_reason");
+      display.blocked_reason_code_counts = {};
+      display.blocked_reason_counts = {};
+      blockedRows.forEach((row) => {
+        const blocker = queueBlockerEvidence(row);
+        queueIncrementCount(display.blocked_reason_code_counts, blocker.code || "unspecified");
+        queueIncrementCount(display.blocked_reason_counts, blocker.reason || "Backend reported blocked or failed work without a specific reason.");
+      });
       display.queue_progress = queueDisplayProgressForVisibleRows(display, rows, hidden);
       return display;
     }
@@ -236,7 +261,10 @@
       const statuses = [progressStatus, ...bars.map((bar) => String(bar?.status || "").toLowerCase())].filter(Boolean);
       if (!statuses.length) return "Not loaded";
       if (statuses.includes("blocked")) return "Blocked";
-      if (statuses.includes("warning")) return "Review";
+      if (statuses.includes("warning")) {
+        const warnings = Array.isArray(queue?.warnings) ? queue.warnings.filter(Boolean) : [];
+        return queueSnapshotIsStale(queue) && !warnings.length ? "Age advisory" : "Review";
+      }
       if (statuses.includes("active")) return "Running";
       if (statuses.includes("complete")) return "Complete";
       if (statuses.includes("idle")) return "Idle";
@@ -289,6 +317,22 @@
     }
 
 
+    function queuePreviewTrustBlocker(queue) {
+      const fallback = queue?.queue_snapshot_fallback || {};
+      const consistency = queue?.queue_input_consistency || {};
+      const pendingHealth = queue?.pending_publish_index_health || {};
+      const pendingBackpressure = queue?.pending_publish_backpressure || {};
+      if (fallback.used === true) return `Cached fallback evidence: ${fallback.reason || "latest Queue scan failed"}`;
+      if (String(queue?.queue_snapshot_origin || "").toLowerCase() !== "dry_run") return "Snapshot is not a backend Queue dry-run.";
+      if (String(consistency.status || "").toLowerCase() !== "current") return "Queue policy inputs are not proven current.";
+      if (!String(queue?.queue_preview_request_id || "").trim()) return "Queue dry-run request ID is missing.";
+      if (!String(queue?.queue_plan_fingerprint || "").trim()) return "Queue plan fingerprint is missing.";
+      if (String(pendingHealth.status || "ready").toLowerCase() === "blocked") return "Pending-publish index health is blocked.";
+      if (pendingBackpressure.blocked === true) return `Pending-publish backpressure blocks launch: ${pendingBackpressure.block_reason || "threshold reached"}`;
+      return "";
+    }
+
+
     function renderQueueSummary(queue, rows) {
       const priorityRows = rows.filter((row) => row?.is_priority).length;
       const encodeRows = rows.filter((row) => String(row?.route_name || "").toLowerCase().includes("encode")).length;
@@ -312,6 +356,11 @@
         ...freshnessLines,
         freshnessLines.length ? "" : (queue.source ? `Source: ${queue.source}` : ""),
         queue.produced_at ? `Produced: ${queue.produced_at}` : "",
+        `Preview origin: ${queue.queue_snapshot_origin || "unknown"}; request: ${queue.queue_preview_request_id || "missing"}`,
+        `Queue input consistency: ${queue.queue_input_consistency?.status || "unknown"}; plan fingerprint: ${queue.queue_plan_fingerprint ? "present" : "missing"}`,
+        queue.queue_snapshot_fallback?.used ? `Cached fallback: yes - ${queue.queue_snapshot_fallback.reason || "latest scan failed"}` : "Cached fallback: no",
+        `Pending-publish index health: ${queue.pending_publish_index_health?.status || "unknown"}`,
+        queue.pending_publish_backpressure?.blocked ? `Pending-publish backpressure: blocked - ${queue.pending_publish_backpressure.block_reason || "threshold reached"}` : "Pending-publish backpressure: ready",
         freshnessLines.length ? "" : (queue.snapshot_file_freshness_status ? queueFreshnessLine("Snapshot file age", queue.snapshot_file_age_text, queue.snapshot_file_freshness_status, queue.snapshot_file_mtime_utc) : ""),
         queue.produced_freshness_status ? queueFreshnessLine("Produced age", queue.produced_age_text, queue.produced_freshness_status) : "",
         queue.config_path ? `Config: ${queue.config_path}` : "",
@@ -362,13 +411,13 @@
       const warnings = Array.isArray(queue?.warnings) ? queue.warnings.filter(Boolean) : [];
       const counts = queueCounts(queue || {}, rowList);
       if (queue?.error) return "Unavailable";
-      if (queueSnapshotIsStale(queue)) return "Snapshot stale";
+      if (queuePreviewTrustBlocker(queue)) return "Scan required";
       if (!counts.sourceCount && !rowList.length) return "No candidates";
       if (!rowList.length || counts.runnable <= 0) return "Empty";
       if (Number(queue?.invalid_row_count || 0) > 0 || counts.invalidRows > 0) return "Snapshot review";
       if (warnings.length) return "Warnings";
-      if (counts.priorityRows) return "Priority ready";
-      return "Ready";
+      if (counts.priorityRows) return queueSnapshotIsStale(queue) ? "Priority ready - age advisory" : "Priority ready";
+      return queueSnapshotIsStale(queue) ? "Ready - age advisory" : "Ready";
     }
 
 
@@ -377,6 +426,7 @@
       const rowList = Array.isArray(rows) ? rows : [];
       const warnings = Array.isArray(payload.warnings) ? payload.warnings.filter(Boolean) : [];
       const counts = queueCounts(payload, rowList);
+      const trustBlocker = queuePreviewTrustBlocker(payload);
       if (payload.error) {
         return [
           "Status: unavailable",
@@ -385,6 +435,7 @@
         ];
       }
       const lines = [
+        `Preview authority: origin=${payload.queue_snapshot_origin || "unknown"}; request=${payload.queue_preview_request_id || "missing"}; inputs=${payload.queue_input_consistency?.status || "unknown"}; fallback=${payload.queue_snapshot_fallback?.used === true ? "yes" : "no"}.`,
         `Source roots: movies=${payload.source_movies || "(none)"}; tv=${payload.source_tv || "(none)"}`,
         queueFreshnessLine("Snapshot file age", payload.snapshot_file_age_text, payload.snapshot_file_freshness_status, payload.snapshot_file_mtime_utc),
         queueFreshnessLine("Produced age", payload.produced_age_text, payload.produced_freshness_status),
@@ -412,8 +463,10 @@
         warnings.slice(0, 6).forEach((warning) => lines.push(`- ${warning}`));
       }
       lines.push("");
-      if (queueSnapshotIsStale(payload)) {
-        lines.push("Next step: refresh queue preview before launch; stale snapshots can hide newly completed, moved, or half-copied files.");
+      if (trustBlocker) {
+        lines.push(`Next step: resolve the listed blocker, then run Refresh Queue and wait for a successful backend dry-run. ${trustBlocker}`);
+      } else if (queueSnapshotIsStale(payload)) {
+        lines.push("Age advisory: this displayed preview may be old. Run Once rebuilds and fingerprint-verifies the queue before media dispatch; refresh only to update what is shown.");
       } else if (!counts.sourceCount && !rowList.length) {
         lines.push("Next step: verify Source roots/settings or run a fresh queue preview from Launch.");
       } else if (!rowList.length || counts.runnable <= 0) {
@@ -445,11 +498,10 @@
       const warnings = Array.isArray(payload.warnings) ? payload.warnings.filter(Boolean) : [];
       const counts = queueCounts(payload, rowList);
       if (payload.error) return "Diagnostics first";
-      if (queueSnapshotIsStale(payload)) return "Refresh queue";
       if (Number(payload.invalid_row_count || 0) > 0 || Number(payload.blocked_row_count || 0) > 0 || counts.invalidRows > 0) return "Review rows";
       if (!rowList.length && (counts.completedExcluded > 0 || Number(payload.excluded_row_count || 0) > 0)) return "Check exclusions";
       if (!rowList.length || counts.runnable <= 0) return "No launch";
-      if (warnings.length || payload.runtime_outcome_warning || Number((payload.runtime_outcome_freshness_counts || {}).stale || 0) > 0) return "Review context";
+      if (warnings.length || payload.runtime_outcome_warning) return "Review context";
       return "Launch path clear";
     }
 
@@ -474,16 +526,18 @@
       lines.push("");
       if (payload.error) {
         lines.push("Next step: open Diagnostics > State Artifact Summary, Queue Snapshot, Run Logs, and Last Stderr before launching work.");
-      } else if (queueSnapshotIsStale(payload)) {
-        lines.push("Next step: refresh the queue preview from Launch before starting a run. Stale queue data can hide completed outputs, moved files, or half-copied sources.");
       } else if (Number(payload.invalid_row_count || 0) > 0 || counts.invalidRows > 0 || Number(payload.blocked_row_count || 0) > 0) {
         lines.push("Next step: select the affected row, read Queue Diagnostics Cross-Links, then use Diagnostics > Queue Snapshot / Last Stderr / Active Jobs.");
       } else if (!rowList.length && (counts.completedExcluded > 0 || Number(payload.excluded_row_count || 0) > 0)) {
         lines.push("Next step: check Completed for manifest exclusions and Excluded Source Rows before assuming source files were missed.");
       } else if (!rowList.length || counts.runnable <= 0) {
         lines.push("Next step: do not launch from an empty queue. Check Source settings, Completed, schedule state, and Run Logs first.");
-      } else if (warnings.length || payload.runtime_outcome_warning || staleHistory > 0) {
+      } else if (queueSnapshotIsStale(payload)) {
+        lines.push("Age advisory: Run Once rebuilds and fingerprint-verifies the queue before media dispatch. Refresh only to update the displayed preview.");
+      } else if (warnings.length || payload.runtime_outcome_warning) {
         lines.push("Next step: review warnings and runtime-history context. If the selected row has a stale or failed outcome, use its diagnostics links before launch.");
+      } else if (staleHistory > 0) {
+        lines.push("Advisory: stale runtime history is context only and does not create a queue review state by itself.");
       } else {
         lines.push("Next step: queue context is coherent. Use Launch for the backend-owned start command when schedule/readiness allows.");
       }
@@ -515,6 +569,7 @@
       queueCountRowsByExtension,
       queueIsMovieRow,
       queueIsTvRow,
+      queueBlockerEvidence,
       queueBlockedRows,
       queueVisibleRunnableCount,
       queueDisplayPayloadForVisibleRows,

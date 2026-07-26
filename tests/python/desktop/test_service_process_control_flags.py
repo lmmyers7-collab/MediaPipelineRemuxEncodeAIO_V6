@@ -11,6 +11,7 @@ from mediapipeline.core.processes.control_flags import (
     read_control_flag_payload,
     remove_control_flag,
     write_control_flag,
+    write_stop_after_current_flag,
 )
 
 
@@ -35,6 +36,24 @@ class ServiceProcessControlFlagTests(unittest.TestCase):
 
         self.assertEqual(read_back, payload)
         self.assertFalse(flag_path.exists())
+
+    def test_stop_after_current_flag_requires_and_round_trips_backend_correlation(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            flag_path = Path(temp_dir) / "State" / "Pipeline" / "pipeline_stop_after_current.flag"
+
+            payload = write_stop_after_current_flag(
+                flag_path,
+                run_id="run-once-123",
+                target_pid=24680,
+                target_launch_id="launch-123",
+            )
+            read_back = read_control_flag_payload(flag_path)
+
+        self.assertEqual(read_back, payload)
+        self.assertEqual(payload["action"], "stop_after_current")
+        self.assertEqual(payload["run_id"], "run-once-123")
+        self.assertEqual(payload["target_pid"], 24680)
+        self.assertEqual(payload["target_launch_id"], "launch-123")
 
     def test_control_flag_age_prefers_created_at_when_present(self) -> None:
         created_at = (datetime.now().astimezone() - timedelta(seconds=30)).isoformat(timespec="seconds")

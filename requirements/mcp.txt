@@ -1,0 +1,2 @@
+# Local developer-only MCP server dependency. Keep out of production runtime dependencies.
+mcp>=1.27,<2

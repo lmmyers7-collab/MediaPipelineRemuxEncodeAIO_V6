@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import threading
 from pathlib import Path
+from typing import Any
 
 from .diagnostics import diagnostic_preview as _worker_diagnostic_preview
 from .dispatcher import ClaimedJob
@@ -18,9 +19,9 @@ _log = logging.getLogger("mediapipeline.desktop.network.worker")
 
 
 class WorkerClaimMixin:
-    def _request_abort_reclaimed_job(self, job: ClaimedJob) -> None:
+    def _request_abort_reclaimed_job(self, job: ClaimedJob) -> bool:
         """Ask the app callback scheduler to abort a job reclaimed by the coordinator."""
-        request_abort_reclaimed_job(
+        return request_abort_reclaimed_job(
             self.app,
             job,
             post_callback=self._post_app_callback,
@@ -28,19 +29,41 @@ class WorkerClaimMixin:
             diagnostic_preview=_worker_diagnostic_preview,
         )
 
-    def _release_unstartable_claim(self, claim: ClaimResponse, reason: str) -> None:
+    def _release_unstartable_claim(
+        self,
+        claim: ClaimResponse,
+        reason: str,
+        *,
+        http_context: tuple[str, str] | None = None,
+    ) -> None:
         """Release a claimed job that cannot be converted into local work."""
-        self._release_claim_identity(claim.job_id, claim.source_path, reason)
+        self._release_claim_identity(
+            claim.job_id,
+            claim.source_path,
+            reason,
+            http_context=http_context,
+        )
 
-    def _release_claim_identity(self, job_id: str, source_path: str, reason: str) -> None:
+    def _release_claim_identity(
+        self,
+        job_id: str,
+        source_path: str,
+        reason: str,
+        *,
+        http_context: tuple[str, str] | None = None,
+    ) -> None:
         """Release a claimed job when only its wire identity is trustworthy."""
         reason_preview = _worker_diagnostic_preview(reason)
         payload = build_release_done_request(job_id, self._worker_id).to_dict()
+        if http_context is not None:
+            self._register_claim_http_context(job_id, http_context)
         try:
-            self._http_post(
+            self._http_post_for_claim(
+                job_id,
                 "/api/done",
                 payload,
             )
+            self._forget_claim_http_context(job_id)
             self._notify_status(f"⚠ Released unstartable claim: {reason_preview[:80]}")
         except Exception as exc:
             failure_preview = _worker_diagnostic_preview(exc)
@@ -51,6 +74,7 @@ class WorkerClaimMixin:
                     job_id=job_id,
                     source_path=source_path,
                     pending_done_report=payload,
+                    **self._claim_http_context_evidence(job_id),
                 )
                 pending_saved = True
             except Exception as save_exc:
@@ -70,7 +94,13 @@ class WorkerClaimMixin:
             else:
                 self._notify_status(f"⚠ Could not release unstartable claim: {failure_preview[:80]}")
 
-    def _release_malformed_claim_response(self, resp: object, reason: str) -> bool:
+    def _release_malformed_claim_response(
+        self,
+        resp: object,
+        reason: str,
+        *,
+        http_context: tuple[str, str] | None = None,
+    ) -> bool:
         """Release an already-claimed job when the claim body cannot be parsed."""
         identity = malformed_claim_identity(resp)
         if identity is None:
@@ -90,7 +120,12 @@ class WorkerClaimMixin:
             job_id=job_id,
             source_path=source_path,
         )
-        self._release_claim_identity(job_id, source_path, f"malformed claim response: {reason_preview}")
+        self._release_claim_identity(
+            job_id,
+            source_path,
+            f"malformed claim response: {reason_preview}",
+            http_context=http_context,
+        )
         return True
 
     def _on_job_claimed(self, job: ClaimedJob) -> None:
@@ -184,7 +219,7 @@ class WorkerClaimMixin:
         report_accepted = False
         pending_report_saved = False
         try:
-            self._http_post("/api/done", payload)
+            self._http_post_for_claim(job.job_id, "/api/done", payload)
         except Exception as exc:
             reason_preview = _worker_diagnostic_preview(exc)
             _log.warning("POST /api/done (internal release) failed: %s", reason_preview)
@@ -192,6 +227,7 @@ class WorkerClaimMixin:
             self._notify_status(f"⚠ Release report failed: {reason_preview[:80]}")
         else:
             report_accepted = True
+            self._forget_claim_http_context(job.job_id)
             self._clear_worker_state_after_accepted_report(job.job_id, "internal release")
         if report_accepted:
             _log.info("Job %s internal release report accepted by coordinator.", job.job_id)
@@ -228,6 +264,7 @@ class WorkerClaimMixin:
         retry_on_failure: bool | None = None,
         reason_code: str | None = None,
         reason: str | None = None,
+        worker_result_artifact: dict[str, Any] | None = None,
         worker_result_artifact_path: str | None = None,
     ) -> None:
         """Report job completion to the coordinator and clean up local state."""
@@ -250,12 +287,13 @@ class WorkerClaimMixin:
             retry_on_failure=retry_on_failure,
             reason_code=reason_code,
             reason=reason,
+            worker_result_artifact=worker_result_artifact,
             worker_result_artifact_path=worker_result_artifact_path,
         ).to_dict()
         report_accepted = False
         pending_report_saved = False
         try:
-            self._http_post("/api/done", payload)
+            self._http_post_for_claim(job.job_id, "/api/done", payload)
         except Exception as exc:
             reason_preview = _worker_diagnostic_preview(exc)
             _log.warning("POST /api/done failed: %s", reason_preview)
@@ -263,6 +301,7 @@ class WorkerClaimMixin:
             self._notify_status(f"⚠ Done report failed: {reason_preview[:80]}")
         else:
             report_accepted = True
+            self._forget_claim_http_context(job.job_id)
             self._clear_worker_state_after_accepted_report(job.job_id, "done")
         if report_accepted:
             _log.info(
@@ -303,7 +342,7 @@ class WorkerClaimMixin:
         report_accepted = False
         pending_report_saved = False
         try:
-            self._http_post("/api/done", payload)
+            self._http_post_for_claim(job.job_id, "/api/done", payload)
         except Exception as exc:
             reason_preview = _worker_diagnostic_preview(exc)
             _log.warning("POST /api/done (release) failed: %s", reason_preview)
@@ -311,6 +350,7 @@ class WorkerClaimMixin:
             self._notify_status(f"⚠ Release report failed: {reason_preview[:80]}")
         else:
             report_accepted = True
+            self._forget_claim_http_context(job.job_id)
             self._clear_worker_state_after_accepted_report(job.job_id, "release")
         if report_accepted:
             _log.info("Job %s release report accepted by coordinator.", job.job_id)
