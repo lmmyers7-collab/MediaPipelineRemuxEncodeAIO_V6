@@ -3,11 +3,11 @@
   "id": "MP-CHANGE-2026-0728-029",
   "title": "Pin and require PowerShell static analysis",
   "version_target": "2026.06.04.001",
-  "status": "in_progress",
+  "status": "complete",
   "type": "tooling",
   "risk_level": "medium",
   "date_started": "2026-07-28",
-  "date_completed": null,
+  "date_completed": "2026-08-02",
   "summary": "Make PowerShell static analysis version-reproducible and fail closed when its required analyzer is unavailable.",
   "reason": "Batch 175 remediates P3/high AUDIT-FIND-W10-006. The Deep Audit and Phase 1 Drift workflows install an unpinned PSScriptAnalyzer, while the canonical checker reports success if no analyzer can be discovered.",
   "affected_areas": [
@@ -78,11 +78,11 @@
       "id": "windows_latest_canary",
       "description": "A windows-latest CI canary installs and runs the pinned analyzer successfully.",
       "required": true,
-      "outcome": "pending",
+      "outcome": "completed",
       "evidence": [
-        "Not run: the immutable finding requires GitHub's clean windows-latest runner. The change is intentionally uncommitted, so no remote workflow invocation can execute these worktree bytes without violating the explicit no-commit boundary.",
-        "Read-only GitHub verification found an authenticated workflow-capable gh session and active Deep Audit/Generated Drift workflows, but their remote YAML still contains the old unpinned Install-Module PSScriptAnalyzer command.",
-        "The local branch HEAD is 6528508e1161f3bb033c4d9ea2533c7aa6d5adf9 while origin/codex/audit-remediation-batches resolves to cff4f246f547ef0984e0e99d7b07e34ac44f3f07; dispatching that ref would not execute the uncommitted Batch 175 files."
+        "GitHub Actions Deep Audit run 30763029564 executed exact Batch 175 commit 2fbd7a0f9da068be0a6ba446fb3a7e17d726dacf on a clean windows-latest runner.",
+        "Generated context and guardrails job 91536852169 completed successfully at 2026-08-02T19:19:11Z; its Install PSScriptAnalyzer and Check engine PowerShell analysis steps both succeeded.",
+        "Hosted evidence: https://github.com/lmmyers7-collab/MediaPipelineRemuxEncodeAIO_V6/actions/runs/30763029564/job/91536852169"
       ]
     },
     {
@@ -105,5 +105,5 @@
     "AUDIT-FIND-W10-006",
     "MP-CHANGE-2026-0611-132"
   ],
-  "notes": "The exact 2,000-token context slice was run. The release-gate boundary and validation ladder were reviewed. This changes static-analysis provisioning/evidence only; it does not alter release package contents, media behavior, source/scratch/output paths, or runtime mutation. Representative real media is not required. Initial deterministic negative tests exposed that setting PSModulePath before PowerShell startup was insufficient because pwsh augmented it; the test now sets it after startup. Both independent reviews then found a real P2 command-shadowing gap in version-only discovery. The final isolated-root, absolute-manifest, official-GUID, unload, and command-origin design closes both same-version path and preloaded-command shadows, and both final reviews are clean. A first local release self-test attempt exceeded the calling harness's 120-second limit while its desktop suite was still running; a later short-yield invocation detached, completed its process tree, and produced no capturable outcome, so neither is recorded as passing evidence. The final 180-second postflight completed in 104.9 seconds and found only the unrelated DOC005 warning. Read-only GitHub inspection confirmed that the available hosted workflows still contain the old unpinned command and the remote remediation ref does not contain local HEAD or the uncommitted fix. The immutable finding's clean windows-latest canary remains the only required external gate, and no remote run can exercise uncommitted worktree bytes. Immutable evidence and unrelated dirty files were preserved; no commit was made."
+  "notes": "The exact 2,000-token context slice was run. The release-gate boundary and validation ladder were reviewed. This changes static-analysis provisioning/evidence only; it does not alter release package contents, media behavior, source/scratch/output paths, or runtime mutation. Representative real media is not required. Initial deterministic negative tests exposed that setting PSModulePath before PowerShell startup was insufficient because pwsh augmented it; the test now sets it after startup. Both independent reviews then found a real P2 command-shadowing gap in version-only discovery. The final isolated-root, absolute-manifest, official-GUID, unload, and command-origin design closes both same-version path and preloaded-command shadows, and both final reviews are clean. A first local release self-test attempt exceeded the calling harness's 120-second limit while its desktop suite was still running; a later short-yield invocation detached, completed its process tree, and produced no capturable outcome, so neither is recorded as passing evidence. The final 180-second postflight completed in 104.9 seconds and found only the unrelated DOC005 warning. After explicit authorization, Batch 175 was committed from an isolated clean worktree at 2fbd7a0f9da068be0a6ba446fb3a7e17d726dacf and pushed to codex/audit-remediation-batch-175-canary. Deep Audit run 30763029564 then proved the required clean windows-latest analyzer install and engine check in successful job 91536852169. Immutable evidence and unrelated dirty files were preserved."
 }
