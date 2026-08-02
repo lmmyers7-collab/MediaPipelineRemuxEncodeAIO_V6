@@ -76,7 +76,7 @@ jobs:
 
       - name: Install PSScriptAnalyzer
         shell: pwsh
-        run: Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
+        run: .\ops\scripts\dev\install_powershell_analysis.ps1
 
       - name: Check engine PowerShell analysis
         shell: pwsh

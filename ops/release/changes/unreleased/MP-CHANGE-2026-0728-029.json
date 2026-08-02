@@ -1,0 +1,109 @@
+{
+  "packet_schema_version": 2,
+  "id": "MP-CHANGE-2026-0728-029",
+  "title": "Pin and require PowerShell static analysis",
+  "version_target": "2026.06.04.001",
+  "status": "in_progress",
+  "type": "tooling",
+  "risk_level": "medium",
+  "date_started": "2026-07-28",
+  "date_completed": null,
+  "summary": "Make PowerShell static analysis version-reproducible and fail closed when its required analyzer is unavailable.",
+  "reason": "Batch 175 remediates P3/high AUDIT-FIND-W10-006. The Deep Audit and Phase 1 Drift workflows install an unpinned PSScriptAnalyzer, while the canonical checker reports success if no analyzer can be discovered.",
+  "affected_areas": [
+    "github-workflows",
+    "powershell-static-analysis",
+    "dependency-metadata",
+    "developer-tooling",
+    "tests",
+    "generated-context"
+  ],
+  "behavior_before": "CI resolves whichever PSScriptAnalyzer version the gallery currently serves, and analyzer absence is converted into a successful skip.",
+  "behavior_after": "Repository-owned metadata selects one approved analyzer version and GUID. CI saves it into a dedicated runner-temp root; the checker validates and imports that absolute manifest, rejects missing or mismatched identity, removes loaded namesakes, constrains command origin to the imported module, and otherwise fails before claiming analysis evidence.",
+  "files_touched": [
+    ".github/workflows/deep-audit.yml",
+    ".github/workflows/phase1-drift.yml",
+    "requirements/powershell-modules.psd1",
+    "ops/scripts/dev/install_powershell_analysis.ps1",
+    "ops/scripts/dev/check_powershell_analysis.ps1",
+    "tests/python/tooling/test_powershell_analysis_gate.py",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/DUPLICATE_TEST_NAMES.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/feature-cards",
+    "docs/generated/summaries",
+    "docs/generated/summaries/ops/scripts/dev/install_powershell_analysis.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0728-029.json.md",
+    "docs/generated/summaries/tests/python/tooling/test_powershell_analysis_gate.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0728-029.json"
+  ],
+  "tests_added": [
+    "Both required workflows invoke the repository-owned exact-version installer.",
+    "The installer and checker consume the same approved dependency manifest.",
+    "Analyzer absence, wrong-version availability, same-version path shadows, and preloaded namesakes fail closed or cannot intercept the isolated command.",
+    "The approved analyzer version runs against a disposable clean canary and the active engine."
+  ],
+  "manual_validation": [
+    "Run focused deterministic missing-analyzer and workflow-contract tests, then execute the pinned local analyzer against a disposable canary and the active engine.",
+    "The immutable finding requires a windows-latest release-validation canary; record it only if externally available without violating the no-commit boundary."
+  ],
+  "validation_gates": [
+    {
+      "id": "pinned_analyzer_contract",
+      "description": "Dependency metadata, both workflows, installer, and checker agree on one exact PSScriptAnalyzer version.",
+      "required": true,
+      "outcome": "completed",
+      "evidence": [
+        "requirements/powershell-modules.psd1 pins PSScriptAnalyzer 1.25.0, official GUID d6245802-193d-4068-a631-8863a4342a18, and PSGallery.",
+        "Both Windows workflows call install_powershell_analysis.ps1 before check_powershell_analysis.ps1; the installer uses Save-Module with the exact required version and repository into a dedicated RUNNER_TEMP-derived root.",
+        "A real isolated Save-Module run produced and identity-validated the pinned manifest under a unique external temp root."
+      ]
+    },
+    {
+      "id": "fail_closed_analysis",
+      "description": "Focused tests prove missing or mismatched analyzer availability is fatal and the approved analyzer runs successfully.",
+      "required": true,
+      "outcome": "completed",
+      "evidence": [
+        "The final focused workflow/analyzer set passed 16 tests and 4 subtests; the broader audit/workflow/AI set passed 28 tests and 18 subtests.",
+        "Deterministic negative coverage proves missing isolated manifests, wrong versions, and same-version PSModulePath shadows fail; a preloaded namesake cannot intercept the captured isolated command.",
+        "PowerShell parser checks passed for both scripts; Ruff passed the Python regression module.",
+        "The pinned isolated analyzer passed the active engine and both changed PowerShell scripts.",
+        "Independent final code and security reviews reported no remaining actionable P0-P3 finding."
+      ]
+    },
+    {
+      "id": "windows_latest_canary",
+      "description": "A windows-latest CI canary installs and runs the pinned analyzer successfully.",
+      "required": true,
+      "outcome": "pending",
+      "evidence": [
+        "Not run: the immutable finding requires GitHub's clean windows-latest runner. The change is intentionally uncommitted, so no remote workflow invocation can execute these worktree bytes without violating the explicit no-commit boundary.",
+        "Read-only GitHub verification found an authenticated workflow-capable gh session and active Deep Audit/Generated Drift workflows, but their remote YAML still contains the old unpinned Install-Module PSScriptAnalyzer command.",
+        "The local branch HEAD is 6528508e1161f3bb033c4d9ea2533c7aa6d5adf9 while origin/codex/audit-remediation-batches resolves to cff4f246f547ef0984e0e99d7b07e34ac44f3f07; dispatching that ref would not execute the uncommitted Batch 175 files."
+      ]
+    },
+    {
+      "id": "repository_validation",
+      "description": "Generated outputs, packet validation, strict coverage, postflight, and diff checks complete.",
+      "required": true,
+      "outcome": "completed",
+      "evidence": [
+        "All 2,653 source summaries are current with no orphans; project/dependency, feature-map/15-card, duplicate-test, and dependency-atlas checks are current.",
+        "Generated-context coverage passed 123 tests, 2 expected skips, and 82 subtests; risky-file/lifecycle/AI-guardrail coverage passed 16 tests and 6 subtests.",
+        "Change-packet JSON validation and strict worktree coverage passed with 1,324 packets.",
+        "The final long-timeout AI postflight completed every applicable gate and failed only for the explicitly unrelated pre-existing DOC005 at docs/reviews/comprehensive-production-audit-2026-07-19/evidence/BASELINE.md:15.",
+        "git diff --check exited 0 with 2,891 line-ending warnings and no non-warning diagnostics across 3,200 dirty entries.",
+        "Immutable FINDINGS.jsonl remained SHA-256 0827cd2c00c8bfb4565e3e309ba2f03bb200729ab9b830e52bd2d5fd420d8da7 and FREEZE_VERIFICATION.json retained generated_at 2026-07-21T18:23:51.813083+00:00."
+      ]
+    }
+  ],
+  "rollback_plan": "Revert the dependency manifest, installer/checker changes, workflow calls, focused tests, generated outputs, and this packet together. Do not restore a successful analyzer-absence skip in evidence-producing CI.",
+  "related_changes": [
+    "AUDIT-FIND-W10-006",
+    "MP-CHANGE-2026-0611-132"
+  ],
+  "notes": "The exact 2,000-token context slice was run. The release-gate boundary and validation ladder were reviewed. This changes static-analysis provisioning/evidence only; it does not alter release package contents, media behavior, source/scratch/output paths, or runtime mutation. Representative real media is not required. Initial deterministic negative tests exposed that setting PSModulePath before PowerShell startup was insufficient because pwsh augmented it; the test now sets it after startup. Both independent reviews then found a real P2 command-shadowing gap in version-only discovery. The final isolated-root, absolute-manifest, official-GUID, unload, and command-origin design closes both same-version path and preloaded-command shadows, and both final reviews are clean. A first local release self-test attempt exceeded the calling harness's 120-second limit while its desktop suite was still running; a later short-yield invocation detached, completed its process tree, and produced no capturable outcome, so neither is recorded as passing evidence. The final 180-second postflight completed in 104.9 seconds and found only the unrelated DOC005 warning. Read-only GitHub inspection confirmed that the available hosted workflows still contain the old unpinned command and the remote remediation ref does not contain local HEAD or the uncommitted fix. The immutable finding's clean windows-latest canary remains the only required external gate, and no remote run can exercise uncommitted worktree bytes. Immutable evidence and unrelated dirty files were preserved; no commit was made."
+}
