@@ -10,10 +10,12 @@ from pathlib import Path
 
 from mediapipeline.tools.dev.audit_sarif_provenance import (
     PROVENANCE_PROPERTY,
+    RULESET_DIGEST_KIND,
     compare_sarif_evidence,
     fetch_pinned_ruleset,
     main,
     normalized_sarif_digest,
+    ruleset_semantic_digest,
     stamp_sarif_provenance,
 )
 from mediapipeline.tools.paths import find_repo_root
@@ -61,18 +63,20 @@ def _sarif(*, scanner: str, version_field: str, version: str) -> dict[str, objec
 class AuditSarifProvenanceTests(unittest.TestCase):
     def test_fetch_pinned_ruleset_writes_only_exact_digest(self) -> None:
         content = b"rules:\n- id: pinned.example\n"
-        expected = hashlib.sha256(content).hexdigest()
+        expected, _ = ruleset_semantic_digest(content)
         with tempfile.TemporaryDirectory() as temp_dir:
             output = Path(temp_dir) / "rules.yml"
             evidence = fetch_pinned_ruleset(
                 source="https://semgrep.dev/c/p/default",
-                expected_sha256=expected,
+                expected_semantic_sha256=expected,
                 output=output,
                 opener=_opener(content),
             )
 
             self.assertEqual(output.read_bytes(), content)
-            self.assertEqual(evidence.sha256, expected)
+            self.assertEqual(evidence.semantic_sha256, expected)
+            self.assertEqual(evidence.raw_sha256, hashlib.sha256(content).hexdigest())
+            self.assertEqual(evidence.rule_count, 1)
             self.assertEqual(evidence.bytes_written, len(content))
 
     def test_fetch_digest_mismatch_preserves_existing_output(self) -> None:
@@ -80,15 +84,29 @@ class AuditSarifProvenanceTests(unittest.TestCase):
             output = Path(temp_dir) / "rules.yml"
             output.write_bytes(b"existing")
 
-            with self.assertRaisesRegex(ValueError, "SHA-256 mismatch"):
+            with self.assertRaisesRegex(ValueError, "semantic SHA-256 mismatch"):
                 fetch_pinned_ruleset(
                     source="https://semgrep.dev/c/p/default",
-                    expected_sha256="0" * 64,
+                    expected_semantic_sha256="0" * 64,
                     output=output,
-                    opener=_opener(b"different"),
+                    opener=_opener(b"rules:\n- id: different\n"),
                 )
 
             self.assertEqual(output.read_bytes(), b"existing")
+
+    def test_ruleset_semantic_digest_ignores_rule_order_only(self) -> None:
+        first = b"rules:\n- id: beta\n  message: B\n- id: alpha\n  message: A\n"
+        reordered = b"rules:\n- message: A\n  id: alpha\n- message: B\n  id: beta\n"
+        changed = b"rules:\n- id: alpha\n  message: changed\n- id: beta\n  message: B\n"
+
+        first_digest, first_count = ruleset_semantic_digest(first)
+        reordered_digest, reordered_count = ruleset_semantic_digest(reordered)
+        changed_digest, _ = ruleset_semantic_digest(changed)
+
+        self.assertEqual(first_digest, reordered_digest)
+        self.assertEqual(first_count, reordered_count)
+        self.assertEqual(first_count, 2)
+        self.assertNotEqual(first_digest, changed_digest)
 
     def test_stamp_sarif_records_verified_scanner_and_ruleset(self) -> None:
         payload = _sarif(
@@ -106,6 +124,7 @@ class AuditSarifProvenanceTests(unittest.TestCase):
                 expected_version="1.172.0",
                 ruleset_source="https://semgrep.dev/c/p/default",
                 ruleset_sha256="a" * 64,
+                ruleset_digest_kind=RULESET_DIGEST_KIND,
             )
 
             stamped = json.loads(sarif.read_text(encoding="utf-8"))
@@ -113,6 +132,7 @@ class AuditSarifProvenanceTests(unittest.TestCase):
             self.assertEqual(provenance["scanner"], "semgrep")
             self.assertEqual(provenance["scanner_version"], "1.172.0")
             self.assertEqual(provenance["ruleset_sha256"], "a" * 64)
+            self.assertEqual(provenance["ruleset_digest_kind"], RULESET_DIGEST_KIND)
             self.assertEqual(evidence.ruleset_source, "https://semgrep.dev/c/p/default")
 
     def test_stamp_version_mismatch_does_not_rewrite_sarif(self) -> None:
@@ -199,7 +219,7 @@ class AuditSarifProvenanceTests(unittest.TestCase):
         self.assertIn('RUFF_VERSION: "0.16.1"', workflow)
         self.assertIn('SEMGREP_VERSION: "1.172.0"', workflow)
         self.assertIn(
-            'SEMGREP_RULESET_SHA256: "dcfed68d8357bd5150f03cb6d72f5117884f0255fb6153d57ce9325ec8e9affa"',
+            'SEMGREP_RULESET_SEMANTIC_SHA256: "49f8c900fbeacc43c9069d2c2f0d02b1923148d6de08e1383e4e930508194e85"',
             workflow,
         )
         self.assertNotIn('ruff>=', workflow)
@@ -208,8 +228,10 @@ class AuditSarifProvenanceTests(unittest.TestCase):
         self.assertIn('ruff==${RUFF_VERSION}', workflow)
         self.assertIn('semgrep==${SEMGREP_VERSION}', workflow)
         self.assertIn("audit_sarif_provenance fetch-ruleset", workflow)
+        self.assertIn("--semantic-sha256", workflow)
         self.assertEqual(workflow.count("audit_sarif_provenance stamp-sarif"), 2)
         self.assertIn('--config "${RUNNER_TEMP}/semgrep-p-default.yml"', workflow)
+        self.assertIn("canonical-json-sorted-rules-v1", workflow)
         self.assertEqual(workflow.count("mediaPipelineAuditProvenance"), 2)
 
 

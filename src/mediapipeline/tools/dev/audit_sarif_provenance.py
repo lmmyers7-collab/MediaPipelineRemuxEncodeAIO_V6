@@ -14,15 +14,20 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, BinaryIO, Callable, ContextManager
 
+import yaml
+
 
 PROVENANCE_PROPERTY = "mediaPipelineAuditProvenance"
+RULESET_DIGEST_KIND = "canonical-json-sorted-rules-v1"
 SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 
 
 @dataclass(frozen=True)
 class RulesetEvidence:
     source: str
-    sha256: str
+    semantic_sha256: str
+    raw_sha256: str
+    rule_count: int
     bytes_written: int
 
 
@@ -32,6 +37,7 @@ class SarifProvenance:
     scanner_version: str
     ruleset_source: str | None = None
     ruleset_sha256: str | None = None
+    ruleset_digest_kind: str | None = None
 
 
 @dataclass(frozen=True)
@@ -89,14 +95,40 @@ def _atomic_write_bytes(path: Path, content: bytes) -> None:
             temp_path.unlink(missing_ok=True)
 
 
+def ruleset_semantic_digest(content: bytes) -> tuple[str, int]:
+    payload = yaml.safe_load(content)
+    if not isinstance(payload, dict) or set(payload) != {"rules"}:
+        raise ValueError("downloaded ruleset must contain only a rules array")
+    rules = payload.get("rules")
+    if not isinstance(rules, list) or not rules:
+        raise ValueError("downloaded ruleset rules must be a non-empty array")
+    rule_ids: list[str] = []
+    for rule in rules:
+        if not isinstance(rule, dict):
+            raise ValueError("each downloaded rule must be an object")
+        rule_id = rule.get("id")
+        if not isinstance(rule_id, str) or not rule_id:
+            raise ValueError("each downloaded rule must have a non-empty string id")
+        rule_ids.append(rule_id)
+    if len(set(rule_ids)) != len(rule_ids):
+        raise ValueError("downloaded ruleset contains duplicate rule ids")
+    canonical = json.dumps(
+        {"rules": sorted(rules, key=lambda rule: rule["id"])},
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest(), len(rules)
+
+
 def fetch_pinned_ruleset(
     *,
     source: str,
-    expected_sha256: str,
+    expected_semantic_sha256: str,
     output: Path,
     opener: UrlOpener = urllib.request.urlopen,
 ) -> RulesetEvidence:
-    expected = _normalized_sha256(expected_sha256)
+    expected = _normalized_sha256(expected_semantic_sha256)
     request = urllib.request.Request(
         source,
         headers={
@@ -106,18 +138,22 @@ def fetch_pinned_ruleset(
     )
     with opener(request, timeout=60) as response:
         content = response.read()
-    actual = hashlib.sha256(content).hexdigest()
-    if actual != expected:
+    raw_sha256 = hashlib.sha256(content).hexdigest()
+    semantic_sha256, rule_count = ruleset_semantic_digest(content)
+    if semantic_sha256 != expected:
         raise ValueError(
-            "downloaded ruleset SHA-256 mismatch: "
-            f"expected {expected}, resolved {actual}"
+            "downloaded ruleset semantic SHA-256 mismatch: "
+            f"expected {expected}, resolved {semantic_sha256} "
+            f"(raw SHA-256 {raw_sha256})"
         )
     if not content.strip():
         raise ValueError("downloaded ruleset is empty")
     _atomic_write_bytes(output, content)
     return RulesetEvidence(
         source=source,
-        sha256=actual,
+        semantic_sha256=semantic_sha256,
+        raw_sha256=raw_sha256,
+        rule_count=rule_count,
         bytes_written=len(content),
     )
 
@@ -145,9 +181,15 @@ def stamp_sarif_provenance(
     expected_version: str,
     ruleset_source: str | None = None,
     ruleset_sha256: str | None = None,
+    ruleset_digest_kind: str | None = None,
 ) -> SarifProvenance:
-    if (ruleset_source is None) != (ruleset_sha256 is None):
-        raise ValueError("ruleset source and SHA-256 must be supplied together")
+    ruleset_fields = (ruleset_source, ruleset_sha256, ruleset_digest_kind)
+    if any(value is None for value in ruleset_fields) and any(
+        value is not None for value in ruleset_fields
+    ):
+        raise ValueError(
+            "ruleset source, SHA-256, and digest kind must be supplied together"
+        )
     normalized_ruleset_sha = (
         _normalized_sha256(ruleset_sha256) if ruleset_sha256 is not None else None
     )
@@ -163,6 +205,7 @@ def stamp_sarif_provenance(
         scanner_version=expected_version,
         ruleset_source=ruleset_source,
         ruleset_sha256=normalized_ruleset_sha,
+        ruleset_digest_kind=ruleset_digest_kind,
     )
     serialized = {
         key: value
@@ -262,7 +305,7 @@ def main(argv: list[str] | None = None) -> int:
 
     fetch = subparsers.add_parser("fetch-ruleset")
     fetch.add_argument("--source", required=True)
-    fetch.add_argument("--sha256", required=True)
+    fetch.add_argument("--semantic-sha256", required=True)
     fetch.add_argument("--output", type=Path, required=True)
 
     stamp = subparsers.add_parser("stamp-sarif")
@@ -271,6 +314,7 @@ def main(argv: list[str] | None = None) -> int:
     stamp.add_argument("--expected-version", required=True)
     stamp.add_argument("--ruleset-source")
     stamp.add_argument("--ruleset-sha256")
+    stamp.add_argument("--ruleset-digest-kind")
 
     digest = subparsers.add_parser("digest-sarif")
     digest.add_argument("--sarif", type=Path, required=True)
@@ -283,7 +327,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "fetch-ruleset":
             evidence: RulesetEvidence | SarifProvenance | SarifDigest | SarifComparison = fetch_pinned_ruleset(
                 source=args.source,
-                expected_sha256=args.sha256,
+                expected_semantic_sha256=args.semantic_sha256,
                 output=args.output,
             )
         elif args.command == "stamp-sarif":
@@ -293,12 +337,19 @@ def main(argv: list[str] | None = None) -> int:
                 expected_version=args.expected_version,
                 ruleset_source=args.ruleset_source,
                 ruleset_sha256=args.ruleset_sha256,
+                ruleset_digest_kind=args.ruleset_digest_kind,
             )
         elif args.command == "digest-sarif":
             evidence = normalized_sarif_digest(args.sarif)
         else:
             evidence = compare_sarif_evidence(tuple(args.sarif))
-    except (OSError, UnicodeError, ValueError, json.JSONDecodeError) as exc:
+    except (
+        OSError,
+        UnicodeError,
+        ValueError,
+        json.JSONDecodeError,
+        yaml.YAMLError,
+    ) as exc:
         print(f"Audit SARIF provenance failed: {exc}", file=sys.stderr)
         return 1
     print(json.dumps(asdict(evidence), indent=2))
@@ -311,6 +362,7 @@ if __name__ == "__main__":
 
 __all__ = [
     "PROVENANCE_PROPERTY",
+    "RULESET_DIGEST_KIND",
     "RulesetEvidence",
     "SarifComparison",
     "SarifComparisonEntry",
@@ -320,5 +372,6 @@ __all__ = [
     "fetch_pinned_ruleset",
     "main",
     "normalized_sarif_digest",
+    "ruleset_semantic_digest",
     "stamp_sarif_provenance",
 ]

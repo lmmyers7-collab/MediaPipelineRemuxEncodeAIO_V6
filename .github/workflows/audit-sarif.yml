@@ -22,7 +22,7 @@ env:
   RUFF_VERSION: "0.16.1"
   SEMGREP_VERSION: "1.172.0"
   SEMGREP_RULESET_SOURCE: "https://semgrep.dev/c/p/default"
-  SEMGREP_RULESET_SHA256: "dcfed68d8357bd5150f03cb6d72f5117884f0255fb6153d57ce9325ec8e9affa"
+  SEMGREP_RULESET_SEMANTIC_SHA256: "49f8c900fbeacc43c9069d2c2f0d02b1923148d6de08e1383e4e930508194e85"
 
 jobs:
   ruff:
@@ -108,7 +108,7 @@ jobs:
           python ops/scripts/dev/run-python-tool.py
           mediapipeline.tools.dev.audit_sarif_provenance fetch-ruleset
           --source "${SEMGREP_RULESET_SOURCE}"
-          --sha256 "${SEMGREP_RULESET_SHA256}"
+          --semantic-sha256 "${SEMGREP_RULESET_SEMANTIC_SHA256}"
           --output "${RUNNER_TEMP}/semgrep-p-default.yml"
 
       - name: Run Semgrep
@@ -124,7 +124,8 @@ jobs:
           --scanner semgrep
           --expected-version "${SEMGREP_VERSION}"
           --ruleset-source "${SEMGREP_RULESET_SOURCE}"
-          --ruleset-sha256 "${SEMGREP_RULESET_SHA256}"
+          --ruleset-sha256 "${SEMGREP_RULESET_SEMANTIC_SHA256}"
+          --ruleset-digest-kind "canonical-json-sorted-rules-v1"
 
       - name: Summarize Semgrep SARIF
         if: always() && hashFiles('semgrep.sarif') != ''
@@ -139,7 +140,8 @@ jobs:
           print("### Semgrep SARIF")
           print(f"Scanner: `{provenance['scanner']} {provenance['scanner_version']}`")
           print(f"Ruleset source: `{provenance['ruleset_source']}`")
-          print(f"Ruleset SHA-256: `{provenance['ruleset_sha256']}`")
+          print(f"Ruleset digest: `{provenance['ruleset_digest_kind']}`")
+          print(f"Ruleset semantic SHA-256: `{provenance['ruleset_sha256']}`")
           print(f"Findings: {count}")
           PY
 
