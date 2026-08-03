@@ -8,7 +8,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-08-03
 last_reviewed: 2026-08-03
-sha256: f2be174831ddb5d8171d5d34e265a1b28c9029fa2b3ae0273c0801f42973ac88
+sha256: 53c9a40e160a79cfc65685794a3776d68a334fa5f1c22fc999e96bde93efe3b1
 ---
 # `tests/python/tooling/test_audit_sarif_provenance.py`
 
