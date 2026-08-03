@@ -50,15 +50,28 @@
 <!-- external_contracts_source_media_adapters -->
 <g id="node2" class="node">
 <title>external_contracts_source_media_adapters</title>
-<path fill="#f0fdf4" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M174.96,-67C174.96,-67 12,-67 12,-67 6,-67 0,-61 0,-55 0,-55 0,-43 0,-43 0,-37 6,-31 12,-31 12,-31 174.96,-31 174.96,-31 180.96,-31 186.96,-37 186.96,-43 186.96,-43 186.96,-55 186.96,-55 186.96,-61 180.96,-67 174.96,-67"/>
-<text xml:space="preserve" text-anchor="middle" x="93.48" y="-46.23" font-family="Segoe UI" font-size="12.00" fill="#111827">contracts/source_media_adapters</text>
+<path fill="#f0fdf4" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M174.96,-97C174.96,-97 12,-97 12,-97 6,-97 0,-91 0,-85 0,-85 0,-73 0,-73 0,-67 6,-61 12,-61 12,-61 174.96,-61 174.96,-61 180.96,-61 186.96,-67 186.96,-73 186.96,-73 186.96,-85 186.96,-85 186.96,-91 180.96,-97 174.96,-97"/>
+<text xml:space="preserve" text-anchor="middle" x="93.48" y="-76.22" font-family="Segoe UI" font-size="12.00" fill="#111827">contracts/source_media_adapters</text>
 </g>
 <!-- external_contracts_source_media_adapters&#45;&gt;mediapipeline_contracts_source_media_streams -->
 <g id="edge3" class="edge">
 <title>external_contracts_source_media_adapters&#45;&gt;mediapipeline_contracts_source_media_streams</title>
-<path fill="none" stroke="#64748b" stroke-width="1.05" stroke-dasharray="5,2" d="M187.21,-49C237.75,-49 299.72,-49 348.25,-49"/>
-<polygon fill="#64748b" stroke="#64748b" stroke-width="1.05" points="348.14,-51.28 354.64,-49 348.14,-46.73 348.14,-51.28"/>
-<text xml:space="preserve" text-anchor="middle" x="217.21" y="-53.2" font-family="Segoe UI" font-size="9.00" fill="#475569">1</text>
+<path fill="none" stroke="#64748b" stroke-width="1.05" stroke-dasharray="5,2" d="M187.21,-70.68C237.75,-66.15 299.72,-60.59 348.25,-56.24"/>
+<polygon fill="#64748b" stroke="#64748b" stroke-width="1.05" points="348.38,-58.51 354.65,-55.67 347.97,-53.98 348.38,-58.51"/>
+<text xml:space="preserve" text-anchor="middle" x="217.21" y="-72.21" font-family="Segoe UI" font-size="9.00" fill="#475569">1</text>
+</g>
+<!-- external_tools_dev -->
+<g id="node5" class="node">
+<title>external_tools_dev</title>
+<path fill="#f0fdf4" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M112.34,-36C112.34,-36 74.63,-36 74.63,-36 68.63,-36 62.63,-30 62.63,-24 62.63,-24 62.63,-12 62.63,-12 62.63,-6 68.63,0 74.63,0 74.63,0 112.34,0 112.34,0 118.34,0 124.34,-6 124.34,-12 124.34,-12 124.34,-24 124.34,-24 124.34,-30 118.34,-36 112.34,-36"/>
+<text xml:space="preserve" text-anchor="middle" x="93.48" y="-15.22" font-family="Segoe UI" font-size="12.00" fill="#111827">tools/dev</text>
+</g>
+<!-- external_tools_dev&#45;&gt;mediapipeline_contracts_source_media_streams -->
+<g id="edge4" class="edge">
+<title>external_tools_dev&#45;&gt;mediapipeline_contracts_source_media_streams</title>
+<path fill="none" stroke="#64748b" stroke-width="1.05" stroke-dasharray="5,2" d="M124.75,-20.81C174.87,-25.45 276.68,-34.89 348.69,-41.56"/>
+<polygon fill="#64748b" stroke="#64748b" stroke-width="1.05" points="348.17,-43.8 354.86,-42.13 348.59,-39.27 348.17,-43.8"/>
+<text xml:space="preserve" text-anchor="middle" x="217.21" y="-33.56" font-family="Segoe UI" font-size="9.00" fill="#475569">1</text>
 </g>
 </g>
 </svg>

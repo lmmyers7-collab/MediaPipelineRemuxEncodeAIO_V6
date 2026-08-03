@@ -678,7 +678,7 @@
 <title>external_core_api&#45;&gt;mediapipeline_core_queue_file_overrides</title>
 <path fill="none" stroke="#64748b" stroke-width="1.05" stroke-dasharray="5,2" d="M59.2,-776.18C61.29,-829.29 75.43,-984.67 168.21,-1052 246.89,-1109.1 309.29,-1056.87 372.17,-1131 393.46,-1156.1 416.18,-1392.51 432.67,-1421 496.36,-1530.98 536.56,-1547.03 646.38,-1611 766.69,-1681.09 803.7,-1712 942.95,-1712 942.95,-1712 942.95,-1712 1414.49,-1712 1738.53,-1712 1874.79,-1196.83 1902.79,-1073.36"/>
 <polygon fill="#64748b" stroke="#64748b" stroke-width="1.05" points="1905.01,-1073.87 1904.2,-1067.03 1900.57,-1072.88 1905.01,-1073.87"/>
-<text xml:space="preserve" text-anchor="middle" x="732.74" y="-1702.36" font-family="Segoe UI" font-size="9.00" fill="#475569">7</text>
+<text xml:space="preserve" text-anchor="middle" x="732.74" y="-1702.36" font-family="Segoe UI" font-size="9.00" fill="#475569">8</text>
 </g>
 <!-- external_core_api&#45;&gt;mediapipeline_core_queue_priority_manifest -->
 <g id="edge69" class="edge">

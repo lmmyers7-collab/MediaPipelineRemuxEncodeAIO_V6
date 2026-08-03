@@ -18,6 +18,12 @@ permissions:
   contents: read
   security-events: write
 
+env:
+  RUFF_VERSION: "0.16.1"
+  SEMGREP_VERSION: "1.172.0"
+  SEMGREP_RULESET_SOURCE: "https://semgrep.dev/c/p/default"
+  SEMGREP_RULESET_SHA256: "a7eb740a484688c0ba24668bb5fb7fc9a8ebc04c8eae982230d75f2ad9094bbc"
+
 jobs:
   ruff:
     name: Ruff SARIF
@@ -34,11 +40,20 @@ jobs:
           python-version: "3.11"
 
       - name: Install Ruff
-        run: python -m pip install "ruff>=0.15.20,<1"
+        run: python -m pip install "ruff==${RUFF_VERSION}"
 
       - name: Run Ruff
         continue-on-error: true
         run: ruff check --output-format=sarif --output-file=ruff.sarif .
+
+      - name: Stamp Ruff SARIF provenance
+        if: always() && hashFiles('ruff.sarif') != ''
+        run: >-
+          python ops/scripts/dev/run-python-tool.py
+          mediapipeline.tools.dev.audit_sarif_provenance stamp-sarif
+          --sarif ruff.sarif
+          --scanner ruff
+          --expected-version "${RUFF_VERSION}"
 
       - name: Summarize Ruff SARIF
         if: always() && hashFiles('ruff.sarif') != ''
@@ -49,7 +64,9 @@ jobs:
 
           data = json.loads(Path("ruff.sarif").read_text(encoding="utf-8"))
           count = sum(len(run.get("results", [])) for run in data.get("runs", []))
+          provenance = data["runs"][0]["properties"]["mediaPipelineAuditProvenance"]
           print("### Ruff SARIF")
+          print(f"Scanner: `{provenance['scanner']} {provenance['scanner_version']}`")
           print(f"Findings: {count}")
           PY
 
@@ -84,11 +101,30 @@ jobs:
           python-version: "3.11"
 
       - name: Install Semgrep
-        run: python -m pip install "semgrep>=1,<2"
+        run: python -m pip install "semgrep==${SEMGREP_VERSION}"
+
+      - name: Fetch pinned Semgrep ruleset
+        run: >-
+          python ops/scripts/dev/run-python-tool.py
+          mediapipeline.tools.dev.audit_sarif_provenance fetch-ruleset
+          --source "${SEMGREP_RULESET_SOURCE}"
+          --sha256 "${SEMGREP_RULESET_SHA256}"
+          --output "${RUNNER_TEMP}/semgrep-p-default.yml"
 
       - name: Run Semgrep
         continue-on-error: true
-        run: semgrep scan --config p/default --sarif --output semgrep.sarif .
+        run: semgrep scan --config "${RUNNER_TEMP}/semgrep-p-default.yml" --sarif --output semgrep.sarif .
+
+      - name: Stamp Semgrep SARIF provenance
+        if: always() && hashFiles('semgrep.sarif') != ''
+        run: >-
+          python ops/scripts/dev/run-python-tool.py
+          mediapipeline.tools.dev.audit_sarif_provenance stamp-sarif
+          --sarif semgrep.sarif
+          --scanner semgrep
+          --expected-version "${SEMGREP_VERSION}"
+          --ruleset-source "${SEMGREP_RULESET_SOURCE}"
+          --ruleset-sha256 "${SEMGREP_RULESET_SHA256}"
 
       - name: Summarize Semgrep SARIF
         if: always() && hashFiles('semgrep.sarif') != ''
@@ -99,7 +135,11 @@ jobs:
 
           data = json.loads(Path("semgrep.sarif").read_text(encoding="utf-8"))
           count = sum(len(run.get("results", [])) for run in data.get("runs", []))
+          provenance = data["runs"][0]["properties"]["mediaPipelineAuditProvenance"]
           print("### Semgrep SARIF")
+          print(f"Scanner: `{provenance['scanner']} {provenance['scanner_version']}`")
+          print(f"Ruleset source: `{provenance['ruleset_source']}`")
+          print(f"Ruleset SHA-256: `{provenance['ruleset_sha256']}`")
           print(f"Findings: {count}")
           PY
 

@@ -56,7 +56,7 @@ graph LR
   verify["verify"]
   watch["watch"]
   webview["webview"]
-  tests -->|374| scripts
+  tests -->|376| scripts
   tests -->|172| api
   tests -->|159| network
   tests -->|129| desktop
@@ -283,7 +283,7 @@ graph LR
 
 | From | To | Edges |
 |---|---|---|
-| tests | scripts | 374 |
+| tests | scripts | 376 |
 | tests | api | 172 |
 | tests | network | 159 |
 | tests | desktop | 129 |

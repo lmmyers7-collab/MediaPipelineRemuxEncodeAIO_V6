@@ -32,8 +32,8 @@ Validation: targeted tooling tests and generated-output --check modes
 - `src/mediapipeline/tools/dev/policy_proof_pack.py`: scripts authority.
 - `src/mediapipeline/tools/dev/ai_guardrail.py`: scripts authority.
 - `src/mediapipeline/tools/dev/audit_checks.py`: scripts authority.
+- `src/mediapipeline/tools/dev/audit_sarif_provenance.py`: scripts authority.
 - `src/mediapipeline/tools/dev/browser_smoke_inventory.py`: scripts authority.
-- `src/mediapipeline/tools/dev/check_active_doc_references.py`: scripts authority.
 
 ## Tests and validation
 
@@ -43,10 +43,10 @@ Validation: targeted tooling tests and generated-output --check modes
 - `tests/python/tooling/test_archive_completed_changes.py`
 - `tests/python/tooling/test_archive_doc_candidate_scan.py`
 - `tests/python/tooling/test_audit_checks.py`
+- `tests/python/tooling/test_audit_sarif_provenance.py`
 - `tests/python/tooling/test_autonomy_growth_snapshot.py`
-- `tests/python/tooling/test_autonomy_soak_tick.py`
 - Smallest validation rung: targeted tooling tests and generated-output --check modes.
 
 ## Secondary evidence
 
-Counts only (request explicitly when needed): test=55, documentation=1, generated=4, change_evidence=0, archive=0, runtime_artifact=0.
+Counts only (request explicitly when needed): test=56, documentation=1, generated=4, change_evidence=0, archive=0, runtime_artifact=0.

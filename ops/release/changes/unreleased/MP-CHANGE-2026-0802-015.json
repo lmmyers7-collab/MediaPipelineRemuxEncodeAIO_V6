@@ -1,0 +1,90 @@
+{
+  "packet_schema_version": 2,
+  "id": "MP-CHANGE-2026-0802-015",
+  "title": "Pin Audit SARIF scanner and ruleset evidence",
+  "version_target": "2026.06.04.001",
+  "status": "in_progress",
+  "type": "tooling",
+  "risk_level": "medium",
+  "date_started": "2026-08-02",
+  "date_completed": null,
+  "summary": "Pin Audit SARIF scanner versions and the downloaded Semgrep ruleset, then embed their identities in SARIF and job summaries.",
+  "reason": "Batch 190 remediates AUDIT-FIND-W10-008. Audit SARIF currently resolves broad scanner ranges and mutable p/default rules at run time, so repeated evidence for one commit is not attributable to fixed inputs.",
+  "affected_areas": [
+    "audit-sarif-workflow",
+    "scanner-provenance",
+    "semgrep-ruleset-integrity",
+    "developer-tooling",
+    "generated-context"
+  ],
+  "behavior_before": "The hosted lane installs ranged Ruff and Semgrep versions, scans directly with mutable p/default, and records no ruleset digest in SARIF provenance.",
+  "behavior_after": "The hosted lane installs exact scanner versions, downloads p/default only through a verified SHA-256 lock, and records scanner and ruleset identities in both SARIF and job-summary evidence.",
+  "files_touched": [
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0802-015.json",
+    ".github/workflows/audit-sarif.yml",
+    "src/mediapipeline/tools/dev/audit_sarif_provenance.py",
+    "tests/python/tooling/test_audit_sarif_provenance.py",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/DUPLICATE_TEST_NAMES.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/dependency-atlas",
+    "docs/generated/feature-cards",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0802-015.json.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/audit_sarif_provenance.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_audit_sarif_provenance.py.md"
+  ],
+  "tests_added": [
+    "Pinned ruleset download accepts only the exact SHA-256 and never replaces an existing output on mismatch.",
+    "SARIF stamping verifies the emitted scanner version and records deterministic scanner/ruleset provenance.",
+    "Workflow contract rejects version ranges, direct remote ruleset scans, missing digest verification, and missing summary provenance."
+  ],
+  "manual_validation": [
+    "Run focused provenance/audit tests, YAML parsing, Ruff, py_compile, exact remote ruleset digest preflight, generated checks, strict packet coverage, and git diff --check.",
+    "Rung 6 remains pending until the pinned workflow is committed, pushed, run twice at one SHA, and normalized SARIF/tool identities compare equal."
+  ],
+  "validation_gates": [
+    {
+      "id": "pinned_scanner_inputs",
+      "description": "Exact Ruff and Semgrep versions plus a SHA-256-verified Semgrep ruleset are enforced and recorded in SARIF/job-summary evidence.",
+      "required": true,
+      "outcome": "completed",
+      "evidence": [
+        "Audit SARIF installs exact Ruff 0.16.1 and Semgrep 1.172.0 versions; ranged installs and direct --config p/default scanning are absent.",
+        "The workflow fetches p/default through the provenance helper, accepts only SHA-256 a7eb740a484688c0ba24668bb5fb7fc9a8ebc04c8eae982230d75f2ad9094bbc, scans the verified RUNNER_TEMP file, verifies each emitted SARIF driver version, and stamps scanner/ruleset identity for summaries and artifacts.",
+        "The prior 3be957c1c0f470ba18cfc2082663d39589a714c60ae365f0c7bd66aaa04fc6c6 lock failed closed during isolated pre-push validation without writing output. Two fresh identity-encoded downloads were byte-identical at 2,423,491 bytes and the refreshed a7eb740a484688c0ba24668bb5fb7fc9a8ebc04c8eae982230d75f2ad9094bbc digest; the helper then fetched and wrote those exact bytes successfully.",
+        "Focused provenance and audit-workflow tests passed 15 tests; the revision-local focused plus required generated-context suite passed 52 tests."
+      ]
+    },
+    {
+      "id": "local_repository_validation",
+      "description": "Focused tooling, workflow parsing, generated outputs, packet coverage, immutable evidence, and diff checks complete.",
+      "required": true,
+      "outcome": "completed",
+      "evidence": [
+        "Bundled Ruff, py_compile, YAML parsing, and ops/scripts/dev/check-github-audit-spine.ps1 passed for the isolated Batch 190 revision.",
+        "All 2,546 isolated source summaries, project/dependency indexes, 15 feature cards, duplicate-test report, and 98 dependency-atlas detail diagrams were regenerated and reached current generator output.",
+        "Change-packet JSON validation and strict isolated-worktree coverage passed with 1,201 valid packets.",
+        "The full AI postflight passed every applicable generated-map, schema, dependency, architecture, naming, lifecycle, Office, risky-file, marketecture, and inventory gate and exited 1 only for the unrelated pre-existing DOC005 warning at docs/reviews/comprehensive-production-audit-2026-07-19/evidence/BASELINE.md:15.",
+        "The first isolated commit-hook audit suite passed 14 of 16 checks and additionally surfaced the clean-baseline unallowlisted NO_PACKAGE_CYCLES edge mediapipeline.core.processes -> mediapipeline.core.queue; Batch 190 adds no core or desktop import, so that dependency finding and DOC005 are unrelated. The isolated checkout initially lacked the ignored bundled-runtime path required by the Python-lint hook; an ignored junction to the primary bundled runtime restored that prerequisite for the retry.",
+        "git diff --check exited 0 with line-ending warnings only and zero diagnostics; the isolated index remained unstaged during validation.",
+        "Immutable FINDINGS.jsonl remained SHA-256 0827cd2c00c8bfb4565e3e309ba2f03bb200729ab9b830e52bd2d5fd420d8da7."
+      ]
+    },
+    {
+      "id": "hosted_same_commit_reproducibility",
+      "description": "Two hosted Audit SARIF runs at one committed revision report identical tool identities and normalized SARIF.",
+      "required": true,
+      "outcome": "pending",
+      "evidence": [
+        "Acceptance requires two Audit SARIF runs at the exact pushed Batch 190 head SHA, artifact download, and equality of audit_sarif_provenance digest-sarif output for each scanner including embedded provenance."
+      ]
+    }
+  ],
+  "rollback_plan": "Restore ranged scanner installs and direct p/default scanning, remove the provenance helper/tests, regenerate context, and revert this packet. No runtime or media behavior changes.",
+  "related_changes": [
+    "AUDIT-FIND-W10-008"
+  ],
+  "notes": "The exact 2,000-token context slice and no-touch boundary were read. This is release/audit evidence tooling, not release-package contents or media behavior; representative real media is not required. The validation rung is Rung 6 two-run audit-evidence comparison. The isolated Batch 190 canary intentionally excludes the earlier uncommitted AUDIT-FIND-W10-007 adjudication changes, their helper/tests, and all unrelated primary-worktree changes. Scanner pins remain Ruff 0.16.1 and Semgrep 1.172.0, matching successful scheduled Audit SARIF run 30741529429 on 2026-08-02. During isolated pre-push validation on 2026-08-03, the former p/default lock 3be957c1c0f470ba18cfc2082663d39589a714c60ae365f0c7bd66aaa04fc6c6 failed closed because the registry bytes had changed; two fresh identity-encoded downloads were byte-identical at 2,423,491 bytes and SHA-256 a7eb740a484688c0ba24668bb5fb7fc9a8ebc04c8eae982230d75f2ad9094bbc, which became the refreshed lock. The fetched config is written under RUNNER_TEMP so it cannot become a scan target. Python impact: developer audit tooling only. User authorization to commit and push Batch 190 was received on 2026-08-03; no manual workflow dispatch is authorized."
+}

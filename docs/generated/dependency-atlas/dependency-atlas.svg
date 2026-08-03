@@ -32,7 +32,7 @@
 <path fill="#dbeafe" stroke="#334155" stroke-width="1.2" d="M355.68,-1329.08C355.68,-1329.08 283.59,-1329.08 283.59,-1329.08 277.59,-1329.08 271.59,-1323.08 271.59,-1317.08 271.59,-1317.08 271.59,-1268 271.59,-1268 271.59,-1262 277.59,-1256 283.59,-1256 283.59,-1256 355.68,-1256 355.68,-1256 361.68,-1256 367.68,-1262 367.68,-1268 367.68,-1268 367.68,-1317.08 367.68,-1317.08 367.68,-1323.08 361.68,-1329.08 355.68,-1329.08"/>
 <text xml:space="preserve" text-anchor="middle" x="319.64" y="-1309.79" font-family="Segoe UI" font-size="15.00" fill="#111827">core/api</text>
 <text xml:space="preserve" text-anchor="middle" x="319.64" y="-1288.79" font-family="Segoe UI" font-size="15.00" fill="#111827">33 files</text>
-<text xml:space="preserve" text-anchor="middle" x="319.64" y="-1267.79" font-family="Segoe UI" font-size="15.00" fill="#111827">out 41 / in 4</text>
+<text xml:space="preserve" text-anchor="middle" x="319.64" y="-1267.79" font-family="Segoe UI" font-size="15.00" fill="#111827">out 42 / in 4</text>
 </g>
 <!-- core_config -->
 <g id="node6" class="node">
@@ -87,14 +87,14 @@
 <path fill="#dbeafe" stroke="#334155" stroke-width="1.2" d="M1366.76,-2108.08C1366.76,-2108.08 1286.42,-2108.08 1286.42,-2108.08 1280.42,-2108.08 1274.42,-2102.08 1274.42,-2096.08 1274.42,-2096.08 1274.42,-2047 1274.42,-2047 1274.42,-2041 1280.42,-2035 1286.42,-2035 1286.42,-2035 1366.76,-2035 1366.76,-2035 1372.76,-2035 1378.76,-2041 1378.76,-2047 1378.76,-2047 1378.76,-2096.08 1378.76,-2096.08 1378.76,-2102.08 1372.76,-2108.08 1366.76,-2108.08"/>
 <text xml:space="preserve" text-anchor="middle" x="1326.59" y="-2088.79" font-family="Segoe UI" font-size="15.00" fill="#111827">core/queue</text>
 <text xml:space="preserve" text-anchor="middle" x="1326.59" y="-2067.79" font-family="Segoe UI" font-size="15.00" fill="#111827">30 files</text>
-<text xml:space="preserve" text-anchor="middle" x="1326.59" y="-2046.79" font-family="Segoe UI" font-size="15.00" fill="#111827">out 26 / in 21</text>
+<text xml:space="preserve" text-anchor="middle" x="1326.59" y="-2046.79" font-family="Segoe UI" font-size="15.00" fill="#111827">out 26 / in 22</text>
 </g>
 <!-- core_api&#45;&gt;core_queue -->
-<g id="edge23" class="edge">
+<g id="edge15" class="edge">
 <title>core_api&#45;&gt;core_queue</title>
-<path fill="none" stroke="#64748b" stroke-width="4.7" d="M680.02,-2081.54C680.02,-2081.54 1096.89,-2075.08 1260.65,-2072.55"/>
-<polygon fill="#64748b" stroke="#64748b" stroke-width="4.7" points="1260.22,-2075.64 1267.67,-2072.44 1260.12,-2069.47 1260.22,-2075.64"/>
-<text xml:space="preserve" text-anchor="middle" x="788.94" y="-2085.65" font-family="Segoe UI" font-size="10.00" fill="#475569">9</text>
+<path fill="none" stroke="#64748b" stroke-width="5.1" d="M680.02,-2081.54C680.02,-2081.54 1096.05,-2075.1 1260.16,-2072.55"/>
+<polygon fill="#64748b" stroke="#64748b" stroke-width="5.1" points="1260.14,-2075.9 1267.59,-2072.44 1260.04,-2069.21 1260.14,-2075.9"/>
+<text xml:space="preserve" text-anchor="middle" x="788.94" y="-2085.65" font-family="Segoe UI" font-size="10.00" fill="#475569">10</text>
 </g>
 <!-- core_rename -->
 <g id="node23" class="node">
@@ -150,7 +150,7 @@
 <text xml:space="preserve" text-anchor="middle" x="1560.68" y="-1444.79" font-family="Segoe UI" font-size="15.00" fill="#111827">out 5 / in 127</text>
 </g>
 <!-- core_audit&#45;&gt;core_paths -->
-<g id="edge25" class="edge">
+<g id="edge26" class="edge">
 <title>core_audit&#45;&gt;core_paths</title>
 <path fill="none" stroke="#64748b" stroke-width="4.3" d="M1452.88,-1265.54C1452.88,-1265.54 1502.49,-1360.3 1534.08,-1420.66"/>
 <polygon fill="#64748b" stroke="#64748b" stroke-width="4.3" points="1531.53,-1421.85 1537.5,-1427.19 1536.53,-1419.23 1531.53,-1421.85"/>
@@ -196,7 +196,7 @@
 <text xml:space="preserve" text-anchor="middle" x="1560.68" y="-2093.79" font-family="Segoe UI" font-size="15.00" fill="#111827">out 2 / in 18</text>
 </g>
 <!-- core_completed&#45;&gt;core_observability -->
-<g id="edge15" class="edge">
+<g id="edge16" class="edge">
 <title>core_completed&#45;&gt;core_observability</title>
 <path fill="none" stroke="#64748b" stroke-width="5.1" d="M1379.96,-1991.55C1414.49,-2015.95 1459.92,-2048.05 1496.46,-2073.87"/>
 <polygon fill="#64748b" stroke="#64748b" stroke-width="5.1" points="1494.32,-2076.46 1502.38,-2078.05 1498.19,-2070.99 1494.32,-2076.46"/>
@@ -225,7 +225,7 @@
 <text xml:space="preserve" text-anchor="middle" x="1451.88" y="-1988.44" font-family="Segoe UI" font-size="10.00" fill="#475569">5</text>
 </g>
 <!-- core_config&#45;&gt;contracts_config -->
-<g id="edge26" class="edge">
+<g id="edge27" class="edge">
 <title>core_config&#45;&gt;contracts_config</title>
 <path fill="none" stroke="#64748b" stroke-width="4.3" d="M1160.5,-1352.97C1187.65,-1353.72 1221.4,-1354.66 1251.3,-1355.48"/>
 <polygon fill="#64748b" stroke="#64748b" stroke-width="4.3" points="1251.05,-1358.3 1258.63,-1355.69 1251.21,-1352.66 1251.05,-1358.3"/>
@@ -238,7 +238,7 @@
 <text xml:space="preserve" text-anchor="middle" x="1326.59" y="-1023.04" font-family="Segoe UI" font-size="10.00" fill="#475569">35</text>
 </g>
 <!-- core_config&#45;&gt;core_paths -->
-<g id="edge16" class="edge">
+<g id="edge17" class="edge">
 <title>core_config&#45;&gt;core_paths</title>
 <path fill="none" stroke="#64748b" stroke-width="5.1" d="M1144.69,-1388.52C1184.29,-1429.4 1242.54,-1489.54 1242.54,-1489.54 1242.54,-1489.54 1450.88,-1674.54 1450.88,-1674.54"/>
 <path fill="none" stroke="#64748b" stroke-width="5.1" d="M1452.88,-1674.54C1452.88,-1674.54 1502.49,-1579.31 1534.08,-1518.66"/>
@@ -334,7 +334,7 @@
 <text xml:space="preserve" text-anchor="middle" x="788.94" y="-1211.79" font-family="Segoe UI" font-size="15.00" fill="#111827">out 16 / in 1</text>
 </g>
 <!-- core_library&#45;&gt;core_config -->
-<g id="edge17" class="edge">
+<g id="edge18" class="edge">
 <title>core_library&#45;&gt;core_config</title>
 <path fill="none" stroke="#64748b" stroke-width="5.1" d="M837.55,-1250.37C904.84,-1269.92 1019.7,-1303.29 1019.7,-1303.29 1019.7,-1303.29 1029.88,-1308.93 1043.29,-1316.35"/>
 <polygon fill="#64748b" stroke="#64748b" stroke-width="5.1" points="1041.5,-1319.18 1049.68,-1319.88 1044.74,-1313.32 1041.5,-1319.18"/>
@@ -444,7 +444,7 @@
 <text xml:space="preserve" text-anchor="middle" x="788.94" y="-1320.59" font-family="Segoe UI" font-size="10.00" fill="#475569">9</text>
 </g>
 <!-- core_processes&#45;&gt;core_final_library -->
-<g id="edge27" class="edge">
+<g id="edge28" class="edge">
 <title>core_processes&#45;&gt;core_final_library</title>
 <path fill="none" stroke="#64748b" stroke-width="4.3" d="M581.65,-1083.52C604.36,-1124.4 637.77,-1184.54 637.77,-1184.54 637.77,-1184.54 673.77,-1665.54 673.77,-1665.54 673.77,-1665.54 720.27,-1757.54 720.27,-1757.54 720.27,-1757.54 857.61,-1831.54 857.61,-1831.54 857.61,-1831.54 870.81,-1840.16 887.52,-1851.06"/>
 <polygon fill="#64748b" stroke="#64748b" stroke-width="4.3" points="885.97,-1853.42 893.79,-1855.16 889.06,-1848.7 885.97,-1853.42"/>
@@ -508,7 +508,7 @@
 <text xml:space="preserve" text-anchor="middle" x="1451.88" y="-2101.2" font-family="Segoe UI" font-size="10.00" fill="#475569">4</text>
 </g>
 <!-- core_queue&#45;&gt;core_paths -->
-<g id="edge18" class="edge">
+<g id="edge19" class="edge">
 <title>core_queue&#45;&gt;core_paths</title>
 <path fill="none" stroke="#64748b" stroke-width="5.1" d="M1377.33,-2034.4C1395.02,-2021.2 1410.63,-2009.54 1410.63,-2009.54 1410.63,-2009.54 1446.63,-1840.29 1446.63,-1840.29 1446.63,-1840.29 1513.67,-1620.41 1544.5,-1519.31"/>
 <polygon fill="#64748b" stroke="#64748b" stroke-width="5.1" points="1547.61,-1520.58 1546.6,-1512.43 1541.21,-1518.63 1547.61,-1520.58"/>
@@ -566,7 +566,7 @@
 <text xml:space="preserve" text-anchor="middle" x="1451.88" y="-664.16" font-family="Segoe UI" font-size="10.00" fill="#475569">5</text>
 </g>
 <!-- core_sample_validation&#45;&gt;core_paths -->
-<g id="edge28" class="edge">
+<g id="edge29" class="edge">
 <title>core_sample_validation&#45;&gt;core_paths</title>
 <path fill="none" stroke="#64748b" stroke-width="4.3" d="M1349.84,-584.52C1374.44,-625.4 1410.63,-685.54 1410.63,-685.54 1410.63,-685.54 1446.63,-986.54 1446.63,-986.54 1446.63,-986.54 1518.99,-1295.73 1547.93,-1419.35"/>
 <polygon fill="#64748b" stroke="#64748b" stroke-width="4.3" points="1545.14,-1419.84 1549.6,-1426.5 1550.64,-1418.55 1545.14,-1419.84"/>
@@ -596,7 +596,7 @@
 <text xml:space="preserve" text-anchor="middle" x="1326.59" y="-1471.04" font-family="Segoe UI" font-size="10.00" fill="#475569">4</text>
 </g>
 <!-- core_status&#45;&gt;core_paths -->
-<g id="edge29" class="edge">
+<g id="edge30" class="edge">
 <title>core_status&#45;&gt;core_paths</title>
 <path fill="none" stroke="#64748b" stroke-width="4.3" d="M1160.44,-1706.81C1255.99,-1696.19 1450.88,-1674.54 1450.88,-1674.54"/>
 <text xml:space="preserve" text-anchor="middle" x="1326.59" y="-1702.33" font-family="Segoe UI" font-size="10.00" fill="#475569">8</text>
@@ -622,16 +622,16 @@
 <path fill="#dcfce7" stroke="#334155" stroke-width="1.2" d="M140.72,-867.08C140.72,-867.08 16.13,-867.08 16.13,-867.08 10.13,-867.08 4.13,-861.08 4.13,-855.08 4.13,-855.08 4.13,-806 4.13,-806 4.13,-800 10.13,-794 16.13,-794 16.13,-794 140.72,-794 140.72,-794 146.72,-794 152.72,-800 152.72,-806 152.72,-806 152.72,-855.08 152.72,-855.08 152.72,-861.08 146.72,-867.08 140.72,-867.08"/>
 <text xml:space="preserve" text-anchor="middle" x="78.42" y="-847.79" font-family="Segoe UI" font-size="15.00" fill="#111827">desktop/application</text>
 <text xml:space="preserve" text-anchor="middle" x="78.42" y="-826.79" font-family="Segoe UI" font-size="15.00" fill="#111827">23 files</text>
-<text xml:space="preserve" text-anchor="middle" x="78.42" y="-805.79" font-family="Segoe UI" font-size="15.00" fill="#111827">out 79 / in 4</text>
+<text xml:space="preserve" text-anchor="middle" x="78.42" y="-805.79" font-family="Segoe UI" font-size="15.00" fill="#111827">out 80 / in 4</text>
 </g>
 <!-- desktop_application&#45;&gt;core_config -->
-<g id="edge30" class="edge">
+<g id="edge31" class="edge">
 <title>desktop_application&#45;&gt;core_config</title>
 <path fill="none" stroke="#64748b" stroke-width="4.3" d="M196.47,-1166.54C196.47,-1166.54 234.09,-1177.54 234.09,-1177.54 234.09,-1177.54 441.18,-1189.54 441.18,-1189.54 441.18,-1189.54 446.43,-1189.54 446.43,-1189.54 446.43,-1189.54 787.94,-1144.54 787.94,-1144.54"/>
 <text xml:space="preserve" text-anchor="middle" x="560.1" y="-1189.21" font-family="Segoe UI" font-size="10.00" fill="#475569">8</text>
 </g>
 <!-- desktop_application&#45;&gt;core_kernel -->
-<g id="edge31" class="edge">
+<g id="edge32" class="edge">
 <title>desktop_application&#45;&gt;core_kernel</title>
 <path fill="none" stroke="#64748b" stroke-width="4.3" d="M1202.29,-346.54C1202.29,-346.54 1325.59,-346.54 1325.59,-346.54"/>
 <path fill="none" stroke="#64748b" stroke-width="4.3" d="M1327.59,-346.54C1327.59,-346.54 1410.63,-383.54 1410.63,-383.54 1410.63,-383.54 1500.65,-619.09 1540.77,-724.07"/>
@@ -649,7 +649,7 @@
 <text xml:space="preserve" text-anchor="middle" x="679.02" y="-554.94" font-family="Segoe UI" font-size="10.00" fill="#475569">7</text>
 </g>
 <!-- desktop_application&#45;&gt;core_processes -->
-<g id="edge19" class="edge">
+<g id="edge20" class="edge">
 <title>desktop_application&#45;&gt;core_processes</title>
 <path fill="none" stroke="#64748b" stroke-width="5.1" d="M196.47,-1166.54C196.47,-1166.54 384.55,-1104.3 489.81,-1069.47"/>
 <polygon fill="#64748b" stroke="#64748b" stroke-width="5.1" points="490.83,-1072.66 496.9,-1067.12 488.72,-1066.3 490.83,-1072.66"/>
@@ -657,7 +657,7 @@
 <text xml:space="preserve" text-anchor="middle" x="319.64" y="-1158.81" font-family="Segoe UI" font-size="10.00" fill="#475569">10</text>
 </g>
 <!-- desktop_application&#45;&gt;core_sample_validation -->
-<g id="edge20" class="edge">
+<g id="edge21" class="edge">
 <title>desktop_application&#45;&gt;core_sample_validation</title>
 <path fill="none" stroke="#64748b" stroke-width="5.1" d="M561.1,-389.54C561.1,-389.54 1019.7,-412.54 1019.7,-412.54 1019.7,-412.54 1139.86,-465.57 1229.56,-505.16"/>
 <polygon fill="#64748b" stroke="#64748b" stroke-width="5.1" points="1228.06,-508.16 1236.28,-508.12 1230.77,-502.03 1228.06,-508.16"/>
@@ -669,14 +669,14 @@
 <path fill="#dcfce7" stroke="#334155" stroke-width="1.2" d="M371.81,-867.08C371.81,-867.08 267.47,-867.08 267.47,-867.08 261.47,-867.08 255.47,-861.08 255.47,-855.08 255.47,-855.08 255.47,-806 255.47,-806 255.47,-800 261.47,-794 267.47,-794 267.47,-794 371.81,-794 371.81,-794 377.81,-794 383.81,-800 383.81,-806 383.81,-806 383.81,-855.08 383.81,-855.08 383.81,-861.08 377.81,-867.08 371.81,-867.08"/>
 <text xml:space="preserve" text-anchor="middle" x="319.64" y="-847.79" font-family="Segoe UI" font-size="15.00" fill="#111827">desktop/network</text>
 <text xml:space="preserve" text-anchor="middle" x="319.64" y="-826.79" font-family="Segoe UI" font-size="15.00" fill="#111827">55 files</text>
-<text xml:space="preserve" text-anchor="middle" x="319.64" y="-805.79" font-family="Segoe UI" font-size="15.00" fill="#111827">out 39 / in 8</text>
+<text xml:space="preserve" text-anchor="middle" x="319.64" y="-805.79" font-family="Segoe UI" font-size="15.00" fill="#111827">out 39 / in 9</text>
 </g>
 <!-- desktop_application&#45;&gt;desktop_network -->
-<g id="edge32" class="edge">
+<g id="edge25" class="edge">
 <title>desktop_application&#45;&gt;desktop_network</title>
-<path fill="none" stroke="#64748b" stroke-width="4.3" d="M153.14,-830.54C181.22,-830.54 213.28,-830.54 241.65,-830.54"/>
-<polygon fill="#64748b" stroke="#64748b" stroke-width="4.3" points="241.64,-833.36 249.14,-830.54 241.64,-827.72 241.64,-833.36"/>
-<text xml:space="preserve" text-anchor="middle" x="195.47" y="-835.29" font-family="Segoe UI" font-size="10.00" fill="#475569">8</text>
+<path fill="none" stroke="#64748b" stroke-width="4.7" d="M153.14,-830.54C181.22,-830.54 213.28,-830.54 241.65,-830.54"/>
+<polygon fill="#64748b" stroke="#64748b" stroke-width="4.7" points="241.57,-833.62 249.07,-830.54 241.57,-827.46 241.57,-833.62"/>
+<text xml:space="preserve" text-anchor="middle" x="195.47" y="-835.29" font-family="Segoe UI" font-size="10.00" fill="#475569">9</text>
 </g>
 <!-- desktop_config_keys -->
 <g id="node31" class="node">
@@ -695,7 +695,7 @@
 <text xml:space="preserve" text-anchor="middle" x="1326.59" y="-229.79" font-family="Segoe UI" font-size="15.00" fill="#111827">out 10 / in 0</text>
 </g>
 <!-- desktop_contracts&#45;&gt;core_kernel -->
-<g id="edge21" class="edge">
+<g id="edge22" class="edge">
 <title>desktop_contracts&#45;&gt;core_kernel</title>
 <path fill="none" stroke="#64748b" stroke-width="5.1" d="M1394.63,-280.29C1426.24,-292.43 1457.13,-304.29 1457.13,-304.29 1457.13,-304.29 1522.33,-602.66 1548.75,-723.56"/>
 <polygon fill="#64748b" stroke="#64748b" stroke-width="5.1" points="1545.42,-723.99 1550.29,-730.61 1551.96,-722.56 1545.42,-723.99"/>
@@ -791,7 +791,7 @@
 <text xml:space="preserve" text-anchor="middle" x="788.94" y="-1861.79" font-family="Segoe UI" font-size="15.00" fill="#111827">out 0 / in 65</text>
 </g>
 <!-- tools_change_control&#45;&gt;tools_paths -->
-<g id="edge22" class="edge">
+<g id="edge23" class="edge">
 <title>tools_change_control&#45;&gt;tools_paths</title>
 <path fill="none" stroke="#64748b" stroke-width="5.1" d="M638.21,-1922.84C667.22,-1915.81 699.77,-1907.92 727.09,-1901.29"/>
 <polygon fill="#64748b" stroke="#64748b" stroke-width="5.1" points="727.87,-1904.55 734.37,-1899.53 726.29,-1898.04 727.87,-1904.55"/>
@@ -802,8 +802,8 @@
 <title>tools_dev</title>
 <path fill="#dcfce7" stroke="#334155" stroke-width="1.2" d="M596.15,-1869.08C596.15,-1869.08 524.06,-1869.08 524.06,-1869.08 518.06,-1869.08 512.06,-1863.08 512.06,-1857.08 512.06,-1857.08 512.06,-1808 512.06,-1808 512.06,-1802 518.06,-1796 524.06,-1796 524.06,-1796 596.15,-1796 596.15,-1796 602.15,-1796 608.15,-1802 608.15,-1808 608.15,-1808 608.15,-1857.08 608.15,-1857.08 608.15,-1863.08 602.15,-1869.08 596.15,-1869.08"/>
 <text xml:space="preserve" text-anchor="middle" x="560.1" y="-1849.79" font-family="Segoe UI" font-size="15.00" fill="#111827">tools/dev</text>
-<text xml:space="preserve" text-anchor="middle" x="560.1" y="-1828.79" font-family="Segoe UI" font-size="15.00" fill="#111827">49 files</text>
-<text xml:space="preserve" text-anchor="middle" x="560.1" y="-1807.79" font-family="Segoe UI" font-size="15.00" fill="#111827">out 56 / in 0</text>
+<text xml:space="preserve" text-anchor="middle" x="560.1" y="-1828.79" font-family="Segoe UI" font-size="15.00" fill="#111827">50 files</text>
+<text xml:space="preserve" text-anchor="middle" x="560.1" y="-1807.79" font-family="Segoe UI" font-size="15.00" fill="#111827">out 57 / in 0</text>
 </g>
 <!-- tools_dev&#45;&gt;core_diagnostics -->
 <g id="edge56" class="edge">

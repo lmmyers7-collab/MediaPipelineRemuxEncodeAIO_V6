@@ -13,6 +13,7 @@ core/diagnostics,core/status,12
 core/completed,core/kernel,11
 core/rename,core/kernel,11
 core/repair_reconcile,core/kernel,11
+core/api,core/queue,10
 core/completed,core/observability,10
 core/config,core/paths,10
 core/library,core/config,10
@@ -21,8 +22,8 @@ desktop/application,core/processes,10
 desktop/application,core/sample_validation,10
 desktop/contracts,core/kernel,10
 tools/change_control,tools/paths,10
-core/api,core/queue,9
 core/processes,core/config,9
+desktop/application,desktop/network,9
 core/audit,core/paths,8
 core/config,contracts/config,8
 core/processes,core/final_library,8
@@ -30,7 +31,6 @@ core/sample_validation,core/paths,8
 core/status,core/paths,8
 desktop/application,core/config,8
 desktop/application,core/kernel,8
-desktop/application,desktop/network,8
 core/api,core/config,7
 core/api,core/kernel,7
 core/audit,core/kernel,7
@@ -337,6 +337,7 @@ tools/change_control,tools/release_identity,1
 tools/dev,contracts/config,1
 tools/dev,contracts/lifecycle,1
 tools/dev,contracts/run_monitor,1
+tools/dev,contracts/source_media_streams,1
 tools/dev,contracts/stages,1
 tools/dev,core/observability,1
 tools/dev,core/rename,1

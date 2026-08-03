@@ -148,6 +148,7 @@ mediapipeline.core.api.file_overrides.route_preview,mediapipeline.core.kernel.co
 mediapipeline.core.api.file_overrides.route_preview,mediapipeline.core.queue.file_overrides,src/mediapipeline/core/api/file_overrides/route_preview.py,src/mediapipeline/core/queue/file_overrides.py
 mediapipeline.core.api.file_overrides.selectors,mediapipeline.core.api.file_overrides.results,src/mediapipeline/core/api/file_overrides/selectors.py,src/mediapipeline/core/api/file_overrides/results.py
 mediapipeline.core.api.file_overrides.selectors,mediapipeline.core.api.file_overrides.tracks,src/mediapipeline/core/api/file_overrides/selectors.py,src/mediapipeline/core/api/file_overrides/tracks.py
+mediapipeline.core.api.file_overrides.selectors,mediapipeline.core.queue.file_overrides,src/mediapipeline/core/api/file_overrides/selectors.py,src/mediapipeline/core/queue/file_overrides.py
 mediapipeline.core.api.file_overrides.series,mediapipeline.core.api.file_overrides.results,src/mediapipeline/core/api/file_overrides/series.py,src/mediapipeline/core/api/file_overrides/results.py
 mediapipeline.core.api.file_overrides.series,mediapipeline.core.queue.file_overrides,src/mediapipeline/core/api/file_overrides/series.py,src/mediapipeline/core/queue/file_overrides.py
 mediapipeline.core.api.file_overrides.tracks,mediapipeline.contracts.source_media,src/mediapipeline/core/api/file_overrides/tracks.py,src/mediapipeline/contracts/source_media.py
@@ -1737,6 +1738,7 @@ mediapipeline.desktop.application.network_lifecycle_provider,mediapipeline.deskt
 mediapipeline.desktop.application.network_lifecycle_provider,mediapipeline.desktop.network.processing_policy,src/mediapipeline/desktop/application/network_lifecycle_provider.py,src/mediapipeline/desktop/network/processing_policy.py
 mediapipeline.desktop.application.network_lifecycle_provider,mediapipeline.desktop.network.registry,src/mediapipeline/desktop/application/network_lifecycle_provider.py,src/mediapipeline/desktop/network/registry.py
 mediapipeline.desktop.application.network_lifecycle_provider,mediapipeline.desktop.network.worker,src/mediapipeline/desktop/application/network_lifecycle_provider.py,src/mediapipeline/desktop/network/worker.py
+mediapipeline.desktop.application.network_lifecycle_provider,mediapipeline.desktop.network.worker_state,src/mediapipeline/desktop/application/network_lifecycle_provider.py,src/mediapipeline/desktop/network/worker_state.py
 mediapipeline.desktop.application.runtime_outcomes,mediapipeline.core.observability.runtime_outcomes,src/mediapipeline/desktop/application/runtime_outcomes.py,src/mediapipeline/core/observability/runtime_outcomes.py
 mediapipeline.desktop.application.sample_validation,mediapipeline.desktop.application.sample_validation.evidence,src/mediapipeline/desktop/application/sample_validation/__init__.py,src/mediapipeline/desktop/application/sample_validation/evidence.py
 mediapipeline.desktop.application.sample_validation,mediapipeline.desktop.application.sample_validation.log_payload,src/mediapipeline/desktop/application/sample_validation/__init__.py,src/mediapipeline/desktop/application/sample_validation/log_payload.py
@@ -2105,6 +2107,7 @@ mediapipeline.tools.dev.generate_webview_inventory_docs,mediapipeline.tools.path
 mediapipeline.tools.dev.materialize_tdarr_test_library,mediapipeline.tools.paths,src/mediapipeline/tools/dev/materialize_tdarr_test_library.py,src/mediapipeline/tools/paths.py
 mediapipeline.tools.dev.performance_benchmark,mediapipeline.core.observability.performance,src/mediapipeline/tools/dev/performance_benchmark.py,src/mediapipeline/core/observability/performance.py
 mediapipeline.tools.dev.performance_benchmark,mediapipeline.tools.paths,src/mediapipeline/tools/dev/performance_benchmark.py,src/mediapipeline/tools/paths.py
+mediapipeline.tools.dev.policy_proof_pack,mediapipeline.contracts.source_media_streams,src/mediapipeline/tools/dev/policy_proof_pack.py,src/mediapipeline/contracts/source_media_streams.py
 mediapipeline.tools.dev.policy_proof_pack,mediapipeline.tools.dev.materialize_tdarr_test_library,src/mediapipeline/tools/dev/policy_proof_pack.py,src/mediapipeline/tools/dev/materialize_tdarr_test_library.py
 mediapipeline.tools.dev.policy_proof_pack,mediapipeline.tools.dev.tdarr_matrix_audit,src/mediapipeline/tools/dev/policy_proof_pack.py,src/mediapipeline/tools/dev/tdarr_matrix_audit.py
 mediapipeline.tools.dev.policy_proof_pack,mediapipeline.tools.paths,src/mediapipeline/tools/dev/policy_proof_pack.py,src/mediapipeline/tools/paths.py
