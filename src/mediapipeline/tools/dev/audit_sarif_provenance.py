@@ -14,8 +14,6 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, BinaryIO, Callable, ContextManager
 
-import yaml
-
 
 PROVENANCE_PROPERTY = "mediaPipelineAuditProvenance"
 RULESET_DIGEST_KIND = "canonical-json-sorted-rules-v1"
@@ -96,7 +94,14 @@ def _atomic_write_bytes(path: Path, content: bytes) -> None:
 
 
 def ruleset_semantic_digest(content: bytes) -> tuple[str, int]:
-    payload = yaml.safe_load(content)
+    try:
+        import yaml
+    except ModuleNotFoundError as exc:
+        raise ValueError("PyYAML is required to verify a ruleset semantic digest") from exc
+    try:
+        payload = yaml.safe_load(content)
+    except yaml.YAMLError as exc:
+        raise ValueError(f"downloaded ruleset is not valid YAML: {exc}") from exc
     if not isinstance(payload, dict) or set(payload) != {"rules"}:
         raise ValueError("downloaded ruleset must contain only a rules array")
     rules = payload.get("rules")
@@ -348,7 +353,6 @@ def main(argv: list[str] | None = None) -> int:
         UnicodeError,
         ValueError,
         json.JSONDecodeError,
-        yaml.YAMLError,
     ) as exc:
         print(f"Audit SARIF provenance failed: {exc}", file=sys.stderr)
         return 1

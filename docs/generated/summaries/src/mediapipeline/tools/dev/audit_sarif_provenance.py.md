@@ -8,7 +8,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-08-03
 last_reviewed: 2026-08-03
-sha256: ee9cc7da41416b6108d16dae5b4d577ceddb008a0665359714456596570a7934
+sha256: a3d8175a996e562b392281e5066407b693364e2e152a7b92914bb42ad73097bb
 ---
 # `src/mediapipeline/tools/dev/audit_sarif_provenance.py`
 

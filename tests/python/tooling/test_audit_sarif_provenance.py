@@ -218,6 +218,7 @@ class AuditSarifProvenanceTests(unittest.TestCase):
 
         self.assertIn('RUFF_VERSION: "0.16.1"', workflow)
         self.assertIn('SEMGREP_VERSION: "1.172.0"', workflow)
+        self.assertIn('PYYAML_VERSION: "6.0.3"', workflow)
         self.assertIn(
             'SEMGREP_RULESET_SEMANTIC_SHA256: "49f8c900fbeacc43c9069d2c2f0d02b1923148d6de08e1383e4e930508194e85"',
             workflow,
@@ -227,6 +228,7 @@ class AuditSarifProvenanceTests(unittest.TestCase):
         self.assertNotIn("--config p/default", workflow)
         self.assertIn('ruff==${RUFF_VERSION}', workflow)
         self.assertIn('semgrep==${SEMGREP_VERSION}', workflow)
+        self.assertIn('PyYAML==${PYYAML_VERSION}', workflow)
         self.assertIn("audit_sarif_provenance fetch-ruleset", workflow)
         self.assertIn("--semantic-sha256", workflow)
         self.assertEqual(workflow.count("audit_sarif_provenance stamp-sarif"), 2)

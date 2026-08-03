@@ -21,6 +21,7 @@ permissions:
 env:
   RUFF_VERSION: "0.16.1"
   SEMGREP_VERSION: "1.172.0"
+  PYYAML_VERSION: "6.0.3"
   SEMGREP_RULESET_SOURCE: "https://semgrep.dev/c/p/default"
   SEMGREP_RULESET_SEMANTIC_SHA256: "49f8c900fbeacc43c9069d2c2f0d02b1923148d6de08e1383e4e930508194e85"
 
@@ -101,7 +102,10 @@ jobs:
           python-version: "3.11"
 
       - name: Install Semgrep
-        run: python -m pip install "semgrep==${SEMGREP_VERSION}"
+        run: >-
+          python -m pip install
+          "semgrep==${SEMGREP_VERSION}"
+          "PyYAML==${PYYAML_VERSION}"
 
       - name: Fetch pinned Semgrep ruleset
         run: >-
