@@ -30,7 +30,7 @@
     "@babel/parser": "^8.0.4",
     "@babel/traverse": "^8.0.4",
     "@eslint/js": "^9.17.0",
-    "eslint": "^10.7.0",
+    "eslint": "^10.8.1",
     "globals": "^17.7.0"
   },
   "version": "2026.6.4-001"
