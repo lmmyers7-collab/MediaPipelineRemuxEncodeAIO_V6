@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, UTC
 from pathlib import Path
 import threading
+import time
 from typing import Any
 import uuid
 
@@ -167,6 +168,7 @@ class QueueServiceMixin:
         return f"{action} blocked because queue source scan{scan_text} is still running."
 
     def start_queue_source_scan(self, resolved: ResolvedPaths, request: dict[str, Any]) -> dict[str, Any]:
+        request_started_perf = time.perf_counter()
         status_path = queue_scan_status_path(resolved)
         inventory_path = queue_source_inventory_path(resolved)
         snapshot_path = self._queue_snapshot_write_path(resolved)
@@ -234,7 +236,7 @@ class QueueServiceMixin:
 
             thread = threading.Thread(
                 target=self._run_queue_source_scan_worker,
-                args=(resolved, scan_id, mode, force, scope, requested_at),
+                args=(resolved, scan_id, mode, force, scope, requested_at, request_started_perf),
                 name=f"queue-source-scan-{scan_id}",
                 daemon=False,
             )
@@ -256,13 +258,36 @@ class QueueServiceMixin:
         force: bool,
         scope: str,
         requested_at: str,
+        request_started_perf: float,
     ) -> None:
+        worker_started = request_started_perf
         status_path = queue_scan_status_path(resolved)
         inventory_path = queue_source_inventory_path(resolved)
         snapshot_path = self._queue_snapshot_write_path(resolved)
         inventory_count = 0
         curated_row_count = 0
+        candidate_count = 0
+        directory_count = 0
+        phase_timings_ms: dict[str, int] = {
+            "launch_acceptance": max(0, round((time.perf_counter() - request_started_perf) * 1000)),
+        }
+        cache_decisions: dict[str, str] = {
+            "source_inventory": "not_requested" if mode == "curate_only" else "full_scan",
+            "queue_snapshot": "not_checked" if mode == "inventory_only" else "pending",
+        }
+        fallback_reason = ""
         warnings: list[str] = []
+
+        def completed_timing_evidence() -> tuple[dict[str, int], int]:
+            measured_ms = sum(phase_timings_ms.values())
+            total_elapsed_ms = max(
+                measured_ms,
+                max(0, round((time.perf_counter() - worker_started) * 1000)),
+            )
+            reconciled = dict(phase_timings_ms)
+            reconciled["service_unattributed"] = max(0, total_elapsed_ms - measured_ms)
+            return reconciled, total_elapsed_ms
+
         try:
             if mode != "curate_only":
                 inventory_started = utc_now_iso()
@@ -286,12 +311,21 @@ class QueueServiceMixin:
                 )
                 inventory = build_queue_source_inventory(resolved, scan_id=scan_id)
                 inventory_count = int(inventory.get("row_count") or 0)
+                candidate_count = int(inventory.get("candidate_count") or inventory_count)
+                directory_count = int(inventory.get("directory_count") or 0)
+                phase_timings_ms.update(
+                    {
+                        str(key): max(0, int(value))
+                        for key, value in (inventory.get("phase_timings_ms") or {}).items()
+                    }
+                )
                 warnings.extend(str(item) for item in inventory.get("warnings") or [] if str(item).strip())
                 if inventory_path is not None:
                     write_json_artifact(inventory_path, inventory)
 
             if mode == "inventory_only":
                 completed_at = utc_now_iso()
+                completed_timings, total_elapsed_ms = completed_timing_evidence()
                 self._write_queue_scan_status(
                     resolved,
                     queue_scan_status_payload(
@@ -311,6 +345,11 @@ class QueueServiceMixin:
                         queue_snapshot_path=snapshot_path,
                         inventory_count=inventory_count,
                         curated_row_count=0,
+                        candidate_count=candidate_count,
+                        directory_count=directory_count,
+                        phase_timings_ms=completed_timings,
+                        total_elapsed_ms=total_elapsed_ms,
+                        cache_decisions=cache_decisions,
                         warnings=warnings,
                     ),
                 )
@@ -337,8 +376,22 @@ class QueueServiceMixin:
                     warnings=warnings,
                 ),
             )
+            curation_started_perf = time.perf_counter()
             curated_row_count = len(self.build_queue_preview(resolved, force_refresh=force))
+            curation_elapsed_ms = max(0, round((time.perf_counter() - curation_started_perf) * 1000))
+            pipeline_timings = dict(getattr(self, "_queue_pipeline_phase_timings_ms", {}) or {})
+            pipeline_measured_ms = 0
+            for key, value in pipeline_timings.items():
+                timing_value = max(0, int(value))
+                phase_timings_ms[f"curation_{key}"] = timing_value
+                pipeline_measured_ms += timing_value
+            phase_timings_ms["curation_backend_overhead"] = max(0, curation_elapsed_ms - pipeline_measured_ms)
+            cache_decisions.update(dict(getattr(self, "_queue_scan_cache_decisions", {}) or {}))
+            fallback_reason = str(getattr(self, "_queue_scan_fallback_reason", "") or "")
+            candidate_count = max(candidate_count, int(getattr(self, "_queue_pipeline_candidate_count", 0) or 0))
+            directory_count = max(directory_count, int(getattr(self, "_queue_pipeline_directory_count", 0) or 0))
             completed_at = utc_now_iso()
+            completed_timings, total_elapsed_ms = completed_timing_evidence()
             self._write_queue_scan_status(
                 resolved,
                 queue_scan_status_payload(
@@ -358,6 +411,12 @@ class QueueServiceMixin:
                     queue_snapshot_path=snapshot_path,
                     inventory_count=inventory_count,
                     curated_row_count=curated_row_count,
+                    candidate_count=candidate_count,
+                    directory_count=directory_count,
+                    phase_timings_ms=completed_timings,
+                    total_elapsed_ms=total_elapsed_ms,
+                    cache_decisions=cache_decisions,
+                    fallback_reason=fallback_reason,
                     warnings=warnings,
                 ),
             )
@@ -366,6 +425,7 @@ class QueueServiceMixin:
             if logger is not None:
                 logger.exception("queue source scan failed: %s", exc)
             failed_at = utc_now_iso()
+            completed_timings, total_elapsed_ms = completed_timing_evidence()
             self._write_queue_scan_status(
                 resolved,
                 queue_scan_status_payload(
@@ -385,6 +445,12 @@ class QueueServiceMixin:
                     queue_snapshot_path=snapshot_path,
                     inventory_count=inventory_count,
                     curated_row_count=curated_row_count,
+                    candidate_count=candidate_count,
+                    directory_count=directory_count,
+                    phase_timings_ms=completed_timings,
+                    total_elapsed_ms=total_elapsed_ms,
+                    cache_decisions=cache_decisions,
+                    fallback_reason=fallback_reason,
                     warnings=warnings,
                     errors=[str(exc)],
                 ),

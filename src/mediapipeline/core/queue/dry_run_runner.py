@@ -52,7 +52,10 @@ def run_queue_dry_run_for_service(
     cmd = build_queue_dry_run_command(resolved, temp_snapshot_path=temp_snapshot_path)
     launch_cwd = service.workspace_root if service.workspace_root.exists() else service.app_root
     started_at = time.time()
+    total_started = time.perf_counter()
+    service._queue_last_dry_run_timings_ms = {}
     try:
+        launch_started = time.perf_counter()
         result = run_capture(
             cmd,
             timeout_seconds=service.QUEUE_DRY_RUN_TIMEOUT_SECONDS,
@@ -62,6 +65,9 @@ def run_queue_dry_run_for_service(
             hidden=True,
             label="queue dry-run",
             kill_tree=getattr(service, "kill_process_tree", None),
+        )
+        service._queue_last_dry_run_timings_ms["launch_and_pipeline"] = round(
+            (time.perf_counter() - launch_started) * 1000
         )
     except OSError as exc:
         return queue_dry_run_failure_for_service(
@@ -92,7 +98,11 @@ def run_queue_dry_run_for_service(
             temp_path=temp_snapshot_path,
         )
 
+    snapshot_read_started = time.perf_counter()
     snapshot = service._read_queue_snapshot(temp_snapshot_path)
+    service._queue_last_dry_run_timings_ms["snapshot_validation"] = round(
+        (time.perf_counter() - snapshot_read_started) * 1000
+    )
     if not snapshot:
         return queue_dry_run_failure_for_service(
             service,
@@ -111,8 +121,13 @@ def run_queue_dry_run_for_service(
         )
 
     snapshot["desktop_queue_preview_request_id"] = request_id
+    publish_started = time.perf_counter()
     atomic_write_text(snap_path, json.dumps(snapshot, indent=2, sort_keys=True) + "\n")
+    service._queue_last_dry_run_timings_ms["snapshot_publish"] = round(
+        (time.perf_counter() - publish_started) * 1000
+    )
     if resolved.state_root is not None:
+        mirror_started = time.perf_counter()
         try:
             from mediapipeline.core.storage.db import maybe_maintain_state_db, open_state_db
 
@@ -126,6 +141,13 @@ def run_queue_dry_run_for_service(
             logger = getattr(service, "logger", None)
             if logger is not None:
                 logger.warning("Could not mirror queue snapshot to SQLite: %s", exc)
+        finally:
+            service._queue_last_dry_run_timings_ms["snapshot_mirror"] = round(
+                (time.perf_counter() - mirror_started) * 1000
+            )
     with contextlib.suppress(OSError):
         temp_snapshot_path.unlink()
+    total_elapsed_ms = round((time.perf_counter() - total_started) * 1000)
+    measured_ms = sum(int(value) for value in service._queue_last_dry_run_timings_ms.values())
+    service._queue_last_dry_run_timings_ms["dry_run_unattributed"] = max(0, total_elapsed_ms - measured_ms)
     return snapshot

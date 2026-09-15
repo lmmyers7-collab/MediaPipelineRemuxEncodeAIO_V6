@@ -3,9 +3,9 @@ file: ops/pipeline/engine/queue/snapshot_store.ps1
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-06-04
+last_modified: 2026-09-14
 last_reviewed: 2026-06-04
-sha256: b27a36ae25684d4abcc7171014be56b2cedbfc945f00abb366f7f35401cbe9db
+sha256: 6aeae9b6e629d5bc5872065a19322764d99b44687777639e24456c4ca9f8ede9
 ---
 # `ops/pipeline/engine/queue/snapshot_store.ps1`
 

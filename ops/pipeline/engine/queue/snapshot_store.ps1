@@ -10,11 +10,31 @@ function Invoke-MediaPipelineQueueSnapshot {
         [Parameter(Mandatory)] $QueuePlan,
         [Parameter(Mandatory)] $ProcessedIndex,
         [Parameter(Mandatory)] [string] $Path,
+        [hashtable] $PhaseTimingsMs = @{},
+        [hashtable] $CacheDecisions = @{},
+        [string] $FallbackReason = '',
+        [int] $CandidateCount = 0,
+        [int] $DirectoryCount = 0,
         [switch] $NonFatal
     )
 
     try {
+        $shapingStartedAt = Get-Date
         $snapshot = Build-QueuePlanSnapshotRows -QueuePlan $QueuePlan -ProcessedIndex $ProcessedIndex
+        $phaseTimings = [ordered]@{}
+        foreach ($key in @($PhaseTimingsMs.Keys)) {
+            $phaseTimings[[string]$key] = [int][math]::Max(0, [int]$PhaseTimingsMs[$key])
+        }
+        $phaseTimings['queue_shaping'] = [int][math]::Max(0, [math]::Round(((Get-Date) - $shapingStartedAt).TotalMilliseconds))
+        $snapshot | Add-Member -NotePropertyName phase_timings_ms -NotePropertyValue $phaseTimings -Force
+        $cacheDecisionEvidence = [ordered]@{}
+        foreach ($key in @($CacheDecisions.Keys)) {
+            $cacheDecisionEvidence[[string]$key] = [string]$CacheDecisions[$key]
+        }
+        $snapshot | Add-Member -NotePropertyName cache_decisions -NotePropertyValue $cacheDecisionEvidence -Force
+        $snapshot | Add-Member -NotePropertyName fallback_reason -NotePropertyValue ([string]$FallbackReason) -Force
+        $snapshot | Add-Member -NotePropertyName candidate_count -NotePropertyValue ([int]$CandidateCount) -Force
+        $snapshot | Add-Member -NotePropertyName directory_count -NotePropertyValue ([int]$DirectoryCount) -Force
         Write-QueuePlanSnapshot -Plan $snapshot -Path $Path
         return $snapshot
     } catch {

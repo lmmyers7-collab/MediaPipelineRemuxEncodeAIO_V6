@@ -3,6 +3,9 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import stat as stat_module
+import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, UTC
 from pathlib import Path
@@ -124,12 +127,21 @@ def _iso_from_timestamp(timestamp: float) -> str:
     return datetime.fromtimestamp(timestamp, UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-def _source_inventory_row(path: Path, root: QueueInventoryRoot) -> dict[str, Any] | None:
+def _source_inventory_row(
+    path: Path,
+    root: QueueInventoryRoot,
+    *,
+    metadata_timing_ns: list[int] | None = None,
+) -> dict[str, Any] | None:
+    started_ns = time.perf_counter_ns()
     try:
         stat = path.stat()
     except OSError:
         return None
-    if not path.is_file():
+    finally:
+        if metadata_timing_ns is not None:
+            metadata_timing_ns[0] += time.perf_counter_ns() - started_ns
+    if not stat_module.S_ISREG(stat.st_mode):
         return None
     size_bytes = int(stat.st_size)
     relative = _relative_path(path, root.path)
@@ -163,17 +175,22 @@ def build_queue_source_inventory(
     scan_id: str,
     row_limit: int = QUEUE_SOURCE_INVENTORY_ROW_LIMIT,
 ) -> dict[str, Any]:
+    total_started_ns = time.perf_counter_ns()
     produced_at = utc_now_iso()
     rows: list[dict[str, Any]] = []
     warnings: list[str] = []
+    roots_started_ns = time.perf_counter_ns()
     roots = queue_inventory_source_roots(resolved)
+    roots_elapsed_ns = time.perf_counter_ns() - roots_started_ns
     visited_dirs = 0
     truncated = False
     sidecar_count = 0
     sidecar_media_kind_counts: dict[str, int] = {}
     sidecar_source_key_counts: dict[str, int] = {}
     sidecar_extension_counts: dict[str, int] = {}
+    metadata_timing_ns = [0]
 
+    traversal_started_ns = time.perf_counter_ns()
     for root in roots:
         if not root.path.exists():
             warnings.append(f"Source root missing or unavailable: {root.source_key} = {root.path}")
@@ -199,7 +216,11 @@ def build_queue_source_inventory(
                         continue
                     if suffix not in MEDIA_FILE_SUFFIXES:
                         continue
-                    row = _source_inventory_row(Path(dirpath) / filename, root)
+                    row = _source_inventory_row(
+                        Path(dirpath) / filename,
+                        root,
+                        metadata_timing_ns=metadata_timing_ns,
+                    )
                     if row is None:
                         continue
                     rows.append(row)
@@ -213,7 +234,9 @@ def build_queue_source_inventory(
         if truncated:
             warnings.append(f"Source inventory stopped at row limit {row_limit}.")
             break
+    traversal_elapsed_ns = time.perf_counter_ns() - traversal_started_ns
 
+    shaping_started_ns = time.perf_counter_ns()
     rows.sort(key=lambda row: (str(row.get("last_write_utc") or ""), str(row.get("source_path") or "")), reverse=True)
     for index, row in enumerate(rows, start=1):
         row["inventory_order"] = index
@@ -235,6 +258,24 @@ def build_queue_source_inventory(
     if warnings:
         summary_lines.extend(f"Warning: {warning}" for warning in warnings[:5])
 
+    shaping_elapsed_ns = time.perf_counter_ns() - shaping_started_ns
+    total_elapsed_ns = time.perf_counter_ns() - total_started_ns
+    metadata_elapsed_ns = metadata_timing_ns[0]
+    enumeration_elapsed_ns = max(0, traversal_elapsed_ns - metadata_elapsed_ns)
+
+    def elapsed_ms(value_ns: int) -> int:
+        return max(0, round(value_ns / 1_000_000))
+
+    phase_timings_ms = {
+        "inventory_root_discovery": elapsed_ms(roots_elapsed_ns),
+        "inventory_source_enumeration": elapsed_ms(enumeration_elapsed_ns),
+        "inventory_metadata_hydration": elapsed_ms(metadata_elapsed_ns),
+        "inventory_queue_shaping": elapsed_ms(shaping_elapsed_ns),
+    }
+    measured_ms = sum(phase_timings_ms.values())
+    total_elapsed_ms = max(elapsed_ms(total_elapsed_ns), measured_ms)
+    phase_timings_ms["inventory_unattributed"] = max(0, total_elapsed_ms - measured_ms)
+
     return {
         "schema_version": QUEUE_SOURCE_INVENTORY_SCHEMA_VERSION,
         "scan_id": scan_id,
@@ -253,6 +294,10 @@ def build_queue_source_inventory(
         "sidecar_extension_counts": sidecar_extension_counts,
         "source_root_count": len(roots),
         "visited_dir_count": visited_dirs,
+        "candidate_count": len(rows),
+        "directory_count": visited_dirs,
+        "phase_timings_ms": phase_timings_ms,
+        "total_elapsed_ms": total_elapsed_ms,
         "media_kind_counts": media_kind_counts,
         "source_key_counts": source_key_counts,
         "roots": [
@@ -343,12 +388,24 @@ def queue_scan_status_payload(
     queue_snapshot_path: Path | None = None,
     inventory_count: int = 0,
     curated_row_count: int = 0,
+    candidate_count: int = 0,
+    directory_count: int = 0,
+    phase_timings_ms: Mapping[str, int | float] | None = None,
+    total_elapsed_ms: int | float = 0,
+    cache_decisions: dict[str, str] | None = None,
+    fallback_reason: str = "",
     warnings: list[str] | None = None,
     errors: list[str] | None = None,
 ) -> dict[str, Any]:
     timestamp = updated_at_utc or utc_now_iso()
     detail = message or status
     source = str(status_path or "")
+    normalized_timings = {
+        str(key): max(0, int(round(float(value))))
+        for key, value in (phase_timings_ms or {}).items()
+        if str(key).strip()
+    }
+    normalized_total_ms = max(0, int(round(float(total_elapsed_ms or 0))))
     return {
         "schema_version": QUEUE_SCAN_STATUS_SCHEMA_VERSION,
         "scan_id": scan_id,
@@ -368,6 +425,13 @@ def queue_scan_status_payload(
         "queue_snapshot_path": str(queue_snapshot_path or ""),
         "inventory_count": int(inventory_count or 0),
         "curated_row_count": int(curated_row_count or 0),
+        "candidate_count": int(candidate_count or inventory_count or 0),
+        "directory_count": int(directory_count or 0),
+        "phase_timings_ms": normalized_timings,
+        "total_elapsed_ms": normalized_total_ms,
+        "phase_timings_reconcile": sum(normalized_timings.values()) == normalized_total_ms,
+        "cache_decisions": {str(key): str(value) for key, value in (cache_decisions or {}).items()},
+        "fallback_reason": str(fallback_reason or ""),
         "warnings": list(warnings or []),
         "errors": list(errors or []),
         "evidence_authority": "backend_queue_scan_service",

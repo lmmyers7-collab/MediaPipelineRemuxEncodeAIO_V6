@@ -202,9 +202,13 @@ function Invoke-MediaPipelineRound {
     }
 
     $scanStartedAt = Get-Date
+    $indexStartedAt = Get-Date
     $index = Get-ProcessedIndexCached -ForceRefresh:$rescanRequested
+    $indexElapsedMs = [int][math]::Max(0, [math]::Round(((Get-Date) - $indexStartedAt).TotalMilliseconds))
 
+    $discoveryStartedAt = Get-Date
     $queuePlan = Get-MediaQueueDiscoveryPlan -MovieRoot $EnginePlan.SourceMovies -TVRoot $EnginePlan.SourceTV -ForceRefresh:$rescanRequested
+    $discoveryElapsedMs = [int][math]::Max(0, [math]::Round(((Get-Date) - $discoveryStartedAt).TotalMilliseconds))
     $scanDurationSeconds = [math]::Round(((Get-Date) - $scanStartedAt).TotalSeconds, 3)
     $script:LastQueueScanDurationSeconds = $scanDurationSeconds
     $script:LastQueueCandidateCount = [int]($queuePlan.MovieCount + $queuePlan.TVCount + $queuePlan.HoldCount)
@@ -217,8 +221,28 @@ function Invoke-MediaPipelineRound {
 
     # Broadcast the post-filter plan so the desktop Queue tab can render the
     # live ordering without spawning a dry-run subprocess.
-    $snapshot = Invoke-MediaPipelineQueueSnapshot -QueuePlan $queuePlan -ProcessedIndex $index -Path $EnginePlan.QueueSnapshotPath -NonFatal
+    $roundPhaseTimings = @{
+        processed_index_enumeration = $indexElapsedMs
+        source_enumeration = $discoveryElapsedMs
+    }
+    $roundCacheDecisions = @{
+        processed_index = if ($rescanRequested) { 'forced_refresh' } else { 'normal_policy' }
+        source_discovery = if ($rescanRequested) { 'forced_refresh' } else { 'normal_policy' }
+    }
+    $roundCandidateCount = [int]($queuePlan.MovieCount + $queuePlan.TVCount + $queuePlan.HoldCount)
+    $snapshot = Invoke-MediaPipelineQueueSnapshot `
+        -QueuePlan $queuePlan `
+        -ProcessedIndex $index `
+        -Path $EnginePlan.QueueSnapshotPath `
+        -PhaseTimingsMs $roundPhaseTimings `
+        -CacheDecisions $roundCacheDecisions `
+        -CandidateCount $roundCandidateCount `
+        -NonFatal
+    if ($snapshot) {
+        $script:LastQueueScanPhaseTimingsMs = $snapshot.phase_timings_ms
+    }
 
+    $script:LastQueueFirstProcessingStageEntryMs = [int][math]::Max(0, [math]::Round(((Get-Date) - $scanStartedAt).TotalMilliseconds))
     Set-ProgressStage -Stage 'processing' -Status 'Processing queue' -Percent $null -Route $null -CopyState $null -PushState $null -SidecarState $null -SaveNow
     $executionPlan = Select-MediaPipelineQueuePlanExecutionWindow -QueuePlan $queuePlan
     $script:LastQueueExecutionTruncated = [bool]($executionPlan.PSObject.Properties['RowsTruncatedForExecution'] -and [bool]$executionPlan.RowsTruncatedForExecution)
@@ -400,9 +424,29 @@ function Invoke-MediaPipelineEmitQueuePlan {
     )
 
     Set-ProgressStage -Stage 'scanning' -Status 'Scanning sources (dry run)' -Percent $null -SaveNow
+    $scanStartedAt = Get-Date
+    $indexStartedAt = Get-Date
     $index     = Get-ProcessedIndexCached -ForceRefresh:$true
+    $indexElapsedMs = [int][math]::Max(0, [math]::Round(((Get-Date) - $indexStartedAt).TotalMilliseconds))
+    $discoveryStartedAt = Get-Date
     $queuePlan = Get-MediaQueueDiscoveryPlan -MovieRoot $EnginePlan.SourceMovies -TVRoot $EnginePlan.SourceTV -ForceRefresh:$true
-    $snapshot  = Invoke-MediaPipelineQueueSnapshot -QueuePlan $queuePlan -ProcessedIndex $index -Path $EnginePlan.QueueSnapshotPath
+    $discoveryElapsedMs = [int][math]::Max(0, [math]::Round(((Get-Date) - $discoveryStartedAt).TotalMilliseconds))
+    $candidateCount = [int]($queuePlan.MovieCount + $queuePlan.TVCount + $queuePlan.HoldCount)
+    $snapshot  = Invoke-MediaPipelineQueueSnapshot `
+        -QueuePlan $queuePlan `
+        -ProcessedIndex $index `
+        -Path $EnginePlan.QueueSnapshotPath `
+        -PhaseTimingsMs @{
+            processed_index_enumeration = $indexElapsedMs
+            source_enumeration = $discoveryElapsedMs
+        } `
+        -CacheDecisions @{
+            processed_index = 'forced_refresh'
+            source_discovery = 'forced_refresh'
+        } `
+        -CandidateCount $candidateCount
+    $script:LastQueueScanPhaseTimingsMs = $snapshot.phase_timings_ms
+    $script:LastQueueScanDurationSeconds = [math]::Round(((Get-Date) - $scanStartedAt).TotalSeconds, 3)
     Write-Log "QUEUE PLAN SNAPSHOT: $($snapshot.runnable_count) runnable row(s) -> $($EnginePlan.QueueSnapshotPath)"
     Set-ProgressStage -Stage 'idle' -Status 'Idle' -Percent $null -SaveNow
     return $snapshot

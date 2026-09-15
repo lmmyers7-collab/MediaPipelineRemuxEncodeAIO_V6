@@ -3,9 +3,9 @@ file: src/mediapipeline/core/queue/preview_builder.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-06-29
+last_modified: 2026-09-14
 last_reviewed: 2026-06-04
-sha256: 16e0fc48f1ae7d30302bdbd4f53ecf65ab6fd39a95d4928cc64adf188d564b48
+sha256: 1c26443f39a0c8be7e9e4bbed80fbf4c65bd36773f3e5f9ff43e0f63aeaff211
 ---
 # `src/mediapipeline/core/queue/preview_builder.py`
 

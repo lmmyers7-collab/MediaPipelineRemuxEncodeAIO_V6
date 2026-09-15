@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import platform
 import re
 import subprocess
 import sys
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,6 +21,8 @@ from mediapipeline.core.observability.performance import (
     performance_record,
     summarize_duration_samples,
 )
+from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.queue.source_inventory import build_queue_source_inventory
 from mediapipeline.tools.paths import find_repo_root
 
 
@@ -140,6 +144,117 @@ def benchmark_audit_suite(root: Path, suite: str, *, timeout_seconds: int) -> di
     }
 
 
+def _queue_benchmark_resolved(workspace: Path, source_root: Path, state_root: Path) -> ResolvedPaths:
+    return ResolvedPaths(
+        app_root=workspace / "apps" / "desktop",
+        workspace_root=workspace,
+        pipeline_path=workspace / "ops" / "pipeline" / "entrypoints" / "MediaPipeline.ps1",
+        config_path=workspace / "config" / "MediaPipeline.psd1",
+        audit_script_path=workspace / "ops" / "scripts" / "audit.ps1",
+        rerun_script_path=workspace / "ops" / "scripts" / "rerun.ps1",
+        powershell_host=None,
+        local_base=state_root.parent,
+        state_root=state_root,
+        source_movies=source_root,
+        source_tv=None,
+        queue_snapshot_path=state_root / "Progress" / "queue_snapshot.json",
+        config_data={"SourceMovies": str(source_root), "SourceTV": "", "LibraryProfiles": []},
+    )
+
+
+def _create_generated_queue_library(root: Path, *, file_count: int) -> None:
+    for index in range(file_count):
+        season = index % 12 + 1
+        directory = root / f"Library-{index % 8:02d}" / f"Season {season:02d}"
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / f"Generated - S{season:02d}E{index + 1:04d}.mkv").write_bytes(b"queue-benchmark")
+        if index % 5 == 0:
+            (directory / f"Generated - S{season:02d}E{index + 1:04d}.srt").write_text(
+                "1\n00:00:00,000 --> 00:00:01,000\nbenchmark\n",
+                encoding="utf-8",
+            )
+
+
+def _queue_inventory_sample(resolved: ResolvedPaths, *, scan_id: str, row_limit: int) -> tuple[float, str, int, int]:
+    started = time.perf_counter()
+    inventory = build_queue_source_inventory(resolved, scan_id=scan_id, row_limit=row_limit)
+    elapsed_ms = (time.perf_counter() - started) * 1000
+    fingerprint_source = "\n".join(
+        sorted(str(row.get("source_path") or "").replace("\\", "/").casefold() for row in inventory.get("rows") or [])
+    )
+    fingerprint = hashlib.sha256(fingerprint_source.encode("utf-8")).hexdigest()
+    return (
+        elapsed_ms,
+        fingerprint,
+        int(inventory.get("candidate_count") or 0),
+        int(inventory.get("directory_count") or 0),
+    )
+
+
+def benchmark_queue_source_inventory(
+    workspace: Path,
+    *,
+    repeat: int,
+    benchmark_root: Path | None = None,
+    generated_file_count: int = 400,
+) -> list[dict[str, Any]]:
+    """Measure five comparable read-only full scans and warm normal scans."""
+
+    temporary: tempfile.TemporaryDirectory[str] | None = None
+    if benchmark_root is None:
+        temporary = tempfile.TemporaryDirectory(prefix="mediapipeline-queue-benchmark-")
+        scenario_root = Path(temporary.name)
+        source_root = scenario_root / "Source"
+        _create_generated_queue_library(source_root, file_count=generated_file_count)
+        storage_kind = "generated_disposable"
+    else:
+        source_root = benchmark_root.expanduser().resolve()
+        if not source_root.is_dir():
+            raise ValueError(f"Queue benchmark root is not an accessible directory: {source_root}")
+        temporary = tempfile.TemporaryDirectory(prefix="mediapipeline-queue-benchmark-state-")
+        scenario_root = Path(temporary.name)
+        storage_kind = "operator_supplied_read_only"
+
+    try:
+        resolved = _queue_benchmark_resolved(workspace, source_root, scenario_root / "State")
+        row_limit = max(generated_file_count + 1, 100_000)
+        groups: list[dict[str, Any]] = []
+        expected_fingerprint = ""
+        for run_kind in ("cold_full_scan", "warm_normal_scan"):
+            durations: list[float] = []
+            fingerprints: list[str] = []
+            candidate_counts: list[int] = []
+            directory_counts: list[int] = []
+            for index in range(repeat):
+                elapsed_ms, fingerprint, candidates, directories = _queue_inventory_sample(
+                    resolved,
+                    scan_id=f"benchmark-{run_kind}-{index + 1}",
+                    row_limit=row_limit,
+                )
+                durations.append(elapsed_ms)
+                fingerprints.append(fingerprint)
+                candidate_counts.append(candidates)
+                directory_counts.append(directories)
+                expected_fingerprint = expected_fingerprint or fingerprint
+            groups.append(
+                {
+                    "operation": f"queue_source_inventory:{run_kind}",
+                    "correct": bool(fingerprints) and all(value == expected_fingerprint for value in fingerprints),
+                    "summary": summarize_duration_samples(durations),
+                    "samples_ms": [round(value, 3) for value in durations],
+                    "queue_fingerprint": expected_fingerprint,
+                    "candidate_count": candidate_counts[0] if candidate_counts else 0,
+                    "directory_count": directory_counts[0] if directory_counts else 0,
+                    "storage_kind": storage_kind,
+                    "source_mutation": False,
+                }
+            )
+        return groups
+    finally:
+        if temporary is not None:
+            temporary.cleanup()
+
+
 def records_for_payload(payload: dict[str, Any], *, variant: str) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     for result in payload.get("results", []):
@@ -166,6 +281,8 @@ def records_for_payload(payload: dict[str, Any], *, variant: str) -> list[dict[s
             "external_script_bytes",
             "module_count",
             "module_bytes",
+            "candidate_count",
+            "directory_count",
         ):
             if metric in result:
                 records.append(
@@ -182,7 +299,16 @@ def records_for_payload(payload: dict[str, Any], *, variant: str) -> list[dict[s
     return records
 
 
-def build_payload(root: Path, *, repeat: int, timeout_seconds: int, audit_suite: str = "") -> dict[str, Any]:
+def build_payload(
+    root: Path,
+    *,
+    repeat: int,
+    timeout_seconds: int,
+    audit_suite: str = "",
+    queue_scenario: bool = False,
+    benchmark_root: Path | None = None,
+    generated_file_count: int = 400,
+) -> dict[str, Any]:
     measured_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     results = [
         benchmark_backend_import(root, repeat=repeat, timeout_seconds=timeout_seconds),
@@ -191,6 +317,15 @@ def build_payload(root: Path, *, repeat: int, timeout_seconds: int, audit_suite:
     ]
     if audit_suite:
         results.append(benchmark_audit_suite(root, audit_suite, timeout_seconds=timeout_seconds))
+    if queue_scenario:
+        results.extend(
+            benchmark_queue_source_inventory(
+                root,
+                repeat=repeat,
+                benchmark_root=benchmark_root,
+                generated_file_count=generated_file_count,
+            )
+        )
     return {
         "schema_version": BENCHMARK_SCHEMA_VERSION,
         "measured_at": measured_at,
@@ -212,6 +347,22 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--variant", default="baseline", help="Variant label stored in JSONL records.")
     parser.add_argument("--ledger", default="", help="Optional JSONL ledger path. No ledger is written by default.")
     parser.add_argument("--output", default="", help="Optional full JSON result path.")
+    parser.add_argument(
+        "--queue-scenario",
+        action="store_true",
+        help="Run cold/full and warm/normal queue source-inventory baselines.",
+    )
+    parser.add_argument(
+        "--benchmark-root",
+        default="",
+        help="Optional representative source root. It is read only; generated disposable media is used by default.",
+    )
+    parser.add_argument(
+        "--generated-file-count",
+        type=int,
+        default=400,
+        help="Generated queue candidate count when --benchmark-root is omitted (1-100000).",
+    )
     return parser.parse_args(argv)
 
 
@@ -223,8 +374,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise SystemExit(f"--repeat must be between 1 and {MAX_REPEAT}")
     if timeout_seconds < 1 or timeout_seconds > MAX_TIMEOUT_SECONDS:
         raise SystemExit(f"--timeout-seconds must be between 1 and {MAX_TIMEOUT_SECONDS}")
+    if int(args.generated_file_count) < 1 or int(args.generated_file_count) > 100_000:
+        raise SystemExit("--generated-file-count must be between 1 and 100000")
     root = find_repo_root(Path(__file__))
-    payload = build_payload(root, repeat=repeat, timeout_seconds=timeout_seconds, audit_suite=str(args.audit_suite or ""))
+    benchmark_root = Path(args.benchmark_root) if str(args.benchmark_root or "").strip() else None
+    payload = build_payload(
+        root,
+        repeat=repeat,
+        timeout_seconds=timeout_seconds,
+        audit_suite=str(args.audit_suite or ""),
+        queue_scenario=bool(args.queue_scenario),
+        benchmark_root=benchmark_root,
+        generated_file_count=int(args.generated_file_count),
+    )
     if args.output:
         output_path = Path(args.output).expanduser().resolve()
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -248,6 +410,7 @@ __all__ = [
     "benchmark_audit_suite",
     "benchmark_backend_import",
     "benchmark_pipeline_module_graph",
+    "benchmark_queue_source_inventory",
     "benchmark_static_shell",
     "build_payload",
     "main",

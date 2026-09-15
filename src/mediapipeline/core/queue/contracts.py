@@ -50,6 +50,12 @@ class QueuePreviewServiceProtocol(Protocol):
     _queue_completed_unverified: int
     _queue_scan_limited: bool
     _queue_completed_cache_status: str
+    _queue_scan_cache_decisions: dict[str, str]
+    _queue_scan_fallback_reason: str
+    _queue_pipeline_phase_timings_ms: dict[str, int]
+    _queue_pipeline_candidate_count: int
+    _queue_pipeline_directory_count: int
+    _queue_last_dry_run_timings_ms: dict[str, int]
 
     def _queue_snapshot_path(self, resolved: ResolvedPaths) -> Path | None: ...
     def _read_queue_snapshot(self, path: Path) -> dict[str, Any] | None: ...
@@ -63,6 +69,7 @@ class QueueDryRunServiceProtocol(Protocol):
     QUEUE_DRY_RUN_TIMEOUT_SECONDS: float
     QUEUE_DRY_RUN_OUTPUT_TAIL_LINES: int
     _queue_completed_cache_status: str
+    _queue_last_dry_run_timings_ms: dict[str, int]
 
     def _queue_snapshot_write_path(self, resolved: ResolvedPaths) -> Path | None: ...
     def _read_queue_snapshot(self, path: Path) -> dict[str, Any] | None: ...
