@@ -172,6 +172,7 @@ graph LR
   publish -->|2| paths
   queue -->|2| config
   queue -->|2| kernel
+  scripts -->|2| paths
   scripts -->|2| processes
   scripts -->|2| publish
   subtitles -->|2| paths
@@ -225,7 +226,7 @@ graph LR
   rename -->|1| validation
   schedule -->|1| paths
   scripts -->|1| observability
-  scripts -->|1| paths
+  scripts -->|1| queue
   scripts -->|1| rename
   subtitles -->|1| completed
   tests -->|1| library
@@ -363,6 +364,7 @@ graph LR
 | publish | paths | 2 |
 | queue | config | 2 |
 | queue | kernel | 2 |
+| scripts | paths | 2 |
 | scripts | processes | 2 |
 | scripts | publish | 2 |
 | subtitles | paths | 2 |
@@ -416,7 +418,7 @@ graph LR
 | rename | validation | 1 |
 | schedule | paths | 1 |
 | scripts | observability | 1 |
-| scripts | paths | 1 |
+| scripts | queue | 1 |
 | scripts | rename | 1 |
 | subtitles | completed | 1 |
 | tests | library | 1 |

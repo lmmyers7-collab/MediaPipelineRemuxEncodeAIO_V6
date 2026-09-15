@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_queue_source_scan.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-29
+last_modified: 2026-09-15
 last_reviewed: 2026-06-04
-sha256: bca03749027d1ec40b22d30e67897e63a61a7d52a26c3eb4ca559daac8314ebd
+sha256: 239cbada8b7f125434b917c12accf5f1fc01c8b187bd77b0af6def4e0f199c37
 ---
 # `tests/python/desktop/test_service_queue_source_scan.py`
 

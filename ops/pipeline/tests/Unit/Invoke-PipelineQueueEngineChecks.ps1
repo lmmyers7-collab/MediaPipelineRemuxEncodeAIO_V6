@@ -472,6 +472,40 @@ function Invoke-QueueExecutionCapLimitsRunnableWindowCheck {
     }
 }
 
+function Invoke-QueueSnapshotTelemetryContractCheck {
+    $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("MediaPipelineQueueTelemetryTest_" + [guid]::NewGuid().ToString('N'))
+    try {
+        New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+        $script:configPath = ''
+        $script:LocalBase = $tempRoot
+        $script:SourceMovies = $tempRoot
+        $script:SourceTV = $tempRoot
+        $script:Outsource = ''
+        $script:ValidExtensions = @('.mkv')
+        $snapshotPath = Join-Path $tempRoot 'queue_snapshot.json'
+        $snapshot = Invoke-MediaPipelineQueueSnapshot `
+            -QueuePlan (New-TestQueuePlan) `
+            -ProcessedIndex @{} `
+            -Path $snapshotPath `
+            -PhaseTimingsMs @{ processed_index_enumeration = 12; source_enumeration = 34 } `
+            -CacheDecisions @{ processed_index = 'forced_refresh' } `
+            -CandidateCount 7 `
+            -DirectoryCount 3
+
+        $persisted = Get-Content -LiteralPath $snapshotPath -Raw | ConvertFrom-Json
+        Assert-Equal ([int]$snapshot.phase_timings_ms.processed_index_enumeration) 12 'Snapshot should retain processed-index timing.'
+        Assert-Equal ([int]$persisted.phase_timings_ms.source_enumeration) 34 'Persisted snapshot should retain source-enumeration timing.'
+        Assert-True ($null -ne $persisted.phase_timings_ms.queue_shaping) 'Persisted snapshot should report queue-shaping timing.'
+        Assert-Equal ([string]$persisted.cache_decisions.processed_index) 'forced_refresh' 'Snapshot should retain cache decision evidence.'
+        Assert-Equal ([int]$persisted.candidate_count) 7 'Snapshot should retain candidate count evidence.'
+        Assert-Equal ([int]$persisted.directory_count) 3 'Snapshot should retain directory count evidence.'
+    } finally {
+        if (Test-Path -LiteralPath $tempRoot -ErrorAction SilentlyContinue) {
+            Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
 function Invoke-SerialQueueDispatchUsesGlobalRunnableMetadataCheck {
     $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("MediaPipelineQueueDispatchRunCountTest_" + [guid]::NewGuid().ToString('N'))
     try {
@@ -757,6 +791,7 @@ Invoke-ExplicitManifestNormalSuppressesFilesystemPriorityCheck
 Invoke-CorruptPriorityManifestFailsClosedCheck
 Invoke-GlobalRunnableQueueSnapshotMetadataCheck
 Invoke-QueueSnapshotRowsAreCappedButTotalsRemainAccurateCheck
+Invoke-QueueSnapshotTelemetryContractCheck
 Invoke-QueueExecutionCapLimitsRunnableWindowCheck
 Invoke-SerialQueueDispatchUsesGlobalRunnableMetadataCheck
 Invoke-PendingPublishBackpressureSkipsDiscoveryCheck

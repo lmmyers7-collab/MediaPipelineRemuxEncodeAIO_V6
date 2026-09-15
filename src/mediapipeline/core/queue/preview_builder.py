@@ -21,6 +21,12 @@ def build_queue_preview_for_service(
     service._queue_completed_unverified = 0
     service._queue_scan_limited = False
     service._queue_completed_cache_status = ""
+    service._queue_scan_cache_decisions = {"queue_snapshot": "not_checked"}
+    service._queue_scan_fallback_reason = ""
+    service._queue_pipeline_phase_timings_ms = {}
+    service._queue_pipeline_candidate_count = 0
+    service._queue_pipeline_directory_count = 0
+    service._queue_last_dry_run_timings_ms = {}
 
     snapshot_path = service._queue_snapshot_path(resolved)
     snapshot: dict[str, Any] | None = None
@@ -33,17 +39,39 @@ def build_queue_preview_for_service(
             fresh_seconds=service.QUEUE_SNAPSHOT_FRESH_SECONDS,
         ):
             snapshot = service._read_queue_snapshot(snapshot_path)
+            if snapshot is not None:
+                service._queue_scan_cache_decisions["queue_snapshot"] = "fresh_hit"
 
     if snapshot is None:
         snapshot = service._run_queue_dry_run(resolved, allow_cached_fallback=not force_refresh)
         used_dry_run = True
+        service._queue_scan_cache_decisions["queue_snapshot"] = "dry_run_refresh"
         if "Showing last cached snapshot" in service._queue_completed_cache_status:
             fallback_status = service._queue_completed_cache_status
+            service._queue_scan_cache_decisions["queue_snapshot"] = "cached_fallback"
+            service._queue_scan_fallback_reason = fallback_status
 
     if not snapshot:
         if not service._queue_completed_cache_status:
             service._queue_completed_cache_status = "No queue snapshot available; run the pipeline once or refresh."
+        service._queue_scan_cache_decisions["queue_snapshot"] = "unavailable"
+        service._queue_scan_fallback_reason = service._queue_completed_cache_status
         return []
+
+    service._queue_pipeline_phase_timings_ms = {
+        str(key): max(0, int(value))
+        for key, value in (snapshot.get("phase_timings_ms") or {}).items()
+        if str(key).strip()
+    }
+    for key, value in (getattr(service, "_queue_last_dry_run_timings_ms", {}) or {}).items():
+        if key == "launch_and_pipeline":
+            continue
+        service._queue_pipeline_phase_timings_ms[f"desktop_{key}"] = max(0, int(value))
+    service._queue_pipeline_candidate_count = int(
+        snapshot.get("candidate_count")
+        or int(snapshot.get("movie_count_total", 0)) + int(snapshot.get("tv_count_total", 0))
+    )
+    service._queue_pipeline_directory_count = int(snapshot.get("directory_count") or 0)
 
     rows = snapshot.get("rows") or []
     records = [service._queue_record_from_snapshot_row(row) for row in rows]

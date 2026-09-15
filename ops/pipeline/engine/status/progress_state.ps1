@@ -867,6 +867,8 @@ function Save-Progress {
             PauseFlagReviewSeconds = [int]$script:PauseFlagReviewSeconds
             PauseFlagBlockSeconds = [int]$script:PauseFlagBlockSeconds
             LastQueueScanDurationSeconds = $script:LastQueueScanDurationSeconds
+            LastQueueScanPhaseTimingsMs = $script:LastQueueScanPhaseTimingsMs
+            LastQueueFirstProcessingStageEntryMs = $script:LastQueueFirstProcessingStageEntryMs
             LastQueueCandidateCount = [int]$script:LastQueueCandidateCount
             LastQueueExecutionTruncated = [bool]$script:LastQueueExecutionTruncated
             LastQueueScanTruncated = [bool]$script:LastQueueScanTruncated
@@ -1018,6 +1020,8 @@ $script:ConsecutiveUnexpectedRoundFailures = 0
 $script:LastUnexpectedRoundFailureAt = $null
 $script:ContinuousRoundFailuresBlocked = $false
 $script:LastQueueScanDurationSeconds = $null
+$script:LastQueueScanPhaseTimingsMs = [ordered]@{}
+$script:LastQueueFirstProcessingStageEntryMs = $null
 $script:LastQueueCandidateCount = 0
 $script:LastQueueExecutionTruncated = $false
 $script:LastQueueScanTruncated = $false

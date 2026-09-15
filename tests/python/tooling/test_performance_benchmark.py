@@ -77,6 +77,25 @@ class PerformanceBenchmarkTests(unittest.TestCase):
         self.assertEqual({record["variant"] for record in records}, {"candidate"})
         self.assertEqual({record["operation"] for record in records}, {"static_shell_inventory"})
 
+    def test_queue_scenario_records_repeatable_cold_and_warm_fingerprints(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            results = performance_benchmark.benchmark_queue_source_inventory(
+                workspace,
+                repeat=5,
+                generated_file_count=12,
+            )
+
+        self.assertEqual(
+            [result["operation"] for result in results],
+            ["queue_source_inventory:cold_full_scan", "queue_source_inventory:warm_normal_scan"],
+        )
+        self.assertTrue(all(result["correct"] for result in results))
+        self.assertTrue(all(result["summary"]["count"] == 5 for result in results))
+        self.assertEqual(results[0]["queue_fingerprint"], results[1]["queue_fingerprint"])
+        self.assertEqual(results[0]["candidate_count"], 12)
+        self.assertTrue(all(result["source_mutation"] is False for result in results))
+
 
 if __name__ == "__main__":
     unittest.main()
