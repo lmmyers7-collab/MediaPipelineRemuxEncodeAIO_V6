@@ -48,6 +48,7 @@ param(
     # the actual run order with no second source of truth.
     [switch]$EmitQueuePlan,
     [string]$QueuePlanOutPath,
+    [string]$QueueDiscoveryManifestPath = "",
 
     # Worker mode: skip queue discovery and encode exactly one file.
     # When non-empty, the pipeline builds a synthetic single-item plan
@@ -779,6 +780,9 @@ if ($SingleFile -ne "") {
 }
 
 $script:StopRequested = $false
+$script:QueueDiscoveryManifestPath = [string]$QueueDiscoveryManifestPath
+$script:LastQueueDiscoveryArtifactDecision = ''
+$script:LastQueueDiscoveryArtifactFallbackReason = ''
 # FIX#5: capture the ReprocessAll setting at startup so we can log the
 # auto-disable warning later.
 $script:ReprocessAllInitial = $script:ReprocessAll

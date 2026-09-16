@@ -63,7 +63,7 @@ graph LR
   process -->|30| paths
   config -->|27| kernel
   process -->|27| kernel
-  tests -->|25| queue
+  tests -->|26| queue
   tests -->|25| rename
   tests -->|23| status
   unknown -->|19| kernel
@@ -91,6 +91,7 @@ graph LR
   observability -->|10| paths
   tests -->|10| kernel
   api -->|9| processes
+  queue -->|9| paths
   sample_validation -->|9| paths
   tests -->|9| maintenance
   audit -->|8| paths
@@ -99,7 +100,6 @@ graph LR
   process -->|8| config
   process -->|8| final_library
   publish -->|8| kernel
-  queue -->|8| paths
   scripts -->|8| diagnostics
   tests -->|8| diagnostics
   api -->|7| kernel
@@ -255,7 +255,7 @@ graph LR
 | process | paths | 30 |
 | config | kernel | 27 |
 | process | kernel | 27 |
-| tests | queue | 25 |
+| tests | queue | 26 |
 | tests | rename | 25 |
 | tests | status | 23 |
 | unknown | kernel | 19 |
@@ -283,6 +283,7 @@ graph LR
 | observability | paths | 10 |
 | tests | kernel | 10 |
 | api | processes | 9 |
+| queue | paths | 9 |
 | sample_validation | paths | 9 |
 | tests | maintenance | 9 |
 | audit | paths | 8 |
@@ -291,7 +292,6 @@ graph LR
 | process | config | 8 |
 | process | final_library | 8 |
 | publish | kernel | 8 |
-| queue | paths | 8 |
 | scripts | diagnostics | 8 |
 | tests | diagnostics | 8 |
 | api | kernel | 7 |

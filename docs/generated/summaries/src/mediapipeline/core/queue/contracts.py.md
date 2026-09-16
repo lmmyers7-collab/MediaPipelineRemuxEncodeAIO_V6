@@ -3,9 +3,9 @@ file: src/mediapipeline/core/queue/contracts.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-09-14
+last_modified: 2026-09-15
 last_reviewed: 2026-06-04
-sha256: c4949fe02bd5c53cb9ba440862e231562735ec1c3e06cb8825dcb5bb59c80f65
+sha256: 162b3cee3452fee8ccb38343c9be0eab9e832e0d3b4bb4cae1774a3356465b8f
 ---
 # `src/mediapipeline/core/queue/contracts.py`
 

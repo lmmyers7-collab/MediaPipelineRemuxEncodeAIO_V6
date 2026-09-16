@@ -49,7 +49,11 @@ def run_queue_dry_run_for_service(
     snap_path.parent.mkdir(parents=True, exist_ok=True)
     request_id = uuid.uuid4().hex
     temp_snapshot_path = queue_dry_run_temp_snapshot_path(snap_path, request_id)
-    cmd = build_queue_dry_run_command(resolved, temp_snapshot_path=temp_snapshot_path)
+    cmd = build_queue_dry_run_command(
+        resolved,
+        temp_snapshot_path=temp_snapshot_path,
+        discovery_manifest_path=getattr(service, "_queue_discovery_manifest_path", None),
+    )
     launch_cwd = service.workspace_root if service.workspace_root.exists() else service.app_root
     started_at = time.time()
     total_started = time.perf_counter()

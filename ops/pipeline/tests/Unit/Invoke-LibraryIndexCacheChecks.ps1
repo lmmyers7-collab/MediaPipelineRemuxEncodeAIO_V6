@@ -79,6 +79,69 @@ function Invoke-SourceScanTimeoutPreservesLastGoodCacheCheck {
     }
 }
 
+function Invoke-UnifiedDiscoveryArtifactValidationCheck {
+    $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('MediaPipelineDiscoveryArtifact_' + [guid]::NewGuid().ToString('N'))
+    try {
+        $script:LocalBase = $tempRoot
+        $script:SourceMovies = Join-Path $tempRoot 'Movies'
+        $script:SourceTV = Join-Path $tempRoot 'TV'
+        $script:Outsource = Join-Path $tempRoot 'Out'
+        $scanDir = Join-Path $tempRoot 'State\Progress\QueueScans\scan-1'
+        New-Item -ItemType Directory -Path $script:SourceMovies,$script:SourceTV,$scanDir -Force | Out-Null
+        $sourcePath = Join-Path $script:SourceMovies 'Movie.mkv'
+        Set-Content -LiteralPath $sourcePath -Value 'media' -Encoding UTF8
+        $sourceInfo = Get-Item -LiteralPath $sourcePath
+        $candidate = [ordered]@{
+            source_path = $sourceInfo.FullName
+            root_path = $script:SourceMovies
+            source_key = 'SourceMovies'
+            media_kind = 'movie'
+            name = $sourceInfo.Name
+            directory_name = $sourceInfo.DirectoryName
+            size_bytes = [long]$sourceInfo.Length
+            last_write_utc = $sourceInfo.LastWriteTimeUtc.ToString('o')
+            extension = $sourceInfo.Extension
+            priority_reasons = @()
+            priority_order_ticks = 0
+        }
+        $candidatePath = Join-Path $scanDir 'source_candidates.jsonl'
+        $candidateLine = ($candidate | ConvertTo-Json -Compress -Depth 5) + "`n"
+        [System.IO.File]::WriteAllText($candidatePath, $candidateLine, [System.Text.UTF8Encoding]::new($false))
+        $candidateHash = (Get-FileHash -LiteralPath $candidatePath -Algorithm SHA256).Hash.ToLowerInvariant()
+        $manifestPath = Join-Path $scanDir 'source_manifest.json'
+        [ordered]@{
+            schema_version = 'queue_discovery_manifest.v1'
+            status = 'complete'
+            candidates_path = $candidatePath
+            candidates_sha256 = $candidateHash
+            candidate_count = 1
+        } | ConvertTo-Json | Set-Content -LiteralPath $manifestPath -Encoding UTF8
+
+        function Get-MediaPipelineLibraryProfiles { return @() }
+        function Get-QueuedEntries {
+            param([array]$Files, [string]$RootPath, [switch]$IsTV, [hashtable]$LibraryProfileMetadata, [hashtable]$PriorityManifest)
+            return @($Files | ForEach-Object { [pscustomobject]@{ File = $_; IsTV = [bool]$IsTV } })
+        }
+        function New-MediaQueuePhasePlan {
+            param([array]$MovieEntries, [array]$TVEntries)
+            return [pscustomobject]@{ MovieCount = @($MovieEntries).Count; TVCount = @($TVEntries).Count }
+        }
+
+        $plan = Get-MediaQueueDiscoveryPlanFromArtifact -ManifestPath $manifestPath
+        Assert-True ($null -ne $plan) 'Valid unified discovery artifact should be accepted.'
+        Assert-Equal ([int]$plan.MovieCount) 1 'Accepted discovery artifact should preserve movie membership.'
+        Assert-Equal ([string]$script:LastQueueDiscoveryArtifactDecision) 'accepted' 'Accepted artifact should record its decision.'
+
+        Add-Content -LiteralPath $candidatePath -Value '{}'
+        $rejected = Get-MediaQueueDiscoveryPlanFromArtifact -ManifestPath $manifestPath
+        Assert-True ($null -eq $rejected) 'Checksum-altered discovery artifact should fall back.'
+        Assert-Equal ([string]$script:LastQueueDiscoveryArtifactDecision) 'legacy_fallback' 'Rejected artifact should record fallback.'
+    } finally {
+        Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
 Invoke-SourceScanTimeoutPreservesLastGoodCacheCheck
+Invoke-UnifiedDiscoveryArtifactValidationCheck
 
 Write-Host 'Library index cache checks passed.'

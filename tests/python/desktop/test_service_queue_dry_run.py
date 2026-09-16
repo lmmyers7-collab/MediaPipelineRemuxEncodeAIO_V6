@@ -57,6 +57,18 @@ class QueueDryRunHelperTests(unittest.TestCase):
         self.assertIn("-ConfigPath", args)
         self.assertIn(str(root / "Pipeline" / "config.psd1"), args)
 
+    def test_build_queue_dry_run_command_adds_backend_owned_discovery_artifact(self) -> None:
+        root = Path(r"C:\Bundle")
+        manifest = root / "State" / "Progress" / "QueueScans" / "scan-1" / "source_manifest.json"
+
+        args = build_queue_dry_run_command(
+            _resolved(root),
+            temp_snapshot_path=root / "State" / "queue_snapshot.dryrun.json",
+            discovery_manifest_path=manifest,
+        )
+
+        self.assertEqual(args[args.index("-QueueDiscoveryManifestPath") + 1], str(manifest))
+
     def test_queue_snapshot_file_is_fresh_handles_fresh_stale_and_missing(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             snapshot = Path(td) / "queue_snapshot.json"

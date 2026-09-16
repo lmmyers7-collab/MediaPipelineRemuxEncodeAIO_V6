@@ -1,0 +1,48 @@
+{
+  "id": "MP-CHANGE-2026-0915-001",
+  "title": "Unified queue discovery artifacts and bounded concurrency",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "high",
+  "date_started": "2026-09-15",
+  "date_completed": "2026-09-16",
+  "summary": "Create validated uncapped queue discovery artifacts in one backend traversal and let PowerShell curate transported metadata with a legacy-scan fallback.",
+  "reason": "Remove the redundant Python inventory then PowerShell recursive rescan path while preserving deterministic queue policy and a fail-safe legacy scanner.",
+  "affected_areas": ["queue discovery", "queue dry-run", "PowerShell library index", "derived state retention"],
+  "behavior_before": "The backend produced a capped inventory and then PowerShell recursively enumerated and restatted the same sources before curation.",
+  "behavior_after": "The backend writes complete checksum-bound JSONL candidate metadata under State/Progress/QueueScans, validates it, and passes its manifest through a backend-only pipeline argument. PowerShell validates it again and curates metadata records; uncertainty records a reason and invokes the legacy scanner.",
+  "files_touched": [
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0915-001.json",
+    "src/mediapipeline/core/queue/discovery_artifact.py",
+    "src/mediapipeline/core/queue/source_inventory.py",
+    "src/mediapipeline/core/queue/service.py",
+    "src/mediapipeline/core/queue/contracts.py",
+    "src/mediapipeline/core/queue/dry_run.py",
+    "src/mediapipeline/core/queue/dry_run_runner.py",
+    "ops/pipeline/entrypoints/MediaPipeline.ps1",
+    "ops/pipeline/engine/library/library_index.ps1",
+    "ops/pipeline/engine/queue/queue_entries.ps1",
+    "ops/pipeline/engine/queue/pipeline_engine.ps1",
+    "ops/pipeline/tests/Unit/Invoke-LibraryIndexCacheChecks.ps1",
+    "tests/python/desktop/test_service_queue_source_scan.py",
+    "tests/python/desktop/test_service_queue_dry_run.py",
+    "docs/generated/summaries",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/DEPENDENCY_GRAPH.md"
+  ],
+  "tests_added": [
+    "Python artifact checksum, scope, completeness, metadata, and curate-only reuse checks",
+    "Python backend-only dry-run argument check",
+    "PowerShell accepted-artifact and checksum-fallback checks"
+  ],
+  "manual_validation": [
+    "Adversarial review covered corrupt checksum, out-of-scope paths, incomplete state, candidate-count mismatch, retention boundaries, and legacy fallback before queue execution.",
+    "24 targeted and adjacent Python queue/API tests passed; Ruff and targeted mypy passed.",
+    "PowerShell library-index and queue-engine checks passed; full active reliability regression suite passed.",
+    "Generated summary freshness passed for 2,332 source files."
+  ],
+  "rollback_plan": "Revert this change. Removing QueueDiscoveryManifestPath restores the existing recursive scanner; the QueueScans directories are derived state and may be removed after confirming no live lease references them.",
+  "related_changes": [],
+  "notes": "Python impact: adds derived-artifact production/validation and bounded two-authority traversal. The public inventory remains preview-capped while execution candidates are written uncapped. No source, scratch, publish, FFmpeg, subtitle, or audio policy changes. Representative real-media validation remains required for PRs 4 and 5, not this discovery-only PR."
+}

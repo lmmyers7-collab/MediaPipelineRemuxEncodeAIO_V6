@@ -11,6 +11,11 @@ from mediapipeline.core.queue.dry_run_runner import (
     queue_dry_run_failure_for_service,
     run_queue_dry_run_for_service,
 )
+from mediapipeline.core.queue.discovery_artifact import (
+    latest_valid_queue_discovery_artifact,
+    validate_queue_discovery_artifact,
+    write_queue_discovery_artifact,
+)
 from mediapipeline.core.queue.preview_builder import build_queue_preview_for_service
 from mediapipeline.core.queue.priority_markers import (
     apply_priority_marker as apply_priority_marker_to_path,
@@ -276,6 +281,7 @@ class QueueServiceMixin:
             "queue_snapshot": "not_checked" if mode == "inventory_only" else "pending",
         }
         fallback_reason = ""
+        discovery_manifest_path: Path | None = None
         warnings: list[str] = []
 
         def completed_timing_evidence() -> tuple[dict[str, int], int]:
@@ -289,7 +295,20 @@ class QueueServiceMixin:
             return reconciled, total_elapsed_ms
 
         try:
-            if mode != "curate_only":
+            if mode == "curate_only":
+                discovery_manifest_path, artifact_reason = latest_valid_queue_discovery_artifact(resolved)
+                if discovery_manifest_path is not None:
+                    valid, _reason, manifest = validate_queue_discovery_artifact(resolved, discovery_manifest_path)
+                    if valid and manifest is not None:
+                        inventory_count = int(manifest.get("candidate_count") or 0)
+                        candidate_count = inventory_count
+                        directory_count = int(manifest.get("directory_count") or 0)
+                        cache_decisions["source_discovery"] = "valid_artifact_reuse"
+                else:
+                    fallback_reason = artifact_reason
+                    cache_decisions["source_discovery"] = "artifact_invalid_full_scan"
+
+            if mode != "curate_only" or discovery_manifest_path is None:
                 inventory_started = utc_now_iso()
                 self._write_queue_scan_status(
                     resolved,
@@ -309,7 +328,7 @@ class QueueServiceMixin:
                         queue_snapshot_path=snapshot_path,
                     ),
                 )
-                inventory = build_queue_source_inventory(resolved, scan_id=scan_id)
+                inventory = build_queue_source_inventory(resolved, scan_id=scan_id, row_limit=None)
                 inventory_count = int(inventory.get("row_count") or 0)
                 candidate_count = int(inventory.get("candidate_count") or inventory_count)
                 directory_count = int(inventory.get("directory_count") or 0)
@@ -322,6 +341,19 @@ class QueueServiceMixin:
                 warnings.extend(str(item) for item in inventory.get("warnings") or [] if str(item).strip())
                 if inventory_path is not None:
                     write_json_artifact(inventory_path, inventory)
+                discovery_manifest_path = write_queue_discovery_artifact(
+                    resolved,
+                    scan_id=scan_id,
+                    inventory=inventory,
+                )
+                if discovery_manifest_path is not None:
+                    valid, artifact_reason, _manifest = validate_queue_discovery_artifact(resolved, discovery_manifest_path)
+                    if valid:
+                        cache_decisions["source_discovery"] = "unified_full_scan"
+                    else:
+                        fallback_reason = artifact_reason
+                        discovery_manifest_path = None
+                        cache_decisions["source_discovery"] = "legacy_fallback"
 
             if mode == "inventory_only":
                 completed_at = utc_now_iso()
@@ -377,6 +409,7 @@ class QueueServiceMixin:
                 ),
             )
             curation_started_perf = time.perf_counter()
+            self._queue_discovery_manifest_path = discovery_manifest_path
             curated_row_count = len(self.build_queue_preview(resolved, force_refresh=force))
             curation_elapsed_ms = max(0, round((time.perf_counter() - curation_started_perf) * 1000))
             pipeline_timings = dict(getattr(self, "_queue_pipeline_phase_timings_ms", {}) or {})

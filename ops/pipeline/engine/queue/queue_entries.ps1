@@ -8,6 +8,10 @@
 function Get-SourcePriorityInfo {
     param($FileInfo)
 
+    if ($FileInfo -and $FileInfo.PSObject.Properties['_QueuePriorityInfo']) {
+        return $FileInfo._QueuePriorityInfo
+    }
+
     $reasons = [System.Collections.Generic.List[string]]::new()
     $priorityTicks = 0L
     if (Test-StartsWithPriorityMarker $FileInfo.Name) {
