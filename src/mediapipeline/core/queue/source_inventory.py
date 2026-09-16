@@ -6,6 +6,7 @@ import os
 import stat as stat_module
 import time
 from collections.abc import Mapping
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, UTC
 from pathlib import Path
@@ -132,6 +133,7 @@ def _source_inventory_row(
     root: QueueInventoryRoot,
     *,
     metadata_timing_ns: list[int] | None = None,
+    priority_markers: list[str] | None = None,
 ) -> dict[str, Any] | None:
     started_ns = time.perf_counter_ns()
     try:
@@ -145,6 +147,23 @@ def _source_inventory_row(
         return None
     size_bytes = int(stat.st_size)
     relative = _relative_path(path, root.path)
+    markers = [str(value) for value in (priority_markers or ["!"]) if str(value)]
+    priority_reasons: list[str] = []
+    priority_order_ns = 0
+    if any(path.name.startswith(marker) for marker in markers):
+        priority_reasons.append("file")
+        priority_order_ns = int(stat.st_mtime_ns)
+    current = path.parent
+    for _depth in range(4):
+        if not str(current) or current == current.parent:
+            break
+        if any(current.name.startswith(marker) for marker in markers):
+            priority_reasons.append(f"folder:{current.name}")
+            try:
+                priority_order_ns = max(priority_order_ns, int(current.stat().st_mtime_ns))
+            except OSError:
+                pass
+        current = current.parent
     return {
         "candidate_key": _candidate_key(path),
         "source_path": str(path),
@@ -157,6 +176,12 @@ def _source_inventory_row(
         "size_bytes": size_bytes,
         "size_gb": round(size_bytes / (1024.0 ** 3), 3),
         "last_write_utc": _iso_from_timestamp(stat.st_mtime),
+        "mtime_ns": int(stat.st_mtime_ns),
+        "name": path.name,
+        "directory_name": str(path.parent),
+        "extension": path.suffix,
+        "priority_reasons": priority_reasons,
+        "priority_order_ticks": priority_order_ns // 100,
         "curation_state": "uncurated",
         "launchable": False,
         "route": "pending_backend_curation",
@@ -169,11 +194,72 @@ def _increment_count(counts: dict[str, int], key: str) -> None:
     counts[key] = counts.get(key, 0) + 1
 
 
+def _storage_authority(path: Path) -> str:
+    text = str(path).replace("/", "\\")
+    if text.startswith("\\\\"):
+        parts = [part for part in text.split("\\") if part]
+        return "unc:" + "\\".join(parts[:2]).casefold()
+    return f"local:{path.drive.casefold() or 'relative'}"
+
+
+def _scan_inventory_root(root: QueueInventoryRoot, priority_markers: list[str]) -> dict[str, Any]:
+    result: dict[str, Any] = {
+        "rows": [],
+        "warnings": [],
+        "visited_dirs": 0,
+        "sidecar_count": 0,
+        "sidecar_media_kind_counts": {},
+        "sidecar_source_key_counts": {},
+        "sidecar_extension_counts": {},
+        "metadata_ns": 0,
+    }
+    if not root.path.exists():
+        result["warnings"].append(f"Source root missing or unavailable: {root.source_key} = {root.path}")
+        return result
+    if not root.path.is_dir():
+        result["warnings"].append(f"Source root is not a directory: {root.source_key} = {root.path}")
+        return result
+    metadata_timing_ns = [0]
+    try:
+        for dirpath, dirnames, filenames in os.walk(root.path, topdown=True, followlinks=False):
+            dirnames.sort(key=str.casefold)
+            filenames.sort(key=str.casefold)
+            result["visited_dirs"] += 1
+            for filename in filenames:
+                suffix = Path(filename).suffix.casefold()
+                if suffix in SIDECAR_FILE_SUFFIXES:
+                    candidate = Path(dirpath) / filename
+                    if candidate.is_file():
+                        result["sidecar_count"] += 1
+                        _increment_count(result["sidecar_media_kind_counts"], root.media_kind)
+                        _increment_count(result["sidecar_source_key_counts"], root.source_key)
+                        _increment_count(result["sidecar_extension_counts"], suffix)
+                    continue
+                if suffix not in MEDIA_FILE_SUFFIXES:
+                    continue
+                row = _source_inventory_row(
+                    Path(dirpath) / filename,
+                    root,
+                    metadata_timing_ns=metadata_timing_ns,
+                    priority_markers=priority_markers,
+                )
+                if row is not None:
+                    result["rows"].append(row)
+    except OSError as exc:
+        result["warnings"].append(f"Source root scan failed for {root.source_key}: {exc}")
+    result["metadata_ns"] = metadata_timing_ns[0]
+    return result
+
+
+def _scan_authority_roots(roots: list[QueueInventoryRoot], priority_markers: list[str]) -> list[dict[str, Any]]:
+    return [_scan_inventory_root(root, priority_markers) for root in roots]
+
+
 def build_queue_source_inventory(
     resolved: ResolvedPaths,
     *,
     scan_id: str,
-    row_limit: int = QUEUE_SOURCE_INVENTORY_ROW_LIMIT,
+    row_limit: int | None = QUEUE_SOURCE_INVENTORY_ROW_LIMIT,
 ) -> dict[str, Any]:
     total_started_ns = time.perf_counter_ns()
     produced_at = utc_now_iso()
@@ -188,52 +274,44 @@ def build_queue_source_inventory(
     sidecar_media_kind_counts: dict[str, int] = {}
     sidecar_source_key_counts: dict[str, int] = {}
     sidecar_extension_counts: dict[str, int] = {}
-    metadata_timing_ns = [0]
-
     traversal_started_ns = time.perf_counter_ns()
+    authority_roots: dict[str, list[QueueInventoryRoot]] = {}
     for root in roots:
-        if not root.path.exists():
-            warnings.append(f"Source root missing or unavailable: {root.source_key} = {root.path}")
-            continue
-        if not root.path.is_dir():
-            warnings.append(f"Source root is not a directory: {root.source_key} = {root.path}")
-            continue
-        try:
-            walker = os.walk(root.path, topdown=True, followlinks=False)
-            for dirpath, dirnames, filenames in walker:
-                dirnames.sort(key=str.casefold)
-                filenames.sort(key=str.casefold)
-                visited_dirs += 1
-                for filename in filenames:
-                    suffix = Path(filename).suffix.casefold()
-                    if suffix in SIDECAR_FILE_SUFFIXES:
-                        candidate = Path(dirpath) / filename
-                        if candidate.is_file():
-                            sidecar_count += 1
-                            _increment_count(sidecar_media_kind_counts, root.media_kind)
-                            _increment_count(sidecar_source_key_counts, root.source_key)
-                            _increment_count(sidecar_extension_counts, suffix)
-                        continue
-                    if suffix not in MEDIA_FILE_SUFFIXES:
-                        continue
-                    row = _source_inventory_row(
-                        Path(dirpath) / filename,
-                        root,
-                        metadata_timing_ns=metadata_timing_ns,
-                    )
-                    if row is None:
-                        continue
-                    rows.append(row)
-                    if len(rows) >= row_limit:
-                        truncated = True
-                        break
-                if truncated:
-                    break
-        except OSError as exc:
-            warnings.append(f"Source root scan failed for {root.source_key}: {exc}")
+        authority_roots.setdefault(_storage_authority(root.path), []).append(root)
+    if row_limit is None and len(authority_roots) > 1:
+        with ThreadPoolExecutor(max_workers=min(2, len(authority_roots)), thread_name_prefix="queue-discovery") as executor:
+            authority_results = list(
+                executor.map(
+                    lambda group: _scan_authority_roots(group, resolved.priority_markers),
+                    authority_roots.values(),
+                )
+            )
+        root_results = [result for group in authority_results for result in group]
+    else:
+        root_results = [_scan_inventory_root(root, resolved.priority_markers) for root in roots]
+
+    metadata_elapsed_ns = 0
+    for result in root_results:
+        warnings.extend(str(value) for value in result["warnings"])
+        visited_dirs += int(result["visited_dirs"])
+        sidecar_count += int(result["sidecar_count"])
+        metadata_elapsed_ns += int(result["metadata_ns"])
+        for target, source in (
+            (sidecar_media_kind_counts, result["sidecar_media_kind_counts"]),
+            (sidecar_source_key_counts, result["sidecar_source_key_counts"]),
+            (sidecar_extension_counts, result["sidecar_extension_counts"]),
+        ):
+            for key, value in source.items():
+                target[key] = target.get(key, 0) + int(value)
+        for row in result["rows"]:
+            if row_limit is not None and len(rows) >= row_limit:
+                truncated = True
+                break
+            rows.append(row)
         if truncated:
-            warnings.append(f"Source inventory stopped at row limit {row_limit}.")
             break
+    if truncated:
+        warnings.append(f"Source inventory stopped at row limit {row_limit}.")
     traversal_elapsed_ns = time.perf_counter_ns() - traversal_started_ns
 
     shaping_started_ns = time.perf_counter_ns()
@@ -260,7 +338,6 @@ def build_queue_source_inventory(
 
     shaping_elapsed_ns = time.perf_counter_ns() - shaping_started_ns
     total_elapsed_ns = time.perf_counter_ns() - total_started_ns
-    metadata_elapsed_ns = metadata_timing_ns[0]
     enumeration_elapsed_ns = max(0, traversal_elapsed_ns - metadata_elapsed_ns)
 
     def elapsed_ms(value_ns: int) -> int:
@@ -285,7 +362,7 @@ def build_queue_source_inventory(
         "launchable": False,
         "produced_at_utc": produced_at,
         "row_count": len(rows),
-        "row_limit": row_limit,
+        "row_limit": int(row_limit or 0),
         "rows_truncated": truncated,
         "sidecar_count": sidecar_count,
         "sidecar_counts_truncated": truncated,

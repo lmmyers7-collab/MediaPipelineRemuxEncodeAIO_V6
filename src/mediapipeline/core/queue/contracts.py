@@ -56,6 +56,7 @@ class QueuePreviewServiceProtocol(Protocol):
     _queue_pipeline_candidate_count: int
     _queue_pipeline_directory_count: int
     _queue_last_dry_run_timings_ms: dict[str, int]
+    _queue_discovery_manifest_path: Path | None
 
     def _queue_snapshot_path(self, resolved: ResolvedPaths) -> Path | None: ...
     def _read_queue_snapshot(self, path: Path) -> dict[str, Any] | None: ...

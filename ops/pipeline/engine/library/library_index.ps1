@@ -209,12 +209,156 @@ function Get-CachedSourceFiles {
     return @($cached)
 }
 
+function Test-MediaPipelineDiscoveryChildPath {
+    param([string]$Path, [string]$Root)
+    try {
+        $pathFull = [System.IO.Path]::GetFullPath($Path)
+        $rootFull = [System.IO.Path]::GetFullPath($Root).TrimEnd('\', '/')
+        return $pathFull.Equals($rootFull, [System.StringComparison]::OrdinalIgnoreCase) -or
+            $pathFull.StartsWith(($rootFull + [System.IO.Path]::DirectorySeparatorChar), [System.StringComparison]::OrdinalIgnoreCase)
+    } catch {
+        return $false
+    }
+}
+
+function Get-MediaQueueDiscoveryPlanFromArtifact {
+    param([string]$ManifestPath)
+
+    if ([string]::IsNullOrWhiteSpace($ManifestPath)) { return $null }
+    try {
+        $manifestFull = [System.IO.Path]::GetFullPath($ManifestPath)
+        $allowedRoot = [System.IO.Path]::GetFullPath((Join-Path $LocalBase 'State\Progress\QueueScans'))
+        if (-not (Test-MediaPipelineDiscoveryChildPath -Path $manifestFull -Root $allowedRoot)) {
+            throw 'manifest path is outside State\Progress\QueueScans'
+        }
+        $manifest = Get-Content -LiteralPath $manifestFull -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+        if ([string]$manifest.schema_version -ne 'queue_discovery_manifest.v1' -or [string]$manifest.status -ne 'complete') {
+            throw 'manifest schema or completion state is invalid'
+        }
+        $candidatesPath = [System.IO.Path]::GetFullPath([string]$manifest.candidates_path)
+        if (-not (Test-MediaPipelineDiscoveryChildPath -Path $candidatesPath -Root (Split-Path -Parent $manifestFull))) {
+            throw 'candidate artifact path is outside its scan directory'
+        }
+        $actualHash = (Get-FileHash -LiteralPath $candidatesPath -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant()
+        if ($actualHash -ne ([string]$manifest.candidates_sha256).ToLowerInvariant()) {
+            throw 'candidate artifact checksum mismatch'
+        }
+
+        $allowedRoots = [System.Collections.Generic.List[string]]::new()
+        foreach ($value in @($SourceMovies, $SourceTV)) {
+            if (-not [string]::IsNullOrWhiteSpace([string]$value)) {
+                [void]$allowedRoots.Add([System.IO.Path]::GetFullPath([string]$value).TrimEnd('\', '/'))
+            }
+        }
+        $profiles = if (Get-Command -Name Get-MediaPipelineLibraryProfiles -ErrorAction SilentlyContinue) {
+            @(Get-MediaPipelineLibraryProfiles)
+        } else { @() }
+        foreach ($profile in $profiles) {
+            $profileRoot = [string](Get-MediaPipelineProfileProperty -Profile $profile -Name 'source_path' -Default '')
+            if (-not [string]::IsNullOrWhiteSpace($profileRoot)) {
+                [void]$allowedRoots.Add([System.IO.Path]::GetFullPath($profileRoot).TrimEnd('\', '/'))
+            }
+        }
+
+        $records = [System.Collections.Generic.List[object]]::new()
+        foreach ($line in Get-Content -LiteralPath $candidatesPath -ErrorAction Stop) {
+            if ([string]::IsNullOrWhiteSpace($line)) { continue }
+            $row = $line | ConvertFrom-Json -ErrorAction Stop
+            $rootPath = [System.IO.Path]::GetFullPath([string]$row.root_path).TrimEnd('\', '/')
+            $rootAllowed = @($allowedRoots | Where-Object { $_.Equals($rootPath, [System.StringComparison]::OrdinalIgnoreCase) }).Count -gt 0
+            if (-not $rootAllowed -or -not (Test-MediaPipelineDiscoveryChildPath -Path ([string]$row.source_path) -Root $rootPath)) {
+                throw "candidate path or root is outside configured roots: $($row.source_path)"
+            }
+            $priorityInfo = @{
+                IsPriority = @($row.priority_reasons).Count -gt 0
+                Reasons = @($row.priority_reasons)
+                PriorityOrderTicks = [long]$row.priority_order_ticks
+            }
+            $file = [pscustomobject]@{
+                FullName = [string]$row.source_path
+                Name = [string]$row.name
+                BaseName = [System.IO.Path]::GetFileNameWithoutExtension([string]$row.name)
+                DirectoryName = [string]$row.directory_name
+                Directory = [System.IO.DirectoryInfo]::new([string]$row.directory_name)
+                Length = [long]$row.size_bytes
+                LastWriteTimeUtc = [datetime]$row.last_write_utc
+                Extension = [string]$row.extension
+                _QueuePriorityInfo = $priorityInfo
+            }
+            [void]$records.Add([pscustomobject]@{ Row = $row; File = $file; RootPath = $rootPath })
+        }
+        if ($records.Count -ne [int]$manifest.candidate_count) {
+            throw "candidate count mismatch: expected $($manifest.candidate_count), read $($records.Count)"
+        }
+
+        $movieList = [System.Collections.Generic.List[object]]::new()
+        $tvList = [System.Collections.Generic.List[object]]::new()
+        foreach ($group in @($records | Group-Object { [string]$_.Row.source_key })) {
+            $first = @($group.Group)[0]
+            $sourceKey = [string]$first.Row.source_key
+            $rootPath = [string]$first.RootPath
+            $designation = ([string]$first.Row.media_kind).ToLowerInvariant()
+            $profile = $null
+            $libraryMetadata = $null
+            if ($sourceKey.StartsWith('LibraryProfiles:', [System.StringComparison]::OrdinalIgnoreCase)) {
+                $profileId = $sourceKey.Substring('LibraryProfiles:'.Length)
+                $profile = @($profiles | Where-Object { [string](Get-MediaPipelineProfileProperty -Profile $_ -Name 'id' -Default '') -eq $profileId } | Select-Object -First 1)
+                if ($profile) {
+                    $settingsOverrides = Get-MediaPipelineLibraryProfileOverrideMap -Profile $profile
+                    $libraryMetadata = @{
+                        library_id = $profileId
+                        library_name = [string](Get-MediaPipelineProfileProperty -Profile $profile -Name 'name' -Default '')
+                        designation = $designation
+                        source_root = $rootPath
+                        output_root = [string](Get-MediaPipelineProfileProperty -Profile $profile -Name 'output_path' -Default $Outsource)
+                        settings_override_keys = @($settingsOverrides.Keys)
+                        settings_overrides = $settingsOverrides
+                        effective_settings = Resolve-MediaPipelineLibraryEffectiveSettings -Profile $profile -Overrides $settingsOverrides
+                    }
+                }
+            }
+            $movieFiles = [System.Collections.Generic.List[object]]::new()
+            $tvFiles = [System.Collections.Generic.List[object]]::new()
+            foreach ($record in @($group.Group)) {
+                $isTV = $designation -eq 'tv'
+                if ($designation -eq 'auto') {
+                    $isTV = ([string]$record.File.FullName) -match '(?i)[/\\]Season\s+\d+[/\\]' -or ([string]$record.File.Name) -match '(?i)(?<!\d)S\d{1,2}E\d{1,3}(?!\d)'
+                }
+                if ($isTV) { [void]$tvFiles.Add($record.File) } else { [void]$movieFiles.Add($record.File) }
+            }
+            if ($movieFiles.Count -gt 0) {
+                foreach ($entry in @(Get-QueuedEntries @($movieFiles.ToArray()) -RootPath $rootPath -LibraryProfileMetadata $libraryMetadata)) {
+                    [void]$movieList.Add($entry)
+                }
+            }
+            if ($tvFiles.Count -gt 0) {
+                foreach ($entry in @(Get-QueuedEntries @($tvFiles.ToArray()) -RootPath $rootPath -IsTV -LibraryProfileMetadata $libraryMetadata)) {
+                    [void]$tvList.Add($entry)
+                }
+            }
+        }
+        Write-Log "Unified discovery artifact accepted: $($records.Count) candidate(s) from $ManifestPath" 'DEBUG'
+        $script:LastQueueDiscoveryArtifactDecision = 'accepted'
+        return New-MediaQueuePhasePlan -MovieEntries @($movieList.ToArray()) -TVEntries @($tvList.ToArray())
+    } catch {
+        $script:LastQueueDiscoveryArtifactDecision = 'legacy_fallback'
+        $script:LastQueueDiscoveryArtifactFallbackReason = [string]$_.Exception.Message
+        Write-Log "Unified discovery artifact rejected; using legacy scanner: $($_.Exception.Message)" 'WARN'
+        return $null
+    }
+}
+
 function Get-MediaQueueDiscoveryPlan {
     param(
         [string] $MovieRoot = $SourceMovies,
         [string] $TVRoot = $SourceTV,
         [bool] $ForceRefresh = $false
     )
+
+    if (-not [string]::IsNullOrWhiteSpace([string]$script:QueueDiscoveryManifestPath)) {
+        $artifactPlan = Get-MediaQueueDiscoveryPlanFromArtifact -ManifestPath ([string]$script:QueueDiscoveryManifestPath)
+        if ($null -ne $artifactPlan) { return $artifactPlan }
+    }
 
     $profiles = if (Get-Command -Name Get-MediaPipelineLibraryProfiles -ErrorAction SilentlyContinue) {
         @(Get-MediaPipelineLibraryProfiles)

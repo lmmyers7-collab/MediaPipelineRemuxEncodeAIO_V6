@@ -227,7 +227,7 @@ function Invoke-MediaPipelineRound {
     }
     $roundCacheDecisions = @{
         processed_index = if ($rescanRequested) { 'forced_refresh' } else { 'normal_policy' }
-        source_discovery = if ($rescanRequested) { 'forced_refresh' } else { 'normal_policy' }
+        source_discovery = if ($script:LastQueueDiscoveryArtifactDecision) { [string]$script:LastQueueDiscoveryArtifactDecision } elseif ($rescanRequested) { 'forced_refresh' } else { 'normal_policy' }
     }
     $roundCandidateCount = [int]($queuePlan.MovieCount + $queuePlan.TVCount + $queuePlan.HoldCount)
     $snapshot = Invoke-MediaPipelineQueueSnapshot `
@@ -236,6 +236,7 @@ function Invoke-MediaPipelineRound {
         -Path $EnginePlan.QueueSnapshotPath `
         -PhaseTimingsMs $roundPhaseTimings `
         -CacheDecisions $roundCacheDecisions `
+        -FallbackReason ([string]$script:LastQueueDiscoveryArtifactFallbackReason) `
         -CandidateCount $roundCandidateCount `
         -NonFatal
     if ($snapshot) {
@@ -442,8 +443,9 @@ function Invoke-MediaPipelineEmitQueuePlan {
         } `
         -CacheDecisions @{
             processed_index = 'forced_refresh'
-            source_discovery = 'forced_refresh'
+            source_discovery = if ($script:LastQueueDiscoveryArtifactDecision) { [string]$script:LastQueueDiscoveryArtifactDecision } else { 'forced_refresh' }
         } `
+        -FallbackReason ([string]$script:LastQueueDiscoveryArtifactFallbackReason) `
         -CandidateCount $candidateCount
     $script:LastQueueScanPhaseTimingsMs = $snapshot.phase_timings_ms
     $script:LastQueueScanDurationSeconds = [math]::Round(((Get-Date) - $scanStartedAt).TotalSeconds, 3)

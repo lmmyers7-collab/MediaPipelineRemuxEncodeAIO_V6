@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 import tempfile
 import threading
@@ -12,6 +13,10 @@ from mediapipeline.tools.paths import find_repo_root
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.core.queue.service import QueueServiceMixin
+from mediapipeline.core.queue.discovery_artifact import (
+    validate_queue_discovery_artifact,
+    write_queue_discovery_artifact,
+)
 from mediapipeline.core.queue.source_inventory import build_queue_source_inventory, queue_scan_status_path, queue_source_inventory_path
 from mediapipeline.desktop.models import ResolvedPaths
 
@@ -67,6 +72,33 @@ class DummyQueueScanService(QueueServiceMixin):
 
 
 class QueueSourceScanTests(unittest.TestCase):
+    def test_discovery_artifact_is_complete_uncapped_and_checksum_guarded(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            for index in range(7):
+                source = root / "Movies" / f"Movie {index}.mkv"
+                source.parent.mkdir(parents=True, exist_ok=True)
+                source.write_bytes(b"media")
+            inventory = build_queue_source_inventory(resolved, scan_id="scan-artifact", row_limit=None)
+            manifest_path = write_queue_discovery_artifact(resolved, scan_id="scan-artifact", inventory=inventory)
+            assert manifest_path is not None
+
+            valid, reason, manifest = validate_queue_discovery_artifact(resolved, manifest_path)
+            self.assertTrue(valid, reason)
+            assert manifest is not None
+            self.assertEqual(manifest["schema_version"], "queue_discovery_manifest.v1")
+            self.assertEqual(manifest["candidate_count"], 7)
+            candidates_path = Path(manifest["candidates_path"])
+            rows = [json.loads(line) for line in candidates_path.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual(len(rows), 7)
+            self.assertTrue(all("mtime_ns" in row and "priority_reasons" in row for row in rows))
+
+            candidates_path.write_text(candidates_path.read_text(encoding="utf-8") + "{}\n", encoding="utf-8")
+            valid, reason, _manifest = validate_queue_discovery_artifact(resolved, manifest_path)
+            self.assertFalse(valid)
+            self.assertEqual(reason, "candidate_checksum_mismatch")
+
     def test_source_inventory_lists_media_candidates_without_launch_authority(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -146,6 +178,18 @@ class QueueSourceScanTests(unittest.TestCase):
             self.assertEqual(inventory["row_count"], 1)
             self.assertFalse(inventory["launchable"])
             self.assertEqual(inventory["rows"][0]["curation_state"], "uncurated")
+
+            reuse = service.start_queue_source_scan(
+                resolved,
+                {"mode": "curate_only", "force": True, "scope": "all"},
+            )
+            for _ in range(100):
+                reused_status = service.read_queue_scan_status(resolved)
+                if reused_status.get("status") == "completed" and reused_status.get("scan_id") != status.get("scan_id"):
+                    break
+                time.sleep(0.05)
+            self.assertTrue(reuse["ok"])
+            self.assertEqual(reused_status["cache_decisions"]["source_discovery"], "valid_artifact_reuse")
 
     def test_source_scan_thread_is_not_daemonized_and_blocks_close_readiness(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
